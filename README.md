@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
+  <a href="#start-here-the-setup-guide"><strong>Start here</strong></a> ·
   <a href="#why-penpair">Why</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#web-or-docker">Web or Docker</a> ·
-  <a href="#add-penpair-to-your-repo">Add to your repo</a> ·
   <a href="#packages">Packages</a> ·
   <a href="#use-it-with-marwes">Marwes</a> ·
   <a href="#check-each-page-with-reflection">Reflection</a> ·
@@ -39,6 +39,36 @@ penpair makes a Penpot design file the **source of truth** for your project's UI
 | **Drive it** | Inspect, build, audit, export, archive and manage design tokens through Penpot's MCP and plugin API. |
 | **Know it** | The rules and the quirks of the tool ship with the code as skills your agent follows. |
 | **Extend it** | Plug in your component library, your checks and your own snippets. The core stays neutral. |
+
+## Start here: the setup guide
+
+The easiest way in is to let your AI assistant walk you through it. **[penpair-setup-guide](https://github.com/niklas-westman/penpair/blob/main/skills/penpair-setup-guide/SKILL.md)** is a skill for Claude Code, Codex and GitHub Copilot that guides you from nothing to a first design, one step at a time:
+
+1. checks Node and your project,
+2. asks whether Penpot runs **on the web** (recommended) or **in Docker** on your computer,
+3. helps you get a Penpot account and a design file,
+4. installs penpair and shows you **where your MCP link goes**, without the key ever passing through the chat,
+5. connects the plugin and verifies everything with `doctor`,
+6. asks whether you want **Marwes UI** tokens in Penpot,
+7. installs the rules your assistant follows,
+8. and ends with a **test POC** on its own page, so you see what it can do.
+
+**No install needed:** in your project's folder, tell your assistant:
+
+> Read https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md and follow it to set up penpair in this project.
+
+**Or install it as a skill** in your project, so it is there next time:
+
+```bash
+# Claude Code
+mkdir -p .claude/skills/penpair-setup-guide && curl -fsSL https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md -o .claude/skills/penpair-setup-guide/SKILL.md
+# Codex
+mkdir -p .agents/skills/penpair-setup-guide && curl -fsSL https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md -o .agents/skills/penpair-setup-guide/SKILL.md
+# GitHub Copilot
+mkdir -p .github/skills/penpair-setup-guide && curl -fsSL https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md -o .github/skills/penpair-setup-guide/SKILL.md
+```
+
+Then ask: *"set up penpair"*. Prefer to do it yourself? Read on: [Quick start](#quick-start).
 
 ## Why penpair
 
@@ -70,7 +100,7 @@ penpair does not design for you, and it has no "make me a page" button. It makes
 
 ## Quick start
 
-> **New here, or not a terminal person?** Follow the step-by-step guide with the browser steps: **[Getting started →](https://github.com/niklas-westman/penpair/blob/main/docs/getting-started.md)**
+> **New here, or not a terminal person?** Let your assistant guide you with the [setup guide](#start-here-the-setup-guide), or follow the step-by-step guide with the browser steps: **[Getting started →](https://github.com/niklas-westman/penpair/blob/main/docs/getting-started.md)**
 
 You need [Node.js](https://nodejs.org) 22 or later and a terminal. In your project's folder:
 
@@ -90,6 +120,15 @@ It asks where your Penpot is and does the rest, saying in plain words what it is
 
 Run it again any time; it continues where it stopped. `npx @penpair/web doctor` tells you what works, what does not and what to do about it.
 
+Then commit what it made (never `.env.local`; it is already git-ignored):
+
+```bash
+git add penpair.config.json .gitignore .skills .agents .claude
+git commit -m "Add penpair"
+```
+
+Each teammate runs their own `npx @penpair/web connect`: the key belongs to a person, not to the repo. To pin penpair for the team, add it as a dev dependency (`npm i -D @penpair/web`, or `@penpair/docker`; one of the two, not both); the command is then `npx penpair …`. To write your own Penpot operations, use the library from the same package: `import { defineSnippet } from "@penpair/web"`.
+
 ## Web or Docker
 
 Two ways to run Penpot, one way to connect. Pick one; you can switch later.
@@ -104,31 +143,15 @@ Two ways to run Penpot, one way to connect. Pick one; you can switch later.
 
 The full comparison, what is checked and how to switch: **[Web or Docker →](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/references/web-or-docker.md)**
 
-## Add penpair to your repo
-
-```bash
-cd your-project
-npx @penpair/web setup            # asks: web or this computer
-```
-
-Then commit what it made (not `.env.local`; it is already in `.gitignore`):
-
-```bash
-git add penpair.config.json .gitignore .skills .agents .claude
-git commit -m "Add penpair"
-```
-
-Everyone who works with the assistant does their own `npx @penpair/web connect`: the key belongs to a person, not to the repo. To pin penpair for the team, add it as a dev dependency: `npm i -D @penpair/web` (or `@penpair/docker` for Penpot in Docker; install one of the two, not both). The command is then `npx penpair …`. To write your own Penpot operations, use the library from the same package: `import { defineSnippet } from "@penpair/web"` (the library alone is `@penpair/core`).
-
 ## Packages
 
 | Package | What it is | Status |
 | --- | --- | --- |
-| [`@penpair/web`](https://www.npmjs.com/package/@penpair/web) | The `penpair` command for Penpot on the web. Includes everything in the core | 0.1.1 |
-| [`@penpair/docker`](https://www.npmjs.com/package/@penpair/docker) | The same command, plus Penpot in Docker on your computer: `up`, `down`, `backup`, `restore`. Includes everything in the core | 0.1.1 |
-| [`@penpair/core`](https://www.npmjs.com/package/@penpair/core) | The library and engine, with the skills. No command of its own; the two above are built on it | 0.1.1 |
+| [`@penpair/web`](https://www.npmjs.com/package/@penpair/web) | The `penpair` command for Penpot on the web. Includes everything in the core | Published |
+| [`@penpair/docker`](https://www.npmjs.com/package/@penpair/docker) | The same command, plus Penpot in Docker on your computer: `up`, `down`, `backup`, `restore`. Includes everything in the core | Published |
+| [`@penpair/core`](https://www.npmjs.com/package/@penpair/core) | The library and engine, with the skills. No command of its own; the two above are built on it | Published |
 | `penpair` | The short name for `@penpair/web`, so that `npx penpair setup` works | Waiting for npm to allow the name (it is blocked as too close to an unrelated package). Until then use `npx @penpair/web`. |
-| [`@penpair/marwes-ui`](https://www.npmjs.com/package/@penpair/marwes-ui) | The adapter for the Marwes UI component library: Marwes tokens (and your theme) in Penpot, with drift checks | Tokens now; components planned. See below |
+| [`@penpair/marwes-ui`](https://www.npmjs.com/package/@penpair/marwes-ui) | The adapter for the Marwes UI component library: Marwes tokens (and your theme) in Penpot, with drift checks | Published: tokens now, components planned. See below |
 | `@penpair/reflection-check` | The link to Reflection's `reflection-check`, as its own package (today `penpair baselines` does it) | Planned |
 
 You install **one** command package, `@penpair/web` or `@penpair/docker`; the core comes with it.
@@ -187,12 +210,12 @@ One thing to know before you rely on it: the percentage is not a verdict. A corr
 
 ## For an AI agent
 
-If you were told to set penpair up, read [the setup skill](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/SKILL.md) first and follow it. In short:
+Guiding a person through a first setup? Follow [penpair-setup-guide](https://github.com/niklas-westman/penpair/blob/main/skills/penpair-setup-guide/SKILL.md). Repairing a project that is already set up? Follow [penpair-setup](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/SKILL.md). Either way:
 
-- Run `npx @penpair/web doctor --json` to see where things stand; every failing check carries a `remedy`.
-- Web is the default; use Docker only when the person asks for offline or local data.
-- **The personal MCP key never goes through you.** The person pastes it themselves into `npx @penpair/web connect` (a hidden prompt), or pipes it from their clipboard.
-- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `npx @penpair/web skills install` gives you the rules for working in Penpot (`penpair-design`) and for judging a screen (`design-judgment`).
+- `npx @penpair/web doctor --json` says where things stand; every failing check carries a `remedy`.
+- Web is the default; Docker only when the person asks for offline work or local data.
+- **The personal MCP key never goes through you.** The person pastes it into `npx @penpair/web connect` (a hidden prompt), or pipes it from their clipboard.
+- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `skills install` gives you the rules for working in Penpot (`penpair-design`) and for judging a screen (`design-judgment`).
 
 ## Commands
 
@@ -213,11 +236,12 @@ If you were told to set penpair up, read [the setup skill](https://github.com/ni
 
 - Penpot's plugin needs the **editor tab open and visible** while the assistant works, so penpair cannot run unattended overnight. It acts on one Penpot at a time, on the page you have open.
 - Checked against Penpot 2.18.3 (Docker) and the hosted Penpot 2.18.4: the same tools and limits, and a full deep check on both ([compatibility](https://github.com/niklas-westman/penpair/blob/main/docs/compatibility.md)). Not proven yet: a large file with a shared library on the hosted service, paid plans, two editors in one file, and a full `.penpot` export and import round trip.
-- penpair is early (0.1.0). Expect rough edges and quick fixes. The plan and the open questions are in [PLAN.md](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
+- penpair is early (0.1.x). Expect rough edges and quick fixes. The plan and the open questions are in [PLAN.md](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
 
 ## Documentation
 
-- [Getting started](https://github.com/niklas-westman/penpair/blob/main/docs/getting-started.md): step by step, for designers and for whoever sets it up
+- [Setup guide skill](https://github.com/niklas-westman/penpair/blob/main/skills/penpair-setup-guide/SKILL.md): your assistant walks you through the whole setup
+- [Getting started](https://github.com/niklas-westman/penpair/blob/main/docs/getting-started.md): step by step by hand, for designers and for whoever sets it up
 - [Guide](https://github.com/niklas-westman/penpair/blob/main/docs/guide.md): extension points, instances, commands
 - [Marwes tokens](https://github.com/niklas-westman/penpair/blob/main/docs/marwes-tokens.md): Marwes tokens in Penpot and drift checks
 - [Compatibility](https://github.com/niklas-westman/penpair/blob/main/docs/compatibility.md): what was checked on which Penpot

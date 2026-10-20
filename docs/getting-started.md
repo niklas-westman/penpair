@@ -2,6 +2,8 @@
 
 Draft. Written for someone who has not used a terminal much. The steps marked **(not tried yet)** come from Penpot's help pages, not from a run; the first person to follow this guide on a clean machine should mark what differs.
 
+**Easiest:** let your AI assistant (Claude Code, Codex or GitHub Copilot) walk you through it with the [setup guide skill](https://github.com/niklas-westman/penpair/blob/main/skills/penpair-setup-guide/SKILL.md). This page is the same path by hand.
+
 The normal way is to use Penpot on the web (or your team's own Penpot) and connect the AI assistant to it. Nothing runs on your computer except penpair. If you want your own copy of Penpot on your computer instead, see "Alternative: run Penpot on your own computer" at the end.
 
 There are two roles. You may be both.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`penpair-setup-guide`**, a skill for Claude Code, Codex and GitHub Copilot that walks a person from nothing to a first design: Node check, web or Docker, a Penpot account, where the MCP link goes (never through the chat), the plugin, `doctor`, the optional Marwes adapter, the agent rules and a test POC on its own page. It lives in `skills/` in the repository; an assistant can read it by URL or it can be copied into a project. The README now starts with it.
+
 ## 0.1.3
 
 Found on the first real run of the Marwes adapter against a hosted Penpot file.
