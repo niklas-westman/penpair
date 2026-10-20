@@ -1,6 +1,6 @@
 ---
 name: penpair-setup
-description: Set up penpair in a project and connect it to a Penpot, on the web (the default) or in Docker on this computer. Use when a project has no penpair.config.json, when `penpair doctor` reports a failure, when the user asks to install, start, connect, repair or move their Penpot connection, or when an agent is told "set up penpair". Do not use for editing a Penpot file (penpot-design) or deciding how a screen looks (design-judgment).
+description: Set up penpair in a project and connect it to a Penpot, on the web (the default) or in Docker on this computer. Use when a project has no penpair.config.json, when `penpair doctor` reports a failure, when the user asks to install, start, connect, repair or move their Penpot connection, or when an agent is told "set up penpair". Do not use for editing a Penpot file (penpair-design) or deciding how a screen looks (design-judgment).
 metadata:
   version: "0.1.0"
   scope: setup and connection
@@ -39,7 +39,7 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
    | editor and plugin: not connected or suspended | The tab is asleep or the plugin is not connected. Do step 4.4 again; keep the tab in front. |
    | key file: git would commit it | Add `.env.local` to `.gitignore`; `penpair connect` does it. |
 
-6. **Install the rules.** Run `npx @penpair/web skills install`, add the printed rows to the project's agent guide, then fill in `.skills/penpot-design/references/project-facts.md` with the person (the Penpot file, token sets, naming, who approves). Done when that file has no `<...>` placeholders left.
+6. **Install the rules.** Run `npx @penpair/web skills install`, add the printed rows to the project's agent guide, then fill in `.skills/penpair-design/references/project-facts.md` with the person (the Penpot file, token sets, naming, who approves). Done when that file has no `<...>` placeholders left.
 
 ## Moving between web and Docker
 

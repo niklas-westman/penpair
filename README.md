@@ -192,7 +192,7 @@ If you were told to set penpair up, read [the setup skill](https://github.com/ni
 - Run `npx @penpair/web doctor --json` to see where things stand; every failing check carries a `remedy`.
 - Web is the default; use Docker only when the person asks for offline or local data.
 - **The personal MCP key never goes through you.** The person pastes it themselves into `npx @penpair/web connect` (a hidden prompt), or pipes it from their clipboard.
-- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `npx @penpair/web skills install` gives you the rules for working in Penpot (`penpot-design`) and for judging a screen (`design-judgment`).
+- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `npx @penpair/web skills install` gives you the rules for working in Penpot (`penpair-design`) and for judging a screen (`design-judgment`).
 
 ## Commands
 

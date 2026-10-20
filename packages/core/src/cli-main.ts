@@ -1,4 +1,5 @@
 import { writeFile, readFile } from "node:fs/promises";
+import path from "node:path";
 import { parseArgs } from "node:util";
 import { connect, executeCode } from "./client.js";
 import { redactEndpoint, resolveEndpoint } from "./endpoint.js";
@@ -238,7 +239,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       for (const link of report.linked) console.log(`linked    ${link}`);
       console.log(`${report.unchanged.length} file(s) already up to date`);
       console.log("\nAdd to your AGENTS.md skills table:\n" + report.agentsRows.join("\n"));
-      console.log("\nThen fill in references/project-facts.md in penpot-design: it is yours and is never replaced.");
+      for (const old of report.legacy) console.log(`\nnote ${old.folder} is the old name of ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Delete the old folder and its links (.agents/skills/${path.posix.basename(old.folder)}, .claude/skills/${path.posix.basename(old.folder)}) and update its row in your AGENTS.md.`);
+      console.log("\nThen fill in references/project-facts.md in penpair-design: it is yours and is never replaced.");
       return 0;
     }
     for (const name of await listBundledSkills()) console.log(name);

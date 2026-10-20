@@ -8,7 +8,7 @@ const project = async (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "pen
 
 describe("the shipped skills", () => {
   it("are setup, the Penpot skill and design judgment, each with a SKILL.md that names itself", async () => {
-    expect(await listBundledSkills()).toEqual(["design-judgment", "penpair-setup", "penpot-design"]);
+    expect(await listBundledSkills()).toEqual(["design-judgment", "penpair-design", "penpair-setup"]);
     for (const name of await listBundledSkills()) {
       const { name: declared, summary } = await describeSkill(path.join(bundledSkillsDirectory(), name));
       expect(declared).toBe(name);
@@ -22,11 +22,11 @@ describe("installing skills", () => {
     const root = await project();
     const report = await installSkills({ root });
     expect(report.installed.length).toBeGreaterThan(10);
-    expect(report.linked).toEqual(expect.arrayContaining([".agents/skills/penpot-design", ".claude/skills/design-judgment"]));
-    expect(await readlink(path.join(root, ".claude/skills/penpot-design"))).toBe(path.join("..", "..", ".skills", "penpot-design"));
-    expect((await lstat(path.join(root, ".claude/skills/penpot-design"))).isSymbolicLink()).toBe(true);
-    expect(await readFile(path.join(root, ".claude/skills/penpot-design/SKILL.md"), "utf8")).toMatch(/^name: penpot-design/m);
-    expect(report.agentsRows.join("\n")).toMatch(/\| \[penpot-design\]\(\.skills\/penpot-design\/SKILL\.md\) \|/);
+    expect(report.linked).toEqual(expect.arrayContaining([".agents/skills/penpair-design", ".claude/skills/design-judgment"]));
+    expect(await readlink(path.join(root, ".claude/skills/penpair-design"))).toBe(path.join("..", "..", ".skills", "penpair-design"));
+    expect((await lstat(path.join(root, ".claude/skills/penpair-design"))).isSymbolicLink()).toBe(true);
+    expect(await readFile(path.join(root, ".claude/skills/penpair-design/SKILL.md"), "utf8")).toMatch(/^name: penpair-design/m);
+    expect(report.agentsRows.join("\n")).toMatch(/\| \[penpair-design\]\(\.skills\/penpair-design\/SKILL\.md\) \|/);
   });
 
   it("is safe to run again: nothing changes, and a file the project edited is kept", async () => {
@@ -35,23 +35,23 @@ describe("installing skills", () => {
     const second = await installSkills({ root });
     expect(second.installed).toEqual([]);
     expect(second.linked).toEqual([]);
-    const edited = path.join(root, ".skills/penpot-design/references/write-protocol.md");
+    const edited = path.join(root, ".skills/penpair-design/references/write-protocol.md");
     await writeFile(edited, "my changes");
     const third = await installSkills({ root });
-    expect(third.kept).toEqual([".skills/penpot-design/references/write-protocol.md"]);
+    expect(third.kept).toEqual([".skills/penpair-design/references/write-protocol.md"]);
     expect(await readFile(edited, "utf8")).toBe("my changes");
     const forced = await installSkills({ root, force: true });
-    expect(forced.installed).toEqual([".skills/penpot-design/references/write-protocol.md"]);
+    expect(forced.installed).toEqual([".skills/penpair-design/references/write-protocol.md"]);
     expect(await readFile(edited, "utf8")).not.toBe("my changes");
   });
 
   it("never replaces the project's own facts file, not even with force", async () => {
     const root = await project();
     await installSkills({ root });
-    const facts = path.join(root, ".skills/penpot-design/references/project-facts.md");
+    const facts = path.join(root, ".skills/penpair-design/references/project-facts.md");
     await writeFile(facts, "# Mine\nfile: demo");
     const forced = await installSkills({ root, force: true });
-    expect(forced.kept).toContain(".skills/penpot-design/references/project-facts.md");
+    expect(forced.kept).toContain(".skills/penpair-design/references/project-facts.md");
     expect(await readFile(facts, "utf8")).toBe("# Mine\nfile: demo");
   });
 
@@ -65,8 +65,28 @@ describe("installing skills", () => {
 
   it("does not replace an existing link or folder where a link would go", async () => {
     const root = await project();
-    await mkdir(path.join(root, ".claude/skills/penpot-design"), { recursive: true });
+    await mkdir(path.join(root, ".claude/skills/penpair-design"), { recursive: true });
     const report = await installSkills({ root });
-    expect(report.linked).not.toContain(".claude/skills/penpot-design");
+    expect(report.linked).not.toContain(".claude/skills/penpair-design");
+  });
+});
+
+describe("a renamed skill", () => {
+  it("is reported when the old folder is still there, and the project's own facts move to the new one", async () => {
+    const root = await project();
+    const old = path.join(root, ".skills/penpot-design/references");
+    await mkdir(old, { recursive: true });
+    await writeFile(path.join(old, "project-facts.md"), "# Facts\n- Penpot: hosted\n");
+    const report = await installSkills({ root });
+    expect(report.legacy).toEqual([{ folder: ".skills/penpot-design", renamedTo: "penpair-design", carriedFacts: true }]);
+    expect(await readFile(path.join(root, ".skills/penpair-design/references/project-facts.md"), "utf8")).toBe("# Facts\n- Penpot: hosted\n");
+    // Run again: the new file is no longer the template, so nothing is overwritten.
+    await writeFile(path.join(root, ".skills/penpair-design/references/project-facts.md"), "# Newer facts\n");
+    expect((await installSkills({ root })).legacy[0]).toMatchObject({ carriedFacts: false });
+    expect(await readFile(path.join(root, ".skills/penpair-design/references/project-facts.md"), "utf8")).toBe("# Newer facts\n");
+  });
+
+  it("says nothing when there is no old folder", async () => {
+    expect((await installSkills({ root: await project() })).legacy).toEqual([]);
   });
 });

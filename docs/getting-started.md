@@ -62,7 +62,7 @@ If you want to know what your Penpot offers before you start, `npx @penpair/web 
 ```
 npx @penpair/web skills install
 ```
-This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpot-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
+This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpair-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
 
 ### Every day
 Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visible, and start working with the assistant.

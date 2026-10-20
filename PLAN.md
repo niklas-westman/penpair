@@ -62,7 +62,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] A short illustrated version (screenshots of each browser step)
 
 ### 4. Publish
-- [x] Skills pack shipped in the package (`packages/core/skills`: `penpot-design` with the write protocol, the plugin traps including the hosted-Penpot findings, flat auto-layout, a library-in-Penpot note and a `project-facts.md` template the project owns; `design-judgment` with the recipes made project-neutral) and `penpair skills install` (copies, links for Codex and Claude Code, prints the AGENTS.md rows, keeps edited files, never replaces `project-facts.md`). The neutrality test covers the skills too.
+- [x] Skills pack shipped in the package (`packages/core/skills`: `penpair-design` with the write protocol, the plugin traps including the hosted-Penpot findings, flat auto-layout, a library-in-Penpot note and a `project-facts.md` template the project owns; `design-judgment` with the recipes made project-neutral) and `penpair skills install` (copies, links for Codex and Claude Code, prints the AGENTS.md rows, keeps edited files, never replaces `project-facts.md`). The neutrality test covers the skills too.
 - [ ] Guide with screenshots, the hosted-profile run on a large file
 - [ ] First outside trial with feedback rounds (like Reflection's)
 - [ ] 0.1.0 published (owner): create the `@penpair` npm org and the GitHub repo, push, run the steps in `docs/releasing.md`

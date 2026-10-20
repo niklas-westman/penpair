@@ -76,6 +76,6 @@ export async function setup(root: string, io: SetupIo, options: SetupOptions): P
   const connect = await connectProject(root, config, io, { wait: options.wait });
   io.say("Everything answers. Last: the rules your assistant follows.");
   if (options.installSkills) await options.installSkills();
-  io.say("Done. Try `penpair pages`, or tell your assistant to read the penpot-design skill and start.");
+  io.say("Done. Try `penpair pages`, or tell your assistant to read the penpair-design skill and start.");
   return { config, connect };
 }

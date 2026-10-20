@@ -4,6 +4,7 @@
 
 - **`@penpair/marwes-ui`**, the Marwes UI adapter: `penpair marwes tokens snapshot | check | diff | push | status`. Marwes tokens and the project's own theme as Penpot token sets, a committed snapshot, an offline `check` for CI that fails when Marwes or the theme moves, a `diff` that shows what each change reaches (shapes bound to the token), and a verified `push`. Records Marwes variables it does not turn into tokens, so a new kind of variable cannot slip by. See `docs/marwes-tokens.md`.
 - **Adapters in the core**: a project lists `adapters` in `penpair.config.json`; an adapter (`defineAdapter`) adds commands and keeps its settings in its own block. The core loads them by name from the project and knows nothing about any of them.
+- **The Penpot skill is now `penpair-design`** (it was `penpot-design`), so it matches `penpair-setup` and no longer collides with a project's own `penpot-design`. `penpair skills install` tells you when the old folder is still there and carries your `project-facts.md` over to the new one.
 - Found while building it: assigning a typography token's value in Penpot stores it un-normalised; the adapter removes and adds those again.
 
 ## 0.1.1

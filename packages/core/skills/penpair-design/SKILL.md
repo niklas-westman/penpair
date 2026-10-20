@@ -1,5 +1,5 @@
 ---
-name: penpot-design
+name: penpair-design
 description: Work in a Penpot file through penpair: inspect, build, change, audit, export and archive frames and components, bind every value to a token, keep layout as flat auto-layout, and run Penpot as one instance per project. Use when creating, editing, inspecting or exporting anything in Penpot, adding or binding tokens, writing a project snippet, setting up or checking a Penpot instance, or diagnosing a plugin or connection error. Do not use for deciding how a screen should be structured (design-judgment).
 metadata:
   version: "0.1.0"
@@ -8,7 +8,7 @@ metadata:
 compatibility: A running Penpot (local Docker, a team server or the hosted service) with the plugin connected in a visible editor tab, Node 22, penpair installed.
 ---
 
-# penpot-design
+# penpair-design
 
 Penpot is the authority for the design; the code adapts to the frames. The project's component library defines what exists: a component, token or layout the library has wins, and only what it lacks becomes a project-specific component or token.
 

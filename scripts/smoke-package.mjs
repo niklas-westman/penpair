@@ -61,7 +61,7 @@ const web = await consumer("web", [`penpair-web-${version}.tgz`], { "@penpair/co
 check((await readdir(join(web, "node_modules/@penpair"))).sort().join(",") === "core,web", "installing only @penpair/web brings the core with it");
 check((await penpair(web, "--version")).trim() === version, `penpair --version is ${version}`);
 const skills = (await penpair(web, "skills")).split("\n").filter(Boolean);
-check(["design-judgment", "penpair-setup", "penpot-design"].every((name) => skills.includes(name)), `the three skills ship (${skills.join(", ")})`);
+check(["design-judgment", "penpair-setup", "penpair-design"].every((name) => skills.includes(name)), `the three skills ship (${skills.join(", ")})`);
 const help = await penpair(web, "--help");
 check(/penpair setup/.test(help) && /not part of this install/.test(help), "the help starts with setup and says where Docker comes from");
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet } from "@penpair/web"; console.log(typeof defineSnippet);'], { cwd: web })).trim() === "function", "@penpair/web exports everything the core has");

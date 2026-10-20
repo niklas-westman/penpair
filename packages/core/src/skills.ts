@@ -63,6 +63,9 @@ export interface InstallOptions {
   source?: string;
 }
 
+/** Skills that changed name. Installing the new one leaves the old folder behind, which `installSkills` then reports. */
+export const renamedSkills: Record<string, string> = { "penpot-design": "penpair-design" };
+
 export interface InstallReport {
   installed: string[];
   unchanged: string[];
@@ -71,6 +74,8 @@ export interface InstallReport {
   linked: string[];
   /** One line per skill for the project's AGENTS.md. */
   agentsRows: string[];
+  /** Folders of skills that were renamed and are still in the project, and whether their project-facts file was carried over. */
+  legacy: { folder: string; renamedTo: string; carriedFacts: boolean }[];
 }
 
 export async function installSkills(options: InstallOptions): Promise<InstallReport> {
@@ -79,7 +84,7 @@ export async function installSkills(options: InstallOptions): Promise<InstallRep
   const names = await listBundledSkills(source);
   const chosen = options.only ? options.only : names;
   for (const name of chosen) if (!names.includes(name)) throw new Error(`no skill named ${name}; shipped: ${names.join(", ")}`);
-  const report: InstallReport = { installed: [], unchanged: [], kept: [], linked: [], agentsRows: [] };
+  const report: InstallReport = { installed: [], unchanged: [], kept: [], linked: [], agentsRows: [], legacy: [] };
   for (const name of chosen) {
     const from = path.join(source, name);
     for (const file of await filesUnder(from)) {
@@ -108,6 +113,17 @@ export async function installSkills(options: InstallOptions): Promise<InstallRep
     }
     const { summary } = await describeSkill(from);
     report.agentsRows.push(`| [${name}](${path.posix.join(to, name, "SKILL.md")}) | ${summary} |`);
+  }
+  for (const [oldName, newName] of Object.entries(renamedSkills)) {
+    if (!chosen.includes(newName) || !(await exists(path.join(options.root, to, oldName)))) continue;
+    // The project-facts file is the project's own work: carry it over when the new copy is still the empty template.
+    const oldFacts = await readIfExists(path.join(options.root, to, oldName, "references/project-facts.md"));
+    const newFactsFile = path.join(options.root, to, newName, "references/project-facts.md");
+    const template = await readIfExists(path.join(source, newName, "references/project-facts.md"));
+    const current = await readIfExists(newFactsFile);
+    const carriedFacts = oldFacts !== undefined && oldFacts !== template && current === template;
+    if (carriedFacts) await writeFile(newFactsFile, oldFacts);
+    report.legacy.push({ folder: path.posix.join(to, oldName), renamedTo: newName, carriedFacts });
   }
   return report;
 }
