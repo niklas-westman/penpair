@@ -1,6 +1,6 @@
 # Releasing
 
-All packages in this repository are released **together, at one version, even a package that did not change**: `@penpair/core`, `@penpair/web`, `@penpair/docker`, `penpair`, and anything added under `packages/` later. The root of the repository is a private workspace and is never published. The rule is enforced, not remembered:
+All packages in this repository are released **together, at one version, even a package that did not change**: `@penpair/core`, `@penpair/web`, `@penpair/docker`, `@penpair/marwes-ui`, `penpair`, and anything added under `packages/` later. The root of the repository is a private workspace and is never published. The rule is enforced, not remembered:
 
 | Guard | What it stops |
 | --- | --- |
@@ -63,13 +63,14 @@ The release is then reported as `INCOMPLETE` (exit code 3) on purpose, and `pnpm
 npm view @penpair/core version
 npm view @penpair/web version
 npm view @penpair/docker version
+npm view @penpair/marwes-ui version
 ```
 
 Then, in an empty folder, run `npx @penpair/web --version`, `npx @penpair/web setup --help` and `npx @penpair/docker --version` (and, once the short name is published, the same with `npx penpair`). Tag the release if you want one: `git tag v<version> && git push origin v<version>`.
 
 ## What each package ships
 
-The core ships `dist`, `skills`, `LICENSE` and a short `README.md`. The web package ships `dist`, `docs`, `LICENSE` and the repository's `README.md` (copied in by `prepack`, git-ignored there). The Docker package ships `dist`, `LICENSE` and `README.md`. The short name ships `bin`, `LICENSE` and `README.md`. Check with `npm pack --dry-run --ignore-scripts` in a package.
+The core ships `dist`, `skills`, `LICENSE` and a short `README.md`. The web package ships `dist`, `docs`, `LICENSE` and the repository's `README.md` (copied in by `prepack`, git-ignored there). The Docker package and the Marwes adapter ship `dist`, `LICENSE` and `README.md`. The short name ships `bin`, `LICENSE` and `README.md`. Check with `npm pack --dry-run --ignore-scripts` in a package.
 
 ## After publishing
 

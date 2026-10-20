@@ -1,5 +1,6 @@
 export { version } from "./version.js";
 
+export * from "./adapters.js";
 export * from "./baselines.js";
 export { runCli } from "./cli-main.js";
 export * from "./client.js";

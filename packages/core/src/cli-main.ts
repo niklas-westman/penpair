@@ -19,6 +19,7 @@ import { init } from "./instance/init.js";
 import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
 import { hostedOrigin, setup, type SetupWhere } from "./instance/setup.js";
 import { askHidden, askLine, openInBrowser } from "./instance/tty.js";
+import { loadAdapters, readRawConfig, reservedCommands, type Adapter, type AdapterContext } from "./adapters.js";
 import { requireLocalProfile, type LocalContext, type LocalProfile } from "./local-profile.js";
 import { assertEndpointIsInstance, doctorExternal, LifecycleError, type DoctorCheck } from "./instance/connection.js";
 import { nodeRunner } from "./instance/runner.js";
@@ -70,12 +71,18 @@ const usageConnection = `Connecting to a Penpot (one project, configured in penp
   penpair doctor [--json]                              what is up, what is not, and what to do about it (--json for scripts and agents)
 `;
 
-const usage = (hasLocal: boolean): string =>
-  usageHead.replace("@@INSTANCE@@", usageConnection + (hasLocal ? usageLocalInstance : usageNoLocalInstance)).replace("@@SETUP@@", hasLocal ? "  penpair setup --docker                               Penpot on this computer in Docker\n" : "");
+const usage = (hasLocal: boolean, adapters: Adapter[] = []): string =>
+  usageHead.replace("@@INSTANCE@@", usageConnection + (hasLocal ? usageLocalInstance : usageNoLocalInstance)).replace("@@SETUP@@", hasLocal ? "  penpair setup --docker                               Penpot on this computer in Docker\n" : "") + adapterUsage(adapters);
+
+/** The commands that adapters from penpair.config.json add, after the core's own. */
+const adapterUsage = (adapters: Adapter[]): string =>
+  adapters.length === 0 ? "" : `\nAdapters (listed under "adapters" in penpair.config.json):\n${adapters.flatMap((a) => a.commands.flatMap((c) => c.usage.map((line) => `  ${line}`))).join("\n")}\n`;
 
 const list = (value: string | undefined): string[] => (value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
 
 export interface CliOptions {
+  /** Adapters already loaded (the command loads the project's own from penpair.config.json). */
+  adapters?: Adapter[];
   /** A way to run Penpot on this computer, from a package that provides one (`@penpair/docker`). Without it those commands explain where they come from. */
   local?: LocalProfile;
 }
@@ -124,7 +131,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
   if (!command || values.help) {
-    console.log(usage(Boolean(cli.local)));
+    console.log(usage(Boolean(cli.local), cli.adapters));
     return 0;
   }
 
@@ -423,7 +430,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (report.phase === "inspected") console.error("Nothing was written. Run again with --apply to do it.");
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else {
-      console.log(usage(Boolean(cli.local)));
+      console.log(usage(Boolean(cli.local), cli.adapters));
       return 1;
     }
     return 0;
@@ -432,10 +439,42 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 }
 
+/** Runs one command of an adapter with a context that can reach the project's Penpot. */
+async function runAdapterCommand(command: Adapter["commands"][number], root: string, args: string[]): Promise<number> {
+  const config = await loadConfig(root);
+  const rawConfig = await readRawConfig(root);
+  const context: AdapterContext = {
+    root,
+    config,
+    rawConfig,
+    log: (message) => console.error(`… ${message}`),
+    async withPenpot(work) {
+      const endpoint = await resolveEndpoint();
+      assertEndpointIsInstance(endpoint.description, config);
+      const client = await connect(endpoint);
+      try {
+        return await work(client);
+      } finally {
+        await client.close();
+      }
+    },
+  };
+  return command.run(context, args);
+}
+
 /** Runs the command line and returns the exit code. The `penpair` command calls it with nothing extra; a package that adds a way to run Penpot calls it with its profile. */
 export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
-    return await main(argv, options);
+    const root = process.cwd();
+    const raw = await readRawConfig(root);
+    const specifiers = Array.isArray(raw.adapters) ? raw.adapters.filter((entry): entry is string => typeof entry === "string") : [];
+    const loaded = options.adapters ? { adapters: options.adapters, problems: [] as string[] } : specifiers.length > 0 ? await loadAdapters(root, specifiers) : { adapters: [] as Adapter[], problems: [] as string[] };
+    const [first] = argv;
+    const adapterCommand = loaded.adapters.flatMap((adapter) => adapter.commands).find((command) => command.name === first);
+    if (adapterCommand) return await runAdapterCommand(adapterCommand, root, argv.slice(1));
+    const builtIn = (reservedCommands as readonly string[]).includes(first ?? "");
+    if (loaded.problems.length > 0 && (!builtIn || argv.includes("--help"))) for (const problem of loaded.problems) console.error(`warning: ${problem}`);
+    return await main(argv, { ...options, adapters: loaded.adapters });
   } catch (error: unknown) {
     console.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof ConnectError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);
     return 1;

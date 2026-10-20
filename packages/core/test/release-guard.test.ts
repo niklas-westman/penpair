@@ -33,7 +33,7 @@ describe("the repository as it is", () => {
   it("has every package at one version, guarded, with exact internal dependencies", async () => {
     const result = await checkVersions(repository);
     expect(result.problems).toEqual([]);
-    expect(result.packages.map((p: { name: string }) => p.name).sort()).toEqual(["@penpair/core", "@penpair/docker", "@penpair/web", "penpair"]);
+    expect(result.packages.map((p: { name: string }) => p.name).sort()).toEqual(["@penpair/core", "@penpair/docker", "@penpair/marwes-ui", "@penpair/web", "penpair"]);
   });
 
   it("publishes the core first and the short name after the web package", async () => {

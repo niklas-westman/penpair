@@ -17,6 +17,8 @@ export interface InstanceConfig {
   snippets?: string[];
   /** Frames of a page to export as approved reference images for a check (see `penpair baselines`). */
   baselines?: BaselinesConfig;
+  /** Packages (or relative paths) that add commands for a library or tool; each keeps its own settings in its own block of this file. */
+  adapters?: string[];
 }
 
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
@@ -25,6 +27,7 @@ export interface ExternalConfig {
   profile: { type: "external"; origin: string };
   snippets?: string[];
   baselines?: BaselinesConfig;
+  adapters?: string[];
 }
 
 export type ProjectConfig = InstanceConfig | ExternalConfig;
@@ -62,6 +65,7 @@ export function validateConfig(value: unknown): InstanceConfig {
     if (!ok) fail("snippets must be a list of relative paths that stay inside the project");
   }
   if (v.baselines !== undefined) validateBaselines(v.baselines, fail);
+  if (v.adapters !== undefined && !(Array.isArray(v.adapters) && v.adapters.every((e) => typeof e === "string" && e.length > 0))) fail("adapters must be a list of package names or relative paths");
   return v as unknown as InstanceConfig;
 }
 
@@ -86,6 +90,7 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   if (!parsed || !["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin) fail("profile.origin must be an http or https origin such as https://design.penpot.app (no path)");
   if (v.snippets !== undefined && !(Array.isArray(v.snippets) && v.snippets.every((entry) => typeof entry === "string" && entry.length > 0 && !path.isAbsolute(entry) && !entry.split(/[\\/]/).includes("..")))) fail("snippets must be a list of relative paths that stay inside the project");
   if (v.baselines !== undefined) validateBaselines(v.baselines, fail);
+  if (v.adapters !== undefined && !(Array.isArray(v.adapters) && v.adapters.every((e) => typeof e === "string" && e.length > 0))) fail("adapters must be a list of package names or relative paths");
   return v as unknown as ExternalConfig;
 }
 

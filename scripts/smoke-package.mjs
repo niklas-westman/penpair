@@ -34,9 +34,9 @@ const check = (ok, message) => {
   console.log(`ok  ${message}`);
 };
 
-for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
+for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/marwes-ui", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
 const tarballs = (await readdir(packDir)).filter((file) => file.endsWith(".tgz"));
-check(tarballs.length === 4, `four tarballs packed (${tarballs.join(", ")})`);
+check(tarballs.length === 5, `five tarballs packed (${tarballs.join(", ")})`);
 const tarball = (name) => join(packDir, tarballs.find((file) => file === name) ?? name);
 const core = `penpair-core-${version}.tgz`;
 const asFile = (name) => `file:${tarball(name)}`;
@@ -97,4 +97,11 @@ check(((await stat(join(docker, ".penpair/.env"))).mode & 0o777) === 0o600, "and
 const ignore = await readFile(join(docker, ".gitignore"), "utf8");
 check(/\.penpair\//.test(ignore) && /\.env\.local/.test(ignore), "and keeps both out of git");
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet, dockerProfile } from "@penpair/docker"; console.log(typeof defineSnippet, typeof dockerProfile.up);'], { cwd: docker })).trim() === "function function", "@penpair/docker exports everything the core has, plus the Docker profile");
+
+// 5. The Marwes adapter: installed beside the web command, loaded from the project's configuration, offline.
+const marwes = await consumer("marwes", [`penpair-web-${version}.tgz`, `penpair-marwes-ui-${version}.tgz`], { "@penpair/core": asFile(core) });
+await writeFile(join(marwes, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://design.penpot.app" }, adapters: ["@penpair/marwes-ui"], marwes: { project: "." } }));
+check(/penpair marwes tokens check/.test(await penpair(marwes, "--help")), "the help lists the adapter's commands once it is listed in the configuration");
+const noMarwes = await runFailing("npx", ["--no-install", "penpair", "marwes", "tokens", "check"], { cwd: marwes });
+check(/No @marwes-ui\/react, vue or svelte is installed/.test(noMarwes), "and its commands run, saying plainly when Marwes is not installed in the project");
 console.log(`\npackages smoke-tested from ${packDir}`);

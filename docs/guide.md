@@ -6,7 +6,7 @@ The contract an adopting project works through. It grows with the code; each sec
 | Point | A project supplies | First implementations |
 | --- | --- | --- |
 | Connection profile | endpoint, Penpot version, where the token comes from | local Docker, shared self-hosted, hosted |
-| Library adapter | where tokens and components come from | Marwes |
+| Library adapter | where tokens and components come from; commands the adapter adds, listed under `adapters` in `penpair.config.json` (`defineAdapter` in `@penpair/core`) | `@penpair/marwes-ui` (tokens) |
 | Snippet registry | named plugin snippets with inputs and a size check | tree, audit, tokens, archive |
 | Verification provider | what "matches the design" means | `penpair baselines` (images and Reflection cases, below), a page-verify gate |
 | Skill pack | rules the agent follows | the Penpot skill, design judgment |

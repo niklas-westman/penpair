@@ -43,6 +43,8 @@ Each one cost real time. They are written as the behaviour to use. Penpot 2.18.3
 - **Exports can fail once and then work, and can be stale right after a write or a page switch.** Export again, and compare two in a row.
 - The MCP key is personal, one per account, shown once. A key for another instance silently drives another file; penpair refuses it unless told otherwise.
 - A snippet receives data only through its parameters; it cannot read repository files.
+- **Token values can be changed in place** (`token.value = ...`, `token.description = ...`), and `token.remove()`, `set.remove()`, `theme.addSet(set)`, `theme.removeSet(set)` and `theme.remove()` all work. **Not for a typography token:** creating one normalises it (`fontFamilies: "Inter"` becomes `fontFamily: ["Inter"]`), but assigning a new value stores the object as given, un-normalised. Remove the token and add it again, and compare typography values in their normalised form. (Checked on Penpot 2.18.4, hosted.)
+- A new token set is inactive and a set's `resolvedValue` is null until a theme activates it; a file with no active theme resolves no tokens at all.
 
 ## Rendering differences to design for
 

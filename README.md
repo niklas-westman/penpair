@@ -128,14 +128,22 @@ Everyone who works with the assistant does their own `npx @penpair/web connect`:
 | [`@penpair/docker`](https://www.npmjs.com/package/@penpair/docker) | The same command, plus Penpot in Docker on your computer: `up`, `down`, `backup`, `restore`. Includes everything in the core | 0.1.1 |
 | [`@penpair/core`](https://www.npmjs.com/package/@penpair/core) | The library and engine, with the skills. No command of its own; the two above are built on it | 0.1.1 |
 | `penpair` | The short name for `@penpair/web`, so that `npx penpair setup` works | Waiting for npm to allow the name (it is blocked as too close to an unrelated package). Until then use `npx @penpair/web`. |
-| `@penpair/marwes-ui` | The adapter for the Marwes UI component library | Planned, see below |
+| [`@penpair/marwes-ui`](https://www.npmjs.com/package/@penpair/marwes-ui) | The adapter for the Marwes UI component library: Marwes tokens (and your theme) in Penpot, with drift checks | Tokens now; components planned. See below |
 | `@penpair/reflection-check` | The link to Reflection's `reflection-check`, as its own package (today `penpair baselines` does it) | Planned |
 
 You install **one** command package, `@penpair/web` or `@penpair/docker`; the core comes with it.
 
 ## Use it with Marwes
 
-Using [Marwes UI](https://marwes.io), the themeable component library for React, Vue and Svelte? Connecting Marwes is the recommended setup: your Penpot file then speaks the same tokens and components as your code, so what is designed is what gets built. The adapter, `@penpair/marwes-ui`, is the next package on the plan: it will import the Marwes tokens into your Penpot file and check that frames use them. Until it ships, set up penpair as above and name Marwes as your library in the project facts the setup skill asks you to fill in; the assistant then works against Marwes's tokens and components.
+Using [Marwes UI](https://marwes.io), the themeable component library for React, Vue and Svelte? Connecting Marwes is the recommended setup: your Penpot file then speaks the same tokens as your code, so what is designed is what gets built.
+
+```bash
+npm i -D @penpair/marwes-ui
+npx penpair marwes tokens snapshot --write     # the expected tokens, from the installed Marwes and your own theme
+npx penpair marwes tokens push --apply         # Penpot gets them: Marwes sets, plus a small overlay of what your theme changes
+```
+
+The part that keeps it solid is drift: a Marwes upgrade, a theme edit or a hand edit in Penpot is found, not discovered later. `penpair marwes tokens check` runs offline in CI and fails when the committed snapshot no longer matches the installed Marwes; `diff` shows what Penpot lacks and how many shapes each changed token reaches. How it works and how to put it in CI: [Marwes tokens in Penpot, and keeping them true](https://github.com/niklas-westman/penpair/blob/main/docs/marwes-tokens.md). Marwes components in Penpot are not covered yet; they are built as your pages need them.
 
 ## Check each page with Reflection
 
@@ -211,6 +219,7 @@ If you were told to set penpair up, read [the setup skill](https://github.com/ni
 
 - [Getting started](https://github.com/niklas-westman/penpair/blob/main/docs/getting-started.md): step by step, for designers and for whoever sets it up
 - [Guide](https://github.com/niklas-westman/penpair/blob/main/docs/guide.md): extension points, instances, commands
+- [Marwes tokens](https://github.com/niklas-westman/penpair/blob/main/docs/marwes-tokens.md): Marwes tokens in Penpot and drift checks
 - [Compatibility](https://github.com/niklas-westman/penpair/blob/main/docs/compatibility.md): what was checked on which Penpot
 - [Releasing](https://github.com/niklas-westman/penpair/blob/main/docs/releasing.md), [Changelog](https://github.com/niklas-westman/penpair/blob/main/CHANGELOG.md)
 
