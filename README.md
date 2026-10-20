@@ -19,17 +19,19 @@
 </p>
 
 <p align="center">
+  <a href="#why-penpair">Why</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#web-or-docker">Web or Docker</a> ·
   <a href="#add-penpair-to-your-repo">Add to your repo</a> ·
   <a href="#packages">Packages</a> ·
   <a href="#use-it-with-marwes">Marwes</a> ·
+  <a href="#check-each-page-with-reflection">Reflection</a> ·
   <a href="#for-an-ai-agent">For an AI agent</a>
 </p>
 
 ---
 
-penpair makes a Penpot design file the **source of truth** for your project's UI. Your assistant reads the real design, changes it with tested operations that look first, write once and read back, and follows written-down rules for how to work in Penpot. You review the result in Penpot as usual.
+penpair makes a Penpot design file the **source of truth** for your project's UI, and makes your AI assistant dependable at working in it. Prompt for a whole page; the assistant reads the real design, builds with tested operations that look first, write once and read back, and follows written-down rules for how to work in Penpot. You review the result in Penpot as usual, and [Reflection](#check-each-page-with-reflection) can check the page it later builds in code against the design.
 
 |  |  |
 | --- | --- |
@@ -37,6 +39,34 @@ penpair makes a Penpot design file the **source of truth** for your project's UI
 | **Drive it** | Inspect, build, audit, export, archive and manage design tokens through Penpot's MCP and plugin API. |
 | **Know it** | The rules and the quirks of the tool ship with the code as skills your agent follows. |
 | **Extend it** | Plug in your component library, your checks and your own snippets. The core stays neutral. |
+
+## Why penpair
+
+An AI assistant can already reach Penpot through its MCP server: it gets one tool that runs code inside your open file. That is power without hands-on knowledge, and designing a whole page that way fails in small, expensive ways. penpair is what makes it dependable, so you can prompt for a page and get a page.
+
+**What goes wrong with a bare connection**, all met while building real pages:
+
+- The first export after a change is often a stale render, so the assistant "sees" a defect that is not there, or misses one that is.
+- A token binding appears seconds after the call, so a correct write reads back as "not bound", and applying the same token twice removes it.
+- A request over about 110 KB is refused, a switched page takes effect only after the script ends, and a sleeping browser tab raises an error even though the write already landed.
+- Every new session rediscovers these, and a plain write cannot tell "done" from "half done".
+
+**What penpair adds:**
+
+| | What you get | Why it matters for a full page |
+| --- | --- | --- |
+| **Skills** | The traps, the flat auto-layout rules, token binding and screen-design judgment, written for the agent and installed into your repo | The assistant starts out knowing what took us hours to learn, and follows your component library and tokens instead of inventing styles |
+| **A safe write protocol** | Look first, write once, read back from scratch, then look at an export | A page is built in verified steps; a half-finished change is reported, not assumed |
+| **Stable exports and an audit** | Exports that wait for a stable render; a check for unbound colours, spacing off your scale, overflow and blank text | The assistant can judge its own page and show you evidence |
+| **One-command setup and `doctor`** | A connection that is checked, a key that never leaves your machine, an agent-readable `doctor --json` | A new teammate or a new agent is productive in minutes |
+
+**What a prompt can look like** once it is set up:
+
+> Design the candidate list page for tablet portrait as master and detail. Use our list and card components, bind every value to tokens, keep the header from the other pages. Check it, export it and show me.
+
+The assistant reads the project's skills, inspects the file, builds the page in one verified write, exports it (twice, so the render is stable), audits it and shows you the frames. You review in Penpot as usual. The protocol and the rules come from building a full page, in desktop, tablet and phone variants, on a real product.
+
+penpair does not design for you, and it has no "make me a page" button. It makes the assistant that does the designing reliable, repeatable and checkable.
 
 ## Quick start
 
@@ -100,6 +130,31 @@ Everyone who works with the assistant does their own `npx penpair connect`: the 
 ## Use it with Marwes
 
 Using [Marwes UI](https://marwes.io), the themeable component library for React, Vue and Svelte? Connecting Marwes is the recommended setup: your Penpot file then speaks the same tokens and components as your code, so what is designed is what gets built. The adapter, `@penpair/marwes`, is the next package on the plan: it will import the Marwes tokens into your Penpot file and check that frames use them. Until it ships, set up penpair as above and name Marwes as your library in the project facts the setup skill asks you to fill in; the assistant then works against Marwes's tokens and components.
+
+## Check each page with Reflection
+
+Designing a page is half the job; the other half is knowing the assistant built what the design says. We recommend pairing penpair with [Reflection](https://github.com/niklas-westman/reflection) (`reflection-check` on npm), which renders your real UI in a browser and compares it with an approved image, state by state, and shows you the difference.
+
+```
+ prompt ──▶ the assistant designs the page in Penpot ──▶ penpair export ──▶ an approved image per page and state
+                                                                                      │
+ you review ◀── Reflection: the rendered page against that image, with a diff ◀── the assistant builds the page in code
+```
+
+Why this pairing helps:
+
+- **The design is the reference, not the assistant's memory.** The exported frame is what the delivery is measured against, so a misreading of the design shows up as a visible difference, not as a surprise in review.
+- **Each page and state is one piece of evidence.** You look at a diff for the list, the open card, the empty state, the phone variant, instead of re-reading the whole change.
+- **Nothing passes on a promise.** Reflection is review-first: a mismatch is shown to you, and an approved image only changes when you say so.
+
+Today the hand-off is a few commands, not a button. Export the frame and use it as the approved image for that page:
+
+```bash
+npx penpair export <frameId> tests/baselines/candidates/tablet.png --page Candidate
+npm i -D reflection-check
+```
+
+then point a visual case in `reflection.config.ts` at that file (`baselineRoot` and `baseline`; see [Reflection's visual contract](https://github.com/niklas-westman/reflection/blob/main/docs/visual-contract.md)) and run `npx reflection run --config reflection.config.ts --mode smoke`. A pixel difference between a Penpot render and a browser render is evidence for you to read, not a score to chase: fonts and sub-pixel text differ, so judge the diff image. An automatic link that reads your pages from Penpot and projects each page and state into Reflection is on the plan; Reflection's provider toolkit (`reflection-projection`) is the planned route, and it has already been tried on a real page of 30 states.
 
 ## For an AI agent
 
