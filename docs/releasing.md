@@ -1,6 +1,6 @@
 # Releasing
 
-Two packages are published from this repository, always with the same version: `@penpair/core` (the library, the command, the skills; `packages/core`) and `penpair` (the short name for the command; `packages/penpair`). The root of the repository is a private workspace and is never published.
+Two packages are in this repository, always with the same version: `@penpair/core` (the library, the command, the skills; `packages/core`) and `penpair` (the short name for the command; `packages/penpair`). `penpair` can be published only after npm allows the name (it is blocked as too close to `ecpair`; ask support@npmjs.com); until then only the core is published and the docs say `npx @penpair/core`. The root of the repository is a private workspace and is never published.
 
 Publishing cannot be undone: a version, once published, cannot be replaced. Check first, publish once.
 
@@ -35,10 +35,10 @@ cd ../penpair && pnpm publish --access public
 
 ```bash
 npm view @penpair/core version
-npm view penpair version
+npm view penpair version   # only once the wrapper is published
 ```
 
-Then, in an empty folder, run `npx penpair --version` and `npx penpair setup --help`, so what was tested is what people get. Tag the release (`git tag v<version>`) and push the tag only if you want one.
+Then, in an empty folder, run `npx @penpair/core --version` and `npx @penpair/core setup --help` (and, once the wrapper is published, the same with `npx penpair`), so what was tested is what people get. Tag the release (`git tag v<version>`) and push the tag only if you want one.
 
 ## After publishing
 

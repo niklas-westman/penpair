@@ -82,6 +82,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-20: `@penpair/core@0.1.0` published (the owner). `penpair` (the wrapper) is refused by npm as too similar to `ecpair`; the owner asks npm support to allow it, and the docs say `npx @penpair/core` until then.
 - 2026-10-20: `penpair baselines` and the Reflection hand-off, tested end to end; the README's Reflection section now describes a real command. The richer link (pages and states projected into Reflection's viewer through `reflection-projection`) remains planned.
 - 2026-10-20: packaging for 0.1.0: package renamed to `@penpair/core` plus the `penpair` wrapper; Docker code moved to `src/docker` and separated from the connection (a test enforces it); package metadata, README links, `smoke:package`, CI, `docs/releasing.md`, CHANGELOG, SECURITY and CONTRIBUTING. 157 tests; both tarballs install in an empty project and run.
 - 2026-10-20: `penpair setup`, `penpair connect`, `doctor --json`, a key-file check, `init --gitignore` also covers `.env.local` for a web project; the skill `penpair-setup` (for an AI agent: recommend web, never see the key, verify with `doctor --json`) with a web-or-Docker reference; the README rewritten around a quick start, an AI section and the web-or-Docker choice. 146 tests.

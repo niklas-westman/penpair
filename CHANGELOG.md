@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-First version.
+First version. Published as `@penpair/core`; the short `penpair` wrapper waits for npm to allow the name.
 
 - `penpair setup`: one guided command from nothing to a working connection. Penpot on the web is the default (design.penpot.app or your team's own); Docker on your computer is the alternative.
 - `penpair connect`: takes your personal MCP key without showing it, refuses a key that belongs to another Penpot, stores it in a git-ignored `.env.local`, waits for the editor and plugin.

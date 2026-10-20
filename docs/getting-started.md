@@ -23,13 +23,13 @@ That is all. The assistant looks first, changes things in one go, and checks its
 ## If you set it up
 You need: a Mac or Linux computer, **Node.js** (the current LTS version), a terminal, and an account on a Penpot (the hosted one at design.penpot.app is free to start; use your team's address if it runs its own).
 
-**The quick way:** in your project's folder run `npx penpair setup`. It asks where your Penpot is (press Enter for the web), does steps 1 to 5 below, and says in plain words what it is waiting for. Run it again if you stop halfway. The rest of this section is what it does, one step at a time, for when you want to do it by hand or something needs fixing.
+**The quick way:** in your project's folder run `npx @penpair/core setup`. It asks where your Penpot is (press Enter for the web), does steps 1 to 5 below, and says in plain words what it is waiting for. Run it again if you stop halfway. The rest of this section is what it does, one step at a time, for when you want to do it by hand or something needs fixing.
 
 ### 1. Connect your project to that Penpot
 In the folder of your project:
 
 ```
-npx penpair init --external https://design.penpot.app --gitignore
+npx @penpair/core init --external https://design.penpot.app --gitignore
 ```
 
 `init` writes a small settings file (`penpair.config.json`, commit it) and keeps your private files out of git for you.
@@ -39,12 +39,12 @@ Open the Penpot address, create an account and log in. Create a project and a de
 
 ### 3. Connect the assistant (once)
 1. In Penpot open **Account, Integrations, MCP Server** and switch it on (not tried yet). Copy the address it shows; it contains your personal key, so treat it like a password. The key belongs to you, not to the team; each person who uses the assistant makes their own.
-2. In your project folder run `npx penpair connect` and paste the address when asked. Nothing is shown as you paste. It saves the address in `.env.local` (readable only by you, and added to `.gitignore`) and refuses an address that belongs to a different Penpot. (By hand instead: put the line `PENPAIR_MCP_URL=<the address>` in `.env.local` and keep that file out of git.)
+2. In your project folder run `npx @penpair/core connect` and paste the address when asked. Nothing is shown as you paste. It saves the address in `.env.local` (readable only by you, and added to `.gitignore`) and refuses an address that belongs to a different Penpot. (By hand instead: put the line `PENPAIR_MCP_URL=<the address>` in `.env.local` and keep that file out of git.)
 3. Open your design file in Penpot, choose **File, MCP Server, Connect**, and keep that tab visible.
 
 ### 4. Check that it works
 ```
-npx penpair doctor
+npx @penpair/core doctor
 ```
 Every line should say `ok`. If one says `FAIL`, the line under it says what to do. The usual ones:
 
@@ -54,13 +54,13 @@ Every line should say `ok`. If one says `FAIL`, the line under it says what to d
 | editor and plugin: the MCP address points at another instance | The address in `.env.local` belongs to a different Penpot. Copy the one from this Penpot |
 | editor and plugin: not connected | Do step 3.3 again and keep the tab visible |
 
-Then try: `npx penpair pages` lists the pages in the open file.
+Then try: `npx @penpair/core pages` lists the pages in the open file.
 
-If you want to know what your Penpot offers before you start, `npx penpair probe` lists its tools and limits. If `execute_code` is missing from that list, penpair cannot work with it. The hosted service, checked 2026-10-20 on Penpot 2.18.4, offers the same four tools and the same limits as a local Penpot (see `compatibility.md`).
+If you want to know what your Penpot offers before you start, `npx @penpair/core probe` lists its tools and limits. If `execute_code` is missing from that list, penpair cannot work with it. The hosted service, checked 2026-10-20 on Penpot 2.18.4, offers the same four tools and the same limits as a local Penpot (see `compatibility.md`).
 
 ### 5. Give the assistant its rules (once)
 ```
-npx penpair skills install
+npx @penpair/core skills install
 ```
 This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpot-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
 
@@ -77,19 +77,19 @@ It needs the Penpot tab open and visible while the assistant works, so it cannot
 Choose this when you want to work offline, keep the data on your machine, or have one Penpot per project that you can throw away. It needs **Docker Desktop** running in addition to Node.js. The first start downloads about 2 GB.
 
 ```
-npx penpair init --gitignore
-npx penpair up
+npx @penpair/core init --gitignore
+npx @penpair/core up
 ```
 
-`init` also writes a hidden folder `.penpair/` with the Penpot settings and secret keys. When `up` says "Penpot is up at http://127.0.0.1:9001" (your port may differ; use `--port 9002` with `init` if one is taken), open that address and create an account (no email confirmation is needed). Then do steps 3 to 5 above in that Penpot. `npx penpair doctor` also checks Docker, the secrets file and the containers:
+`init` also writes a hidden folder `.penpair/` with the Penpot settings and secret keys. When `up` says "Penpot is up at http://127.0.0.1:9001" (your port may differ; use `--port 9002` with `init` if one is taken), open that address and create an account (no email confirmation is needed). Then do steps 3 to 5 above in that Penpot. `npx @penpair/core doctor` also checks Docker, the secrets file and the containers:
 
 | It says | What to do |
 | --- | --- |
 | docker: not answering | Start Docker Desktop and wait until it says it is running |
-| containers: not running | Run `npx penpair up` |
+| containers: not running | Run `npx @penpair/core up` |
 | backend: not ready yet | Wait ten seconds and run `doctor` again |
 
-Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to stop; your designs stay. Back up before big changes with `npx penpair backup`, and prove a backup works with `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
+Every day: `npx @penpair/core up` (if Docker was restarted) and `npx @penpair/core down` to stop; your designs stay. Back up before big changes with `npx @penpair/core backup`, and prove a backup works with `npx @penpair/core backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
 
 ## Still to make easier (see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md))
 - One guided command (`penpair setup`) that does the steps above, waits for each browser step and says what it sees. It will ask "Penpot on the web, or on this computer?" and default to the web.

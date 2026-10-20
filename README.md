@@ -75,8 +75,10 @@ penpair does not design for you, and it has no "make me a page" button. It makes
 You need [Node.js](https://nodejs.org) 22 or later and a terminal. In your project's folder:
 
 ```bash
-npx penpair setup
+npx @penpair/core setup
 ```
+
+(`@penpair/core` is the package; the command it installs is called `penpair`. A shorter `npx penpair` is coming once npm allows the name.)
 
 It asks where your Penpot is and does the rest, saying in plain words what it is doing and what it is waiting for:
 
@@ -86,7 +88,7 @@ It asks where your Penpot is and does the rest, saying in plain words what it is
 4. reads your file once to prove it works,
 5. installs the rules your AI assistant follows.
 
-Run it again any time; it continues where it stopped. `npx penpair doctor` tells you what works, what does not and what to do about it.
+Run it again any time; it continues where it stopped. `npx @penpair/core doctor` tells you what works, what does not and what to do about it.
 
 ## Web or Docker
 
@@ -98,7 +100,7 @@ Two ways to run Penpot, one way to connect. Pick one; you can switch later.
 | Install | Nothing | Docker Desktop, a 2 GB first download |
 | Good for | Getting going fast, sharing with a team by invite | Offline work, data that stays with you, an instance you can throw away |
 | Backup | Penpot's version history and its `.penpot` export | `penpair backup`, `backup verify`, `restore` |
-| Set it up | `npx penpair setup --web` | `npx penpair setup --docker` |
+| Set it up | `npx @penpair/core setup --web` | `npx @penpair/core setup --docker` |
 
 The full comparison, what is checked and how to switch: **[Web or Docker →](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/references/web-or-docker.md)**
 
@@ -106,7 +108,7 @@ The full comparison, what is checked and how to switch: **[Web or Docker →](ht
 
 ```bash
 cd your-project
-npx penpair setup            # asks: web or this computer
+npx @penpair/core setup            # asks: web or this computer
 ```
 
 Then commit what it made (not `.env.local`; it is already in `.gitignore`):
@@ -116,14 +118,14 @@ git add penpair.config.json .gitignore .skills .agents .claude
 git commit -m "Add penpair"
 ```
 
-Everyone who works with the assistant does their own `npx penpair connect`: the key belongs to a person, not to the repo. To pin penpair for the team, add it as a dev dependency: `npm i -D penpair`. To write your own Penpot operations, use the library: `npm i -D @penpair/core` and `import { defineSnippet } from "@penpair/core"`.
+Everyone who works with the assistant does their own `npx @penpair/core connect`: the key belongs to a person, not to the repo. To pin penpair for the team, add it as a dev dependency (`npm i -D @penpair/core`); the `penpair` command is then on the project's path, so `npx @penpair/core doctor` runs the installed copy. The same package is the library: `import { defineSnippet } from "@penpair/core"`.
 
 ## Packages
 
 | Package | What it is | Status |
 | --- | --- | --- |
-| [`penpair`](https://www.npmjs.com/package/penpair) | The command: `npx penpair …` | 0.1.0 |
-| [`@penpair/core`](https://www.npmjs.com/package/@penpair/core) | The library, the command, the skills, and both ways of running Penpot | 0.1.0 |
+| [`@penpair/core`](https://www.npmjs.com/package/@penpair/core) | The library, the `penpair` command, the skills, and both ways of running Penpot | 0.1.0, published |
+| `penpair` | The short name, so that `npx @penpair/core setup` works | Waiting for npm to allow the name (it is blocked as too close to an unrelated package). Until then use `npx @penpair/core`. |
 | `@penpair/docker` | The Docker way of running Penpot, as its own opt-in package | Planned. Today it is inside `@penpair/core` and you choose with `setup --docker`; web users will then not carry it. |
 | `@penpair/marwes` | The adapter for the Marwes component library | Planned, see below |
 
@@ -161,8 +163,8 @@ Why this pairing helps:
 ```
 
 ```bash
-npx penpair baselines            # look: which images are new, the same, or changed in the design
-npx penpair baselines --apply    # write the new images, a manifest and reflection-cases.json
+npx @penpair/core baselines            # look: which images are new, the same, or changed in the design
+npx @penpair/core baselines --apply    # write the new images, a manifest and reflection-cases.json
 ```
 
 penpair exports each frame at a stable render, writes `tests/baselines/<id>.png`, and generates the Reflection cases for you: each frame's exact size becomes the viewport, so the capture and the reference have the same dimensions, and each check carries `ref: "penpair:<id>"` to join it back to the frame. In your `reflection.config.ts` you add the generated viewports to the route and spread the generated `visualSmoke` into the browser contract (a working example is in the [guide](https://github.com/niklas-westman/penpair/blob/main/docs/guide.md#baselines-for-a-check)), then run `npx reflection run --config reflection.config.ts --mode smoke`.
@@ -175,14 +177,14 @@ One thing to know before you rely on it: the percentage is not a verdict. A corr
 
 If you were told to set penpair up, read [the setup skill](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/SKILL.md) first and follow it. In short:
 
-- Run `npx penpair doctor --json` to see where things stand; every failing check carries a `remedy`.
+- Run `npx @penpair/core doctor --json` to see where things stand; every failing check carries a `remedy`.
 - Web is the default; use Docker only when the person asks for offline or local data.
-- **The personal MCP key never goes through you.** The person pastes it themselves into `npx penpair connect` (a hidden prompt), or pipes it from their clipboard.
-- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `npx penpair skills install` gives you the rules for working in Penpot (`penpot-design`) and for judging a screen (`design-judgment`).
+- **The personal MCP key never goes through you.** The person pastes it themselves into `npx @penpair/core connect` (a hidden prompt), or pipes it from their clipboard.
+- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `npx @penpair/core skills install` gives you the rules for working in Penpot (`penpot-design`) and for judging a screen (`design-judgment`).
 
 ## Commands
 
-`npx penpair --help` lists them all. The ones you need first:
+`npx @penpair/core --help` lists them all. The ones you need first:
 
 | Command | What it does |
 | --- | --- |
