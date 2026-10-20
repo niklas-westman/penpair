@@ -28,6 +28,7 @@ Penpot is the authority for the design; the code adapts to the frames. The proje
 | What can this Penpot do | `penpair probe`; `penpair probe --deep --write` on a scratch file |
 | Read | `penpair pages`, `tree --page <name>`, `audit --page <name> --prefix <frames>`, `tokens dump` |
 | Export a shape | `penpair export <id> <out.png> --page <name>` (waits for a stable render) |
+| Hand a page's design to a check | `penpair baselines [--apply] [--update]` (frames listed under `baselines` in `penpair.config.json`; `--update` approves a changed design, so only on the owner's words) |
 | Move old work aside | `penpair archive --page <name> --name <board> --keep <prefixes> --parts <prefixes> [--apply]` |
 | Run any snippet | `penpair snippets`, `penpair run <name> --param key=value [--apply]` |
 | Run your own Penpot | `penpair init`, `up`, `down`, `status`, `backup`, `backup verify <dir>`, `restore <dir> --yes` |

@@ -5,6 +5,7 @@ import { connect, executeCode } from "./client.js";
 import { redactEndpoint, resolveEndpoint } from "./endpoint.js";
 import { PenpairError } from "./errors.js";
 import { exportShapePng } from "./export.js";
+import { exportBaselines } from "./baselines.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
@@ -57,6 +58,10 @@ Snippets (the built-in ones and the project's own, listed under "snippets" in pe
   penpair snippets                                     what can be run, with its parameters
   penpair snippets check                               validate the project's snippets without a connection
   penpair run <name> [--param key=value ...] [--apply] run one; a snippet that changes things only looks unless --apply
+Hand a page's design to a check (Reflection or any image comparison):
+  penpair baselines [--apply] [--update]               export the frames listed under "baselines" in penpair.config.json as approved images,
+                                                       a manifest and ready-made Reflection cases. Looks first; --apply writes new images;
+                                                       --update also replaces images whose design changed (approving the new design)
 Changes in a Penpot file (inspect first; nothing is written without --apply):
   penpair archive --page <name> --name <archive board> --keep <prefixes> --parts <prefixes> [--x 9000] [--apply]
   penpair --version`;
@@ -89,6 +94,7 @@ async function main(argv: string[]): Promise<number> {
       web: { type: "boolean" },
       docker: { type: "boolean" },
       replace: { type: "boolean" },
+      update: { type: "boolean" },
       json: { type: "boolean" },
       deep: { type: "boolean" },
       force: { type: "boolean" },
@@ -359,6 +365,18 @@ async function main(argv: string[]): Promise<number> {
       console.log(JSON.stringify(result, null, 2));
       if (entry.kind === "write" && !values.apply) console.error("Nothing was written. Run again with --apply to do it.");
       return (result as { verified?: boolean; phase?: string }).phase === "applied" && !(result as { verified?: boolean }).verified ? 1 : 0;
+    }
+    if (command === "baselines") {
+      const config = (await loadConfig(root)).baselines;
+      if (!config) throw new Error('penpair.config.json has no "baselines" block. Add {"page": "<page>", "root": "tests/baselines", "frames": [{"frame": "<frame name>", "id": "<file name>", "route": "<route>"}]}; see docs/guide.md.');
+      const report = await exportBaselines(client, root, config, { ...options, apply: values.apply === true, update: values.update === true });
+      for (const r of report.results) console.log(`${r.status.padEnd(9)} ${r.id.padEnd(28)} ${r.frame}${r.imageWidth ? ` (${r.imageWidth}x${r.imageHeight})` : ""}${r.written ? "  written" : ""}`);
+      for (const file of report.wrote) console.log(`wrote     ${file}`);
+      const changed = report.results.filter((r) => r.status === "changed" && !r.written);
+      if (!values.apply) console.error("Nothing was written. Run again with --apply to write new images.");
+      if (changed.length > 0) console.error(`${changed.length} design(s) differ from the image in the folder. That is a change of the approved design: review it in Penpot, then run again with --apply --update to approve it.`);
+      if (report.results.some((r) => r.status === "missing" || r.status === "unstable")) return 1;
+      return changed.length > 0 ? 2 : 0;
     }
     if (command === "pages") console.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));
     else if (command === "tree") {

@@ -147,14 +147,29 @@ Why this pairing helps:
 - **Each page and state is one piece of evidence.** You look at a diff for the list, the open card, the empty state, the phone variant, instead of re-reading the whole change.
 - **Nothing passes on a promise.** Reflection is review-first: a mismatch is shown to you, and an approved image only changes when you say so.
 
-Today the hand-off is a few commands, not a button. Export the frame and use it as the approved image for that page:
+**The hand-off is one config block and one command.** List the frames of a page that are the design of a route, in `penpair.config.json`:
 
-```bash
-npx penpair export <frameId> tests/baselines/candidates/tablet.png --page Candidate
-npm i -D reflection-check
+```json
+"baselines": {
+  "page": "Candidate",
+  "root": "tests/baselines",
+  "frames": [
+    { "frame": "F / candidates", "id": "candidates-desktop", "route": "candidates" },
+    { "frame": "F tablet / candidates", "id": "candidates-tablet", "route": "candidates" }
+  ]
+}
 ```
 
-then point a visual case in `reflection.config.ts` at that file (`baselineRoot` and `baseline`; see [Reflection's visual contract](https://github.com/niklas-westman/reflection/blob/main/docs/visual-contract.md)) and run `npx reflection run --config reflection.config.ts --mode smoke`. A pixel difference between a Penpot render and a browser render is evidence for you to read, not a score to chase: fonts and sub-pixel text differ, so judge the diff image. An automatic link that reads your pages from Penpot and projects each page and state into Reflection is on the plan; Reflection's provider toolkit (`reflection-projection`) is the planned route, and it has already been tried on a real page of 30 states.
+```bash
+npx penpair baselines            # look: which images are new, the same, or changed in the design
+npx penpair baselines --apply    # write the new images, a manifest and reflection-cases.json
+```
+
+penpair exports each frame at a stable render, writes `tests/baselines/<id>.png`, and generates the Reflection cases for you: each frame's exact size becomes the viewport, so the capture and the reference have the same dimensions, and each check carries `ref: "penpair:<id>"` to join it back to the frame. In your `reflection.config.ts` you add the generated viewports to the route and spread the generated `visualSmoke` into the browser contract (a working example is in the [guide](https://github.com/niklas-westman/penpair/blob/main/docs/guide.md#baselines-for-a-check)), then run `npx reflection run --config reflection.config.ts --mode smoke`.
+
+A changed design is never silently approved: when a frame no longer matches its image, `penpair baselines` says `changed` and leaves the image alone until you run `--apply --update`, which is the act of approving the new design. We ran this chain end to end (Penpot frame, `penpair baselines`, Reflection, browser, diff) and the check, its diff image and its `ref` all came out right.
+
+One thing to know before you rely on it: the percentage is not a verdict. A correct implementation already differs from a Penpot render by about 1 to 2% on text alone (fonts, anti-aliasing), and a faint colour shift or a one-line copy change can sit below that. Read the diff image and Reflection's diagnostics; they point at the likely cause. What is still planned is the richer link, where each page's states are read from Penpot and shown in Reflection's own viewer (through `reflection-projection`, already tried on a real page of 30 states).
 
 ## For an AI agent
 
@@ -176,6 +191,7 @@ If you were told to set penpair up, read [the setup skill](https://github.com/ni
 | `doctor [--json]` | What works, what does not, and what to do about it |
 | `pages`, `tree`, `audit`, `tokens dump` | Read your Penpot file |
 | `export <shapeId> <out.png>` | A stable PNG of a frame |
+| `baselines [--apply] [--update]` | Export a page's frames as approved images, with ready-made Reflection cases |
 | `skills install` | The agent's rules, into `.skills/`, visible to Codex and Claude Code |
 | `up`, `down`, `backup`, `restore` | Docker only |
 

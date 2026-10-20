@@ -1,5 +1,6 @@
 export const version = "0.1.0";
 
+export * from "./baselines.js";
 export * from "./client.js";
 export * from "./deep-check.js";
 export * from "./endpoint.js";

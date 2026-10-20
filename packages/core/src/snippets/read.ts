@@ -21,6 +21,21 @@ return { ok: true, switched: true };`,
   );
 }
 
+export interface FramesParams {
+  page: string;
+}
+
+/** The top-level frames of a page: id, name and size, so they can be found by name and exported. */
+export function frames(params: FramesParams): Snippet {
+  return snippet(
+    "frames",
+    `${requirePage}
+return { ok: true, readOnly: true, file: penpot.currentFile.name, revn: penpot.currentFile.revn, page: penpot.currentPage.name,
+  frames: penpot.currentPage.root.children.filter((c) => c.type === "board").map((c) => ({ id: c.id, name: c.name, width: Math.round(c.width), height: Math.round(c.height) })) };`,
+    params,
+  );
+}
+
 export interface TreeParams {
   page: string;
   depth?: number;

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { validateBaselines, type BaselinesConfig } from "../baselines-config.js";
 
 /** What a project keeps in `penpair.config.json`: no secrets, so it can be committed. */
 export interface InstanceConfig {
@@ -14,6 +15,8 @@ export interface InstanceConfig {
   composeProject?: string;
   /** Files or folders (relative to the project) with the project's own snippets: modules that `export default defineSnippet({...})`. */
   snippets?: string[];
+  /** Frames of a page to export as approved reference images for a check (see `penpair baselines`). */
+  baselines?: BaselinesConfig;
 }
 
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
@@ -21,6 +24,7 @@ export interface ExternalConfig {
   instance: string;
   profile: { type: "external"; origin: string };
   snippets?: string[];
+  baselines?: BaselinesConfig;
 }
 
 export type ProjectConfig = InstanceConfig | ExternalConfig;
@@ -57,6 +61,7 @@ export function validateConfig(value: unknown): InstanceConfig {
     const ok = Array.isArray(v.snippets) && v.snippets.every((entry) => typeof entry === "string" && entry.length > 0 && !path.isAbsolute(entry) && !entry.split(/[\\/]/).includes(".."));
     if (!ok) fail("snippets must be a list of relative paths that stay inside the project");
   }
+  if (v.baselines !== undefined) validateBaselines(v.baselines, fail);
   return v as unknown as InstanceConfig;
 }
 
@@ -80,6 +85,7 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   }
   if (!parsed || !["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin) fail("profile.origin must be an http or https origin such as https://design.penpot.app (no path)");
   if (v.snippets !== undefined && !(Array.isArray(v.snippets) && v.snippets.every((entry) => typeof entry === "string" && entry.length > 0 && !path.isAbsolute(entry) && !entry.split(/[\\/]/).includes("..")))) fail("snippets must be a list of relative paths that stay inside the project");
+  if (v.baselines !== undefined) validateBaselines(v.baselines, fail);
   return v as unknown as ExternalConfig;
 }
 
