@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- **`penpair-setup-guide`**, a skill for Claude Code, Codex and GitHub Copilot that walks a person from nothing to a first design: Node check, web or Docker, a Penpot account, where the MCP link goes (never through the chat), the plugin, `doctor`, the optional Marwes adapter, the agent rules and a test POC on its own page. It lives in `skills/` in the repository; an assistant can read it by URL or it can be copied into a project. The README now starts with it.
+- **`penpair-setup-guide`**, a skill for Claude Code, Codex and GitHub Copilot that walks a person from nothing to a first design: Node check, web or Docker, a Penpot account, where the MCP link goes (never through the chat), the plugin, `doctor`, the optional Marwes adapter, the agent rules and a test POC on its own page. It lives in `skills/` in the repository; an assistant can read it by URL or it can be copied into a project. The README now starts with it. It works from the file alone (package map, commands, raw links), and `references/poc-snippet.mjs` is a starting snippet for the first POC.
+- **`penpair init --external` now names the browser steps before `connect`**, since `connect` waits for the plugin; it used to say only `next: penpair connect`.
 
 ## 0.1.3
 

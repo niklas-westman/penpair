@@ -268,7 +268,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     const result = await init(root, { instance: values.instance, port: values.port ? Number(values.port) : undefined, gitignore: values.gitignore, external: values.external }, { local: cli.local });
     if (isExternal(result.config)) {
       console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`);
-      console.log("next: penpair connect   (takes your personal key without showing it, then waits for the editor)");
+      console.log("next: in Penpot switch on Account, Integrations, MCP Server and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)");
       return 0;
     }
     console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (instance ${result.config.instance}, Penpot ${result.config.penpotVersion}, port ${result.config.ports.frontend})`);
