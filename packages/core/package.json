@@ -10,7 +10,7 @@
     ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
   },
   "bin": { "penpair": "dist/cli.js" },
-  "files": ["dist", "docs", "LICENSE", "README.md"],
+  "files": ["dist", "skills", "docs", "LICENSE", "README.md"],
   "keywords": ["penpot", "design-systems", "mcp", "ai-agents", "design-tokens", "developer-tools"],
   "publishConfig": { "access": "public" },
   "scripts": {

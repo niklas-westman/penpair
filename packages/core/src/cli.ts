@@ -8,6 +8,7 @@ import { exportShapePng } from "./export.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
+import { installSkills, listBundledSkills } from "./skills.js";
 import { checkProjectSnippets, loadProjectSnippets } from "./project-snippets.js";
 import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } from "./registry.js";
 import { runSnippet } from "./snippet.js";
@@ -39,6 +40,9 @@ An instance (one Penpot per project, configured in penpair.config.json):
   penpair backup                                       database and assets, with checksums and counts
   penpair backup verify <dir>                          restore into a throwaway database and compare
   penpair restore <dir> --yes                          replace the instance's data with a backup (safety backup first)
+Skills (the rules an AI agent follows, shipped with penpair):
+  penpair skills                                       list them
+  penpair skills install [--to .skills] [--only <name>] [--force]   copy them into the project and make them discoverable
 Snippets (the built-in ones and the project's own, listed under "snippets" in penpair.config.json):
   penpair snippets                                     what can be run, with its parameters
   penpair snippets check                               validate the project's snippets without a connection
@@ -73,6 +77,9 @@ async function main(argv: string[]): Promise<number> {
       yes: { type: "boolean" },
       "any-instance": { type: "boolean" },
       deep: { type: "boolean" },
+      force: { type: "boolean" },
+      to: { type: "string" },
+      only: { type: "string", multiple: true },
       write: { type: "boolean" },
       param: { type: "string", multiple: true },
       version: { type: "boolean" },
@@ -132,6 +139,21 @@ async function main(argv: string[]): Promise<number> {
     }
     const report = await loadProjectSnippets(root, snippets, registry);
     return { registry, problems: report.problems, files: report.files };
+  }
+
+  if (command === "skills") {
+    if (rest[0] === "install") {
+      const report = await installSkills({ root, to: values.to, only: values.only, force: values.force });
+      for (const file of report.installed) console.log(`wrote     ${file}`);
+      for (const file of report.kept) console.log(`kept      ${file} (differs from the shipped one; --force replaces it, except the project-owned files)`);
+      for (const link of report.linked) console.log(`linked    ${link}`);
+      console.log(`${report.unchanged.length} file(s) already up to date`);
+      console.log("\nAdd to your AGENTS.md skills table:\n" + report.agentsRows.join("\n"));
+      console.log("\nThen fill in references/project-facts.md in penpot-design: it is yours and is never replaced.");
+      return 0;
+    }
+    for (const name of await listBundledSkills()) console.log(name);
+    return 0;
   }
 
   if (command === "snippets") {

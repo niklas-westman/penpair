@@ -62,6 +62,12 @@ Every line should say `ok`. If one says `FAIL`, the line under it says what to d
 
 Then try: `npx penpair pages` lists the pages in the open file.
 
+### 5. Give the assistant its rules (once)
+```
+npx penpair skills install
+```
+This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpot-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
+
 ### Every day
 - Start: `npx penpair up` (if Docker was restarted). Stop: `npx penpair down`. Your designs stay.
 - Back up before big changes: `npx penpair backup`. Prove a backup works: `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.

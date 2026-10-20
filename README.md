@@ -19,5 +19,5 @@ Status: **draft, not published.** See [PLAN.md](PLAN.md).
 | --- | --- |
 | `packages/core` | The neutral core: connection, safe write runner, operations, instance lifecycle (`penpair`) |
 | `docker` | The pinned Penpot compose template and its notes |
-| `skills` | The knowledge packs installed into a project's `.skills/` |
+| `packages/core/skills` | The knowledge packs (the Penpot skill and design judgment) installed into a project's `.skills/` with `penpair skills install` |
 | `docs` | The guide: extension points and the checklist an adopter works through |

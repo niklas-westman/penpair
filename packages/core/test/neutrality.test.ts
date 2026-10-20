@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 
 // The core is a framework: it must stay free of the projects and libraries that adopt it.
 const forbidden = ["sourcer", "tradient", "marwes"];
-const sourceRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../src");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const sourceRoot = path.join(here, "../src");
+const skillsRoot = path.join(here, "../skills");
 
 async function filesUnder(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -31,6 +33,10 @@ export async function findForbidden(directory: string): Promise<string[]> {
 describe("core neutrality", () => {
   it("names no project or component library", async () => {
     expect(await findForbidden(sourceRoot)).toEqual([]);
+  });
+
+  it("keeps the shipped skills just as neutral", async () => {
+    expect(await findForbidden(skillsRoot)).toEqual([]);
   });
 
   it("would notice one that slipped in", async () => {

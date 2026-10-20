@@ -9,6 +9,7 @@ export * from "./operation.js";
 export * from "./probe.js";
 export * from "./project-snippets.js";
 export * from "./registry.js";
+export * from "./skills.js";
 export * from "./snippet.js";
 export * from "./snippets/archive.js";
 export * from "./snippets/read.js";

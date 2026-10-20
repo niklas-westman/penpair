@@ -59,7 +59,8 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] A short illustrated version (screenshots of each browser step)
 
 ### 4. Publish
-- [ ] Skills install command, guide, hosted-profile test
+- [x] Skills pack shipped in the package (`packages/core/skills`: `penpot-design` with the write protocol, the plugin traps including the hosted-Penpot findings, flat auto-layout, a library-in-Penpot note and a `project-facts.md` template the project owns; `design-judgment` with the recipes made project-neutral) and `penpair skills install` (copies, links for Codex and Claude Code, prints the AGENTS.md rows, keeps edited files, never replaces `project-facts.md`). The neutrality test covers the skills too.
+- [ ] Guide with screenshots, the hosted-profile run on a large file
 - [ ] First outside trial with feedback rounds (like Reflection's)
 - [ ] 0.1.0
 
@@ -77,6 +78,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-20: skills pack and `penpair skills install`. 123 tests. Sourcer's work was committed in seven themed commits on its branch and penpair in three; a clean clone of penpair builds and passes.
 - 2026-10-20: `penpair probe --deep --write` (a temporary tagged board, token set and components; flex, text, token binding, component swap, clone, export; clean-up verified by a separate look), run against the hosted Penpot: all steps pass. The first run failed on the token binding, which is recorded a few seconds after the call; the check now waits for it. `docs/compatibility.md` records the matrix. 116 tests.
 - 2026-10-20: hosted probe result recorded. The probe also reports the Penpot API version and says when it skipped the shape checks; a test now keeps its plugin code valid (an edit broke it for a while and only the live run showed it).
 - 2026-10-20: external Penpot profile (team server or hosted), the probe lists tools and reports a missing `execute_code`, `doctor` for external projects. 108 tests.
