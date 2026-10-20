@@ -51,7 +51,8 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 
 ### 3b. Easy for non-developers
 - [x] First draft of `docs/getting-started.md` for two roles: the designer (browser only) and the person who sets it up
-- [ ] Follow the guide on a clean machine and mark what differs (the trial instance on 9002 is the first test)
+- [x] Followed on the trial instance on 9002 by the owner (account, MCP key, plugin connection): `doctor` all ok, `pages` ok, the deep check passes on the local Penpot too. Still to collect: where the guide's wording did not match what the owner saw.
+- [ ] Follow the guide on a clean machine, from nothing (no cached images, no Docker experience) and mark what differs
 - [ ] `penpair setup`: one guided command (prerequisites, `init`, `up`, open the browser, wait for the account, accept the pasted MCP address without echoing it and write `.env.local`, wait for the plugin, run a first read) in plain language
 - [x] External profile in the code: `penpair init --external <origin>`; no Docker; `doctor` checks that the Penpot answers, that the key belongs to it and that the editor and plugin are connected; the Docker commands refuse politely; every command still acts only on that Penpot. Tested against the local Penpot standing in for a team-run one.
 - [x] Hosted Penpot probed (2026-10-20, owner's free account, empty scratch file): the same four tools as a local Penpot (`execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`); request body 90 KB accepted and 110 KB refused, exactly as locally; responses of 1 MB return; tokens, `uploadMediaData`, `createBoard`, `openPage` and file export are present.
@@ -78,6 +79,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-20: guide followed on the Tradient trial instance; deep check passes on local Penpot 2.18.3 as well. New token sets start inactive on both, which corrects an earlier note.
 - 2026-10-20: skills pack and `penpair skills install`. 123 tests. Sourcer's work was committed in seven themed commits on its branch and penpair in three; a clean clone of penpair builds and passes.
 - 2026-10-20: `penpair probe --deep --write` (a temporary tagged board, token set and components; flex, text, token binding, component swap, clone, export; clean-up verified by a separate look), run against the hosted Penpot: all steps pass. The first run failed on the token binding, which is recorded a few seconds after the call; the check now waits for it. `docs/compatibility.md` records the matrix. 116 tests.
 - 2026-10-20: hosted probe result recorded. The probe also reports the Penpot API version and says when it skipped the shape checks; a test now keeps its plugin code valid (an edit broke it for a while and only the live run showed it).
