@@ -79,6 +79,11 @@ describe("values", () => {
     expect(normalizeValue("color", "#aabbcc")).toBe("#AABBCC");
   });
 
+  it("compare a font family the way Penpot stores it: as a list", () => {
+    expect(normalizeValue("fontFamilies", ["Instrument Sans"])).toBe(normalizeValue("fontFamilies", "Instrument Sans"));
+    expect(normalizeValue("fontFamilies", ["Helvetica"])).not.toBe(normalizeValue("fontFamilies", "Inter"));
+  });
+
   it("tokensAbove keeps only what a base does not already say", () => {
     const token = (name: string, value: string) => ({ name, type: "color" as const, value, description: "" });
     expect(tokensAbove([token("a", "#111111"), token("b", "#222222")], [token("a", "#111111"), token("b", "#333333"), token("c", "#444444")]).map((t) => t.name)).toEqual(["b", "c"]);

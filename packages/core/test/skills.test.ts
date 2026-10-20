@@ -18,6 +18,19 @@ describe("the shipped skills", () => {
 });
 
 describe("installing skills", () => {
+  it("goes to the folder where the skills already are, not to a second one", async () => {
+    const root = await project();
+    await installSkills({ root, to: ".claude/skills", links: false });
+    const again = await installSkills({ root });
+    expect(again.to).toBe(".claude/skills");
+    expect(again.installed).toEqual([]);
+    await expect(readdir(path.join(root, ".skills"))).rejects.toThrow();
+  });
+
+  it("uses .skills in a project that has none yet", async () => {
+    expect((await installSkills({ root: await project() })).to).toBe(".skills");
+  });
+
   it("copies them, makes them discoverable with relative links, and gives a row for the agent guide", async () => {
     const root = await project();
     const report = await installSkills({ root });

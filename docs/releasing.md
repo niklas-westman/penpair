@@ -22,7 +22,7 @@ Publishing cannot be undone: a version, once published, cannot be replaced. Chec
 pnpm bump patch              # or minor, major, or an exact x.y.z: every package and version.ts move together
 # add a section to CHANGELOG.md
 pnpm check                   # typecheck, tests, build and the version check
-git commit -am "Release 0.1.2" && git push
+git commit -am "Release 0.1.3" && git push
 
 pnpm release                 # dry run: checks everything, prints the plan, publishes nothing
 pnpm release --publish       # the real thing; npm asks for your one-time code (or add --otp <code>)

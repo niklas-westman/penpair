@@ -224,7 +224,7 @@ export function buildSnapshot(input: SnapshotInput): TokenSnapshot {
   return { schemaVersion: 1, marwesVersion: version, generatedBy: input.generatedBy, project: name, hash: hashOf({ marwesVersion: version, project: name, sets, themes, unmapped }), unmapped, sets, themes };
 }
 
-/** The value of a token as it compares in Penpot: strings are exact, typography is normalised the way Penpot stores it. */
+/** The value of a token as it compares in Penpot: strings are exact, font families and typography are normalised the way Penpot stores them. */
 export function normalizeValue(type: string, value: unknown): string {
   if (type === "typography" && typeof value === "object" && value !== null) {
     const entry: Record<string, string> = {};
@@ -235,5 +235,7 @@ export function normalizeValue(type: string, value: unknown): string {
     return canonical(entry);
   }
   if (type === "color" && typeof value === "string" && /^#[0-9a-f]+$/i.test(value)) return value.toUpperCase();
+  // Penpot stores a font family token as a list (["Inter"]) whatever it was given.
+  if (type === "fontFamilies" || type === "fontFamily") return (Array.isArray(value) ? value : [value]).map(String).join(",");
   return typeof value === "string" ? value : canonical(value);
 }

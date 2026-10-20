@@ -116,6 +116,8 @@ class FakeSet {
       const family = fontFamilies ?? fontFamily;
       value = { ...(family === undefined ? {} : { fontFamily: Array.isArray(family) ? family : [family] }), ...rest };
     }
+    // The same for a font family token: Penpot reads it back as a list.
+    if (spec.type === "fontFamilies") value = Array.isArray(value) ? value : [value];
     const token = new FakeToken(spec.name, spec.type, value, spec.description ?? "", this);
     this.tokens.push(token);
     return token;

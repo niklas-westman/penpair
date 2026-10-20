@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+Found on the first real run of the Marwes adapter against a hosted Penpot file.
+
+- **`marwes tokens push --apply` no longer reports font families as different.** Penpot stores a font family token as a list (`["Instrument Sans"]`) however it was written, so the read-back check failed for the font tokens even though the file was right. The comparison now treats the string and the list as the same value; the test double behaves like Penpot here.
+- **`penpair skills install` and `penpair setup` reuse the folder where the skills already are** (`.skills`, `.claude/skills` or `.agents/skills`) instead of adding a second copy in `.skills`. The install report says which folder it used.
+
 ## 0.1.2
 
 - **`@penpair/marwes-ui`**, the Marwes UI adapter: `penpair marwes tokens snapshot | check | diff | push | status`. Marwes tokens and the project's own theme as Penpot token sets, a committed snapshot, an offline `check` for CI that fails when Marwes or the theme moves, a `diff` that shows what each change reaches (shapes bound to the token), and a verified `push`. Records Marwes variables it does not turn into tokens, so a new kind of variable cannot slip by. See `docs/marwes-tokens.md`.

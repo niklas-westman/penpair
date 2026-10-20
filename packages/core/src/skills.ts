@@ -67,6 +67,8 @@ export interface InstallOptions {
 export const renamedSkills: Record<string, string> = { "penpot-design": "penpair-design" };
 
 export interface InstallReport {
+  /** The folder the skills went to, relative to the root. */
+  to: string;
   installed: string[];
   unchanged: string[];
   /** Files that differ from the shipped ones and were left alone. */
@@ -78,13 +80,24 @@ export interface InstallReport {
   legacy: { folder: string; renamedTo: string; carriedFacts: boolean }[];
 }
 
+/** Where the penpair skills already live in a project as real folders (not links), so a later install goes to the same place. */
+export async function existingSkillsFolder(root: string): Promise<string | undefined> {
+  for (const folder of [".skills", ".claude/skills", ".agents/skills"]) {
+    for (const name of ["penpair-design", "penpair-setup", ...Object.keys(renamedSkills)]) {
+      const found = await lstat(path.join(root, folder, name)).catch(() => undefined);
+      if (found?.isDirectory()) return folder;
+    }
+  }
+  return undefined;
+}
+
 export async function installSkills(options: InstallOptions): Promise<InstallReport> {
   const source = options.source ?? bundledSkillsDirectory();
-  const to = options.to ?? ".skills";
+  const to = options.to ?? (await existingSkillsFolder(options.root)) ?? ".skills";
   const names = await listBundledSkills(source);
   const chosen = options.only ? options.only : names;
   for (const name of chosen) if (!names.includes(name)) throw new Error(`no skill named ${name}; shipped: ${names.join(", ")}`);
-  const report: InstallReport = { installed: [], unchanged: [], kept: [], linked: [], agentsRows: [], legacy: [] };
+  const report: InstallReport = { to, installed: [], unchanged: [], kept: [], linked: [], agentsRows: [], legacy: [] };
   for (const name of chosen) {
     const from = path.join(source, name);
     for (const file of await filesUnder(from)) {

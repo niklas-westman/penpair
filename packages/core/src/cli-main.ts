@@ -45,7 +45,7 @@ Read-only:
   penpair export <shapeId> <out.png> [--page <name>] [--scale 1]
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
-  penpair skills install [--to .skills] [--only <name>] [--force]   copy them into the project and make them discoverable
+  penpair skills install [--to <folder>] [--only <name>] [--force]   copy them into the project and make them discoverable
 Snippets (the built-in ones and the project's own, listed under "snippets" in penpair.config.json):
   penpair snippets                                     what can be run, with its parameters
   penpair snippets check                               validate the project's snippets without a connection
@@ -224,7 +224,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         local: cli.local,
         installSkills: async () => {
           const report = await installSkills({ root });
-          console.log(`Installed ${report.installed.length} rule file(s) in .skills/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
+          console.log(`Installed ${report.installed.length} rule file(s) in ${report.to}/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
         },
       },
     );
