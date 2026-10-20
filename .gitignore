@@ -7,6 +7,6 @@ dist/
 *.log
 
 # copied in by `prepack` (scripts/copy-package-docs.mjs); the sources are the root README.md and docs/
-packages/core/README.md
-packages/core/docs/
+packages/web/README.md
+packages/web/docs/
 *.tgz

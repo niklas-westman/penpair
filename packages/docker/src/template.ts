@@ -1,4 +1,4 @@
-import type { InstanceConfig } from "../instance/config.js";
+import type { InstanceConfig } from "@penpair/core";
 
 /**
  * The compose file for one instance. It follows the official Penpot compose file; the local changes are the defaults

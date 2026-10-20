@@ -2,20 +2,26 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { composeProjectOf, instancePaths, type InstanceConfig } from "../instance/config.js";
-import { endpointIsInstance, frontendUrl, LifecycleError, type Check, type DoctorCheck, type DoctorOptions } from "../instance/connection.js";
-import type { Runner } from "../instance/runner.js";
+import {
+  composeProjectOf,
+  endpointIsInstance,
+  frontendUrl,
+  instancePaths,
+  LifecycleError,
+  type BackupManifest,
+  type Check,
+  type Counts,
+  type LocalContext,
+  type DoctorCheck,
+  type DoctorOptions,
+  type InstanceConfig,
+  type RestoreOptions,
+  type ServiceState,
+} from "@penpair/core";
 import { readEnvValues } from "./secrets.js";
 
-export interface Context {
-  root: string;
-  config: InstanceConfig;
-  runner: Runner;
-  log?: (message: string) => void;
-  sleep?: (milliseconds: number) => Promise<void>;
-  fetch?: typeof fetch;
-  now?: () => Date;
-}
+/** Kept under its old name inside this package. */
+type Context = LocalContext;
 
 const defaultSleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const sleepOf = (c: Context) => c.sleep ?? defaultSleep;
@@ -62,12 +68,6 @@ export async function down(c: Context): Promise<void> {
   await docker(c, composeArgs(c, "down"), "docker compose down");
 }
 
-export interface ServiceState {
-  service: string;
-  state: string;
-  health: string;
-}
-
 export function parseComposePs(output: string): ServiceState[] {
   const rows: unknown[] = [];
   const text = output.trim();
@@ -99,14 +99,6 @@ async function containerOf(c: Context, service: string): Promise<string> {
   return id;
 }
 
-export interface Counts {
-  files: number;
-  profiles: number;
-  teams: number;
-  storageObjects: number;
-  fileRevisions: { id: string; name: string; revn: number }[];
-}
-
 const countsSql = `select json_build_object('files',(select count(*) from file where deleted_at is null),'profiles',(select count(*) from profile),'teams',(select count(*) from team),'storageObjects',(select count(*) from storage_object),'fileRevisions',(select coalesce(json_agg(json_build_object('id',id,'name',name,'revn',revn) order by name,id),'[]'::json) from file where deleted_at is null))`;
 
 async function readCounts(c: Context, container: string): Promise<Counts> {
@@ -118,16 +110,6 @@ async function sha256File(file: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
   return hash.digest("hex");
-}
-
-export interface BackupManifest {
-  instance: string;
-  penpotVersion: string;
-  createdAt: string;
-  label?: string;
-  files: { db: { name: string; sha256: string; bytes: number }; assets: { name: string; sha256: string; bytes: number } };
-  counts: Counts;
-  note: string;
 }
 
 /**
@@ -214,13 +196,6 @@ export async function verifyBackup(c: Context, directory: string): Promise<{ ok:
     await c.runner.run("docker", ["rm", "-f", name]);
   }
   return { ok: checks.every((check) => check.ok), checks };
-}
-
-export interface RestoreOptions {
-  /** Restoring replaces the instance's data; it only runs when this is true. */
-  yes: boolean;
-  /** Skip the safety backup of the current data. */
-  skipSafetyBackup?: boolean;
 }
 
 /**

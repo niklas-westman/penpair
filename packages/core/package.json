@@ -1,7 +1,7 @@
 {
   "name": "@penpair/core",
-  "version": "0.1.0",
-  "description": "Design together. Build together. Connect AI agents and people to a Penpot design file, safely: setup, a safe write protocol, snippets, skills, and an optional Docker Penpot per project.",
+  "version": "0.1.1",
+  "description": "Design together. Build together. The library and engine behind penpair: connect AI agents and people to a Penpot design file, safely. Install @penpair/web or @penpair/docker for the command.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,16 +23,11 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./cli": "./dist/cli.js",
     "./package.json": "./package.json"
-  },
-  "bin": {
-    "penpair": "dist/cli.js"
   },
   "files": [
     "dist",
     "skills",
-    "docs",
     "LICENSE",
     "README.md"
   ],
@@ -51,7 +46,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepack": "pnpm build && node ../../scripts/copy-package-docs.mjs"
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.0"

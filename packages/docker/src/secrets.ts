@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { InstanceConfig } from "../instance/config.js";
+import type { InstanceConfig } from "@penpair/core";
 
 export interface Secrets {
   secretKey: string;

@@ -1,45 +1,101 @@
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { ConfigError } from "../src/instance/config.js";
+import { init } from "../src/instance/init.js";
+import { needsLocalProfile, requireLocalProfile, type LocalProfile } from "../src/local-profile.js";
 
-const src = path.join(import.meta.dirname, "../src");
+const core = path.join(import.meta.dirname, "..");
+const docker = path.join(core, "../docker");
+const web = path.join(core, "../web");
 
-/** The files a module imports statically, by relative path (type-only imports included: they are still coupling). */
-async function importsOf(file: string): Promise<string[]> {
-  const text = await readFile(file, "utf8");
+async function filesUnder(directory: string): Promise<string[]> {
   const out: string[] = [];
-  for (const match of text.matchAll(/(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+"(\.[^"]+)"/g)) out.push(path.resolve(path.dirname(file), (match[1] ?? "").replace(/\.js$/, ".ts")));
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const full = path.join(directory, entry.name);
+    if (entry.isDirectory()) out.push(...(await filesUnder(full)));
+    else if (full.endsWith(".ts")) out.push(full);
+  }
   return out;
 }
 
-async function reachable(entry: string): Promise<Set<string>> {
-  const seen = new Set<string>();
-  const queue = [path.join(src, entry)];
-  while (queue.length > 0) {
-    const file = queue.pop()!;
-    if (seen.has(file)) continue;
-    seen.add(file);
-    queue.push(...(await importsOf(file)));
-  }
-  return seen;
-}
+const readJson = async (file: string) => JSON.parse(await readFile(file, "utf8")) as { version: string; bin?: Record<string, string>; dependencies?: Record<string, string>; peerDependencies?: Record<string, string>; optionalDependencies?: Record<string, string> };
 
-// The Docker way of running Penpot is one profile among others and is meant to become its own package later (@penpair/docker).
-// Whatever the connection, the library and the web path need must not depend on it, so that move stays a move.
-describe("the Docker code is separate from the connection", () => {
-  it.each(["index.ts", "instance/connection.ts", "instance/connect.ts", "instance/config.ts", "instance/runner.ts", "endpoint.ts", "client.ts", "probe.ts", "registry.ts", "skills.ts"])("%s does not reach src/docker", async (entry) => {
-    const docker = [...(await reachable(entry))].filter((file) => file.startsWith(path.join(src, "docker")));
-    expect(docker).toEqual([]);
+// The Docker package depends on the core, never the other way round: the core offers a plug-in point and knows nothing about what plugs in.
+describe("the core does not depend on the Docker package", () => {
+  it("has no Docker code of its own", async () => {
+    const files = (await filesUnder(path.join(core, "src"))).map((f) => path.relative(path.join(core, "src"), f));
+    expect(files.filter((f) => f.startsWith("docker/") || /compose|lifecycle|secrets|template/.test(path.basename(f)))).toEqual([]);
+  });
+
+  it("imports nothing from it, and lists it nowhere in its package.json", async () => {
+    for (const file of await filesUnder(path.join(core, "src"))) {
+      const text = await readFile(file, "utf8");
+      expect(text, path.relative(core, file)).not.toMatch(/from\s+["']@penpair\/docker["']|import\(\s*["']@penpair\/docker["']|require\(\s*["']@penpair\/docker["']/);
+    }
+    const manifest = await readJson(path.join(core, "package.json"));
+    for (const field of [manifest.dependencies, manifest.peerDependencies, manifest.optionalDependencies]) expect(Object.keys(field ?? {})).not.toContain("@penpair/docker");
+  });
+});
+
+// One command package per way of running Penpot, each carrying the core. The core has no command, so the two never fight over `penpair`.
+describe("the command packages carry the core", () => {
+  for (const [name, directory] of [["@penpair/web", web], ["@penpair/docker", docker]] as const) {
+    it(`${name} depends on the core as a dependency and reaches it only through its public entry`, async () => {
+      const manifest = await readJson(path.join(directory, "package.json"));
+      expect(manifest.dependencies?.["@penpair/core"]).toMatch(/^workspace:/);
+      expect(manifest.peerDependencies).toBeUndefined();
+      for (const file of await filesUnder(path.join(directory, "src"))) {
+        const text = await readFile(file, "utf8");
+        for (const match of text.matchAll(/from\s+"([^"]+)"/g)) {
+          const specifier = match[1] ?? "";
+          if (specifier.startsWith("@penpair/")) expect(specifier, path.basename(file)).toBe("@penpair/core");
+          if (specifier.startsWith(".")) expect(path.resolve(path.dirname(file), specifier), path.basename(file)).toContain(path.join(directory, "src"));
+        }
+      }
+    });
+  }
+
+  it("the core has no command; the web and Docker packages each have `penpair`, started with what they add", async () => {
+    expect((await readJson(path.join(core, "package.json"))).bin).toBeUndefined();
+    expect((await readJson(path.join(web, "package.json"))).bin).toEqual({ penpair: "dist/cli.js" });
+    expect((await readJson(path.join(docker, "package.json"))).bin).toEqual({ penpair: "dist/cli.js" });
+    expect(await readFile(path.join(web, "src/cli.ts"), "utf8")).toMatch(/runCli\(process\.argv\.slice\(2\)\)/);
+    expect(await readFile(path.join(docker, "src/cli.ts"), "utf8")).toMatch(/runCli\(process\.argv\.slice\(2\), \{ local: dockerProfile \}\)/);
+  });
+});
+
+describe("running Penpot on this computer is a plug-in", () => {
+  it("says where the commands come from when nothing provides them", () => {
+    expect(() => requireLocalProfile(undefined)).toThrow(ConfigError);
+    expect(() => requireLocalProfile(undefined)).toThrow(/npm i -D @penpair\/docker/);
+    expect(needsLocalProfile).toMatch(/Penpot on the web needs nothing extra/);
+  });
+
+  it("is used by init only when Docker is meant, never for Penpot on the web", async () => {
+    const root = (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-boundary-"));
+    const calls: string[] = [];
+    const local = { init: async () => (calls.push("init"), { config: {} as never, createdConfig: true, createdSecrets: true, files: [], gitignoreAdded: false }) } as unknown as LocalProfile;
+    await init(await root(), { external: "https://design.penpot.app" }, { local });
+    expect(calls).toEqual([]);
+    await init(await root(), {}, { local });
+    expect(calls).toEqual(["init"]);
+    await expect(init(await root(), {})).rejects.toThrow(/separate|not part of this install/);
   });
 });
 
 describe("the version", () => {
-  it("is the one in package.json, for both packages", async () => {
-    const core = JSON.parse(await readFile(path.join(src, "../package.json"), "utf8")) as { version: string };
-    const wrapper = JSON.parse(await readFile(path.join(src, "../../penpair/package.json"), "utf8")) as { version: string; dependencies: Record<string, string> };
+  it("is the one in package.json, for all four packages, each carrying exactly the version below it", async () => {
+    const corePackage = await readJson(path.join(core, "package.json"));
+    const dockerPackage = await readJson(path.join(docker, "package.json"));
+    const webPackage = await readJson(path.join(web, "package.json"));
+    const wrapper = await readJson(path.join(core, "../penpair/package.json"));
     const { version } = await import("../src/index.js");
-    expect(version).toBe(core.version);
-    expect(wrapper.version).toBe(core.version);
-    expect(wrapper.dependencies["@penpair/core"]).toMatch(/^workspace:/);
+    expect(version).toBe(corePackage.version);
+    expect(dockerPackage.version).toBe(corePackage.version);
+    expect(wrapper.version).toBe(corePackage.version);
+    expect(webPackage.version).toBe(corePackage.version);
+    expect(wrapper.dependencies?.["@penpair/web"]).toMatch(/^workspace:/);
   });
 });

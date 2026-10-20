@@ -18,7 +18,7 @@ Read `PLAN.md` first in every session. It is the living checklist: what the prod
 
 ## Packages
 
-`@penpair/core` (`packages/core`: library, the `penpair` command, skills, both ways of running Penpot) and `penpair` (`packages/penpair`: only the short name for `npx penpair`). Same version, always. The Docker code lives in `packages/core/src/docker` and nothing the connection or the library needs may import it (a test enforces it), so it can move to `@penpair/docker` later. Publishing is the owner's act; the steps are in `docs/releasing.md`.
+`@penpair/core` (`packages/core`: the library and engine with the skills; no command), `@penpair/web` (`packages/web`: the `penpair` command for Penpot on the web), `@penpair/docker` (`packages/docker`: the same command plus Penpot in Docker) and `penpair` (`packages/penpair`: the short name for `@penpair/web`). Same version, always. The dependency only goes one way: the command packages depend on the core, which offers a plug-in point (`runCli`, `LocalProfile` in `local-profile.ts`) and knows nothing about what plugs in. The core has no command, so the two command packages never fight over the name `penpair`; a user installs one of them. Tests enforce all of this. Publishing is the owner's act; the steps are in `docs/releasing.md`.
 
 ## Validation
 

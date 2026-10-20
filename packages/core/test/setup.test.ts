@@ -1,9 +1,10 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { isExternal, loadConfig } from "../src/instance/config.js";
+import { isExternal, loadConfig, validateConfig } from "../src/instance/config.js";
 import type { Runner } from "../src/instance/runner.js";
+import type { LocalProfile } from "../src/local-profile.js";
 import { hostedOrigin, setup, type SetupIo } from "../src/instance/setup.js";
 
 const KEY = "SECRETTOKEN123";
@@ -54,7 +55,23 @@ describe("setup", () => {
   it("stops with a plain instruction when Docker was chosen and is not running", async () => {
     const root = await folder();
     const { io: fake } = io(["2"], "x");
-    await expect(setup(root, fake, { runner: noDocker, port: 9055 })).rejects.toThrow(/Start Docker Desktop/);
+    const local = ({
+        init: async (r: string) => {
+          const config = validateConfig({ instance: "x", penpotVersion: "2.18.3", ports: { frontend: 9055, mail: 1080 }, directory: ".penpair" });
+          await writeFile(path.join(r, "penpair.config.json"), JSON.stringify(config));
+          return { config, createdConfig: true, createdSecrets: true, files: [], gitignoreAdded: false };
+        },
+        preflight: async () => {
+          throw new Error("Docker is not running. Start Docker Desktop");
+        },
+      }) as unknown as LocalProfile;
+    await expect(setup(root, fake, { runner: noDocker, port: 9055, local })).rejects.toThrow(/Start Docker Desktop/);
+  });
+
+  it("says where Docker comes from when this install does not include it", async () => {
+    const root = await folder();
+    const { io: fake } = io(["2"], "x");
+    await expect(setup(root, fake, { runner: noDocker, port: 9055 })).rejects.toThrow(/not part of this install[\s\S]*@penpair\/docker/);
   });
 
   it("continues from an existing config instead of asking again", async () => {

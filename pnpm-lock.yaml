@@ -24,7 +24,19 @@ importers:
         specifier: 1.32.0
         version: 1.32.0(zod@4.6.7)
 
+  packages/docker:
+    dependencies:
+      '@penpair/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/penpair:
+    dependencies:
+      '@penpair/web':
+        specifier: workspace:*
+        version: link:../web
+
+  packages/web:
     dependencies:
       '@penpair/core':
         specifier: workspace:*

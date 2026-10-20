@@ -1,0 +1,56 @@
+{
+  "name": "@penpair/docker",
+  "version": "0.1.1",
+  "description": "Everything in @penpair/core, plus running Penpot in Docker on your computer: one instance per project, generated secrets, up and down, backup, verify and restore.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niklas-westman/penpair.git",
+    "directory": "packages/docker"
+  },
+  "homepage": "https://github.com/niklas-westman/penpair#readme",
+  "bugs": {
+    "url": "https://github.com/niklas-westman/penpair/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "penpot",
+    "docker",
+    "design-systems",
+    "mcp",
+    "ai-agents",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@penpair/core": "workspace:*"
+  },
+  "bin": {
+    "penpair": "dist/cli.js"
+  }
+}

@@ -1,8 +1,10 @@
-export const version = "0.1.0";
+export { version } from "./version.js";
 
 export * from "./baselines.js";
+export { runCli } from "./cli-main.js";
 export * from "./client.js";
 export * from "./deep-check.js";
+export * from "./local-profile.js";
 export * from "./endpoint.js";
 export * from "./errors.js";
 export * from "./export.js";
@@ -15,3 +17,9 @@ export * from "./snippet.js";
 export * from "./snippets/archive.js";
 export * from "./snippets/read.js";
 export * from "./tokens-diff.js";
+export * from "./instance/config.js";
+export * from "./instance/connection.js";
+export * from "./instance/gitignore.js";
+export { defaultInstanceName, init } from "./instance/init.js";
+export type { InitOptions, InitResult } from "./instance/init.js";
+export * from "./instance/runner.js";

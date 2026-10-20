@@ -13,14 +13,14 @@ penpair works the same against both. The only difference is who runs Penpot. Eve
 
 | | Web (the default) | Docker on this computer |
 | --- | --- | --- |
-| Install | Nothing. An account on design.penpot.app or your team's Penpot | Docker Desktop, a 2 GB download on first start |
+| Install | Nothing extra (`@penpair/core` is the web variant). An account on design.penpot.app or your team's Penpot | `@penpair/docker` as well, Docker Desktop, a 2 GB download on first start |
 | Start | Open the Penpot address | `penpair up` (Docker must be running) |
 | Sharing with a team | An invite; Penpot's accounts decide who edits | One person's computer; others need the address and an account there |
 | Where the design lives | On the Penpot service; it survives your laptop | In Docker volumes on this computer; back them up |
 | Backup | Penpot's version history and the `.penpot` export in the File menu | `penpair backup`, `backup verify`, `restore` (proven on a scratch instance) |
 | Offline | No | Yes |
 | Data stays on your machine | No | Yes |
-| Setup command | `penpair setup --web` | `penpair setup --docker` |
+| Setup command | `npx @penpair/web setup --web` | `npm i -D @penpair/core @penpair/docker`, then `npx penpair setup --docker` |
 | Ports and containers | None | One instance per project, its own ports and volumes |
 
 Pick **web** unless you need offline work, your data on your own machine, or an instance you can throw away. Teams that run their own Penpot use the web path with their own address: `penpair init --external https://penpot.example.org`.

@@ -2,8 +2,8 @@ import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { firstFreePort, init } from "../src/instance/init.js";
-import { generateSecrets, readEnvValues } from "../src/docker/secrets.js";
+import { firstFreePort, initDocker as init } from "../src/init.js";
+import { generateSecrets, readEnvValues } from "../src/secrets.js";
 
 const free = async (): Promise<boolean> => true;
 const project = async (name = "my-app"): Promise<string> => {

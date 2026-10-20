@@ -9,6 +9,7 @@ const forbidden = ["sourcer", "tradient", "marwes"];
 const here = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.join(here, "../src");
 const skillsRoot = path.join(here, "../skills");
+const dockerRoot = path.join(here, "../../docker/src");
 
 async function filesUnder(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -33,6 +34,10 @@ export async function findForbidden(directory: string): Promise<string[]> {
 describe("core neutrality", () => {
   it("names no project or component library", async () => {
     expect(await findForbidden(sourceRoot)).toEqual([]);
+  });
+
+  it("holds for the Docker package too", async () => {
+    expect(await findForbidden(dockerRoot)).toEqual([]);
   });
 
   it("keeps the shipped skills just as neutral", async () => {

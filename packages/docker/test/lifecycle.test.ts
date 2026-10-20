@@ -2,10 +2,8 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateConfig } from "../src/instance/config.js";
-import { backup, composeArgs, doctor, down, parseComposePs, restore, up, verifyBackup, type Context } from "../src/docker/lifecycle.js";
-import { assertEndpointIsInstance, LifecycleError } from "../src/instance/connection.js";
-import type { RunOptions, RunResult, Runner } from "../src/instance/runner.js";
+import { assertEndpointIsInstance, LifecycleError, validateConfig, type LocalContext as Context, type RunOptions, type RunResult, type Runner } from "@penpair/core";
+import { backup, composeArgs, doctor, down, parseComposePs, restore, up, verifyBackup } from "../src/lifecycle.js";
 
 const config = validateConfig({ instance: "demo", penpotVersion: "2.18.3", ports: { frontend: 9102, mail: 1082 }, directory: ".penpair" });
 const counts = { files: 2, profiles: 1, teams: 1, storageObjects: 3, fileRevisions: [{ id: "a", name: "base", revn: 4 }] };

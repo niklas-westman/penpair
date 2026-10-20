@@ -1,7 +1,7 @@
 import { ConfigError, isExternal, loadConfig, requireLocal, type ProjectConfig } from "./config.js";
 import { connectProject, penpotAddress, type ConnectIo, type ConnectResult, type WaitOptions } from "./connect.js";
 import { init } from "./init.js";
-import { up, type Context } from "../docker/lifecycle.js";
+import { requireLocalProfile, type LocalContext, type LocalProfile } from "../local-profile.js";
 import type { Runner } from "./runner.js";
 
 export const hostedOrigin = "https://design.penpot.app";
@@ -24,6 +24,8 @@ export interface SetupOptions {
   /** Install the assistant's rules at the end without asking. */
   installSkills?: () => Promise<void>;
   runner: Runner;
+  /** A way to run Penpot on this computer, from a package that provides one; only used when that is chosen. */
+  local?: LocalProfile;
   log?: (message: string) => void;
 }
 
@@ -32,10 +34,10 @@ export interface SetupResult {
   connect: ConnectResult;
 }
 
-async function chooseWhere(io: SetupIo): Promise<SetupWhere> {
+async function chooseWhere(io: SetupIo, hasLocal: boolean): Promise<SetupWhere> {
   io.say("Where is your Penpot?");
   io.say("  1  On the web: design.penpot.app (free account) or your team's own Penpot. Nothing to install. (recommended)");
-  io.say("  2  On this computer, in Docker. Works offline; needs Docker Desktop and a 2 GB download.");
+  io.say(hasLocal ? "  2  On this computer, in Docker. Works offline; needs Docker Desktop and a 2 GB download." : "  2  On this computer, in Docker. Needs the @penpair/docker package, which this install does not include.");
   const answer = (await io.ask("Press Enter for 1, or type 2: ", "1")).trim();
   if (answer === "2") return { type: "docker" };
   const origin = (await io.ask(`Penpot address (Enter for ${hostedOrigin}): `, hostedOrigin)).trim();
@@ -56,17 +58,17 @@ export async function setup(root: string, io: SetupIo, options: SetupOptions): P
     if (!(error instanceof ConfigError) || !/No penpair\.config\.json/.test(error.message)) throw error;
   }
   if (!config) {
-    const where = options.where ?? (await chooseWhere(io));
-    const made = await init(root, { gitignore: true, instance: options.instance, port: options.port, ...(where.type === "web" ? { external: where.origin } : {}) });
+    const where = options.where ?? (await chooseWhere(io, Boolean(options.local)));
+    const made = await init(root, { gitignore: true, instance: options.instance, port: options.port, ...(where.type === "web" ? { external: where.origin } : {}) }, { local: options.local });
     config = made.config;
     io.say(`Wrote penpair.config.json (${where.type === "web" ? `Penpot at ${where.origin}` : "Penpot on this computer"}). Commit that file; it holds no secrets.`);
   }
   if (!isExternal(config)) {
-    const c: Context = { root, config: requireLocal(config), runner: options.runner, log: options.log ?? (() => undefined) };
-    const docker = await options.runner.run("docker", ["version", "--format", "{{.Server.Version}}"]);
-    if (docker.code !== 0) throw new ConfigError("Docker is not running. Start Docker Desktop, wait until it says it is running, then run `penpair setup` again.");
+    const local = requireLocalProfile(options.local);
+    await local.preflight(options.runner);
+    const c: LocalContext = { root, config: requireLocal(config), runner: options.runner, log: options.log ?? (() => undefined) };
     io.say("Starting Penpot. The first time it downloads about 2 GB and can take several minutes.");
-    const started = await up(c);
+    const started = await local.up(c);
     if (!started.ready) throw new ConfigError(`Penpot started but ${started.url} does not answer yet. Wait a minute and run \`penpair setup\` again.`);
     io.say("Penpot is running. Create your account on its start page (no email confirmation is needed), then create a design file.");
   } else io.say("In Penpot: log in, then create a project and a design file for this work if you have none.");

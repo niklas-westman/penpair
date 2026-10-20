@@ -4,7 +4,9 @@ import { cp, copyFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const core = `${root}packages/core/`;
+// The README and docs go into the package named on the command line (default: the core). The web package is the one people land on.
+const target = process.argv[2] ?? "core";
+const core = `${root}packages/${target}/`;
 await copyFile(`${root}README.md`, `${core}README.md`);
 await mkdir(`${core}docs`, { recursive: true });
 // The README links its logo by URL, so the images stay out of the tarball.

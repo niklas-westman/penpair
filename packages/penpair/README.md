@@ -2,10 +2,10 @@
 
 **Design together. Build together.**
 
-This package is the short name for the `penpair` command. The code, the documentation and the skills live in [`@penpair/core`](https://www.npmjs.com/package/@penpair/core), which this package depends on.
+This package is the short name for the `penpair` command. It runs [`@penpair/web`](https://www.npmjs.com/package/@penpair/web), which holds the command for Penpot on the web; Penpot on your own computer in Docker is [`@penpair/docker`](https://www.npmjs.com/package/@penpair/docker).
 
 ```
 npx penpair setup
 ```
 
-asks where your [Penpot](https://penpot.app) is (on the web by default, or in Docker on your computer), connects your AI assistant to it and checks that it works. Full guide: https://github.com/niklas-westman/penpair#readme
+asks where your [Penpot](https://penpot.app) is, connects your AI assistant to it and checks that it works. Full guide: https://github.com/niklas-westman/penpair#readme
