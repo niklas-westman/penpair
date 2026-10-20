@@ -28,9 +28,11 @@ One Penpot per project, configured in `penpair.config.json` (no secrets, commit 
 
 | Command | What it does |
 | --- | --- |
+| `penpair setup [--web \| --docker]` | The guided path: where is Penpot, config, start it if it is Docker, take the key (hidden), wait for the editor, read the file, install the skills |
+| `penpair connect [--replace]` | Only the key and the wait for the editor; accepts a pipe (`pbpaste \| penpair connect`) |
 | `penpair init [--instance <name>] [--port 9002] [--gitignore]` | Writes the config if missing, the compose file, and a secrets file (owner-only) that is never replaced |
 | `penpair up` / `down` / `status` | Start (waits until the backend answers), stop (the data volumes stay), look |
-| `penpair doctor` | Docker, secrets, containers, frontend, backend, then the editor and plugin through the MCP |
+| `penpair doctor [--json]` | Docker, secrets, containers, frontend, backend, then the editor and plugin through the MCP, and that `.env.local` is kept out of git (a web project checks only the address, the editor and the key file) |
 | `penpair backup` | A Postgres dump and a tarball of the assets, with checksums and counts, in `.penpair/backups/` |
 | `penpair backup verify <dir>` | Restores the dump into a throwaway database and compares counts, revisions and asset files |
 | `penpair restore <dir> --yes` | Replaces the instance's data; a safety backup of the current data comes first; the counts are compared afterwards |

@@ -2,7 +2,7 @@
 import { writeFile, readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { connect, executeCode } from "./client.js";
-import { resolveEndpoint } from "./endpoint.js";
+import { redactEndpoint, resolveEndpoint } from "./endpoint.js";
 import { PenpairError } from "./errors.js";
 import { exportShapePng } from "./export.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
@@ -16,11 +16,20 @@ import { audit, pages, tokensDump, tree } from "./snippets/read.js";
 import { diffEffective, effectiveValues, type TokenDump } from "./tokens-diff.js";
 import { ConfigError, isExternal, loadConfig, requireLocal } from "./instance/config.js";
 import { init } from "./instance/init.js";
+import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
+import { hostedOrigin, setup, type SetupWhere } from "./instance/setup.js";
+import { askHidden, askLine, openInBrowser } from "./instance/tty.js";
 import { assertEndpointIsInstance, backup, doctor, doctorExternal, down, restore, status, up, verifyBackup, LifecycleError, type Context } from "./instance/lifecycle.js";
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./index.js";
 
 const usage = `penpair ${version}
+Start here (guided, plain language; safe to run again):
+  penpair setup                                        asks where your Penpot is (web is the default), sets everything up and checks it
+  penpair setup --web [--external <address>]           Penpot on the web: design.penpot.app, or your team's address; no questions about it
+  penpair setup --docker                               Penpot on this computer in Docker
+  penpair connect [--replace]                          only the connection: takes your personal key without showing it, waits for the editor
+                                                       (a pipe works too: pbpaste | penpair connect)
 Read-only:
   penpair probe                                        what the connected Penpot and its MCP offer, and the limits
   penpair probe --deep --write                         also tries layout, tokens, components, swap, clone and export on a temporary
@@ -36,7 +45,7 @@ An instance (one Penpot per project, configured in penpair.config.json):
   penpair init [--instance <name>] [--port 9001] [--gitignore]   set up the config, the compose file and the secrets
   penpair init --external <origin>                     use a Penpot someone else runs (a team server or https://design.penpot.app); no Docker
   penpair up | down | status                           start, stop (data stays) and look at the containers
-  penpair doctor                                       what is up, what is not, and what to do about it
+  penpair doctor [--json]                              what is up, what is not, and what to do about it (--json for scripts and agents)
   penpair backup                                       database and assets, with checksums and counts
   penpair backup verify <dir>                          restore into a throwaway database and compare
   penpair restore <dir> --yes                          replace the instance's data with a backup (safety backup first)
@@ -76,6 +85,10 @@ async function main(argv: string[]): Promise<number> {
       gitignore: { type: "boolean" },
       yes: { type: "boolean" },
       "any-instance": { type: "boolean" },
+      web: { type: "boolean" },
+      docker: { type: "boolean" },
+      replace: { type: "boolean" },
+      json: { type: "boolean" },
       deep: { type: "boolean" },
       force: { type: "boolean" },
       to: { type: "string" },
@@ -141,6 +154,55 @@ async function main(argv: string[]): Promise<number> {
     return { registry, problems: report.problems, files: report.files };
   }
 
+  const connectIo = (): ConnectIo => ({
+    say: (line) => console.log(line),
+    askHidden,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    openFile: async (url) => {
+      const endpoint = await resolveEndpoint({ environment: { PENPAIR_MCP_URL: url }, envFiles: [] });
+      try {
+        const client = await connect(endpoint);
+        try {
+          const { result } = await executeCode(client, "return { file: penpot.currentFile.name, pages: penpot.currentFile.pages.map((p) => p.name) };", { retries: 0 });
+          const read = result as { file?: string; pages?: string[] };
+          return { file: String(read.file ?? "?"), pages: read.pages ?? [] };
+        } finally {
+          await client.close();
+        }
+      } catch (error) {
+        throw new Error(redactEndpoint(String((error as Error).message ?? error), endpoint));
+      }
+    },
+  });
+
+  if (command === "setup" || command === "connect") {
+    if (command === "connect") {
+      const project = await loadConfig(root);
+      await connectProject(root, project, connectIo(), { replace: values.replace === true });
+      console.log("Next: `penpair doctor`, then `penpair skills install` if you have not yet.");
+      return 0;
+    }
+    let where: SetupWhere | undefined;
+    if (values.docker) where = { type: "docker" };
+    else if (values.web || values.external) where = { type: "web", origin: values.external ?? hostedOrigin };
+    await setup(
+      root,
+      { ...connectIo(), ask: (question, fallback) => askLine(question, fallback), openBrowser: openInBrowser },
+      {
+        where,
+        instance: values.instance,
+        port: values.port ? Number(values.port) : undefined,
+        runner: nodeRunner,
+        log,
+        installSkills: async () => {
+          const report = await installSkills({ root });
+          console.log(`Installed ${report.installed.length} rule file(s) in .skills/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
+        },
+      },
+    );
+    return 0;
+  }
+
   if (command === "skills") {
     if (rest[0] === "install") {
       const report = await installSkills({ root, to: values.to, only: values.only, force: values.force });
@@ -177,14 +239,27 @@ async function main(argv: string[]): Promise<number> {
     const result = await init(root, { instance: values.instance, port: values.port ? Number(values.port) : undefined, gitignore: values.gitignore, external: values.external });
     if (isExternal(result.config)) {
       console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`);
-      console.log("next: in that Penpot enable the MCP key (Account, Integrations, MCP Server), put the address in .env.local as PENPAIR_MCP_URL, connect the plugin in a file (File, MCP Server, Connect), then run `penpair doctor`");
+      console.log("next: penpair connect   (takes your personal key without showing it, then waits for the editor)");
       return 0;
     }
     console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (instance ${result.config.instance}, Penpot ${result.config.penpotVersion}, port ${result.config.ports.frontend})`);
     console.log(`wrote ${result.config.directory}/docker-compose.yaml; secrets ${result.createdSecrets ? "generated" : "kept"} in ${result.config.directory}/.env`);
     if (!result.gitignoreAdded) console.log(`keep ${result.config.directory}/ out of git (add it to .gitignore, or run init with --gitignore)`);
-    console.log("next: penpair up");
+    console.log("next: penpair up, then penpair connect");
     return 0;
+  }
+  /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
+  async function report(checks: Awaited<ReturnType<typeof doctor>>, mcp: unknown): Promise<number> {
+    const keyCheck = await keyFileCheck(root, nodeRunner);
+    const all = keyCheck ? [...checks, keyCheck] : checks;
+    const ok = all.every((check) => check.ok);
+    if (values.json) {
+      console.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), checks: all }, null, 2));
+      return ok ? 0 : 1;
+    }
+    for (const check of all) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
+    if (!mcp) console.log("skip editor and plugin: no key yet. Run `penpair connect`.");
+    return ok ? 0 : 1;
   }
   const lifecycle = new Set(["up", "down", "status", "doctor", "backup", "restore"]);
   if (lifecycle.has(command)) {
@@ -192,15 +267,12 @@ async function main(argv: string[]): Promise<number> {
     if (isExternal(project) && command !== "doctor") requireLocal(project);
     if (isExternal(project)) {
       const mcp = await mcpProbeFor();
-      const checks = await doctorExternal(project, { mcp });
-      for (const check of checks) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${check.remedy ? `\n       → ${check.remedy}` : ""}`);
-      if (!mcp) console.log("skip editor and plugin: no MCP endpoint yet (set PENPAIR_MCP_URL in .env.local)");
-      return checks.every((check) => check.ok) ? 0 : 1;
+      return report(await doctorExternal(project, { mcp }), mcp);
     }
     const c: Context = { root, config: requireLocal(project), runner: nodeRunner, log };
     if (command === "up") {
       const result = await up(c);
-      console.log(result.ready ? `Penpot is up at ${result.url}. Create an account, open a file, then enable the MCP key (Account, Integrations, MCP Server) and put it in .env.local as PENPAIR_MCP_URL.` : `The containers started but ${result.url} does not answer yet. Run \`penpair status\`.`);
+      console.log(result.ready ? `Penpot is up at ${result.url}. Create an account and open a file, then run \`penpair connect\`.` : `The containers started but ${result.url} does not answer yet. Run \`penpair status\`.`);
       return result.ready ? 0 : 1;
     }
     if (command === "down") {
@@ -216,10 +288,7 @@ async function main(argv: string[]): Promise<number> {
     }
     if (command === "doctor") {
       const mcp = await mcpProbeFor();
-      const checks = await doctor(c, { mcp });
-      for (const check of checks) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${check.remedy ? `\n       → ${check.remedy}` : ""}`);
-      if (!mcp) console.log("skip editor and plugin: no MCP endpoint yet (set PENPAIR_MCP_URL in .env.local)");
-      return checks.every((check) => check.ok) ? 0 : 1;
+      return report(await doctor(c, { mcp }), mcp);
     }
     if (command === "backup") {
       if (rest[0] === "verify") {
@@ -335,7 +404,7 @@ main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (error: unknown) => {
-    console.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);
+    console.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof ConnectError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);
     process.exitCode = 1;
   },
 );

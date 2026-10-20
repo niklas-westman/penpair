@@ -2,10 +2,12 @@
 
 Draft. Written for someone who has not used a terminal much. The steps marked **(not tried yet)** come from Penpot's help pages, not from a run; the first person to follow this guide on a clean machine should mark what differs.
 
+The normal way is to use Penpot on the web (or your team's own Penpot) and connect the AI assistant to it. Nothing runs on your computer except penpair. If you want your own copy of Penpot on your computer instead, see "Alternative: run Penpot on your own computer" at the end.
+
 There are two roles. You may be both.
 
-- **The designer** works in Penpot in the browser. Nothing to install if someone runs Penpot for the team (go to "If you are the designer").
-- **The person who sets Penpot up** runs it on a computer with Docker and connects the AI assistant to it (go to "If you set it up").
+- **The designer** works in Penpot in the browser (go to "If you are the designer").
+- **The person who sets it up** connects the AI assistant to that Penpot (go to "If you set it up").
 
 ## If you are the designer
 You need a link to your team's Penpot and an account.
@@ -19,32 +21,26 @@ You need a link to your team's Penpot and an account.
 That is all. The assistant looks first, changes things in one go, and checks its own work; you review the result in Penpot as usual.
 
 ## If you set it up
-You need: a Mac or Linux computer, **Docker Desktop** running, **Node.js** (the current LTS version), and a terminal.
+You need: a Mac or Linux computer, **Node.js** (the current LTS version), a terminal, and an account on a Penpot (the hosted one at design.penpot.app is free to start; use your team's address if it runs its own).
 
-### 1. Create the project's Penpot
+**The quick way:** in your project's folder run `npx penpair setup`. It asks where your Penpot is (press Enter for the web), does steps 1 to 5 below, and says in plain words what it is waiting for. Run it again if you stop halfway. The rest of this section is what it does, one step at a time, for when you want to do it by hand or something needs fixing.
+
+### 1. Connect your project to that Penpot
 In the folder of your project:
 
 ```
-npx penpair init --gitignore
-npx penpair up
+npx penpair init --external https://design.penpot.app --gitignore
 ```
 
-`init` writes a small settings file (`penpair.config.json`, commit it) and a hidden folder `.penpair/` with the Penpot settings and secret keys (it is kept out of git for you). `up` starts Penpot. The first start downloads about 2 GB and can take several minutes; after that it takes seconds.
+`init` writes a small settings file (`penpair.config.json`, commit it) and keeps your private files out of git for you.
 
-When it says "Penpot is up at http://127.0.0.1:9001" (your port may differ), open that address.
-
-If it says a port is taken, run `init` again with `--port 9002` (any free number from 1024 up).
-
-### 2. Make your account (once)
-Open the address, choose **Create an account** and fill it in. No email confirmation is needed on your own computer.
+### 2. Make your account and a file (once)
+Open the Penpot address, create an account and log in. Create a project and a design file for this work.
 
 ### 3. Connect the assistant (once)
-1. In Penpot open **Account, Integrations, MCP Server** and switch it on (not tried yet). Copy the address it shows; it contains your personal key, so treat it like a password.
-2. In your project folder, open the file `.env.local` (create it if it does not exist; it is kept out of git) and add one line:
-   ```
-   PENPAIR_MCP_URL=<paste the address here>
-   ```
-3. Open any file in Penpot, choose **File, MCP Server, Connect**, and keep that tab visible.
+1. In Penpot open **Account, Integrations, MCP Server** and switch it on (not tried yet). Copy the address it shows; it contains your personal key, so treat it like a password. The key belongs to you, not to the team; each person who uses the assistant makes their own.
+2. In your project folder run `npx penpair connect` and paste the address when asked. Nothing is shown as you paste. It saves the address in `.env.local` (readable only by you, and added to `.gitignore`) and refuses an address that belongs to a different Penpot. (By hand instead: put the line `PENPAIR_MCP_URL=<the address>` in `.env.local` and keep that file out of git.)
+3. Open your design file in Penpot, choose **File, MCP Server, Connect**, and keep that tab visible.
 
 ### 4. Check that it works
 ```
@@ -54,13 +50,13 @@ Every line should say `ok`. If one says `FAIL`, the line under it says what to d
 
 | It says | What to do |
 | --- | --- |
-| docker: not answering | Start Docker Desktop and wait until it says it is running |
-| containers: not running | Run `npx penpair up` |
-| backend: not ready yet | Wait ten seconds and run `doctor` again |
+| penpot: not answering | Check the address in the config and your internet connection |
 | editor and plugin: the MCP address points at another instance | The address in `.env.local` belongs to a different Penpot. Copy the one from this Penpot |
 | editor and plugin: not connected | Do step 3.3 again and keep the tab visible |
 
 Then try: `npx penpair pages` lists the pages in the open file.
+
+If you want to know what your Penpot offers before you start, `npx penpair probe` lists its tools and limits. If `execute_code` is missing from that list, penpair cannot work with it. The hosted service, checked 2026-10-20 on Penpot 2.18.4, offers the same four tools and the same limits as a local Penpot (see `compatibility.md`).
 
 ### 5. Give the assistant its rules (once)
 ```
@@ -69,23 +65,33 @@ npx penpair skills install
 This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpot-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
 
 ### Every day
-- Start: `npx penpair up` (if Docker was restarted). Stop: `npx penpair down`. Your designs stay.
-- Back up before big changes: `npx penpair backup`. Prove a backup works: `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
+Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visible, and start working with the assistant.
 
-## If your team already runs Penpot (or you use the hosted one)
-You do not need Docker. In your project folder:
-
-```
-npx penpair init --external https://design.penpot.app
-```
-
-(Use your team's address instead if it runs its own.) Then do steps 2 and 3 above in that Penpot: your account, the MCP key into `.env.local`, and **File, MCP Server, Connect**. `npx penpair doctor` checks that the Penpot answers, that the key belongs to it and that the plugin is connected.
-
-Some things differ: `up`, `down`, `status`, `backup` and `restore` do not apply (Penpot's own version history and export are your safety net), and the hosted service may offer fewer tools than your own computer's Penpot. `npx penpair probe` lists exactly what it offers; if `execute_code` is missing from that list, penpair cannot work with it. On the hosted service, the probe found the same four tools as a local Penpot and the same limits (checked once, on an empty file; changes to a file with content are not tried yet).
+### Your safety net
+`up`, `down`, `status`, `backup` and `restore` belong to the Docker alternative and do not apply here. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see PLAN.md.
 
 ## What it will not do
 It needs the Penpot tab open and visible while the assistant works, so it cannot run on its own overnight. It changes one Penpot at a time and only the page you have open.
 
+## Alternative: run Penpot on your own computer
+Choose this when you want to work offline, keep the data on your machine, or have one Penpot per project that you can throw away. It needs **Docker Desktop** running in addition to Node.js. The first start downloads about 2 GB.
+
+```
+npx penpair init --gitignore
+npx penpair up
+```
+
+`init` also writes a hidden folder `.penpair/` with the Penpot settings and secret keys. When `up` says "Penpot is up at http://127.0.0.1:9001" (your port may differ; use `--port 9002` with `init` if one is taken), open that address and create an account (no email confirmation is needed). Then do steps 3 to 5 above in that Penpot. `npx penpair doctor` also checks Docker, the secrets file and the containers:
+
+| It says | What to do |
+| --- | --- |
+| docker: not answering | Start Docker Desktop and wait until it says it is running |
+| containers: not running | Run `npx penpair up` |
+| backend: not ready yet | Wait ten seconds and run `doctor` again |
+
+Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to stop; your designs stay. Back up before big changes with `npx penpair backup`, and prove a backup works with `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
+
 ## Still to make easier (see PLAN.md)
-- One guided command that does steps 1 to 4, waits for each browser step and says what it sees.
+- One guided command (`penpair setup`) that does the steps above, waits for each browser step and says what it sees. It will ask "Penpot on the web, or on this computer?" and default to the web.
+- A short illustrated version with a screenshot of each browser step.
 - A shared Penpot for a team, so designers need no setup.

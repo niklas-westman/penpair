@@ -2,22 +2,80 @@
 
 **Design together. Build together.**
 
-penpair is a framework that makes a Penpot design file the source of truth for a project's UI, and lets people and AI coding agents work on it together, safely and repeatably.
+penpair makes a [Penpot](https://penpot.app) design file the source of truth for a project's UI, and lets people and AI coding agents work on it together, safely and repeatably.
 
-- **Run it:** one Penpot instance per project, started with one command (Docker), with secrets generated outside git, backups and restore.
-- **Drive it:** connect an agent through Penpot's MCP and plugin API, and use a set of safe, tested operations: inspect, build, audit, export, archive, manage design tokens.
-- **Know it:** the rules and the written-down quirks of the tool ship with the code, as skills the agent follows.
+Status: **draft, not published.** See [PLAN.md](PLAN.md).
+
+## Quick start (about ten minutes)
+
+You need Node.js (current LTS) and a terminal. In your project's folder:
+
+```
+npx penpair setup
+```
+
+It asks where your Penpot is and does the rest, saying what it is doing in plain words:
+
+1. **On the web** (the default): design.penpot.app with a free account, or your team's own Penpot. Nothing else to install.
+2. **On this computer**: Penpot in Docker, for offline work or data that stays with you. Needs Docker Desktop.
+
+Then it writes the config, takes your personal key **without showing it**, waits for you to connect the plugin in your browser (File, MCP Server, Connect), reads your file once to prove it works, and installs the rules your AI assistant follows. Run it again any time; it continues where it stopped. `npx penpair doctor` checks the connection whenever something seems off.
+
+Until penpair is published, run it from a clone: `pnpm install && pnpm build` here, then `node <this folder>/packages/core/dist/cli.js setup` (or `pnpm add -D <path to the packed tarball>`, see PLAN.md).
+
+Step by step with the browser screens: [docs/getting-started.md](docs/getting-started.md).
+
+## For an AI agent
+
+If you were told to set penpair up, read [the setup skill](packages/core/skills/penpair-setup/SKILL.md) first and follow it. In short:
+
+- Run `npx penpair doctor --json` to see where things stand; every failing check carries a `remedy`.
+- Web is the default; Docker only when the person asks for offline or local data.
+- **The personal MCP key never goes through you.** The person pastes it themselves into `npx penpair connect` (hidden prompt) or pipes it from their clipboard.
+- Done means `doctor` reports `ok: true` and "editor and plugin" connected. After that, `npx penpair skills install` gives you the rules for working in Penpot (`penpot-design`) and for judging a screen (`design-judgment`).
+
+## Web or Docker, and how they connect
+
+penpair works the same against both; the only difference is who runs Penpot. The connection is always your personal key in `.env.local` plus a Penpot file open in a visible browser tab.
+
+| | Web (default) | Docker on this computer |
+| --- | --- | --- |
+| Install | Nothing | Docker Desktop, 2 GB first download |
+| Sharing | An invite | One computer |
+| Backup | Penpot's version history and `.penpot` export | `penpair backup`, `verify`, `restore` |
+| Command | `penpair setup --web` | `penpair setup --docker` |
+
+The full comparison, what is checked and how to switch: [web-or-docker.md](packages/core/skills/penpair-setup/references/web-or-docker.md).
+
+## What it does
+
+- **Connect it:** point it at a Penpot on the web or your own, with one command and a check that it works.
+- **Drive it:** an agent works through Penpot's MCP and plugin API with safe, tested operations: inspect, build, audit, export, archive, manage design tokens. Each change looks first, writes once and reads back.
+- **Know it:** the rules and the written-down quirks of the tool ship with the code as skills the agent follows.
 - **Extend it:** a project plugs in its component library, its checks and its own snippets. Nothing project-specific lives in the core.
+- **Run it yourself (optional):** one Docker Penpot per project with generated secrets, backups and restore.
 
 It is the other half of [Reflection](../../../reflection/CODE/reflection): Reflection checks that an implementation matches its design; penpair holds and drives the design that everything is measured against.
 
-Status: **draft, not published.** See [PLAN.md](PLAN.md).
+## Commands
+
+`npx penpair --help` lists them all. The ones you need first:
+
+| Command | What it does |
+| --- | --- |
+| `setup [--web \| --docker]` | The guided path from nothing to a working connection |
+| `connect [--replace]` | Only the connection: your key (hidden), then waits for the editor |
+| `doctor [--json]` | What works, what does not, and what to do about it |
+| `pages`, `tree`, `audit`, `tokens dump` | Read your Penpot file |
+| `export <shapeId> <out.png>` | A stable PNG of a frame |
+| `skills install` | The agent's rules, into `.skills/`, visible to Codex and Claude Code |
+| `up`, `down`, `backup`, `restore` | Docker only |
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| `packages/core` | The neutral core: connection, safe write runner, operations, instance lifecycle (`penpair`) |
-| `docker` | The pinned Penpot compose template and its notes |
-| `packages/core/skills` | The knowledge packs (the Penpot skill and design judgment) installed into a project's `.skills/` with `penpair skills install` |
-| `docs` | The guide: extension points and the checklist an adopter works through |
+| `packages/core` | The neutral core: connection, safe write runner, operations, setup and instance lifecycle (`penpair`) |
+| `packages/core/skills` | The knowledge packs: setup, the Penpot skill, design judgment. Installed into a project's `.skills/` with `penpair skills install` |
+| `docker` | Notes on the pinned Penpot compose template |
+| `docs` | Getting started, the guide to extension points, the compatibility matrix |

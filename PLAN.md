@@ -7,7 +7,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 
 ## Principles
 - A framework first: neutral core, extension points, nothing project-specific inside (enforced by a test).
-- One Penpot instance per project, easy to run.
+- Web Penpot first: the default is to connect to a Penpot on the web (hosted or team-run, the external profile); a Docker instance per project on the owner's computer is the documented alternative, not the priority.
 - Penpot is the authority; the repository holds snapshots and readable manifests, not the live file.
 - Honest about limits: tied to Penpot's plugin API, needs an open editor tab, not headless.
 
@@ -53,7 +53,8 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] First draft of `docs/getting-started.md` for two roles: the designer (browser only) and the person who sets it up
 - [x] Followed on the trial instance on 9002 by the owner (account, MCP key, plugin connection): `doctor` all ok, `pages` ok, the deep check passes on the local Penpot too. Still to collect: where the guide's wording did not match what the owner saw.
 - [ ] Follow the guide on a clean machine, from nothing (no cached images, no Docker experience) and mark what differs
-- [ ] `penpair setup`: one guided command (prerequisites, `init`, `up`, open the browser, wait for the account, accept the pasted MCP address without echoing it and write `.env.local`, wait for the plugin, run a first read) in plain language
+- [x] `penpair setup` and `penpair connect` (2026-10-20): setup asks where Penpot is (web is the default; `--web [--external <address>]`, `--docker` skip the question), writes the config and `.gitignore`, starts Docker Penpot when chosen, opens the browser, takes the key without echo (a pipe works too) and checks that it belongs to this project's Penpot, writes `.env.local` (0600, git-ignored first), waits for the editor and plugin saying what to do, reads the file once, installs the skills. Run live against the hosted Penpot from an empty folder; the hidden terminal prompt itself is not yet tried by a person on a real terminal. `doctor --json` and a key-file-in-git check added.
+- [ ] A person follows `penpair setup` on a real terminal (hidden prompt, browser opening) and reports what differs
 - [x] External profile in the code: `penpair init --external <origin>`; no Docker; `doctor` checks that the Penpot answers, that the key belongs to it and that the editor and plugin are connected; the Docker commands refuse politely; every command still acts only on that Penpot. Tested against the local Penpot standing in for a team-run one.
 - [x] Hosted Penpot probed (2026-10-20, owner's free account, empty scratch file): the same four tools as a local Penpot (`execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`); request body 90 KB accepted and 110 KB refused, exactly as locally; responses of 1 MB return; tokens, `uploadMediaData`, `createBoard`, `openPage` and file export are present.
 - [x] Hosted Penpot checked on a file with content (2026-10-20, Penpot 2.18.4): `probe --deep --write` passes every step and leaves nothing behind; `pages`, `tree`, `audit`, `tokens dump`, `export`, `archive --apply` and a project snippet that writes (`seed-demo`) all work. Differences and what is not checked: `docs/compatibility.md`. The probe now lists the server's tools first and says plainly if `execute_code` is missing, because everything penpair does goes through it. Penpot's help describes a remote MCP at `https://<domain>/mcp/stream?userToken=<key>` with fewer tools than the local one; whether `execute_code` is among them is not confirmed.
@@ -69,6 +70,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 Connection profile, library adapter, snippet registry, verification provider, skill pack. See `docs/guide.md`.
 
 ## Decided
+- Default path is the external profile (hosted or team-run Penpot); Docker is an alternative, kept and tested but not the priority (owner, 2026-10-20). Consequences: the guide leads with `init --external`; `penpair setup` asks "web or this computer?" and defaults to web; the `.penpot` round trip is first tested against the hosted Penpot with `sourcer-base`.
 - Licence: MIT, same as Reflection. Published by the owner, when the owner decides; `packages/core/package.json` stays `private: true` until then.
 
 ## Undecided
@@ -79,6 +81,8 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-20: `penpair setup`, `penpair connect`, `doctor --json`, a key-file check, `init --gitignore` also covers `.env.local` for a web project; the skill `penpair-setup` (for an AI agent: recommend web, never see the key, verify with `doctor --json`) with a web-or-Docker reference; the README rewritten around a quick start, an AI section and the web-or-Docker choice. 146 tests.
+- 2026-10-20: the default path is now the external profile; `docs/getting-started.md` and the README lead with it and move Docker to an alternative section.
 - 2026-10-20: guide followed on the Tradient trial instance; deep check passes on local Penpot 2.18.3 as well. New token sets start inactive on both, which corrects an earlier note.
 - 2026-10-20: skills pack and `penpair skills install`. 123 tests. Sourcer's work was committed in seven themed commits on its branch and penpair in three; a clean clone of penpair builds and passes.
 - 2026-10-20: `penpair probe --deep --write` (a temporary tagged board, token set and components; flex, text, token binding, component swap, clone, export; clean-up verified by a separate look), run against the hosted Penpot: all steps pass. The first run failed on the token binding, which is recorded a few seconds after the call; the check now waits for it. `docs/compatibility.md` records the matrix. 116 tests.

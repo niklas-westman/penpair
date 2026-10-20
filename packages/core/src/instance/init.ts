@@ -46,7 +46,8 @@ export interface InitResult {
   gitignoreAdded: boolean;
 }
 
-async function ensureGitignore(root: string, entry: string): Promise<boolean> {
+/** Adds a line to the project's .gitignore unless it is already there; says whether it wrote. `directory` adds a trailing slash. */
+export async function ensureGitignoreEntry(root: string, entry: string, options: { directory?: boolean; comment: string }): Promise<boolean> {
   const file = path.join(root, ".gitignore");
   let text = "";
   try {
@@ -55,9 +56,13 @@ async function ensureGitignore(root: string, entry: string): Promise<boolean> {
     // no .gitignore yet
   }
   if (text.split(/\r?\n/).some((line) => line.trim() === entry || line.trim() === `${entry}/`)) return false;
-  await appendFile(file, `${text.length > 0 && !text.endsWith("\n") ? "\n" : ""}# penpair: generated compose file, secrets and backups\n${entry}/\n`);
+  await appendFile(file, `${text.length > 0 && !text.endsWith("\n") ? "\n" : ""}# ${options.comment}\n${entry}${options.directory ? "/" : ""}\n`);
   return true;
 }
+
+const ensureGitignore = (root: string, entry: string): Promise<boolean> => ensureGitignoreEntry(root, entry, { directory: true, comment: "penpair: generated compose file, secrets and backups" });
+/** The MCP key goes in .env.local; whoever writes it makes sure git never sees it. */
+export const ensureKeyFileIgnored = (root: string): Promise<boolean> => ensureGitignoreEntry(root, ".env.local", { comment: "penpair: your personal Penpot MCP key" });
 
 /**
  * Sets an instance up in a project: config (committed), then the generated compose file and secrets (in a git-ignored
@@ -73,7 +78,7 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
     if (options.external) {
       config = validateProjectConfig({ instance: options.instance ?? defaultInstanceName(root), profile: { type: "external", origin: options.external } });
       await writeFile(path.join(root, configFileName), `${JSON.stringify(config, null, 2)}\n`);
-      return { config, createdConfig: true, createdSecrets: false, files: [], gitignoreAdded: false };
+      return { config, createdConfig: true, createdSecrets: false, files: [], gitignoreAdded: options.gitignore ? await ensureKeyFileIgnored(root) : false };
     }
     const free = options.isFree ?? isPortFree;
     const frontend = options.port ?? (await firstFreePort(9001, [], free));
@@ -88,13 +93,17 @@ export async function init(root: string, options: InitOptions = {}): Promise<Ini
     await writeFile(path.join(root, configFileName), `${JSON.stringify(config, null, 2)}\n`);
     createdConfig = true;
   }
-  if (isExternal(config)) return { config, createdConfig, createdSecrets: false, files: [], gitignoreAdded: false };
+  if (isExternal(config)) return { config, createdConfig, createdSecrets: false, files: [], gitignoreAdded: options.gitignore ? await ensureKeyFileIgnored(root) : false };
   const paths = instancePaths(root, config);
   await mkdir(paths.directory, { recursive: true });
   await writeFile(paths.compose, renderCompose(config));
   const files = [paths.compose];
   const createdSecrets = await writeSecretFile(paths.env, renderEnv(config, generateSecrets()));
   files.push(paths.env);
-  const gitignoreAdded = options.gitignore ? await ensureGitignore(root, config.directory) : false;
+  let gitignoreAdded = false;
+  if (options.gitignore) {
+    const directoryAdded = await ensureGitignore(root, config.directory);
+    gitignoreAdded = (await ensureKeyFileIgnored(root)) || directoryAdded;
+  }
   return { config, createdConfig, createdSecrets, files, gitignoreAdded };
 }

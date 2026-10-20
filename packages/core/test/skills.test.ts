@@ -7,8 +7,8 @@ import { describeSkill, installSkills, listBundledSkills, bundledSkillsDirectory
 const project = async (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-skills-"));
 
 describe("the shipped skills", () => {
-  it("are the Penpot skill and design judgment, each with a SKILL.md that names itself", async () => {
-    expect(await listBundledSkills()).toEqual(["design-judgment", "penpot-design"]);
+  it("are setup, the Penpot skill and design judgment, each with a SKILL.md that names itself", async () => {
+    expect(await listBundledSkills()).toEqual(["design-judgment", "penpair-setup", "penpot-design"]);
     for (const name of await listBundledSkills()) {
       const { name: declared, summary } = await describeSkill(path.join(bundledSkillsDirectory(), name));
       expect(declared).toBe(name);
