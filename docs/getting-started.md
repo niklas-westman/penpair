@@ -68,7 +68,7 @@ This copies the rules the assistant follows (how to work safely in Penpot, and h
 Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visible, and start working with the assistant.
 
 ### Your safety net
-`up`, `down`, `status`, `backup` and `restore` belong to the Docker alternative and do not apply here. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see PLAN.md.
+`up`, `down`, `status`, `backup` and `restore` belong to the Docker alternative and do not apply here. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
 
 ## What it will not do
 It needs the Penpot tab open and visible while the assistant works, so it cannot run on its own overnight. It changes one Penpot at a time and only the page you have open.
@@ -91,7 +91,7 @@ npx penpair up
 
 Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to stop; your designs stay. Back up before big changes with `npx penpair backup`, and prove a backup works with `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
 
-## Still to make easier (see PLAN.md)
+## Still to make easier (see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md))
 - One guided command (`penpair setup`) that does the steps above, waits for each browser step and says what it sees. It will ask "Penpot on the web, or on this computer?" and default to the web.
 - A short illustrated version with a screenshot of each browser step.
 - A shared Penpot for a team, so designers need no setup.

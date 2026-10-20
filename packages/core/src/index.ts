@@ -1,4 +1,4 @@
-export const version = "0.0.0";
+export const version = "0.1.0";
 
 export * from "./client.js";
 export * from "./deep-check.js";

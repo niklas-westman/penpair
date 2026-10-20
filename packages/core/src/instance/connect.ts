@@ -2,8 +2,8 @@ import { chmod, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseEnvFileValue } from "../endpoint.js";
 import { isExternal, type ProjectConfig } from "./config.js";
-import { ensureKeyFileIgnored } from "./init.js";
-import { endpointIsInstance } from "./lifecycle.js";
+import { ensureKeyFileIgnored } from "./gitignore.js";
+import { endpointIsInstance } from "./connection.js";
 import type { Runner } from "./runner.js";
 
 export class ConnectError extends Error {}

@@ -19,7 +19,8 @@ import { init } from "./instance/init.js";
 import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
 import { hostedOrigin, setup, type SetupWhere } from "./instance/setup.js";
 import { askHidden, askLine, openInBrowser } from "./instance/tty.js";
-import { assertEndpointIsInstance, backup, doctor, doctorExternal, down, restore, status, up, verifyBackup, LifecycleError, type Context } from "./instance/lifecycle.js";
+import { backup, doctor, down, restore, status, up, verifyBackup, type Context } from "./docker/lifecycle.js";
+import { assertEndpointIsInstance, doctorExternal, LifecycleError } from "./instance/connection.js";
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./index.js";
 

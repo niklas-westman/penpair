@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { composeProjectOf, validateConfig, ConfigError } from "../src/instance/config.js";
-import { renderCompose } from "../src/instance/template.js";
+import { renderCompose } from "../src/docker/template.js";
 
 const good = { instance: "tradient", penpotVersion: "2.18.3", ports: { frontend: 9002, mail: 1082 }, directory: ".penpair" };
 

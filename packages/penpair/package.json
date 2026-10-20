@@ -1,0 +1,41 @@
+{
+  "name": "penpair",
+  "version": "0.1.0",
+  "description": "Design together. Build together. The command for @penpair/core: connect AI agents and people to a Penpot design file. Run `npx penpair setup`.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niklas-westman/penpair.git",
+    "directory": "packages/penpair"
+  },
+  "homepage": "https://github.com/niklas-westman/penpair#readme",
+  "bugs": {
+    "url": "https://github.com/niklas-westman/penpair/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "penpair": "bin/penpair.js"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "penpot",
+    "design-systems",
+    "mcp",
+    "ai-agents",
+    "design-tokens",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@penpair/core": "workspace:*"
+  }
+}

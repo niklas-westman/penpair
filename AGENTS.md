@@ -16,6 +16,10 @@ Read `PLAN.md` first in every session. It is the living checklist: what the prod
 - **Snippets sent to Penpot stay under 90 KB** (the proxy refuses about 110 KB).
 - Pin the Penpot version; run the smoke test before bumping it.
 
+## Packages
+
+`@penpair/core` (`packages/core`: library, the `penpair` command, skills, both ways of running Penpot) and `penpair` (`packages/penpair`: only the short name for `npx penpair`). Same version, always. The Docker code lives in `packages/core/src/docker` and nothing the connection or the library needs may import it (a test enforces it), so it can move to `@penpair/docker` later. Publishing is the owner's act; the steps are in `docs/releasing.md`.
+
 ## Validation
 
-`pnpm check` runs the typecheck, the tests and the build.
+`pnpm check` runs the typecheck, the tests and the build. `pnpm smoke:package` packs both packages, installs them in an empty project and runs them; run it before any release.

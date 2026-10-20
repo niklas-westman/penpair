@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateConfig } from "../src/instance/config.js";
-import { assertEndpointIsInstance, backup, composeArgs, doctor, down, parseComposePs, restore, up, verifyBackup, LifecycleError, type Context } from "../src/instance/lifecycle.js";
+import { backup, composeArgs, doctor, down, parseComposePs, restore, up, verifyBackup, type Context } from "../src/docker/lifecycle.js";
+import { assertEndpointIsInstance, LifecycleError } from "../src/instance/connection.js";
 import type { RunOptions, RunResult, Runner } from "../src/instance/runner.js";
 
 const config = validateConfig({ instance: "demo", penpotVersion: "2.18.3", ports: { frontend: 9102, mail: 1082 }, directory: ".penpair" });

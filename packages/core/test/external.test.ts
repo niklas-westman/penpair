@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
 import { ConfigError, isExternal, loadConfig, requireLocal, validateProjectConfig } from "../src/instance/config.js";
 import { init } from "../src/instance/init.js";
-import { assertEndpointIsInstance, doctorExternal } from "../src/instance/lifecycle.js";
+import { assertEndpointIsInstance, doctorExternal } from "../src/instance/connection.js";
 import { probe } from "../src/probe.js";
 
 const hosted = { instance: "design", profile: { type: "external", origin: "https://design.penpot.app" } };

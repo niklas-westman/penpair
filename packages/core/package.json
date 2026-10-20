@@ -1,26 +1,59 @@
 {
-  "name": "penpair",
-  "version": "0.0.0",
-  "description": "Design together. Build together. Run a Penpot instance per project and let people and AI agents work on the design safely.",
+  "name": "@penpair/core",
+  "version": "0.1.0",
+  "description": "Design together. Build together. Connect AI agents and people to a Penpot design file, safely: setup, a safe write protocol, snippets, skills, and an optional Docker Penpot per project.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/niklas-westman/penpair.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/niklas-westman/penpair#readme",
+  "bugs": {
+    "url": "https://github.com/niklas-westman/penpair/issues"
+  },
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": "./dist/cli.js",
+    "./package.json": "./package.json"
   },
-  "bin": { "penpair": "dist/cli.js" },
-  "files": ["dist", "skills", "docs", "LICENSE", "README.md"],
-  "keywords": ["penpot", "design-systems", "mcp", "ai-agents", "design-tokens", "developer-tools"],
-  "publishConfig": { "access": "public" },
+  "bin": {
+    "penpair": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "docs",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "penpot",
+    "design-systems",
+    "mcp",
+    "ai-agents",
+    "design-tokens",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build && node ../../scripts/copy-package-docs.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.0"
-  },
-  "private": true
+  }
 }

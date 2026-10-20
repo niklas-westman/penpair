@@ -1,7 +1,7 @@
 import { ConfigError, isExternal, loadConfig, requireLocal, type ProjectConfig } from "./config.js";
 import { connectProject, penpotAddress, type ConnectIo, type ConnectResult, type WaitOptions } from "./connect.js";
 import { init } from "./init.js";
-import { up, type Context } from "./lifecycle.js";
+import { up, type Context } from "../docker/lifecycle.js";
 import type { Runner } from "./runner.js";
 
 export const hostedOrigin = "https://design.penpot.app";

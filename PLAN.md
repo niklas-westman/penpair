@@ -64,23 +64,24 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Skills pack shipped in the package (`packages/core/skills`: `penpot-design` with the write protocol, the plugin traps including the hosted-Penpot findings, flat auto-layout, a library-in-Penpot note and a `project-facts.md` template the project owns; `design-judgment` with the recipes made project-neutral) and `penpair skills install` (copies, links for Codex and Claude Code, prints the AGENTS.md rows, keeps edited files, never replaces `project-facts.md`). The neutrality test covers the skills too.
 - [ ] Guide with screenshots, the hosted-profile run on a large file
 - [ ] First outside trial with feedback rounds (like Reflection's)
-- [ ] 0.1.0
+- [ ] 0.1.0 published (owner): create the `@penpair` npm org and the GitHub repo, push, run the steps in `docs/releasing.md`
 
 ## Extension points
 Connection profile, library adapter, snippet registry, verification provider, skill pack. See `docs/guide.md`.
 
 ## Decided
+- Packages (owner, 2026-10-20): `@penpair/core` (library, command, skills, both variants) and `penpair` (the short name; depends on core at the same version). Later: `@penpair/docker` (the Docker profile, split out when a second profile appears or the Docker code grows), `@penpair/marwes` (the Marwes adapter, incubated here; may move to the Marwes repository). The npm organisation `@penpair` is created by the owner.
 - Default path is the external profile (hosted or team-run Penpot); Docker is an alternative, kept and tested but not the priority (owner, 2026-10-20). Consequences: the guide leads with `init --external`; `penpair setup` asks "web or this computer?" and defaults to web; the `.penpot` round trip is first tested against the hosted Penpot with `sourcer-base`.
 - Licence: MIT, same as Reflection. Published by the owner, when the owner decides; `packages/core/package.json` stays `private: true` until then.
 
 ## Undecided
-- npm scope or organisation
 - Whether the design-judgment skill pack lives here or in its own repository
 - Whether the Marwes adapter moves into the Marwes repository once stable
 - Whether Sourcer's page-verify gate ships as a product or stays a documented pattern
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-20: packaging for 0.1.0: package renamed to `@penpair/core` plus the `penpair` wrapper; Docker code moved to `src/docker` and separated from the connection (a test enforces it); package metadata, README links, `smoke:package`, CI, `docs/releasing.md`, CHANGELOG, SECURITY and CONTRIBUTING. 157 tests; both tarballs install in an empty project and run.
 - 2026-10-20: `penpair setup`, `penpair connect`, `doctor --json`, a key-file check, `init --gitignore` also covers `.env.local` for a web project; the skill `penpair-setup` (for an AI agent: recommend web, never see the key, verify with `doctor --json`) with a web-or-Docker reference; the README rewritten around a quick start, an AI section and the web-or-Docker choice. 146 tests.
 - 2026-10-20: the default path is now the external profile; `docs/getting-started.md` and the README lead with it and move Docker to an alternative section.
 - 2026-10-20: guide followed on the Tradient trial instance; deep check passes on local Penpot 2.18.3 as well. New token sets start inactive on both, which corrects an earlier note.

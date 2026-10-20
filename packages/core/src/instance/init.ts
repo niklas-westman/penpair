@@ -1,9 +1,10 @@
 import { createServer } from "node:net";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { configFileName, instancePaths, isExternal, loadConfig, testedPenpotVersion, validateConfig, validateProjectConfig, ConfigError, type InstanceConfig, type ProjectConfig } from "./config.js";
-import { generateSecrets, renderEnv, writeSecretFile } from "./secrets.js";
-import { renderCompose } from "./template.js";
+import { generateSecrets, renderEnv, writeSecretFile } from "../docker/secrets.js";
+import { renderCompose } from "../docker/template.js";
+import { ensureGitignoreEntry, ensureKeyFileIgnored } from "./gitignore.js";
 
 export async function isPortFree(port: number, host = "127.0.0.1"): Promise<boolean> {
   return new Promise((resolve) => {
@@ -46,23 +47,7 @@ export interface InitResult {
   gitignoreAdded: boolean;
 }
 
-/** Adds a line to the project's .gitignore unless it is already there; says whether it wrote. `directory` adds a trailing slash. */
-export async function ensureGitignoreEntry(root: string, entry: string, options: { directory?: boolean; comment: string }): Promise<boolean> {
-  const file = path.join(root, ".gitignore");
-  let text = "";
-  try {
-    text = await readFile(file, "utf8");
-  } catch {
-    // no .gitignore yet
-  }
-  if (text.split(/\r?\n/).some((line) => line.trim() === entry || line.trim() === `${entry}/`)) return false;
-  await appendFile(file, `${text.length > 0 && !text.endsWith("\n") ? "\n" : ""}# ${options.comment}\n${entry}${options.directory ? "/" : ""}\n`);
-  return true;
-}
-
 const ensureGitignore = (root: string, entry: string): Promise<boolean> => ensureGitignoreEntry(root, entry, { directory: true, comment: "penpair: generated compose file, secrets and backups" });
-/** The MCP key goes in .env.local; whoever writes it makes sure git never sees it. */
-export const ensureKeyFileIgnored = (root: string): Promise<boolean> => ensureGitignoreEntry(root, ".env.local", { comment: "penpair: your personal Penpot MCP key" });
 
 /**
  * Sets an instance up in a project: config (committed), then the generated compose file and secrets (in a git-ignored
