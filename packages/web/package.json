@@ -49,7 +49,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepack": "pnpm build && node ../../scripts/copy-package-docs.mjs web"
+    "prepack": "pnpm build && node ../../scripts/copy-package-docs.mjs web",
+    "prepublishOnly": "node ../../scripts/guard-publish.mjs"
   },
   "dependencies": {
     "@penpair/core": "workspace:*"

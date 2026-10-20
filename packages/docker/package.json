@@ -45,7 +45,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "prepublishOnly": "node ../../scripts/guard-publish.mjs"
   },
   "dependencies": {
     "@penpair/core": "workspace:*"

@@ -37,5 +37,8 @@
   },
   "dependencies": {
     "@penpair/web": "workspace:*"
+  },
+  "scripts": {
+    "prepublishOnly": "node ../../scripts/guard-publish.mjs"
   }
 }
