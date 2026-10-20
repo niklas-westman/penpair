@@ -47,8 +47,8 @@ The easiest way in is to let your AI assistant walk you through it. **[penpair-s
 1. checks Node and your project,
 2. asks whether Penpot runs **on the web** (recommended) or **in Docker** on your computer,
 3. helps you get a Penpot account and a design file,
-4. installs penpair and shows you **where your MCP link goes**, without the key ever passing through the chat,
-5. connects the plugin and verifies everything with `doctor`,
+4. installs penpair and connects the Penpot plugin,
+5. shows you **where your MCP link goes**, without the key ever passing through the chat, and verifies it all with `doctor`,
 6. asks whether you want **Marwes UI** tokens in Penpot,
 7. installs the rules your assistant follows,
 8. and ends with a **test POC** on its own page, so you see what it can do.
@@ -57,7 +57,7 @@ The easiest way in is to let your AI assistant walk you through it. **[penpair-s
 
 > Read https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md and follow it to set up penpair in this project.
 
-**Or install it as a skill** in your project, so it is there next time:
+**Or install it as a skill** in your project, so it is there next time (also the way to go if your assistant cannot open web pages):
 
 ```bash
 # Claude Code

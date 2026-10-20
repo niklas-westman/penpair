@@ -28,15 +28,15 @@ This matters more than speed; a guide that leaks the key has failed even if ever
 Keep a short checklist in your replies so the person sees where they are:
 
 ```
-1 Check  2 Web or Docker  3 Account  4 Install  5 MCP link  6 Plugin  7 Verify  8 Marwes  9 Rules  10 First POC
+1 Check  2 Web or Docker  3 Account  4 Install  5 Plugin  6 MCP link  7 Verify  8 Marwes  9 Rules  10 First POC
 ```
 
 ### 1. Check where things stand
 
 - `node -v`: penpair needs 22 or later. If it is missing or older, point them to https://nodejs.org (the LTS installer) and wait.
-- Confirm the folder: penpair is set up per project, in the project's root. Ask which folder if you are not in a project.
+- Confirm the folder: penpair is set up per project, in the project's root. Ask which folder if you are not in a project. In a monorepo, install at the workspace root (pnpm needs `-w`, Yarn 1 needs `-W`).
 - Pick the package manager from the lockfile (`pnpm-lock.yaml`, `yarn.lock`, else npm) and use it in every install command below. The commands here are written for npm.
-- If `penpair.config.json` already exists, run `npx penpair doctor --json`. All `ok` means penpair is already set up: say so and jump to step 8. A failing check: fix it with its `remedy` (the penpair-setup skill has the common ones), then continue.
+- If `penpair.config.json` already exists, someone started before. Install the project's dependencies first (`npm install`; `npx penpair` needs the local package), then run `npx penpair doctor --json`. All `ok` means penpair is already set up: say so and jump to step 8. A failing check: fix it with its `remedy` (the penpair-setup skill has the common ones), then continue from the step it points to.
 
 ### 2. Ask: Penpot on the web, or in Docker?
 
@@ -46,12 +46,14 @@ Ask once, recommend web, take the answer:
 
 If they have a team Penpot, use its address everywhere this guide says `https://design.penpot.app`. Details, if they want to compare: https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/references/web-or-docker.md
 
+While they decide, set one expectation early: penpair works through the Penpot tab in their browser, so that tab has to stay open and visible while the assistant works. It cannot design unattended overnight.
+
 ### 3. A Penpot account and a design file
 
-- **Web:** they open https://design.penpot.app, sign up (email or a Google/GitHub login), confirm the email if asked, then create a project and a design file for this work (a fresh one is best for the first try).
-- **Docker:** this comes after step 4, because Penpot has to be running first. They create the account on the local address `up` prints; no email confirmation is needed there.
+- **Web:** they open https://design.penpot.app, sign up (with email or one of the sign-in buttons), confirm the email if asked, then create a project and a design file for this work. A fresh file is best for the first try.
+- **Docker:** do step 4 first, because Penpot has to be running. Then they create the account on the local address `up` prints (no email confirmation there), and a project and a design file.
 
-Wait until they say they have a file open.
+Wait until they say they have a design file open.
 
 ### 4. Install penpair and write the config
 
@@ -65,37 +67,35 @@ Install it as a dev dependency so the whole team gets the same version. Install 
 - **Docker:** Docker Desktop must be running (`docker info` answers).
   ```bash
   npm i -D @penpair/docker
-  npx penpair init --gitignore
-  npx penpair up        # the first start downloads about 2 GB
+  npx penpair init --gitignore      # add --port 9002 if 9001 is taken
+  npx penpair up                    # the first start downloads about 2 GB
   ```
   When `up` prints the address (for example http://127.0.0.1:9001), do step 3 there.
 
 `init` writes `penpair.config.json` (no secrets, meant to be committed) and adds `.env.local` to `.gitignore`. Show them the config in a sentence or two.
 
-### 5. Where the MCP link goes
+### 5. Switch on MCP and connect the plugin
 
-Give the person these steps in plain words:
+The plugin comes first because `penpair connect` (step 6) waits for it, and then confirms right away.
 
-1. In Penpot, open your **account menu** (your name or avatar), then **Integrations**, then **MCP Server**. Switch it on and **copy the address** it shows. It is your personal key; treat it like a password.
-2. In a terminal, in this project folder, run `npx penpair connect` and paste the address when asked. Nothing appears as you paste; that is on purpose. Press Enter.
+1. In Penpot, open your **account menu** (your name or avatar), then **Integrations**, then **MCP Server**. Switch it on and **copy the address** it shows. It is your personal key; treat it like a password, and do not paste it here.
+2. Open the design file. Choose **File**, then **MCP Server**, then **Connect**. A small window may appear; leave it.
+3. **Keep this browser tab visible** while the assistant works. A tab in the background goes to sleep and the connection pauses; bringing it to the front resumes it.
 
-Their shell is needed because the prompt is hidden and you cannot answer it. Two ways that keep the key away from you:
+### 6. Where the MCP link goes
 
-- Their own terminal window, in this folder: `npx penpair connect`.
-- In Claude Code, after copying the address (macOS): type `! pbpaste | npx penpair connect`. The command reads the clipboard, so the key is never in the chat.
+The link goes into `.env.local` in the project, as `PENPAIR_MCP_URL=…`. `penpair connect` puts it there for them: it takes the link through a hidden prompt, refuses one that belongs to a different Penpot, makes the file readable only by them and keeps it out of git. You cannot answer a hidden prompt, and you should not see the key anyway, so the person runs it, with the link from step 5.1 still on their clipboard:
 
-`connect` saves it as `PENPAIR_MCP_URL=…` in `.env.local` and refuses a link that belongs to a different Penpot. If someone wants to do it by hand, that one line in `.env.local` is all it is, and `.env.local` must stay out of git.
+- **Their own terminal**, in this project folder: `npx penpair connect`, paste, Enter. Nothing appears as they paste; that is on purpose.
+- **In Claude Code**, without leaving the chat (macOS): type `! pbpaste | npx penpair connect`. It reads the clipboard, so the key never enters the conversation. (Linux: `xclip -selection clipboard -o` instead of `pbpaste`.)
 
-### 6. Connect the plugin in the design file
-
-1. In the design file in Penpot: **File**, then **MCP Server**, then **Connect**. A small window may appear; leave it.
-2. **Keep this browser tab visible** while the assistant works. A tab in the background goes to sleep and the connection pauses; bringing it to the front resumes it.
+It ends with "Connected to the file …" and the file's pages. If it says it did not see the editor, the key is already saved: redo step 5.2 and 5.3, then run `npx penpair connect` again (it reuses the saved key). By hand, that single line in `.env.local` is all it is; the file must stay out of git.
 
 ### 7. Verify
 
-Run `npx penpair doctor --json` once they say the plugin is connected. Done when `ok` is `true` and the `editor and plugin` check says connected. Then run `npx penpair pages` and read the page names back to them: proof that the assistant can see their file.
+Run `npx penpair doctor --json`. Done when `ok` is `true` and the `editor and plugin` check says connected. Then run `npx penpair pages` and read the page names back to them: proof that you can see their file.
 
-A failing check carries a `remedy`; say it in plain words and let them act. The usual ones: Docker not running (start Docker Desktop), containers not running (`npx penpair up`), the key belongs to another Penpot (`npx penpair connect --replace` with this Penpot's link), plugin not connected or the tab is asleep (redo step 6).
+A failing check carries a `remedy`; say it in plain words and let them act. The usual ones: Docker not running (start Docker Desktop), containers not running (`npx penpair up`), the key belongs to another Penpot (`npx penpair connect --replace` with this Penpot's link), plugin not connected or the tab is asleep (redo step 5.2 and 5.3).
 
 ### 8. Ask: Marwes UI or not?
 
@@ -108,7 +108,7 @@ First look: does any `package.json` in the project depend on `@marwes-ui/*`? The
   1. `npm i -D @penpair/marwes-ui`
   2. Add to `penpair.config.json`: `"adapters": ["@penpair/marwes-ui"]` and a `marwes` block. Find their theme file (search for the Marwes theme export) and ask them to confirm it; leave `themes` out if they use the plain Marwes theme. The settings: https://github.com/niklas-westman/penpair/blob/main/docs/marwes-tokens.md
   3. `npx penpair marwes tokens snapshot --write`, and tell them to commit the snapshot file.
-  4. `npx penpair marwes tokens push` first, without `--apply`: it only shows what would change in Penpot. Show them the summary, ask, and only then run it with `--apply`. This is a write to their Penpot file, so it waits for a yes.
+  4. `npx penpair marwes tokens push` first, without `--apply`: it only shows what would change in Penpot. Show them the summary and ask before running it with `--apply`: it writes to their Penpot file, and Marwes wins, so a token value someone changed by hand in Penpot is put back.
 - **Yes, but the project does not use Marwes yet:** installing a component library in their app is a bigger decision than this setup. Note it as a next step, and skip to step 9.
 
 ### 9. Install the rules the assistant follows
@@ -155,5 +155,4 @@ Say plainly which steps were skipped or not verified, if any.
 - Run commands only in the project folder the person confirmed. Never run `up`, `down`, `restore` or `init` anywhere else.
 - Writes to their Penpot (a token push, the POC) happen only after they said yes, and the POC goes on its own new page.
 - Never run `penpair probe --deep --write` unless they call the file a scratch file.
-- penpair needs the Penpot tab open and visible; it cannot work unattended. Set that expectation early, not after a failure.
 - If a command or menu here does not match what they see, trust what they see, check `npx penpair --help`, and tell them the guide is out of date at that point.
