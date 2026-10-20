@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadConfig, readRawConfig, type AdapterContext } from "@penpair/core";
 import adapter, { checkTokenSnapshot, marwesCommand } from "../src/index.js";
-import { fakePenpot, fixture, tradientThemes, type FakePenpot, type Fixture } from "./helpers.js";
+import { fakePenpot, fixture, acmeThemes, type FakePenpot, type Fixture } from "./helpers.js";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -52,8 +52,8 @@ describe("the snapshot", () => {
     expect(first.out).toMatch(/There is no snapshot yet/);
     expect((await run("snapshot", "--write")).code).toBe(0);
     const saved = JSON.parse(await readFile(path.join(f.root, "design/marwes-tokens.snapshot.json"), "utf8"));
-    expect(saved).toMatchObject({ marwesVersion: "1.11.0", project: "Tradient", generatedBy: expect.stringMatching(/^@penpair\/marwes-ui@/) });
-    expect(saved.sets.map((s: { name: string }) => s.name)).toEqual(["Marwes · Core", "Marwes · Dark", "Tradient · Light", "Tradient · Dark"]);
+    expect(saved).toMatchObject({ marwesVersion: "1.11.0", project: "Acme", generatedBy: expect.stringMatching(/^@penpair\/marwes-ui@/) });
+    expect(saved.sets.map((s: { name: string }) => s.name)).toEqual(["Marwes · Core", "Marwes · Dark", "Acme · Light", "Acme · Dark"]);
     expect((await run("snapshot")).out).toMatch(/is current/);
   });
 });
@@ -84,7 +84,7 @@ describe("the check, which CI runs without Penpot", () => {
   it("notices a theme edit that was not followed by a new snapshot", async () => {
     const { f, run } = await session();
     await run("snapshot", "--write");
-    await f.writeTheme({ ...tradientThemes.light, color: { primary: "#007744" } });
+    await f.writeTheme({ ...acmeThemes.light, color: { primary: "#007744" } });
     const result = await run("check");
     expect(result.code).toBe(2);
     expect(result.out).toMatch(/mw-color-primary-base #006633 -> #007744/);
@@ -127,15 +127,15 @@ describe("the drift story, from a first push to a Marwes bump", () => {
     expect(penpot.sets[0]!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe("#2F31FC");
 
     // The theme changes: Penpot is behind, and push refuses until the snapshot has been regenerated and committed.
-    await f.writeTheme({ ...tradientThemes.light, color: { primary: "#007744" } });
+    await f.writeTheme({ ...acmeThemes.light, color: { primary: "#007744" } });
     const stale = await run("push", "--apply");
     expect(stale.code).toBe(2);
     expect(stale.err).toMatch(/STOP the committed snapshot is stale/);
     await run("snapshot", "--write");
     const update = await run("push", "--apply");
     expect(update.code).toBe(0);
-    expect(update.out).toMatch(/update 1 token\(s\) in Tradient · Light/);
-    expect(penpot.sets.find((s) => s.name === "Tradient · Light")!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe("#007744");
+    expect(update.out).toMatch(/update 1 token\(s\) in Acme · Light/);
+    expect(penpot.sets.find((s) => s.name === "Acme · Light")!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe("#007744");
 
     // Marwes itself is bumped: the version recorded in every description follows.
     await f.installMarwes("1.12.0");

@@ -10,6 +10,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.join(here, "../src");
 const skillsRoot = path.join(here, "../skills");
 const dockerRoot = path.join(here, "../../docker/src");
+const marwesRoot = path.join(here, "../../marwes-ui");
+const marwesGuide = path.join(here, "../../../docs/marwes-tokens.md");
 
 async function filesUnder(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -22,11 +24,11 @@ async function filesUnder(directory: string): Promise<string[]> {
   return nested.flat();
 }
 
-export async function findForbidden(directory: string): Promise<string[]> {
+export async function findForbidden(directory: string, words: string[] = forbidden): Promise<string[]> {
   const hits: string[] = [];
   for (const file of await filesUnder(directory)) {
     const text = (await readFile(file, "utf8")).toLowerCase();
-    for (const word of forbidden) if (text.includes(word)) hits.push(`${path.relative(directory, file)}: ${word}`);
+    for (const word of words) if (text.includes(word)) hits.push(`${path.relative(directory, file)}: ${word}`);
   }
   return hits;
 }
@@ -38,6 +40,18 @@ describe("core neutrality", () => {
 
   it("holds for the Docker package too", async () => {
     expect(await findForbidden(dockerRoot)).toEqual([]);
+  });
+
+  // An adapter is about one library, so it may name that library (Marwes), but it must not name the projects that use it.
+  it("keeps the Marwes adapter free of the projects that use it, in its source, tests, README and guide", async () => {
+    const projects = ["sourcer", "tradient", "frontend-evolved"];
+    const files = (await filesUnder(marwesRoot)).filter((file) => !file.includes("node_modules") && !file.includes("/dist/"));
+    const hits: string[] = [];
+    for (const file of [...files, marwesGuide]) {
+      const text = (await readFile(file, "utf8")).toLowerCase();
+      for (const word of projects) if (text.includes(word)) hits.push(`${path.relative(path.join(here, "../../.."), file)}: ${word}`);
+    }
+    expect(hits).toEqual([]);
   });
 
   it("keeps the shipped skills just as neutral", async () => {

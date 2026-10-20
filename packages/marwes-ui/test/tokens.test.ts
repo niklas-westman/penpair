@@ -4,19 +4,19 @@ import { loadInstalledMarwes, familyProblems, MarwesError } from "../src/marwes.
 import { loadThemeInput } from "../src/theme-input.js";
 import { readMarwesSettings, MarwesConfigError } from "../src/config.js";
 import { diffSnapshots, formatDiff } from "../src/snapshot-file.js";
-import { fixture, tradientThemes } from "./helpers.js";
+import { fixture, acmeThemes } from "./helpers.js";
 import path from "node:path";
 
-async function snapshotFor(version = "1.11.0", themes: { light?: Record<string, unknown>; dark?: Record<string, unknown> } | null = tradientThemes) {
+async function snapshotFor(version = "1.11.0", themes: { light?: Record<string, unknown>; dark?: Record<string, unknown> } | null = acmeThemes) {
   const f = await fixture(version);
   const installed = await loadInstalledMarwes(path.join(f.root, "packages/app"));
-  return { f, installed, snapshot: buildSnapshot({ core: installed.core, version: installed.version, name: "Tradient", project: themes ?? undefined, generatedBy: "test" }) };
+  return { f, installed, snapshot: buildSnapshot({ core: installed.core, version: installed.version, name: "Acme", project: themes ?? undefined, generatedBy: "test" }) };
 }
 
 describe("the expected Penpot tokens", () => {
   it("put Marwes's light values in the core set, only what differs in dark in the dark set, and the project's choices in overlays", async () => {
     const { snapshot } = await snapshotFor();
-    expect(snapshot.sets.map((s) => s.name)).toEqual([coreSetName, darkSetName, "Tradient · Light", "Tradient · Dark"]);
+    expect(snapshot.sets.map((s) => s.name)).toEqual([coreSetName, darkSetName, "Acme · Light", "Acme · Dark"]);
     const core = snapshot.sets[0]!.tokens;
     expect(core.find((t) => t.name === "mw-color-primary-base")).toMatchObject({ type: "color", value: "#2F31FC" });
     expect(core.find((t) => t.name === "mw-color-border-low")?.value).toBe("#00000026");
@@ -32,8 +32,8 @@ describe("the expected Penpot tokens", () => {
   it("compose themes so that the project's sets come last and win", async () => {
     const { snapshot } = await snapshotFor();
     expect(snapshot.themes).toEqual([
-      { group: "Mode", name: "Light", sets: [coreSetName, "Tradient · Light"] },
-      { group: "Mode", name: "Dark", sets: [coreSetName, darkSetName, "Tradient · Dark"] },
+      { group: "Mode", name: "Light", sets: [coreSetName, "Acme · Light"] },
+      { group: "Mode", name: "Dark", sets: [coreSetName, darkSetName, "Acme · Dark"] },
     ]);
   });
 
@@ -50,17 +50,17 @@ describe("the expected Penpot tokens", () => {
     expect(b.hash).toBe(a.hash);
     expect(canonical(b)).toBe(canonical(a));
     expect((await snapshotFor("1.12.0")).snapshot.hash).not.toBe(a.hash);
-    expect((await snapshotFor("1.11.0", { ...tradientThemes, light: { ...tradientThemes.light, color: { primary: "#007744" } } })).snapshot.hash).not.toBe(a.hash);
+    expect((await snapshotFor("1.11.0", { ...acmeThemes, light: { ...acmeThemes.light, color: { primary: "#007744" } } })).snapshot.hash).not.toBe(a.hash);
     const f = await fixture();
     const installed = await loadInstalledMarwes(path.join(f.root, "packages/app"));
-    const other = buildSnapshot({ core: installed.core, version: "1.11.0", name: "Tradient", project: tradientThemes, generatedBy: "another tool 9.9" });
+    const other = buildSnapshot({ core: installed.core, version: "1.11.0", name: "Acme", project: acmeThemes, generatedBy: "another tool 9.9" });
     expect(other.hash).toBe(a.hash);
   });
 
   it("describe where every value came from, including the Marwes version", async () => {
     const { snapshot } = await snapshotFor();
     expect(snapshot.sets[0]!.tokens[0]!.description).toMatch(/\(Marwes 1\.11\.0\)$/);
-    expect(snapshot.sets[2]!.tokens[0]!.description).toMatch(/Tradient light theme \(Marwes 1\.11\.0\)$/);
+    expect(snapshot.sets[2]!.tokens[0]!.description).toMatch(/Acme light theme \(Marwes 1\.11\.0\)$/);
   });
 });
 
@@ -123,7 +123,7 @@ describe("the installed Marwes", () => {
 describe("the project's theme", () => {
   it("is loaded from the file the app itself uses, TypeScript included", async () => {
     const f = await fixture();
-    const loaded = await loadThemeInput(f.root, { module: "packages/app/src/theme.ts", export: "tradientLight" });
+    const loaded = await loadThemeInput(f.root, { module: "packages/app/src/theme.ts", export: "acmeLight" });
     expect(loaded.input).toMatchObject({ mode: "light", color: { primary: "#006633" } });
     expect(loaded.fileHash).toMatch(/^[0-9a-f]{12}$/);
   });
@@ -137,7 +137,7 @@ describe("the project's theme", () => {
 
 describe("the marwes settings in penpair.config.json", () => {
   it("have defaults, and a name taken from the instance", () => {
-    expect(readMarwesSettings({}, "tradient")).toEqual({ name: "Tradient", project: ".", themes: {}, snapshot: "design/marwes-tokens.snapshot.json" });
+    expect(readMarwesSettings({}, "acme")).toEqual({ name: "Acme", project: ".", themes: {}, snapshot: "design/marwes-tokens.snapshot.json" });
   });
 
   it.each([
@@ -156,11 +156,11 @@ describe("the difference between two expectations", () => {
   it("is empty for the same one, and says what a Marwes bump or a theme edit changed", async () => {
     const before = (await snapshotFor("1.11.0")).snapshot;
     expect(diffSnapshots(before, before).identical).toBe(true);
-    const bumped = (await snapshotFor("1.12.0", { ...tradientThemes, light: { ...tradientThemes.light, color: { primary: "#007744" } } })).snapshot;
+    const bumped = (await snapshotFor("1.12.0", { ...acmeThemes, light: { ...acmeThemes.light, color: { primary: "#007744" } } })).snapshot;
     const diff = diffSnapshots(before, bumped);
     expect(diff.identical).toBe(false);
     expect(diff.versionChange).toEqual({ before: "1.11.0", after: "1.12.0" });
-    expect(diff.sets.find((s) => s.set === "Tradient · Light")?.changed).toEqual([{ name: "mw-color-primary-base", before: "#006633", after: "#007744" }]);
+    expect(diff.sets.find((s) => s.set === "Acme · Light")?.changed).toEqual([{ name: "mw-color-primary-base", before: "#006633", after: "#007744" }]);
     expect(formatDiff(diff).join("\n")).toMatch(/Marwes 1\.11\.0 -> 1\.12\.0[\s\S]*mw-color-primary-base #006633 -> #007744/);
   });
 
@@ -168,7 +168,7 @@ describe("the difference between two expectations", () => {
     const { snapshot } = await snapshotFor();
     expect(diffSnapshots(undefined, snapshot).sets.every((s) => s.setAdded)).toBe(true);
     const smaller = { ...snapshot, sets: snapshot.sets.slice(0, 2), themes: snapshot.themes.map((t) => ({ ...t, sets: t.sets.slice(0, 2) })) };
-    expect(diffSnapshots(snapshot, smaller).sets.filter((s) => s.setRemoved).map((s) => s.set)).toEqual(["Tradient · Light", "Tradient · Dark"]);
+    expect(diffSnapshots(snapshot, smaller).sets.filter((s) => s.setRemoved).map((s) => s.set)).toEqual(["Acme · Light", "Acme · Dark"]);
   });
 });
 
@@ -179,9 +179,9 @@ describe("variables the adapter does not turn into tokens", () => {
 exports.themeToCSSVars = (t) => ({ "--mw-color-text": "#141414", "--mw-density-input-height": "40px", "--mw-density-mode": "comfortable", "--mw-shadow-card": "0 1px 2px #000", "--mw-ui-radius": "8px", "--mw-ui-radius-button": "8px", "--mw-font-primary": "Inter", "--mw-font-secondary": "Inter", "--mw-font-mono": "Mono" });
 exports.mwThemeVars = { spacing: {} };\n`);
     const installed = await loadInstalledMarwes(path.join(f.root, "packages/app"));
-    const snapshot = buildSnapshot({ core: installed.core, version: "1.12.0", name: "Tradient", generatedBy: "test" });
+    const snapshot = buildSnapshot({ core: installed.core, version: "1.12.0", name: "Acme", generatedBy: "test" });
     expect(snapshot.unmapped).toEqual(["--mw-density-mode", "--mw-shadow-card"]);
-    const without = buildSnapshot({ core: { ...installed.core, themeToCSSVars: (t) => Object.fromEntries(Object.entries(installed.core.themeToCSSVars(t)).filter(([k]) => k !== "--mw-shadow-card")) }, version: "1.12.0", name: "Tradient", generatedBy: "test" });
+    const without = buildSnapshot({ core: { ...installed.core, themeToCSSVars: (t) => Object.fromEntries(Object.entries(installed.core.themeToCSSVars(t)).filter(([k]) => k !== "--mw-shadow-card")) }, version: "1.12.0", name: "Acme", generatedBy: "test" });
     expect(without.hash).not.toBe(snapshot.hash);
     const diff = diffSnapshots(without, snapshot);
     expect(diff.identical).toBe(false);

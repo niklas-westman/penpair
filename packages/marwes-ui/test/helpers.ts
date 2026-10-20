@@ -35,7 +35,7 @@ export interface Fixture {
   writeTheme(light: Record<string, unknown>, dark?: Record<string, unknown>): Promise<void>;
 }
 
-export const tradientThemes = {
+export const acmeThemes = {
   light: { mode: "light", color: { primary: "#006633" }, ui: { radius: 4 } },
   dark: { mode: "dark", color: { primary: "#2BA36B" }, ui: { radius: 4 } },
 };
@@ -58,24 +58,24 @@ export async function fixture(version = "1.11.0"): Promise<Fixture> {
     await writeFile(
       path.join(root, "penpair.config.json"),
       JSON.stringify({
-        instance: "tradient",
+        instance: "acme",
         profile: { type: "external", origin: "https://design.penpot.app" },
         adapters: ["@penpair/marwes-ui"],
-        marwes: { project: "packages/app", themes: { light: { module: "packages/app/src/theme.ts", export: "tradientLight" }, dark: { module: "packages/app/src/theme.ts", export: "tradientDark" } } },
+        marwes: { project: "packages/app", themes: { light: { module: "packages/app/src/theme.ts", export: "acmeLight" }, dark: { module: "packages/app/src/theme.ts", export: "acmeDark" } } },
         ...extra,
       }),
     );
   };
-  const writeTheme = async (light: Record<string, unknown>, dark: Record<string, unknown> = tradientThemes.dark): Promise<void> => {
+  const writeTheme = async (light: Record<string, unknown>, dark: Record<string, unknown> = acmeThemes.dark): Promise<void> => {
     await writeFile(
       path.join(app, "src/theme.ts"),
-      `import type { ThemeInput } from "@marwes-ui/react";\nexport const tradientLight: ThemeInput = ${JSON.stringify(light)};\nexport const tradientDark: ThemeInput = ${JSON.stringify(dark)};\n`,
+      `import type { ThemeInput } from "@marwes-ui/react";\nexport const acmeLight: ThemeInput = ${JSON.stringify(light)};\nexport const acmeDark: ThemeInput = ${JSON.stringify(dark)};\n`,
     );
   };
   const writeCore = async (source: string): Promise<void> => void (await writeFile(path.join(app, "node_modules/@marwes-ui/core/index.js"), source));
   await installMarwes(version);
   await writeConfig();
-  await writeTheme(tradientThemes.light);
+  await writeTheme(acmeThemes.light);
   return { root, installMarwes, writeCore, writeConfig, writeTheme };
 }
 

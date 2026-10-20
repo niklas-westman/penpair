@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { applyPlan, compareToPenpot, formatDrift, inBatches, planPush, readLive, type LiveTokens } from "../src/penpot.js";
 import { buildSnapshot, type PenpotToken } from "../src/tokens.js";
 import { loadInstalledMarwes } from "../src/marwes.js";
-import { fakePenpot, fixture, tradientThemes } from "./helpers.js";
+import { fakePenpot, fixture, acmeThemes } from "./helpers.js";
 
-async function expected(themes = tradientThemes) {
+async function expected(themes = acmeThemes) {
   const f = await fixture();
   const installed = await loadInstalledMarwes(path.join(f.root, "packages/app"));
-  return buildSnapshot({ core: installed.core, version: installed.version, name: "Tradient", project: themes, generatedBy: "test" });
+  return buildSnapshot({ core: installed.core, version: installed.version, name: "Acme", project: themes, generatedBy: "test" });
 }
 
 /** What Penpot would hold if the expectation had been pushed: the same tokens, typography normalised the way Penpot stores it. */
@@ -38,7 +38,7 @@ describe("comparing the file with the expectation", () => {
   it("finds a missing set, a missing token, a value changed by hand, a token added by hand, and an old description", async () => {
     const snapshot = await expected();
     const live = liveFrom(snapshot);
-    live.sets = live.sets.filter((s) => s.name !== "Tradient · Dark");
+    live.sets = live.sets.filter((s) => s.name !== "Acme · Dark");
     const core = live.sets.find((s) => s.name === "Marwes · Core")!;
     core.tokens = core.tokens.filter((t) => t.name !== "mw-color-text");
     core.tokens.find((t) => t.name === "mw-color-background")!.value = "#FAFAFA";
@@ -46,7 +46,7 @@ describe("comparing the file with the expectation", () => {
     core.tokens.push({ name: "my-own", type: "color", value: "#123456", description: "" });
     const drift = compareToPenpot(snapshot, live);
     expect(drift.inSync).toBe(false);
-    expect(drift.sets.find((s) => s.set === "Tradient · Dark")).toMatchObject({ missing: true });
+    expect(drift.sets.find((s) => s.set === "Acme · Dark")).toMatchObject({ missing: true });
     expect(drift.sets.find((s) => s.set === "Marwes · Core")!.tokens).toEqual(
       expect.arrayContaining([
         { name: "mw-color-text", kind: "missing" },
@@ -72,7 +72,7 @@ describe("comparing the file with the expectation", () => {
     live.themes.find((t) => t.name === "Light")!.sets = ["Marwes · Core", "My brand"];
     live.sets.push({ order: 9, name: "Marwes · Old", active: false, tokens: [] }, { order: 10, name: "My brand", active: false, tokens: [] });
     const drift = compareToPenpot(snapshot, live);
-    expect(drift.themes).toEqual(expect.arrayContaining([expect.objectContaining({ theme: "Mode/Dark", missing: true }), { theme: "Mode/Light", missingSets: ["Tradient · Light"], extraSets: ["My brand"] }]));
+    expect(drift.themes).toEqual(expect.arrayContaining([expect.objectContaining({ theme: "Mode/Dark", missing: true }), { theme: "Mode/Light", missingSets: ["Acme · Light"], extraSets: ["My brand"] }]));
     expect(drift.unexpectedSets).toEqual(["Marwes · Old"]);
   });
 });
@@ -136,10 +136,10 @@ describe("pushing to a Penpot", () => {
     expect(report.verified).toBe(true);
     expect(report.structureUnchanged).toBe(true);
     expect(report.structureBefore.count).toBe(2);
-    expect(penpot.sets.map((s) => [s.name, s.active])).toEqual([["Marwes · Core", false], ["Marwes · Dark", false], ["Tradient · Light", false], ["Tradient · Dark", false]]);
+    expect(penpot.sets.map((s) => [s.name, s.active])).toEqual([["Marwes · Core", false], ["Marwes · Dark", false], ["Acme · Light", false], ["Acme · Dark", false]]);
     expect(penpot.themes.map((t) => [t.name, t.active, t.activeSets.map((s) => s.name)])).toEqual([
-      ["Light", true, ["Marwes · Core", "Tradient · Light"]],
-      ["Dark", false, ["Marwes · Core", "Marwes · Dark", "Tradient · Dark"]],
+      ["Light", true, ["Marwes · Core", "Acme · Light"]],
+      ["Dark", false, ["Marwes · Core", "Marwes · Dark", "Acme · Dark"]],
     ]);
     expect(planPush(snapshot, await readLive(penpot.client))).toEqual([]);
   });

@@ -8,11 +8,11 @@
   installed Marwes  ─┐
   (@marwes-ui/core)  ├──▶  expected tokens  ──▶  committed snapshot  ──▶  Penpot file
   your theme file   ─┘     (generated)           design/…snapshot.json     (sets and themes)
-  (tradientLight …)                              reviewed in git
+  (acmeLight …)                              reviewed in git
 ```
 
 - **Nothing is typed in twice.** The tokens are generated from the Marwes the app resolves and from the theme file the app imports (the same file and export), so what you design with is what the app renders.
-- **Your choices stay visible.** Marwes's own values go in `Marwes · Core` and `Marwes · Dark`. What your theme changes goes in a small overlay set on top (`Tradient · Light`, `Tradient · Dark`), holding only the differences. A Marwes update moves the Marwes sets and never silently loses your choices, and the colours Marwes derives from yours (hover, pressed, disabled) follow automatically.
+- **Your choices stay visible.** Marwes's own values go in `Marwes · Core` and `Marwes · Dark`. What your theme changes goes in a small overlay set on top (`Acme · Light`, `Acme · Dark`), holding only the differences. A Marwes update moves the Marwes sets and never silently loses your choices, and the colours Marwes derives from yours (hover, pressed, disabled) follow automatically.
 - **The snapshot is the record.** `design/marwes-tokens.snapshot.json` is generated, committed and reviewed like code. A Marwes bump shows up as a readable git diff of exactly which tokens changed.
 
 ## Setup
@@ -27,11 +27,11 @@ In `penpair.config.json`:
 {
   "adapters": ["@penpair/marwes-ui"],
   "marwes": {
-    "name": "Tradient",
-    "project": "packages/frontend-evolved",
+    "name": "Acme",
+    "project": "packages/app",
     "themes": {
-      "light": { "module": "packages/frontend-evolved/src/theme.ts", "export": "tradientLight" },
-      "dark":  { "module": "packages/frontend-evolved/src/theme.ts", "export": "tradientDark" }
+      "light": { "module": "packages/app/src/theme.ts", "export": "acmeLight" },
+      "dark":  { "module": "packages/app/src/theme.ts", "export": "acmeDark" }
     },
     "snapshot": "design/marwes-tokens.snapshot.json"
   }
@@ -106,7 +106,7 @@ penpair marwes tokens push --apply                # bring Penpot along; it reads
 
 ## What `push` does and does not touch
 
-- It manages only the sets the snapshot names (`Marwes · …` and your `Tradient · Light/Dark`). Any other set in the file is yours and is never touched.
+- It manages only the sets the snapshot names (`Marwes · …` and your `Acme · Light/Dark`). Any other set in the file is yours and is never touched.
 - It creates new sets inactive and builds the Light and Dark themes. If the file has **no active theme**, it activates Light so the tokens take part; a file that already has an active theme keeps its choice.
 - Plain values are updated in place. Typography tokens are removed and added again, because Penpot stores a typography value assigned in place un-normalised.
 - Tokens go in batches that stay under Penpot's request limit, and it stops at the first token Penpot rejects and says which.

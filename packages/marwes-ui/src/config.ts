@@ -3,7 +3,7 @@ import type { ThemeReference } from "./theme-input.js";
 
 /** The `marwes` block of penpair.config.json. */
 export interface MarwesSettings {
-  /** The project's name; it prefixes its overlay sets ("Tradient · Light"). Defaults to the instance name, capitalised. */
+  /** The project's name; it prefixes its overlay sets ("Acme · Light"). Defaults to the instance name, capitalised. */
   name: string;
   /** The folder of the package that depends on Marwes (a workspace package in a monorepo). Relative to the project. */
   project: string;
