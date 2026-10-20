@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - **`@penpair/marwes-ui`**, the Marwes UI adapter: `penpair marwes tokens snapshot | check | diff | push | status`. Marwes tokens and the project's own theme as Penpot token sets, a committed snapshot, an offline `check` for CI that fails when Marwes or the theme moves, a `diff` that shows what each change reaches (shapes bound to the token), and a verified `push`. Records Marwes variables it does not turn into tokens, so a new kind of variable cannot slip by. See `docs/marwes-tokens.md`.
 - **Adapters in the core**: a project lists `adapters` in `penpair.config.json`; an adapter (`defineAdapter`) adds commands and keeps its settings in its own block. The core loads them by name from the project and knows nothing about any of them.
