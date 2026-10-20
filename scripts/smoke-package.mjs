@@ -56,6 +56,12 @@ const library = await consumer("core", [core]);
 check(!(await readdir(join(library, "node_modules/.bin"))).includes("penpair"), "the core has no command of its own");
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet, runCli, version } from "@penpair/core"; console.log(typeof defineSnippet, typeof runCli, version);'], { cwd: library })).trim() === `function function ${version}`, "but it is the library: defineSnippet and runCli");
 
+// The declarations must be usable: compile a TypeScript file against the packed library, the way a project's own code would.
+await writeFile(join(library, "tsconfig.json"), JSON.stringify({ compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", target: "ES2022", strict: true, noEmit: true, skipLibCheck: true, types: [] }, include: ["use.ts"] }));
+await writeFile(join(library, "use.ts"), 'import { defineSnippet, version, type AdapterContext } from "@penpair/core";\nconst v: string = version;\nconst s = defineSnippet({ kind: "read", name: "x", description: "d", page: "p", body: "return { ok: true };" });\nexport type { AdapterContext };\nexport { v, s };\n');
+await run("node", [join(repo, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"], { cwd: library });
+check(true, "TypeScript resolves the library's declarations (types, defineSnippet, AdapterContext)");
+
 // 2. The web way: @penpair/web only (the core arrives with it).
 const web = await consumer("web", [`penpair-web-${version}.tgz`], { "@penpair/core": asFile(core) });
 check((await readdir(join(web, "node_modules/@penpair"))).sort().join(",") === "core,web", "installing only @penpair/web brings the core with it");

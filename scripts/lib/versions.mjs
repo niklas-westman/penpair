@@ -45,6 +45,14 @@ export async function checkVersions(root) {
     if (p.json.private) problems.push(`${p.name} is private; every package under packages/ is released with the others`);
     if (p.json.scripts?.prepublishOnly !== guardScript) problems.push(`${p.name} must have the script "prepublishOnly": ${JSON.stringify(guardScript)}, so it cannot be published on its own`);
   }
+  // Conditions in `exports` are matched in order, so `types` must come first or TypeScript users never see the declarations.
+  const typesFirst = (node, where) => {
+    if (typeof node !== "object" || node === null) return;
+    const keys = Object.keys(node);
+    if (keys.includes("types") && keys[0] !== "types") problems.push(`${where}: "types" must be the first condition in exports (it is after "${keys[0]}"), or TypeScript never uses it`);
+    for (const key of keys) typesFirst(node[key], `${where}.${key}`);
+  };
+  for (const p of packages) typesFirst(p.json.exports, `${p.name} exports`);
   const fromSource = await sourceVersion(root);
   if (version !== undefined && fromSource !== version) problems.push(`packages/core/src/version.ts says ${fromSource} but the packages say ${version}`);
   const names = new Set(packages.map((p) => p.name));

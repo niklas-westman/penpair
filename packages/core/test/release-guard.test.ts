@@ -71,6 +71,14 @@ describe("the version check", () => {
     expect(problems).toMatch(/prepublishOnly/);
   });
 
+  it("fails when `types` is not the first condition in a package's exports", async () => {
+    const f = await fixture();
+    await f.write("web", { name: "@penpair/web", version: "1.2.3", scripts: { prepublishOnly: guardScript }, dependencies: { "@penpair/core": "workspace:*" }, exports: { ".": { default: "./dist/index.js", types: "./dist/index.d.ts" } } });
+    expect((await checkVersions(f.root)).problems.join()).toMatch(/"types" must be the first condition/);
+    await f.write("web", { name: "@penpair/web", version: "1.2.3", scripts: { prepublishOnly: guardScript }, dependencies: { "@penpair/core": "workspace:*" }, exports: { ".": { types: "./dist/index.d.ts", default: "./dist/index.js" } } });
+    expect((await checkVersions(f.root)).ok).toBe(true);
+  });
+
   it("fails when a package pins another package of the repository to a range instead of workspace:*", async () => {
     const f = await fixture();
     await f.write("web", { name: "@penpair/web", version: "1.2.3", scripts: { prepublishOnly: guardScript }, dependencies: { "@penpair/core": "^1.2.3" } });
