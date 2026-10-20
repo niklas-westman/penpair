@@ -1,0 +1,26 @@
+{
+  "name": "penpair",
+  "version": "0.0.0",
+  "description": "Design together. Build together. Run a Penpot instance per project and let people and AI agents work on the design safely.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
+  },
+  "bin": { "penpair": "dist/cli.js" },
+  "files": ["dist", "docs", "LICENSE", "README.md"],
+  "keywords": ["penpot", "design-systems", "mcp", "ai-agents", "design-tokens", "developer-tools"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0"
+  },
+  "private": true
+}
