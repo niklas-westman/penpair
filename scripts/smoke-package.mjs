@@ -34,9 +34,9 @@ const check = (ok, message) => {
   console.log(`ok  ${message}`);
 };
 
-for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/marwes-ui", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
+for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/marwes-ui", "packages/reflection-check", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
 const tarballs = (await readdir(packDir)).filter((file) => file.endsWith(".tgz"));
-check(tarballs.length === 5, `five tarballs packed (${tarballs.join(", ")})`);
+check(tarballs.length === 6, `six tarballs packed (${tarballs.join(", ")})`);
 const tarball = (name) => join(packDir, tarballs.find((file) => file === name) ?? name);
 const core = `penpair-core-${version}.tgz`;
 const asFile = (name) => `file:${tarball(name)}`;
@@ -117,4 +117,7 @@ await writeFile(join(marwes, "penpair.config.json"), JSON.stringify({ instance: 
 check(/Configured executable extensions[\s\S]*@penpair\/marwes-ui/.test(await penpair(marwes, "--help")), "help names configured extensions without executing them");
 const noMarwes = await runFailing("npx", ["--no-install", "penpair", "marwes", "tokens", "check"], { cwd: marwes });
 check(/No @marwes-ui\/react, vue or svelte is installed/.test(noMarwes), "and its commands run, saying plainly when Marwes is not installed in the project");
+const reflection = await consumer("reflection", [`penpair-web-${version}.tgz`, `penpair-reflection-check-${version}.tgz`], { "@penpair/core": asFile(core) });
+await writeFile(join(reflection, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://design.penpot.app" }, adapters: ["@penpair/reflection-check"] }));
+check(/Configure baselines first/.test(await runFailing("npx", ["--no-install", "penpair", "reflection", "plan", "--map", "mapping.json"], { cwd: reflection })), "the case adapter installs and explains missing baseline setup without a connection");
 console.log(`\npackages smoke-tested from ${packDir}`);

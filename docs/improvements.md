@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **24 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **25 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: D4 — explicit implementation-case integration for Reflection** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: E1 — typed MCP tools pinned to an explicit project root** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -596,7 +596,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
   - [x] Schema-1 measured pilot, source freshness and actual-renderer drift checks, explicit contexts and ambiguous token candidates.
   - [ ] Real fixture/native component instance override proof and measured constants; generation remains gated.
 - [x] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics. Completed 2026-10-21; [resolution report](#d1-completion-2026-10-21).
-- [ ] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need.
+- [x] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need. Completed 2026-10-21; [resolution report](#d4-completion-2026-10-21).
 - [ ] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root.
 - [ ] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize.
 - [ ] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance.
@@ -933,6 +933,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No human adoption trial. Offline freshness is against the supplied structured inspection, not the live file or a PNG. Native adapter mapping generation remains gated on C1; no fabricated component IDs or behavior/accessibility semantics.
 - **Next:** D4 — explicit implementation-case integration for Reflection
 
+
+<a id="d4-completion-2026-10-21"></a>
+### 2026-10-21 — D4: Explicit implementation cases and comparison evidence adapter
+
+- **Resolved:** Rich design cases now have an explicit setup/readback bridge instead of being silently compared in a default browser state.
+- **Changed:** Added optional @penpair/reflection-check at the existing lockstep version, typed project-provider contract, exact approved provenance checks, independent image/hash/scale validation and pending-case diagnostics. Existing legacy Reflection output stays supported. All six packages retain release guards.
+- **Validated:** pnpm check passes (525 tests), including an actual adapter-command integration with a named offline stub and changed-state/font/byte refusals. pnpm smoke:package installs and exercises all six tarballs.
+- **Risks:** No live consumer/provider trial. Actual application activation and checker invocation belong to a trusted project provider using its pinned stack. Pixel ratios are evidence, not visual/accessibility approval. Consumer edits remain a separate owner action.
+- **Next:** E1 — typed MCP tools pinned to an explicit project root
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1003,3 +1013,5 @@ Append reports here in completion order; each checked item links to its report.
 - **Next:** D1 structured handoff; live/human acceptance stays pending.
 
 - **2026-10-21 — D1 completed:** Structured design handoff and offline freshness checks. Progress 24/40; next D4 — explicit implementation-case integration for Reflection.
+
+- **2026-10-21 — D4 completed:** Explicit implementation cases and comparison evidence adapter. Progress 25/40; next E1 — typed MCP tools pinned to an explicit project root.

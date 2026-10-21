@@ -258,3 +258,5 @@ Issues and small pull requests are welcome: see [CONTRIBUTING](https://github.co
 ## Licence
 
 [MIT](https://github.com/niklas-westman/penpair/blob/main/LICENSE)
+
+For explicit theme/state/fixture/font browser cases, the optional [implementation-case adapter](packages/reflection-check/README.md) adds a project-owned provider contract. Cases without actual setup/readback remain pending; comparison metrics do not approve a design.
