@@ -1,4 +1,5 @@
 export type PenpairErrorCode =
+  | "stale-inspection"
   | "incomplete-output"
   | "write-uncertain"
   | "file-mismatch"
@@ -13,6 +14,7 @@ export type PenpairErrorCode =
 
 // Every failure tells the person running the command what to do next. Remedies never contain credentials.
 const remedies: Record<PenpairErrorCode, string> = {
+  "stale-inspection": "The file, revision, query or inspected content changed. Discard the old cursor/chunks and start a fresh capture.",
   "incomplete-output": "Required output is missing, truncated or unstable. Narrow the scope or resolve the capture problem before accepting it as complete.",
   "write-uncertain": "Do not replay this write blindly. Inspect the intended file independently and reconcile what already changed before explicitly resuming.",
   "file-mismatch": "Open the project's pinned design file and reconnect its MCP plugin. Use --any-file only when you intend to act on another file.",

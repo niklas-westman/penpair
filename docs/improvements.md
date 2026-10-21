@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **15 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **16 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I8 — structured, complete inspection with bounded payloads and revision-bound cursors** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: C2 — project-owned extra sets and guarded token CRUD** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -579,7 +579,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 
 ### Gate 3 — make one repeatable design-to-code path work
 
-- [ ] **I8 · P1 · M** — Add structured, complete inspection with bounded payloads.
+- [x] **I8 · P1 · M** — Add structured, complete inspection with bounded payloads. Completed 2026-10-21; [resolution report](#i8-completion-2026-10-21).
 - [ ] **C2 · P1 · M** — Manage project-owned extra sets and safe token CRUD.
 - [ ] **I6 · P1 · M** — Add explicit ownership, conflicts and reference-aware destructive plans.
 - [ ] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably.
@@ -840,6 +840,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live pinned-version settling trial. Native/geometry completion does not establish token persistence, font correctness or visual approval; delayed bindings can still fail positive readback and require explicit recovery or a measured minimum delay. Custom clients must honor request budgets. Explicit library opt-out requires the caller's own evidence. Build-kit reuse remains B2; no new live compatibility claim or transactional guarantee.
 - **Next:** I8 — structured, complete inspection with bounded payloads and revision-bound cursors
 
+
+<a id="i8-completion-2026-10-21"></a>
+### 2026-10-21 — I8: Structured inspection and measured transfer budgets
+
+- **Resolved:** Full text and typed composites can now be collected without silently treating clipped previews as complete evidence.
+- **Changed:** Added version-1 shape/token inspection, Unicode-safe bounded transfers, file/revision/content-bound cursors, explicit unknowns, validated reassembly, atomic complete captures and execution metrics. Tree/audit retain readable previews with totals and truncation. Output redaction marks affected data incomplete and preserves previous artifacts. Formats and migration are documented in docs/inspection.md.
+- **Validated:** pnpm check: 440 tests passed (352 core, 60 adapter, 28 Docker), build/typecheck/version guards passed. pnpm smoke:package and git diff --check passed. Offline 1k/10k fixtures cover Unicode, composites, budgets, getter-backed APIs, stale cursors and malformed evidence.
+- **Risks:** No new live pinned-version trial. Projection includes explicit unknowns, including mixed text ranges. Chunking recomputes source; the content fingerprint is noncryptographic and final SHA-256 is integrity evidence, not authentication. Live latency remains unmeasured.
+- **Next:** C2 — project-owned extra sets and guarded token CRUD
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -876,3 +886,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — B3 completed:** Exact-name exports and complete ad-hoc shots. Progress 14/40; next B4 — integrate bounded layout settling into operations and exports.
 
 - **2026-10-21 — B4 completed:** Bounded layout settling in normal write and capture paths. Progress 15/40; next I8 — structured, complete inspection with bounded payloads and revision-bound cursors.
+
+- **2026-10-21 — I8 completed:** Structured inspection and measured transfer budgets. Progress 16/40; next C2 — project-owned extra sets and guarded token CRUD.

@@ -45,7 +45,7 @@ it("uses the same contract for adapter drift and redacts connection credentials 
   vi.spyOn(clientModule, "connect").mockResolvedValue({ async callTool() { throw new Error("unused"); }, async close() {} });
   const result = await runCommand(["fixture"], { adapters: adapter(async (context) => {
     await context.withPenpot(async () => undefined);
-    context.output!.result({ current: false, note: "PRIVATE" });
+    context.output!.result({ current: false, note: "comparison" });
     context.output!.error("fixture warning PRIVATE");
     return 2;
   }) });

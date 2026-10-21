@@ -5,7 +5,9 @@ import { StreamableHTTPClientTransport, StreamableHTTPError } from "@modelcontex
 import { redactEndpoint, type Endpoint } from "./endpoint.js";
 import { PenpairError, type PenpairErrorCode } from "./errors.js";
 
+export interface ExecutionMetrics { requestSnippetBytes: number; responsePayloadBytes: number }
 export interface ToolOutcome {
+  metrics?: ExecutionMetrics;
   text: string;
   structuredContent?: unknown;
   isError: boolean;
@@ -44,7 +46,7 @@ export async function connect(endpoint: Endpoint): Promise<PenpotToolClient> {
               : [],
           )
           .join("\n");
-        return { text, ...(result.structuredContent !== undefined ? { structuredContent: result.structuredContent } : {}), isError: result.isError === true };
+        return { text, metrics: { requestSnippetBytes: typeof args.code === "string" ? Buffer.byteLength(args.code, "utf8") : 0, responsePayloadBytes: Buffer.byteLength(text, "utf8") + (result.structuredContent === undefined ? 0 : Buffer.byteLength(JSON.stringify(result.structuredContent), "utf8")) }, ...(result.structuredContent !== undefined ? { structuredContent: result.structuredContent } : {}), isError: result.isError === true };
       } catch (error) {
         throw transportFailure(error, endpoint);
       }
@@ -97,6 +99,7 @@ export interface ExecuteOptions {
 }
 
 export interface ExecuteResult {
+  metrics?: ExecutionMetrics;
   runId: string;
   outcome: "ran";
   /** What the snippet returned, parsed when it was JSON. */
@@ -156,7 +159,7 @@ export async function executeCode(
     }
     const unpacked = executionEnvelope(outcome);
     const failed = outcome.isError || (!unpacked && /^Tool execution failed:/i.test(outcome.text.trim()));
-    if (!failed && unpacked) return { ...unpacked, runId, outcome: "ran" };
+    if (!failed && unpacked) return { ...unpacked, runId, outcome: "ran", metrics: outcome.metrics ?? { requestSnippetBytes: Buffer.byteLength(code, "utf8"), responsePayloadBytes: Buffer.byteLength(outcome.text, "utf8") + (outcome.structuredContent === undefined ? 0 : Buffer.byteLength(JSON.stringify(outcome.structuredContent), "utf8")) } };
     const code_ = classifyFailure(outcome.text);
     if (code_ === "plugin-suspended" && attempt < retries) {
       onWait?.(`Penpot tab is suspended; bring it to the foreground (retry ${attempt + 1}/${retries})`);

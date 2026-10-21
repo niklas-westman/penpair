@@ -284,7 +284,7 @@ export function builtInRegistry(): SnippetRegistry {
     ),
     "built-in",
   );
-  registry.register(readBuiltIn("tokens-dump", "Token sets in order and themes, as JSON.", [], () => tokensDump()), "built-in");
+  registry.register(readBuiltIn("tokens-dump", "Bounded typed token preview; tokens dump captures complete chunked evidence.", [], () => tokensDump()), "built-in");
   registry.register(
     {
       kind: "write",

@@ -27,7 +27,7 @@ Print the editor schema with `penpair config schema > penpair.schema.json`, then
 
 An existing invalid config stops project commands before endpoint discovery or extension imports. Fix the named field or file permissions and rerun `config check`; `--any-instance` cannot bypass invalid configuration. Setup and init create a config only when it is genuinely absent, never when an existing file is unreadable or invalid.
 
-For inspection from a folder with **no** config, explicitly use `--standalone`, for example `penpair pages --standalone`. Supported commands: `pages`, `tree`, `audit`, `tokens dump`, `export`, and the ordinary read-only `probe`. Endpoint resolution then uses the usual environment, `.env.local`, or agent configuration, so check the endpoint source in the probe. Export may save a local image, and page-scoped reads may switch the editor page. Standalone mode cannot bypass an existing config, run registered snippets, or perform document writes (including `probe --deep --write`). Write commands require a project configured with `penpair setup` or `penpair init`.
+For inspection from a folder with **no** config, explicitly use `--standalone`, for example `penpair pages --standalone`. Supported commands: `pages`, `tree`, `inspect`, `audit`, `tokens dump`, `export`, and the ordinary read-only `probe`. Endpoint resolution then uses the usual environment, `.env.local`, or agent configuration, so check the endpoint source in the probe. Export may save a local image, and page-scoped reads may switch the editor page. Standalone mode cannot bypass an existing config, run registered snippets, or perform document writes (including `probe --deep --write`). Write commands require a project configured with `penpair setup` or `penpair init`.
 
 ## Connected-file protection
 
@@ -135,3 +135,7 @@ Use `skills install --agents AGENTS.md --dry-run` to preview owned-marker instru
 Use `export --name <exact-name> --page <page> <out.png>` when a rebuild changed IDs, or `shots --page <page> --prefix <prefix>` for ad-hoc captures without baseline approval. See [named exports and shots](shots.md).
 
 Normal operations and captures now use [bounded layout settling](layout-settling.md). Layout evidence, independent postcondition checks, stable renders and visual approval remain distinct.
+
+## Complete inspection
+
+Use `inspect <shape-id> --page <name> --all` for bounded structured evidence with full text and typed properties. `tree` and audit examples remain previews. See [inspection formats, budgets and migration](inspection.md) before consuming captures or cursors.

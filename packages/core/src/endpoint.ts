@@ -151,3 +151,21 @@ export function redactEndpoint(text: string, endpoint?: Endpoint): string {
   }
   return redacted.replace(/userToken=[^\s&"'<>]+/gi, "userToken=[redacted]");
 }
+
+/** Known endpoint redaction with optional boundary fragments for serialized inspection chunks. */
+export function endpointRedactor(endpoint: Endpoint, fragments = false): (text: string) => string {
+  const key = new URL(endpoint.url).searchParams.get("userToken") ?? "";
+  const variants = [...new Set([key, encodeURIComponent(key), JSON.stringify(key).slice(1,-1)])].filter(value=>value.length>1);
+  return (text) => {
+    let clean=redactEndpoint(text,endpoint);
+    if (fragments) for (const value of variants) {
+      const minimum=Math.min(8,Math.ceil(value.length/2));
+      for(let size=value.length-1;size>=minimum;size--){
+        const prefix=value.slice(0,size),suffix=value.slice(-size);
+        if(clean.endsWith(prefix))clean=clean.slice(0,-prefix.length)+"[redacted]";
+        if(clean.startsWith(suffix))clean="[redacted]"+clean.slice(suffix.length);
+      }
+    }
+    return clean;
+  };
+}

@@ -3,8 +3,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { CommandArgumentError, parseCommandArgs } from "./cli-arguments.js";
 import { connect, executeCode } from "./client.js";
-import { redactEndpoint, resolveEndpoint } from "./endpoint.js";
+import { endpointRedactor, redactEndpoint, resolveEndpoint } from "./endpoint.js";
 import { PenpairError } from "./errors.js";
+import { captureInspection, inspectChunk, validateCaptureBudget, validateInspectionQuery, type InspectionField, type InspectionQuery, type CaptureBudget } from "./inspection.js";
+import { resolveProjectOutput } from "./project-input.js";
+import { mkdir } from "node:fs/promises";
 import { captureShots, exportShapeByName } from "./shots.js";
 import { exportShapePng } from "./export.js";
 import { exportBaselines } from "./baselines.js";
@@ -15,8 +18,8 @@ import { installSkills, listBundledSkills } from "./skills.js";
 import { checkProjectSnippets, loadProjectSnippets } from "./project-snippets.js";
 import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } from "./registry.js";
 import { runSnippet } from "./snippet.js";
-import { audit, pages, tokensDump, tree } from "./snippets/read.js";
-import { diffEffective, effectiveValues, type TokenDump } from "./tokens-diff.js";
+import { audit, pages, tree } from "./snippets/read.js";
+import { diffEffective, effectiveValues, parseTokenDump, type TokenDump } from "./tokens-diff.js";
 import { ConfigError, isExternal, loadConfig, loadOptionalConfig, requireLocal } from "./instance/config.js";
 import { projectConfigSchema } from "./instance/config-schema.js";
 import { init } from "./instance/init.js";
@@ -53,6 +56,7 @@ Read-only:
                                                        board it removes again (it touches the open file, so --write is required)
   (in a project with an instance every command below acts on that instance only; --any-instance overrides)
   penpair pages                                        the file, its revision, pages and their sizes
+  penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
   penpair tree --page <name> [--depth 3] [--prefix <text>]
   penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
   penpair tokens dump                                  token sets and themes as JSON
@@ -117,7 +121,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     options: {
       page: { type: "string" },
       out: { type: "string" },
+      fields: {type:"string"}, cursor:{type:"string"}, all:{type:"boolean"},
+      "max-nodes":{type:"string"}, "response-bytes":{type:"string"}, "time-budget-ms":{type:"string"}, "document-bytes":{type:"string"},
+      "max-calls":{type:"string"}, "max-total-bytes":{type:"string"}, "capture-timeout-ms":{type:"string"},
       depth: { type: "string" },
+      limit: { type: "string" },
       prefix: { type: "string" },
       steps: { type: "string" },
       ignore: { type: "string" },
@@ -160,23 +168,35 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     },
   });
   const [command, ...rest] = positionals;
+  const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
-    pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
+    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:["theme"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "baselines", "probe", "backup", "doctor"];
+  const network = ["inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
-  for (const [key, min, max, integer] of [["depth", 0, 100, true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
+  for (const [key, min, max, integer] of [["depth", 0, command==="inspect"?10000:100, true], ["limit",1,1000,true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
     const raw = values[key]; if (raw === undefined) continue;
     const number = Number(raw);
     if (!raw.trim() || !Number.isFinite(number) || number < min || number > max || integer && !Number.isInteger(number)) throw new Error(`--${key} must be ${integer ? "an integer" : "a number"} from ${min} to ${max}`);
   }
   if (command === "export" && (rest.length !== (values.name ? 1 : 2) || values.name && !values.page)) throw new CommandArgumentError("Export requires an ID and output path, or --name with an explicit --page and one output path");
   if (command === "shots" && (!values.page || rest.length)) throw new CommandArgumentError("Shots requires --page and supports optional --prefix/--out");
+  let inspectionRequest: {query:InspectionQuery;budget:CaptureBudget}|undefined;
+  if (command==="inspect" || command==="tokens" && rest[0]==="dump") {
+    if (rest.length!==1 || command==="inspect"&&!values.page) throw new CommandArgumentError("Inspect requires one shape ID and --page; tokens dump accepts no extra positionals");
+    if (values.cursor&&values.all || values.cursor&&values.out || command==="inspect"&&values.out&&!values.all) throw new CommandArgumentError("Use --all for a complete output file; --cursor selects one continuation chunk");
+    if ((values.cursor || command==="inspect"&&!values.all) && [values["max-calls"],values["max-total-bytes"],values["capture-timeout-ms"]].some(value=>value!==undefined)) throw new CommandArgumentError("Collection budgets require a full capture rather than one cursor chunk");
+    const numeric=(key:keyof typeof values):number|undefined=>values[key]===undefined?undefined:Number(values[key]);
+    const query:InspectionQuery={kind:command==="inspect"?"shape":"tokens",shapeId:command==="inspect"?rest[0]:undefined,page:values.page,
+      fields:values.fields?.split(",").map(field=>field.trim()) as InspectionField[]|undefined,depth:numeric("depth"),maxNodes:numeric("max-nodes"),responseBytes:numeric("response-bytes"),timeBudgetMs:numeric("time-budget-ms"),documentBytes:numeric("document-bytes"),cursor:values.cursor};
+    validateInspectionQuery(query);
+    inspectionRequest={query,budget:validateCaptureBudget({maxCalls:numeric("max-calls"),maxTotalBytes:numeric("max-total-bytes"),timeoutMs:numeric("capture-timeout-ms")})};
+  }
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
   if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
@@ -193,16 +213,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "tokens" && rest[0] === "diff") {
     const [, beforeFile, afterFile] = rest;
     if (!beforeFile || !afterFile || !values.theme) throw new Error("usage: penpair tokens diff <before.json> <after.json> --theme <name>");
-    const load = async (file: string): Promise<TokenDump> => JSON.parse(await readFile(file, "utf8")) as TokenDump;
+    const load = async (file: string): Promise<TokenDump> => parseTokenDump(JSON.parse(await readFile(file, "utf8")));
     const diff = diffEffective(effectiveValues(await load(beforeFile), values.theme), effectiveValues(await load(afterFile), values.theme));
     output.log(JSON.stringify(diff, null, 2));
-    return diff.added.length + diff.removed.length + diff.changed.length === 0 ? 0 : 2;
+    return !diff.complete ? 3 : diff.added.length + diff.removed.length + diff.changed.length === 0 ? 0 : 2;
   }
 
   const root = process.cwd();
   const log = (message: string): void => output.error(`… ${message}`);
   if (values.standalone) {
-    const inspection = ["pages", "tree", "audit", "export", "shots"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
+    const inspection = ["inspect", "pages", "tree", "audit", "export", "shots"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
     if (await loadOptionalConfig(root) || !inspection || values.apply || values.write)
       throw new ConfigError("--standalone is only for built-in inspection commands in a folder without penpair.config.json. It cannot bypass a project or run writes/snippets.");
   }
@@ -211,6 +231,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string; fileId?: string }> } | undefined> {
     try {
       const endpoint = await resolveEndpoint();
+      commandRedactor(endpointRedactor(endpoint));
       return {
         origin: endpoint.description.origin,
         connect: async () => {
@@ -244,6 +265,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     confirmFile: async (file) => values["pin-file"] === true || /^(y|yes)$/i.test(await askLine(`Pin this project's file to "${file.name}" (${file.id})? [y/N] `, "n")),
     openFile: async (url) => {
       const endpoint = await resolveEndpoint({ environment: { PENPAIR_MCP_URL: url }, envFiles: [] });
+      commandRedactor(endpointRedactor(endpoint));
       try {
         const client = await connect(endpoint);
         try {
@@ -416,7 +438,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadConfig(root);
   if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
   const endpoint = await resolveEndpoint();
-  commandRedactor((text) => redactEndpoint(text, endpoint));
+  commandRedactor(endpointRedactor(endpoint));
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
   const guarded = async () => guardFile(await connect(endpoint), projectConfig?.file, {
     anyFile: values["any-file"] === true,
@@ -442,7 +464,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
   const client = await guarded();
-  commandRedactor((text) => redactEndpoint(text, endpoint));
+  commandRedactor(endpointRedactor(endpoint));
   const options = { signal: commandSignal(), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
@@ -499,18 +521,28 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (command === "pages") output.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));
     else if (command === "tree") {
       if (!values.page) throw new Error("--page is required");
-      const record = await runOnPage(client, tree({ page: values.page, depth: values.depth ? Number(values.depth) : 3, namePrefix: values.prefix }), values.page, options);
+      const record = await runOnPage(client, tree({ page: values.page, depth: values.depth ? Number(values.depth) : 3, limit:values.limit?Number(values.limit):400, namePrefix: values.prefix }), values.page, options);
       if (values.json) output.log(JSON.stringify(record));
       else output.log(((record.lines as string[]) ?? []).join("\n"));
-      if (record.truncated === true) { output.error("Tree output is truncated; narrow the scope before treating it as complete."); return 3; }
+      if (record.truncated === true) { output.error("Tree is a limited preview; use inspect --all for full text or narrow the tree scope."); return 3; }
     } else if (command === "audit") {
       if (!values.page || !values.prefix) throw new Error("--page and --prefix are required");
       const steps = values.steps ? values.steps.split(",").map(Number) : undefined;
       const record = await runOnPage(client, audit({ page: values.page, framePrefix: values.prefix, spacingSteps: steps, ignoreUnbound: list(values.ignore) }), values.page, options);
-      output.log(JSON.stringify(record.frames, null, 2));
-    } else if (command === "tokens" && rest[0] === "dump") {
-      const { ok: _ok, readOnly: _readOnly, ...dump } = await runSnippet(client, tokensDump(), options);
-      output.log(JSON.stringify(dump, null, 2));
+      output.log(JSON.stringify(record, null, 2));
+      if (record.truncated===true) return 3;
+    } else if (command === "inspect" || command === "tokens" && rest[0] === "dump") {
+      const {query,budget}=inspectionRequest!;
+      const result=values.cursor||command==="inspect"&&!values.all?await inspectChunk(client,query):await captureInspection(client,query,budget);
+      const redact=endpointRedactor(endpoint),fragments=endpointRedactor(endpoint,true);
+      let altered=redact(JSON.stringify(result))!==JSON.stringify(result);
+      const chunks=result.kind==="inspection-chunk"?[result]:result.kind==="inspection-partial"?result.chunks:[];
+      for(const chunk of chunks){const safe=fragments(chunk.chunk);if(safe!==chunk.chunk){altered=true;chunk.chunk=safe;}}
+      if(altered){result.complete=false;Object.assign(result,{redacted:true,reason:"Output required credential redaction; source evidence is incomplete"});if("nextCursor" in result)result.nextCursor=null;}
+      output.log(JSON.stringify(result,null,2));
+      if (!result.complete) return 3;
+      if (values.out) {const serialized=JSON.stringify(result,null,2)+"\n";const target=await resolveProjectOutput(root,values.out);await mkdir(path.dirname(target),{recursive:true});await atomicWriteFile(target,serialized,{replace:true});}
+      return 0;
     } else if (command === "export") {
       const [shapeId, out] = values.name ? [undefined, rest[0]] : rest;
       if (!out || rest.length !== (values.name ? 1 : 2) || values.name && !values.page) throw new Error("usage: penpair export <shapeId> <out.png>, or export --name <exact-name> --page <name> <out.png>");
@@ -560,7 +592,7 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
     async withPenpot(work) {
       const endpoint = await resolveEndpoint();
       redact = (text) => redactEndpoint(text, endpoint);
-      commandRedactor(redact);
+      commandRedactor(endpointRedactor(endpoint));
       assertEndpointIsInstance(endpoint.description, config);
       const client = guardFile(await connect(endpoint), config.file, { anyFile: args.includes("--any-file"), warn: context.log });
       try {
@@ -657,7 +689,7 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
   if (!json && ["setup", "connect"].includes(args[0] ?? "")) {
     if (timer) clearTimeout(timer);
     if (timeoutAt !== -1) { console.error("--timeout-ms is not supported for interactive setup/connect"); return 1; }
-    return runCliInternal(args, options);
+    return withCommandSignal(controller.signal, () => runCliInternal(args, options));
   }
   process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   try {

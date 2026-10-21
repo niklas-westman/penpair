@@ -5,6 +5,7 @@ import { redactEndpoint } from "./endpoint.js";
 export interface CommandFailure { code: string; message: string; remedy: string; runId?: string }
 export interface CommandResult {
   schemaVersion: 1;
+  redacted?: boolean;
   command: string;
   outcome: "success" | "drift" | "failed" | "incomplete" | "uncertain" | "cancelled" | "deadline";
   phase: string;
@@ -19,23 +20,24 @@ export interface CommandResult {
   timings: { startedAt: string; durationMs: number };
 }
 export interface CommandOutput { log(...values: unknown[]): void; error(...values: unknown[]): void; result(value: unknown): void }
-interface Capture { authoritative?: unknown; data: unknown[]; messages: string[]; warnings: string[]; errors: CommandFailure[]; redactors: ((value: string) => string)[]; signal?: AbortSignal }
+interface Capture { redacted?: boolean; authoritative?: unknown; data: unknown[]; messages: string[]; warnings: string[]; errors: CommandFailure[]; redactors: ((value: string) => string)[]; signal?: AbortSignal }
 const scope = new AsyncLocalStorage<Capture>();
 const line = (values: unknown[]) => values.map((value) => typeof value === "string" ? value : JSON.stringify(value)).join(" ");
 export const commandOutput: CommandOutput = {
   log(...values) {
     const current = scope.getStore();
-    if (!current) { console.log(...values); return; }
+    if (!current) { console.log(...values.map(value=>renderHuman(value))); return; }
     const message = line(values);
     try { current.data.push(JSON.parse(message)); } catch { current.messages.push(message); }
   },
   error(...values) { const current = scope.getStore(); if (current) {
     const message = current.redactors.reduce((text, redact) => redact(text), redactEndpoint(line(values)));
+    if (message!==line(values)) current.redacted=true;
     current.warnings.push(message); console.error(message);
-  } else console.error(...values); },
+  } else console.error(...values.map(value=>renderHuman(value))); },
   result(value) { const current = scope.getStore(); if (current) current.authoritative = value; },
 };
-export function commandRedactor(redact: (value: string) => string): void { scope.getStore()?.redactors.push(redact); }
+export function commandRedactor(redact: (value: string) => string): void { (scope.getStore()?.redactors ?? signals.getStore()?.redactors)?.push(redact); }
 export function commandFailure(error: unknown): void {
   const current = scope.getStore(); if (!current) return;
   const value = error as { code?: unknown; outcome?: unknown; message?: unknown; remedy?: unknown; runId?: unknown };
@@ -48,9 +50,15 @@ export function commandFailure(error: unknown): void {
     message: error instanceof Error ? error.message : String(error), remedy: typeof value?.remedy === "string" ? value.remedy : "Inspect the command result and current project state before trying again.",
     ...(typeof value?.runId === "string" ? { runId: value.runId } : {}) });
 }
-const signals = new AsyncLocalStorage<AbortSignal>();
-export function withCommandSignal<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> { return signals.run(signal, work); }
-export function commandSignal(): AbortSignal | undefined { return scope.getStore()?.signal ?? signals.getStore(); }
+const signals = new AsyncLocalStorage<{signal:AbortSignal;redactors:((text:string)=>string)[]}>();
+function redactHuman(text:string):string { return (signals.getStore()?.redactors??[]).reduce((value,redact)=>redact(value),redactEndpoint(text)); }
+function renderHuman(value:unknown):unknown {
+  const clean=(entry:unknown):unknown=>typeof entry==="string"?redactHuman(entry):Array.isArray(entry)?entry.map(clean):entry&&typeof entry==="object"?Object.fromEntries(Object.entries(entry).map(([key,child])=>[redactHuman(key),clean(child)])):entry;
+  if(typeof value!=="string")return clean(value);
+  try{return JSON.stringify(clean(JSON.parse(value)),null,2);}catch{return redactHuman(value);}
+}
+export function withCommandSignal<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> { return signals.run({signal,redactors:[]}, work); }
+export function commandSignal(): AbortSignal | undefined { return scope.getStore()?.signal ?? signals.getStore()?.signal; }
 export async function commandSleep(milliseconds: number): Promise<void> {
   const signal = commandSignal();
   try { await wait(milliseconds, undefined, { signal }); } catch (error) { if (signal?.aborted) throw signal.reason; throw error; }
@@ -86,9 +94,18 @@ export async function collectCommand(command: string, work: () => Promise<number
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(sanitize(key)), sanitize(entry)]));
     return value;
   };
-  return sanitize({ schemaVersion: 1, command, outcome, phase: typeof record.phase === "string" ? record.phase : outcome === "uncertain" || outcome === "cancelled" || outcome === "deadline" ? "interrupted" : "finished", exitCode, target,
+  const raw={ schemaVersion: 1, command, outcome, phase: typeof record.phase === "string" ? record.phase : outcome === "uncertain" || outcome === "cancelled" || outcome === "deadline" ? "interrupted" : "finished", exitCode, target,
     runId: capture.errors.find((error) => error.runId)?.runId ?? (typeof journal?.runId === "string" ? journal.runId : null), data, messages: capture.messages, warnings: capture.warnings, errors: capture.errors,
-    completeness: { complete: outcome === "success" || outcome === "drift", ...(incomplete ? { reason: "Output is truncated or required observations are missing" } : {}) }, timings: { startedAt: new Date(started).toISOString(), durationMs: Math.max(0, Date.now() - started) } }) as CommandResult;
+    completeness: { complete: outcome === "success" || outcome === "drift", ...(incomplete ? { reason: "Output is truncated or required observations are missing" } : {}) }, timings: { startedAt: new Date(started).toISOString(), durationMs: Math.max(0, Date.now() - started) } };
+  const result=sanitize(raw) as CommandResult;
+  if (record.redacted===true || capture.redacted || JSON.stringify(result)!==JSON.stringify(raw)) {
+    result.redacted=true;result.warnings.push("Sensitive or non-JSON output was redacted; hashes describe original evidence.");
+    if (JSON.stringify(result.data)!==JSON.stringify(data)) {
+      result.completeness={complete:false,reason:"Displayed data required redaction and is not lossless source evidence"};
+      if(result.outcome==="success"||result.outcome==="drift"){result.outcome="incomplete";result.exitCode=3;}
+    }
+  }
+  return result;
 }
 
 /** Outer transport contract. Command-specific data remains owned by the command service. */
@@ -96,7 +113,7 @@ export const commandResultSchema = {
   type: "object", additionalProperties: false,
   required: ["schemaVersion", "command", "outcome", "phase", "exitCode", "target", "runId", "data", "messages", "warnings", "errors", "completeness", "timings"],
   properties: {
-    schemaVersion: { const: 1 }, command: { type: "string" },
+    schemaVersion: { const: 1 }, redacted:{type:"boolean"}, command: { type: "string" },
     outcome: { enum: ["success", "drift", "failed", "incomplete", "uncertain", "cancelled", "deadline"] },
     phase: { type: "string" }, exitCode: { enum: [0, 1, 2, 3, 4, 124, 130] },
     target: { anyOf: [{ type: "null" }, { type: "object", properties: { fileId: { type: "string" }, pageId: { type: "string" } }, additionalProperties: false }] },

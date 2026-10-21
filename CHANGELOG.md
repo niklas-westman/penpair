@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Structured inspection:** selected-frame full text, hierarchy, layout, bindings and provenance with explicit unknowns; bounded Unicode-safe transfers, stale-cursor rejection and measured request/response budgets. Typed token dumps preserve composites; tree/audit previews expose truncation and totals. Incomplete or credential-redacted captures refuse artifact publication. See `docs/inspection.md` for versioned formats and legacy token migration.
+
 - **Bounded layout settling:** operation verification, recovery, exports and token pushes now prefer native completion or bounded geometry polling instead of an unconditional ten-second sleep. Request budgets propagate through guards to the SDK; malformed/late/timeout samples cannot pass. Two matching exports and independent postconditions remain required, and reports retain measured layout evidence.
 
 - **Named exports and shots:** exact page-scoped shape lookup refuses ambiguous names, incomplete search and stale lookup/capture identity. Ad-hoc shots reuse stable exports, publish complete immutable generations and carry capture provenance without approving baselines. CLI option typos gain explanatory hints without automatic reinterpretation.

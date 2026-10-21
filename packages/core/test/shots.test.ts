@@ -97,7 +97,7 @@ it("CLI named export publishes the selected bytes and exposes their capture iden
   const root = await folder(), e = editor();
   await writeFile(path.join(root, "penpair.config.json"), JSON.stringify({ instance: "fixture", profile: { type: "external", origin: "https://example.test" } }));
   vi.spyOn(process, "cwd").mockReturnValue(root);
-  vi.spyOn(endpointModule, "resolveEndpoint").mockResolvedValue({ url: "https://example.test/mcp?userToken=fixture", description: { source: "env", origin: "https://example.test", pathname: "/mcp" } });
+  vi.spyOn(endpointModule, "resolveEndpoint").mockResolvedValue({ url: "https://example.test/mcp?userToken=PRIVATE-MCP-ONLY-KEY", description: { source: "env", origin: "https://example.test", pathname: "/mcp" } });
   vi.spyOn(clientModule, "connect").mockResolvedValue(e.client);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   const output = vi.spyOn(console, "log").mockImplementation(() => undefined);

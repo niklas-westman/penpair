@@ -48,3 +48,5 @@ export { planSkillInstructions, applySkillInstructions, type InstructionReport }
 export { parseCommandArgs, CommandArgumentError } from "./cli-arguments.js";
 
 export { findShapesByName, exportShapeByName, captureShots, type ShapeLookup, type ShapeMatch, type ShotsReport } from "./shots.js";
+
+export * from "./inspection.js";
