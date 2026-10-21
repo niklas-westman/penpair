@@ -13,7 +13,7 @@ export type PenpairErrorCode =
   | "snippet-too-large";
 
 // Every failure tells the person running the command what to do next. Remedies never contain credentials.
-const remedies: Record<PenpairErrorCode, string> = {
+export const errorRemedies: Readonly<Record<PenpairErrorCode, string>> = Object.freeze({
   "stale-inspection": "The file, revision, query or inspected content changed. Discard the old cursor/chunks and start a fresh capture.",
   "incomplete-output": "Required output is missing, truncated or unstable. Narrow the scope or resolve the capture problem before accepting it as complete.",
   "write-uncertain": "Do not replay this write blindly. Inspect the intended file independently and reconcile what already changed before explicitly resuming.",
@@ -29,16 +29,16 @@ const remedies: Record<PenpairErrorCode, string> = {
     "The browser put the Penpot tab to sleep. Bring it to the foreground and keep it visible while a command runs. A suspended-tab error does not mean nothing was written: read the page before running a write again.",
   "tool-failed": "Penpot's tool reported a failure; the message above says what.",
   "snippet-too-large": "Split the snippet. Penpot's proxy refuses request bodies of about 110 KB, so snippets stay under 90 KB.",
-};
+});
 
 export class PenpairError extends Error {
   readonly code: PenpairErrorCode;
   readonly remedy: string;
 
   constructor(code: PenpairErrorCode, message: string) {
-    super(`${message}\n→ ${remedies[code]}`);
+    super(`${message}\n→ ${errorRemedies[code]}`);
     this.name = "PenpairError";
     this.code = code;
-    this.remedy = remedies[code];
+    this.remedy = errorRemedies[code];
   }
 }

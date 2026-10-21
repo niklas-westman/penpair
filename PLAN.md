@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **F1 — concise docs paths and generated troubleshooting inventory** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **F2 — web/project status and explicit file opening** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **F1 — Concise documentation paths and generated troubleshooting** (2026-10-21). First-time readers now have a short quick start and clear person/agent/team/workflow paths, with repair guidance linked to the actual core error inventory. Validation and limits: [delivery report](docs/improvements.md#f1-completion-2026-10-21).
 - [x] **I10 — Versioned schema envelopes, explicit migrations and portable tokens** (2026-10-21). Persistent artifacts now have discoverable versioned schema envelopes and explicit migration/exchange paths instead of relying on implicit format assumptions. Validation and limits: [delivery report](docs/improvements.md#i10-completion-2026-10-21).
 - [x] **E3 — Focused recipe and handoff skills** (2026-10-21). Agents now have concise construction and handoff workflows aligned with the implemented guarded commands, rather than an expanding all-purpose operations skill. Validation and limits: [delivery report](docs/improvements.md#e3-completion-2026-10-21).
 - [x] **D3 — Deterministic page-split structural review snapshots** (2026-10-21). Design structure, text, bindings and token changes can now be reviewed as bounded versioned artifacts rather than only opaque pixels. Validation and limits: [delivery report](docs/improvements.md#d3-completion-2026-10-21).
@@ -95,7 +96,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 
 ### 4. Publish
 - [x] Skills pack shipped in the package (`packages/core/skills`: `penpair-design` with the write protocol, the plugin traps including the hosted-Penpot findings, flat auto-layout, a library-in-Penpot note and a `project-facts.md` template the project owns; `design-judgment` with the recipes made project-neutral) and `penpair skills install` (copies, links for Codex and Claude Code, prints the AGENTS.md rows, keeps edited files, never replaces `project-facts.md`). The neutrality test covers the skills too.
-- [ ] Guide with screenshots, the hosted-profile run on a large file
+- [ ] Owner-reviewed browser screenshots and hosted large-file walkthrough (live verification pending by owner instruction; docs navigation and offline checks are implemented)
 - [ ] First outside trial with feedback rounds (like Reflection's)
 - [ ] 0.1.0 published (owner): create the `@penpair` npm org and the GitHub repo, push, run the steps in `docs/releasing.md`
 
@@ -114,6 +115,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed F1: Concise documentation paths and generated troubleshooting; report in `docs/improvements.md`.
 - 2026-10-21: completed I10: Versioned schema envelopes, explicit migrations and portable tokens; report in `docs/improvements.md`.
 - 2026-10-21: completed E3: Focused recipe and handoff skills; report in `docs/improvements.md`.
 - 2026-10-21: completed D3: Deterministic page-split structural review snapshots; report in `docs/improvements.md`.

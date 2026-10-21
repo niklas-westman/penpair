@@ -23,7 +23,7 @@ You need a link to your team's Penpot and an account.
 That is all. The assistant looks first, changes things in one go, and checks its own work; you review the result in Penpot as usual.
 
 ## If you set it up
-You need: a Mac or Linux computer, **Node.js** (the current LTS version), a terminal, and an account on a Penpot (the hosted one at design.penpot.app is free to start; use your team's address if it runs its own).
+You need: a Mac or Linux computer, **Node.js** (22 or newer), a terminal, and an account on a Penpot (use design.penpot.app or your team's own address).
 
 **The quick way:** in your project's folder run `npx @penpair/web setup`. It asks where your Penpot is (press Enter for the web), does steps 1 to 5 below, and says in plain words what it is waiting for. Run it again if you stop halfway. The rest of this section is what it does, one step at a time, for when you want to do it by hand or something needs fixing.
 

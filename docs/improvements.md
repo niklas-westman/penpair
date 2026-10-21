@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **30 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **31 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: F1 — concise docs paths and generated troubleshooting inventory** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: F2 — web/project status and explicit file opening** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -602,7 +602,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance. Completed 2026-10-21; [resolution report](#d2-completion-2026-10-21).
 - [x] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8. Completed 2026-10-21; [resolution report](#d3-completion-2026-10-21).
 - [x] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier. Completed 2026-10-21; [resolution report](#i10-completion-2026-10-21).
-- [ ] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2.
+- [x] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2. Completed 2026-10-21; [resolution report](#f1-completion-2026-10-21).
 - [ ] **F2 · P2 · S** — Add web status/open using the shared identity and capability report.
 - [ ] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns.
 - [ ] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices.
@@ -993,6 +993,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Schema envelopes complement runtime identity/hash/completeness validation. No full DTCG/resolver conformance or native Penpot import is claimed. Arithmetic, property references and unsupported units/color models remain outside the portable subset. No real project or design formats were migrated automatically.
 - **Next:** F1 — concise docs paths and generated troubleshooting inventory
 
+
+<a id="f1-completion-2026-10-21"></a>
+### 2026-10-21 — F1: Concise documentation paths and generated troubleshooting
+
+- **Resolved:** First-time readers now have a short quick start and clear person/agent/team/workflow paths, with repair guidance linked to the actual core error inventory.
+- **Changed:** Replaced the long README with a six-command start and five-skill table; added cookbook, design workflow and adapter landing page, a guide map and generated troubleshooting. Updated request-root/envelope guidance and retained explicit pending clean-machine/illustrated checks in PLAN.
+- **Validated:** pnpm check passes (543 tests). Local README/docs files and Markdown anchors resolve; generated troubleshooting exactly matches every core remedy. Core tests rerun after final navigation edits. No live UI claims were added.
+- **Risks:** Owner-reviewed screenshots and a clean-machine human walkthrough remain pending. The error table covers stable core codes; config, interruption and unenumerated service domains are separately identified. Registry installs do not imply this unreleased branch is present.
+- **Next:** F2 — web/project status and explicit file opening
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1075,3 +1085,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — E3 completed:** Focused recipe and handoff skills. Progress 29/40; next I10 — versioned formats, migrations and portable token exchange.
 
 - **2026-10-21 — I10 completed:** Versioned schema envelopes, explicit migrations and portable tokens. Progress 30/40; next F1 — concise docs paths and generated troubleshooting inventory.
+
+- **2026-10-21 — F1 completed:** Concise documentation paths and generated troubleshooting. Progress 31/40; next F2 — web/project status and explicit file opening.

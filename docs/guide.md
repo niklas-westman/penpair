@@ -1,6 +1,16 @@
-# Guide (skeleton)
+# Guide
 
-The contract an adopting project works through. It grows with the code; each section ends in a checklist like Reflection's provider guide.
+Choose a tested workflow below, then use the extension and command references for the selected work. Live checks are identified separately.
+
+## Documentation map
+
+| Path | Documents |
+| --- | --- |
+| First run / shared file | [Getting started](getting-started.md), [team](team.md), [trial runbook](trials.md) |
+| Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
+| Evidence | [Inspection](inspection.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
+| Integration | [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [token adapter](marwes.md) |
+| Repair / operations | [Troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 
 ## Extension points
 | Point | A project supplies | First implementations |
@@ -11,17 +21,15 @@ The contract an adopting project works through. It grows with the code; each sec
 | Verification provider | what "matches the design" means | `penpair baselines` (images and Reflection cases, below), a page-verify gate |
 | Skill pack | rules the agent follows | the Penpot skill, design judgment |
 
-## Sections to write
-- Starting from an empty machine
-- Instances (written, below): one per project, ports, volumes, secrets, backup and restore
-- The write protocol
-- Writing a snippet
-- Writing a library adapter
-- What breaks when Penpot is upgraded
+## Live documentation checks still pending
+
+- Follow the first-run guide on a clean machine with real participants.
+- Capture owner-reviewed screenshots of actual browser steps and a hosted large-file run.
+- Record the [human trial findings](trials.md) rather than treating offline fixtures as usability evidence.
 
 ## Configuration checks and standalone inspection
 
-`penpair config check` validates `penpair.config.json` offline before loading any adapter or project snippet. `--json` returns `{ "valid": true, "file": "penpair.config.json" }`, or `valid: false` with an error code and message (exit 1). Missing, unreadable, malformed JSON and invalid core settings are reported separately. Adapter-owned blocks are preserved; each adapter validates its own settings when used.
+`penpair config check` validates `penpair.config.json` offline before loading any adapter or project snippet. `--json` returns the version-1 command envelope with `data: { "valid": true, "file": "penpair.config.json" }`, or data containing `valid: false` with an error code and message (exit 1). Missing, unreadable, malformed JSON and invalid core settings are reported separately. Adapter-owned blocks are preserved; each adapter validates its own settings when used.
 
 Print the editor schema with `penpair config schema > penpair.schema.json`, then add `"$schema": "./penpair.schema.json"` to your config. The schema command works even while the project config is broken and executes no project extensions. It is also exported as `projectConfigSchema` from the library. `config check` additionally checks semantic constraints such as distinct ports and unique baseline IDs.
 
