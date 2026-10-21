@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -26,7 +26,7 @@ const png = (width: number, height: number, tag = ""): Buffer => {
   return Buffer.concat([head, Buffer.from(tag)]);
 };
 
-interface Fake { revision?: number; fileId?: string; onExport?(): void; frames: { id: string; name: string; width: number; height: number }[]; images: Record<string, Buffer[]> }
+interface Fake { activeThemeIds?: string[]; revision?: number; fileId?: string; onExport?(): void; frames: { id: string; name: string; width: number; height: number }[]; images: Record<string, Buffer[]> }
 function penpot(fake: Fake): PenpotToolClient {
   const exportsDone: Record<string, number> = {};
   return {
@@ -39,7 +39,7 @@ function penpot(fake: Fake): PenpotToolClient {
         const sequence = fake.images[id]!;
         const n = (exportsDone[id] = (exportsDone[id] ?? 0) + 1);
         const image = sequence[Math.min(n - 1, sequence.length - 1)]!;
-        return reply({ ok: true, base64: image.toString("base64"), length: image.length, capture: { fileId:fake.fileId ?? "file", pageId:"page", frameId:id, revision:fake.revision ?? 7, scale:1, penpotApiVersion:"test", renderEnvironment:null, activeThemes:[] } });
+        return reply({ ok: true, base64: image.toString("base64"), length: image.length, capture: { designSize: { width: fake.frames.find(frame => frame.id === id)!.width, height: fake.frames.find(frame => frame.id === id)!.height }, activeThemeIds: fake.activeThemeIds ?? [], fileId:fake.fileId ?? "file", pageId:"page", frameId:id, revision:fake.revision ?? 7, scale:1, penpotApiVersion:"test", renderEnvironment:null, activeThemes:[] } });
       }
       return reply({ ok: true, file: "Brand", fileId:fake.fileId ?? "file", pageId:"page", revn:fake.revision ?? 7, page: "Candidate", frames: fake.frames });
     },
@@ -195,3 +195,45 @@ describe("the PNG size reader", () => {
   });
 });
 
+
+describe("explicit baseline case provenance", () => {
+  const designCase = { viewport: { width: 1512, height: 982 }, theme: "light", state: "default", fixture: "fixture-v1", fonts: ["Test Sans"], activeThemeIds: ["light-id"] };
+  const rich = () => ({ ...config, frames: [{ ...config.frames[0]!, case: designCase }] });
+  it("requires approval of changed case intent even when PNG bytes are identical", async () => {
+    const root = await project(), initial = rich();
+    await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, initial, { ...fast, apply: true });
+    const next = { ...initial, frames: [{ ...initial.frames[0]!, case: { ...designCase, fixture: "fixture-v2" } }] };
+    const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, next, { ...fast, apply: true });
+    expect(report.results[0]).toMatchObject({ status: "changed", written: false, captured: { case: { fixture: "fixture-v2" } }, approved: { case: { fixture: "fixture-v1" } } });
+    const approved = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, next, { ...fast, apply: true, update: true });
+    expect(approved.results[0]).toMatchObject({ written: true, approved: { case: { fixture: "fixture-v2" } } });
+  });
+  it("pins case metadata before asynchronous capture instead of approving a caller's later mutation", async () => {
+    const root = await project(), initial = rich(); initial.frames[0]!.case = structuredClone(designCase);
+    const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"], onExport: () => { initial.frames[0]!.case.fixture = "changed-during-capture"; } }), root, initial, { ...fast, apply: true });
+    expect(report.results[0]?.approved).toMatchObject({ case: { fixture: "fixture-v1" } });
+  });
+  it("preserves the prior generation when declared viewport or active theme IDs mismatch", async () => {
+    const root = await project(), initial = rich();
+    await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, initial, { ...fast, apply: true });
+    const file = path.join(root, config.root, "penpair-baselines.json"), before = await readFile(file, "utf8");
+    const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["dark-id"] }), root, initial, { ...fast, apply: true, update: true });
+    expect(report).toMatchObject({ complete: false, wrote: [], results: [{ status: "case-mismatch", problems: [expect.stringMatching(/theme IDs/)] }] });
+    expect(await readFile(file, "utf8")).toBe(before);
+    const mismatch = { ...initial, frames: [{ ...initial.frames[0]!, case: { ...designCase, viewport: { width: 100, height: 80 } } }] };
+    expect((await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, mismatch, { ...fast, apply: true })).results[0]).toMatchObject({ status: "case-mismatch" });
+    expect(await readFile(file, "utf8")).toBe(before);
+  });
+  it("keeps approval tied to its source identity when pixels happen to match another file", async () => {
+    const root = await project(), initial = rich();
+    await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, initial, { ...fast, apply: true });
+    const report = await exportBaselines(penpot({ frames, images, fileId: "another-file", activeThemeIds: ["light-id"] }), root, initial, { ...fast, apply: true });
+    expect(report.results[0]).toMatchObject({ status: "changed", written: false, captured: { fileId: "another-file" }, approved: { fileId: "file" } });
+  });
+  it("refuses a capture-generation symlink that would publish outside the project", async () => {
+    const root = await project(), outside = await project(); await mkdir(path.join(root, config.root), { recursive: true });
+    await symlink(outside, path.join(root, config.root, "captures"));
+    await expect(exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true })).rejects.toThrow(/outside/);
+    expect(await readdir(outside)).toEqual([]);
+  });
+});

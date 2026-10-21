@@ -1,3 +1,4 @@
+import { readBaselineCoverage } from "./baseline-coverage.js";
 import { runKitSmoke } from "./kit-smoke.js";
 import { checkKits, loadKits } from "./kit.js";
 import { prepareFileScript, runFileScript } from "./run-file.js";
@@ -63,6 +64,7 @@ Read-only:
   penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
   penpair tree --page <name> [--depth 3] [--prefix <text>]
   penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
+  penpair baselines coverage [--json]                  offline case matrix: approved intent, missing, unsupported and unknown
   penpair kit check / recipes [--include @kit]          offline compilation and recipe metadata
   penpair run-file <script.js> [--include helpers.js]    trusted plugin body; read declaration or reviewed inspect/apply/readback
   penpair tokens dump                                  typed token sets and themes as JSON
@@ -237,6 +239,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "baselines" && rest[0] === "coverage") {
+    if (rest.length !== 1 || values.apply || values.update || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("baselines coverage is an offline report with optional --json");
+    const config = await loadConfig(process.cwd()); if (!config.baselines) throw new Error("Configure baselines before reporting coverage");
+    const report = await readBaselineCoverage(process.cwd(), config.baselines, config.file?.id);
+    output.result(report); if (!values.json) output.log(JSON.stringify(report, null, 2));
+    return report.designCasesComplete ? 0 : 3;
+  }
   if (command === "kit" || command === "recipes") {
     if (command === "kit" ? rest.length !== 1 || rest[0] !== "check" : rest.length) throw new CommandArgumentError("Use kit check, or recipes, with optional ordered --include aliases");
     const kits = await loadKits(process.cwd(), values.include ?? ["@kit"]);
@@ -567,7 +576,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const changed = report.results.filter((r) => r.status === "changed" && !r.written);
       if (!values.apply) output.error("Nothing was written. Run again with --apply to write new images.");
       if (changed.length > 0) output.error(`${changed.length} design(s) differ from the image in the folder. That is a change of the approved design: review it in Penpot, then run again with --apply --update to approve it.`);
-      if (!report.complete) return 3;
+      for (const row of report.coverage.rows) if (row.status !== "approved-design-intent") output.error(`coverage ${row.status}: ${row.requirement.route} ${row.requirement.theme}/${row.requirement.state} ${row.requirement.viewport.width}x${row.requirement.viewport.height}${row.reason ? ": " + row.reason : ""}`);
+      if (!report.complete || report.coverage.configured && !report.coverage.designCasesComplete) return 3;
       return changed.length > 0 ? 2 : 0;
     }
     if (command === "pages") output.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));

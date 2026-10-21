@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **21 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **22 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I9 — explicit state, theme and responsive coverage** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: H1 — scoped consumer follow-up proposal without cross-repository edits** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -585,7 +585,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably. Completed 2026-10-21; [resolution report](#c3-completion-2026-10-21).
 - [x] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol. Completed 2026-10-21; [resolution report](#b1-completion-2026-10-21).
 - [x] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes. Completed 2026-10-21; [resolution report](#b2-completion-2026-10-21).
-- [ ] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures.
+- [x] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures. Completed 2026-10-21; [resolution report](#i9-completion-2026-10-21).
 - [ ] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here.
 - [ ] **I12 · P1 · M** — Complete measured human onboarding and collaboration trials; publish findings.
 
@@ -900,6 +900,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No new live pinned-version probe. Helper queues are in-memory and not transactions; enclosing operations own partial roots. Adapter recipes are compositional starting points, not measured native-component parity (C1). Saved previews require visual review and never imply approval.
 - **Next:** I9 — explicit state, theme and responsive coverage
 
+
+<a id="i9-completion-2026-10-21"></a>
+### 2026-10-21 — I9: Explicit state, theme and responsive coverage
+
+- **Resolved:** Baseline coverage now distinguishes configured capture completeness from approved case intent, unsupported/missing combinations and browser/accessibility work that has not run.
+- **Changed:** Added bounded case metadata and required matrices, version-1 coverage reports and an offline coverage command that independently checks approved PNG bytes and file pins. Viewport/native-theme assertions reject mismatches without publication. Metadata or source-identity changes require approval even with identical pixels; metadata is pinned before asynchronous capture. Rich cases preserve provenance in pending provider mappings; legacy multi-viewport checks remain intact. Hardened baseline paths against external symlink escapes.
+- **Validated:** pnpm check passed: 514 tests (395 core, 91 adapter, 28 Docker), build/typecheck/version guards; package smoke and git diff --check passed. Matrix fixtures include desktop/mobile, light/dark and empty states. Tests cover gaps, unsupported cases, old/changed metadata, corrupt images, file pins, environment unknowns, preserved artifacts, concurrent metadata mutation and project path bounds. Example matrix validates.
+- **Risks:** Theme/state/fixture labels are declared intent, not proof of activation or application behavior. Actual native theme IDs can be asserted separately. Font loading/version and browser interactions remain unverified; rich cases await D4 provider setup. No board dimensions imply WCAG compliance. No new live capture trial.
+- **Next:** H1 — scoped consumer follow-up proposal without cross-repository edits
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -948,3 +958,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — B1 completed:** Reviewed plugin bodies from files. Progress 20/40; next B2 — neutral build kit and adapter-owned recipes.
 
 - **2026-10-21 — B2 completed:** Neutral build kit and adapter-owned recipes. Progress 21/40; next I9 — explicit state, theme and responsive coverage.
+
+- **2026-10-21 — I9 completed:** Explicit state, theme and responsive coverage. Progress 22/40; next H1 — scoped consumer follow-up proposal without cross-repository edits.

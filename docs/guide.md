@@ -151,3 +151,7 @@ Use `inspect <shape-id> --page <name> --all` for bounded structured evidence wit
 ## Build helpers and recipes
 
 `run-file --include @kit` adds neutral token-aware helpers; configured adapters can supply explicit additional aliases. `kit check` compiles selected kits offline and `recipes` lists their metadata. See [build kit, recipes and scratch probe](build-kit.md).
+
+## State, theme and responsive coverage
+
+Add explicit `frames[].case` metadata and a required matrix under `baselines.coverage`. `baselines coverage --json` validates approved images offline and exposes missing/unsupported slots. Rich cases remain pending browser setup mappings; see [coverage semantics and approval](coverage.md).

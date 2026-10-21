@@ -60,3 +60,5 @@ export { prepareFileScript, runFileScript, type FileScriptOptions, type Prepared
 export { kit, coreKit, checkKits, loadKits, type BuildKit, type RecipeInfo } from "./kit.js";
 
 export { runKitSmoke, kitSmokeOperation } from "./kit-smoke.js";
+
+export { baselineCoverage, readBaselineCoverage, designCaseKey, type BaselineCoverage, type CoverageRow } from "./baseline-coverage.js";

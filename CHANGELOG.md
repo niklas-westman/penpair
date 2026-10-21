@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Explicit design coverage:** baseline case metadata and required matrices distinguish approved intent, missing captures, unsupported states and unknown environments. Offline coverage independently validates approved PNGs. Viewport/native-theme assertions can reject a capture; metadata or source-identity changes require approval even with identical pixels. Rich cases remain pending implementation setup instead of generating false default-state checks. Baseline paths now reject external symlink escapes.
+
 - **Build kit and recipes:** neutral plain plugin source (`kit()`, `--include @kit`) adds token-aware layout/text/icon/component helpers, queued values-before-bindings and bounded settling. Explicit adapter kit aliases keep library recipes out of the core; offline `kit check` and `recipes` preserve lazy loading. Added a tested repeatable Hello-card example and opt-in scratch kit probe with stable preview, owned cleanup and independent readback.
 
 - **Reviewed file scripts:** `run-file` compiles bounded project-local plugin bodies offline, concatenates ordered declared-read helpers and passes literal parameters. Writes require idempotency plus inspect/readback contracts and share the journaled operation verifier. Read headers remain trusted declarations, never sandbox guarantees. Fixed CLI admission of token-edit recovery/checkpoint flags.
