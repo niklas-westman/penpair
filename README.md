@@ -129,6 +129,8 @@ git commit -m "Add penpair"
 
 Each teammate runs their own `npx @penpair/web connect`: the key belongs to a person, not to the repo. To pin penpair for the team, add it as a dev dependency (`npm i -D @penpair/web`, or `@penpair/docker`; one of the two, not both); the command is then `npx penpair …`. To write your own Penpot operations, use the library from the same package: `import { defineSnippet } from "@penpair/web"`.
 
+Pin the shared design with `npx penpair connect --pin-file` after checking its name and ID. Commit `file.id` in `penpair.config.json`; every teammate keeps their own key. Writes and design artifacts refuse a different file, and `doctor --json` reports file identity. See [file protection](docs/guide.md#connected-file-protection).
+
 ## Web or Docker
 
 Two ways to run Penpot, one way to connect. Pick one; you can switch later.

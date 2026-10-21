@@ -44,6 +44,8 @@ Open the Penpot address, create an account and log in. Create a project and a de
 2. In your project folder run `npx @penpair/web connect` and paste the address when asked. Nothing is shown as you paste. It saves the address in `.env.local` (readable only by you, and added to `.gitignore`) and refuses an address that belongs to a different Penpot. (By hand instead: put the line `PENPAIR_MCP_URL=<the address>` in `.env.local` and keep that file out of git.)
 3. Open your design file in Penpot, choose **File, MCP Server, Connect**, and keep that tab visible.
 
+After connecting, run `npx @penpair/web connect --pin-file` and check the displayed file name and ID. This records the intended file in `penpair.config.json`; commit it for teammates. A different open file now blocks writes and file-specific exports. Basic reads warn. If doctor reports a file mismatch, open the expected file and reconnect its plugin.
+
 ### 4. Check that it works
 ```
 npx @penpair/web doctor

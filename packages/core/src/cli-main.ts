@@ -26,6 +26,7 @@ import { requireLocalProfile, type LocalContext, type LocalProfile } from "./loc
 import { assertEndpointIsInstance, doctorExternal, LifecycleError, type DoctorCheck } from "./instance/connection.js";
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./version.js";
+import { guardFile } from "./file-guard.js";
 
 const usageHead = `penpair ${version}
 Start here (guided, plain language; safe to run again):
@@ -33,6 +34,8 @@ Start here (guided, plain language; safe to run again):
   penpair setup --web [--external <address>]           Penpot on the web: design.penpot.app, or your team's address; no questions about it
 @@SETUP@@  penpair connect [--replace]                          only the connection: takes your personal key without showing it, waits for the editor
                                                        (a pipe works too: pbpaste | penpair connect)
+  penpair connect --pin-file                           pin the connected design file ID in project configuration
+  (--any-file explicitly overrides a pinned file; instance guarding still applies)
 Read-only:
   penpair config check [--json]                        validate project configuration offline, without loading extensions
   penpair config schema                               print its JSON Schema (also works while fixing invalid config)
@@ -115,6 +118,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       gitignore: { type: "boolean" },
       yes: { type: "boolean" },
       "any-instance": { type: "boolean" },
+      "any-file": { type: "boolean" },
+      "pin-file": { type: "boolean" },
       standalone: { type: "boolean" },
       web: { type: "boolean" },
       docker: { type: "boolean" },
@@ -159,7 +164,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 
   /** What `doctor` needs to look for the editor and plugin, or nothing when no endpoint is set yet. */
-  async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string }> } | undefined> {
+  async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string; fileId?: string }> } | undefined> {
     try {
       const endpoint = await resolveEndpoint();
       return {
@@ -167,8 +172,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         connect: async () => {
           const client = await connect(endpoint);
           try {
-            const { result } = await executeCode(client, "return { file: penpot.currentFile.name };", { retries: 0 });
-            return { file: String((result as { file?: string }).file ?? "?") };
+            const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id };", { retries: 0 });
+            const actual = result as { file?: string; fileId?: string };
+            return { file: String(actual.file ?? "?"), fileId: actual.fileId };
           } finally {
             await client.close();
           }
@@ -190,14 +196,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     say: (line) => console.log(line),
     askHidden,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    confirmFile: async (file) => values["pin-file"] === true || /^(y|yes)$/i.test(await askLine(`Pin this project's file to "${file.name}" (${file.id})? [y/N] `, "n")),
     openFile: async (url) => {
       const endpoint = await resolveEndpoint({ environment: { PENPAIR_MCP_URL: url }, envFiles: [] });
       try {
         const client = await connect(endpoint);
         try {
-          const { result } = await executeCode(client, "return { file: penpot.currentFile.name, pages: penpot.currentFile.pages.map((p) => p.name) };", { retries: 0 });
-          const read = result as { file?: string; pages?: string[] };
-          return { file: String(read.file ?? "?"), pages: read.pages ?? [] };
+          const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id, pages: penpot.currentFile.pages.map((p) => p.name) };", { retries: 0 });
+          const read = result as { file?: string; fileId?: string; pages?: string[] };
+          return { file: String(read.file ?? "?"), fileId: read.fileId, pages: read.pages ?? [] };
         } finally {
           await client.close();
         }
@@ -210,7 +217,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "setup" || command === "connect") {
     if (command === "connect") {
       const project = await loadConfig(root);
-      await connectProject(root, project, connectIo(), { replace: values.replace === true });
+      await connectProject(root, project, connectIo(), { replace: values.replace === true, anyFile: values["any-file"] === true });
       console.log("Next: `penpair doctor`, then `penpair skills install` if you have not yet.");
       return 0;
     }
@@ -285,10 +292,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
-    const all = keyCheck ? [...checks, keyCheck] : checks;
+    const all: DoctorCheck[] = keyCheck ? [...checks, keyCheck] : checks;
     const ok = all.every((check) => check.ok);
     if (values.json) {
-      console.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), checks: all }, null, 2));
+      console.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), file: all.find((check) => check.file)?.file, checks: all }, null, 2));
       return ok ? 0 : 1;
     }
     for (const check of all) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
@@ -349,11 +356,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
   const endpoint = await resolveEndpoint();
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
+  const guarded = async () => guardFile(await connect(endpoint), projectConfig?.file, {
+    anyFile: values["any-file"] === true,
+    mode: ["pages", "tree", "audit", "tokens"].includes(command) || command === "probe" && !values.deep ? "warn" : "strict",
+    warn: log,
+  });
   if (command === "probe") {
     if (values.deep && !values.write) throw new Error("probe --deep creates a temporary board, a token set and two components in the open file and removes them again. Run it on a scratch file, with --write to confirm.");
-    console.log(JSON.stringify(await probe(endpoint, () => connect(endpoint)), null, 2));
+    console.log(JSON.stringify(await probe(endpoint, guarded), null, 2));
     if (values.deep) {
-      const client = await connect(endpoint);
+      const client = await guarded();
       try {
         const report = await runDeepCheck(client, { onWait: (m: string) => console.error(`… ${m}`) });
         console.log(`\n${formatDeepReport(report)}`);
@@ -364,7 +376,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
     return 0;
   }
-  const client = await connect(endpoint);
+  const client = await guarded();
   const options = { onWait: (m: string) => console.error(`… ${m}`), onStep: (m: string) => console.error(`… ${m}`) };
   try {
     if (command === "run") {
@@ -451,7 +463,7 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
     async withPenpot(work) {
       const endpoint = await resolveEndpoint();
       assertEndpointIsInstance(endpoint.description, config);
-      const client = await connect(endpoint);
+      const client = guardFile(await connect(endpoint), config.file, { anyFile: args.includes("--any-file"), warn: context.log });
       try {
         return await work(client);
       } finally {
@@ -459,7 +471,7 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
       }
     },
   };
-  return command.run(context, args);
+  return command.run(context, args.filter((arg) => arg !== "--any-file"));
 }
 
 /** Runs the command line and returns the exit code. The `penpair` command calls it with nothing extra; a package that adds a way to run Penpot calls it with its profile. */

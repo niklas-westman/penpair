@@ -13,6 +13,16 @@ export const frontendUrl = (config: InstanceConfig): string => `http://127.0.0.1
 
 export interface DoctorCheck extends Check {
   remedy?: string;
+  file?: { expected: ProjectConfig["file"] | null; actual: { id?: string; name: string }; ok: boolean };
+}
+
+export function fileIdentityCheck(config: ProjectConfig, actual: { file: string; fileId?: string }): DoctorCheck {
+  const ok = !config.file || config.file.id === actual.fileId;
+  return { check: "file identity", ok,
+    detail: config.file ? `expected ${config.file.name ?? config.file.id} (${config.file.id}); connected ${actual.file} (${actual.fileId ?? "unknown id"})` : "No file ID pinned; run penpair connect --pin-file",
+    ...(!ok ? { remedy: "Open the project's expected design file and reconnect its MCP plugin." } : {}),
+    file: { expected: config.file ?? null, actual: { id: actual.fileId, name: actual.file }, ok },
+  };
 }
 
 /**
@@ -44,7 +54,7 @@ const sameOrigin = (a: string, b: string): boolean => {
 
 export interface DoctorOptions {
   /** Looks for the editor tab and the plugin through the MCP. `origin` is where the endpoint points, so a key for another instance is noticed. */
-  mcp?: { origin: string; connect: () => Promise<{ file: string }> };
+  mcp?: { origin: string; connect: () => Promise<{ file: string; fileId?: string }> };
 }
 
 /** Whether a configured MCP origin is this instance's frontend. */
@@ -74,8 +84,10 @@ export async function doctorExternal(config: ExternalConfig, options: DoctorOpti
     return out;
   }
   try {
-    const { file } = await options.mcp.connect();
+    const actual = await options.mcp.connect();
+    const { file } = actual;
     add("editor and plugin", true, `connected to file "${file}"`);
+    if (config.file) out.push(fileIdentityCheck(config, actual));
   } catch (error) {
     add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible.");
   }

@@ -1,7 +1,7 @@
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseEnvFileValue } from "../endpoint.js";
-import { isExternal, type ProjectConfig } from "./config.js";
+import { configFileName, isExternal, readProjectConfig, type ProjectConfig, type ProjectFile } from "./config.js";
 import { ensureKeyFileIgnored } from "./gitignore.js";
 import { endpointIsInstance } from "./connection.js";
 import type { Runner } from "./runner.js";
@@ -15,7 +15,9 @@ export interface ConnectIo {
   askHidden(question: string): Promise<string>;
   sleep(ms: number): Promise<void>;
   /** Looks for the editor tab and the plugin; throws until both are there. */
-  openFile(url: string): Promise<{ file: string; pages: string[] }>;
+  openFile(url: string): Promise<{ file: string; fileId?: string; pages: string[] }>;
+  /** Optional for noninteractive hosts; a positive answer pins local config, never changes the design. */
+  confirmFile?(file: ProjectFile): Promise<boolean>;
 }
 
 export const keyVariable = "PENPAIR_MCP_URL";
@@ -103,7 +105,7 @@ export interface WaitOptions {
 }
 
 /** Waits for the editor tab and the plugin, saying in plain words what to do, until `timeoutMs` has passed. */
-export async function waitForEditor(url: string, io: ConnectIo, options: WaitOptions = {}): Promise<{ file: string; pages: string[] } | undefined> {
+export async function waitForEditor(url: string, io: ConnectIo, options: WaitOptions = {}): Promise<{ file: string; fileId?: string; pages: string[] } | undefined> {
   const timeout = options.timeoutMs ?? 5 * 60_000;
   const interval = options.intervalMs ?? 3_000;
   const remind = options.remindMs ?? 20_000;
@@ -132,13 +134,15 @@ export interface ConnectResult {
   keyWritten: boolean;
   file?: string;
   pages?: string[];
+  fileId?: string;
+  filePinned?: boolean;
 }
 
 /**
  * The connection step: take the personal key without showing it, check that it belongs to this project's Penpot, store it in
  * a git-ignored file, then wait for the editor and plugin and read the file's pages once. Safe to run again.
  */
-export async function connectProject(root: string, config: ProjectConfig, io: ConnectIo, options: { replace?: boolean; pasted?: string; wait?: WaitOptions } = {}): Promise<ConnectResult> {
+export async function connectProject(root: string, config: ProjectConfig, io: ConnectIo, options: { replace?: boolean; pasted?: string; wait?: WaitOptions; anyFile?: boolean } = {}): Promise<ConnectResult> {
   let url = options.replace ? undefined : await readKeyFile(root);
   let keyWritten = false;
   if (url) {
@@ -165,6 +169,17 @@ export async function connectProject(root: string, config: ProjectConfig, io: Co
   }
   const editor = await waitForEditor(url, io, options.wait);
   if (!editor) throw new ConnectError("I did not see the editor within five minutes. Open a design file in Penpot, choose File, MCP Server, Connect, keep the tab in front, then run `penpair connect` again.");
+  if (config.file && config.file.id !== editor.fileId && !options.anyFile)
+    throw new ConnectError(`Expected file "${config.file.name ?? config.file.id}" (${config.file.id}), connected to "${editor.file}" (${editor.fileId ?? "unknown id"}). Open the expected file and reconnect.`);
+  let filePinned = false;
+  if (!config.file && editor.fileId && await io.confirmFile?.({ id: editor.fileId, name: editor.file })) {
+    const raw = await readProjectConfig(root);
+    if (!raw || raw.file) throw new ConnectError("The project configuration changed while connecting. Inspect it and connect again; no file pin was replaced.");
+    await writeFile(path.join(root, configFileName), `${JSON.stringify({ ...raw, file: { id: editor.fileId, name: editor.file } }, null, 2)}\n`);
+    filePinned = true;
+    io.say("Pinned the design file ID in penpair.config.json. Commit that file for your team.");
+  }
+  if (!config.file && !filePinned) io.say("No file ID is pinned yet. Run `penpair connect --pin-file` to protect against a different file being open.");
   io.say(`Connected to the file "${editor.file}" (${editor.pages.length} page${editor.pages.length === 1 ? "" : "s"}: ${editor.pages.slice(0, 6).join(", ")}${editor.pages.length > 6 ? ", ..." : ""}).`);
-  return { keyWritten, file: editor.file, pages: editor.pages };
+  return { keyWritten, file: editor.file, pages: editor.pages, fileId: editor.fileId, filePinned };
 }

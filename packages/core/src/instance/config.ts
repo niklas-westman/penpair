@@ -3,7 +3,10 @@ import path from "node:path";
 import { validateBaselines, type BaselinesConfig } from "../baselines-config.js";
 
 /** What a project keeps in `penpair.config.json`: no secrets, so it can be committed. */
+export interface ProjectFile { id: string; name?: string }
+
 export interface InstanceConfig {
+  file?: ProjectFile;
   /** Short name; it becomes part of the compose project, so containers and volumes of two instances never collide. */
   instance: string;
   /** Pinned Penpot image version. Run the smoke test before changing it. */
@@ -23,6 +26,7 @@ export interface InstanceConfig {
 
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
 export interface ExternalConfig {
+  file?: ProjectFile;
   instance: string;
   profile: { type: "external"; origin: string };
   snippets?: string[];
@@ -53,6 +57,7 @@ export function validateConfig(value: unknown): InstanceConfig {
   };
   if (typeof value !== "object" || value === null || Array.isArray(value)) return fail("must be a JSON object");
   const v = value as Record<string, unknown>;
+  validateFile(v.file);
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance))
     fail("instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)");
   if (typeof v.penpotVersion !== "string" || !/^\d+\.\d+(\.\d+)?$/.test(v.penpotVersion)) fail("penpotVersion must look like 2.18.3");
@@ -82,6 +87,7 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   if (typeof profile !== "object" || profile === null || Array.isArray(profile) || profile.type !== "external")
     throw new ConfigError(`${configFileName}: profile.type must be external; omit profile for an instance on this computer`);
   const v = value as Record<string, unknown>;
+  validateFile(v.file);
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };
@@ -98,6 +104,13 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   if (v.baselines !== undefined) validateBaselines(v.baselines, fail);
   if (v.adapters !== undefined && !(Array.isArray(v.adapters) && v.adapters.every((e) => typeof e === "string" && e.length > 0))) fail("adapters must be a list of package names or relative paths");
   return v as unknown as ExternalConfig;
+}
+
+function validateFile(value: unknown): void {
+  if (value === undefined) return;
+  const file = value as ProjectFile;
+  if (typeof file !== "object" || file === null || Array.isArray(file) || typeof file.id !== "string" || !file.id.trim() || (file.name !== undefined && typeof file.name !== "string"))
+    throw new ConfigError(`${configFileName}: file must have a nonempty id and an optional name`);
 }
 
 /** The config of a project that runs its own Penpot; anything else cannot start, stop or back up containers. */

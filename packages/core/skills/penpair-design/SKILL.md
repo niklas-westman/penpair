@@ -45,6 +45,8 @@ Penpot is the authority for the design; the code adapts to the frames. The proje
 
 ## Rules that decide most cases
 
+- Pin the intended file with `penpair connect --pin-file`. Check doctor's file identity before a change. A mismatched file blocks writes, adapter operations and design artifacts; `--any-file` is an explicit override for a deliberate different target.
+
 - Fix invalid project configuration before connecting: commands refuse unreadable, malformed or invalid config, including with `--any-instance`. Config-free built-in inspection requires `--standalone` in a folder without a config; writes and registered snippets require a project.
 
 - Every gap and padding is a spacing token; the layout stack carries the spacing, items carry none.

@@ -29,6 +29,12 @@ An existing invalid config stops project commands before endpoint discovery or e
 
 For inspection from a folder with **no** config, explicitly use `--standalone`, for example `penpair pages --standalone`. Supported commands: `pages`, `tree`, `audit`, `tokens dump`, `export`, and the ordinary read-only `probe`. Endpoint resolution then uses the usual environment, `.env.local`, or agent configuration, so check the endpoint source in the probe. Export may save a local image, and page-scoped reads may switch the editor page. Standalone mode cannot bypass an existing config, run registered snippets, or perform document writes (including `probe --deep --write`). Write commands require a project configured with `penpair setup` or `penpair init`.
 
+## Connected-file protection
+
+Add `"file": { "id": "<file-id>", "name": "Shared design" }` to `penpair.config.json`, or run `penpair connect --pin-file` to record the connected file after checking its name and ID. Setup/connect offer to pin an unconfigured file; only a positive answer writes the pin. Existing pins are never replaced by reconnecting to another file. Commit the pin; colleagues keep their own MCP keys.
+
+Every delivered execution checks the pinned ID inside the editor. Writes, deep probes, adapter calls and file-specific exports/baselines refuse a mismatch, even if the file changed after inspection or between batches. Basic `pages`, `tree`, `audit`, token reads and ordinary probes warn and identify the actual file. Older configs remain usable with an unpinned warning. `--any-file` explicitly overrides the file guard for one command; it does not override the instance guard. Doctor reports expected/actual identity, including under `--json`. Names may change; the file ID is the authority.
+
 ## Instances
 One Penpot per project, configured in `penpair.config.json` (no secrets, commit it):
 
