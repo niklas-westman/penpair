@@ -1,3 +1,4 @@
+import { buildDesignSpec, renderDesignSpec, checkDesignSpec, readDesignJson, validateComponentMap, emptyComponentMap, writeDesignSpec } from "./design-spec.js";
 import { readBaselineCoverage } from "./baseline-coverage.js";
 import { runKitSmoke } from "./kit-smoke.js";
 import { checkKits, loadKits } from "./kit.js";
@@ -129,6 +130,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     allowPositionals: true,
     options: {
       include: { type: "string", multiple: true },
+      from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
       inspect: { type: "string" }, readback: { type: "string" },
       page: { type: "string" },
       out: { type: "string" },
@@ -183,6 +185,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const [command, ...rest] = positionals;
   const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
+    spec: ["from", "map", "out", "page", "frame"],
     pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     kit: ["include"], recipes: ["include"],
@@ -191,7 +194,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
+  const network = ["spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
   for (const [key, min, max, integer] of [["depth", 0, command==="inspect"?10000:100, true], ["limit",1,1000,true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
@@ -239,6 +242,20 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "spec" && values.from) {
+    if (rest.length > 1 || rest.length === 1 && rest[0] !== "check" || values.page || values.frame || values.standalone || values["any-file"] || values["any-instance"]) throw new CommandArgumentError("Offline spec requires --from INSPECTION [--map MAPPING] [--out FILE]; spec check also requires --out");
+    const inspection = await readDesignJson(process.cwd(), values.from) as import("./inspection.js").InspectionDocument;
+    const mapping = values.map ? validateComponentMap(await readDesignJson(process.cwd(), values.map, 1024 * 1024)) : emptyComponentMap;
+    if (rest[0] === "check") {
+      if (!values.out) throw new CommandArgumentError("spec check requires --out and --from");
+      const file = await import("./project-input.js").then(m => m.resolveProjectInput(process.cwd(), values.out!));
+      const report = checkDesignSpec(await readFile(file, "utf8"), inspection, mapping); output.result(report); output.log(JSON.stringify(report)); return report.current ? 0 : 2;
+    }
+    const spec = buildDesignSpec(inspection, mapping), markdown = renderDesignSpec(spec);
+    if (values.out) await writeDesignSpec(process.cwd(), values.out, markdown);
+    output.result(spec); if (!values.json) output.log(markdown); return 0;
+  }
+  if (command === "spec" && (rest.length || !values.page || !values.frame)) throw new CommandArgumentError("Live spec requires --page and --frame ID (or --from for offline generation)");
   if (command === "baselines" && rest[0] === "coverage") {
     if (rest.length !== 1 || values.apply || values.update || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("baselines coverage is an offline report with optional --json");
     const config = await loadConfig(process.cwd()); if (!config.baselines) throw new Error("Configure baselines before reporting coverage");
@@ -593,6 +610,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const record = await runOnPage(client, audit({ page: values.page, framePrefix: values.prefix, spacingSteps: steps, ignoreUnbound: list(values.ignore) }), values.page, options);
       output.log(JSON.stringify(record, null, 2));
       if (record.truncated===true) return 3;
+    } else if (command === "spec") {
+      const capture = await captureInspection(client, { shapeId: values.frame!, page: values.page!, kind: "shape" });
+      if (!capture.complete || capture.kind !== "shape-inspection") { output.result(capture); return 3; }
+      const mapping = values.map ? validateComponentMap(await readDesignJson(root, values.map, 1024 * 1024)) : emptyComponentMap;
+      const spec = buildDesignSpec(capture as import("./inspection.js").InspectionDocument, mapping), markdown = renderDesignSpec(spec);
+      if (values.out) await writeDesignSpec(root, values.out, markdown, endpointRedactor(endpoint));
+      output.result(spec); if (!values.json) output.log(markdown); return 0;
     } else if (command === "inspect" || command === "tokens" && rest[0] === "dump") {
       const {query,budget}=inspectionRequest!;
       const result=values.cursor||command==="inspect"&&!values.all?await inspectChunk(client,query):await captureInspection(client,query,budget);

@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **23 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **24 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: D1 — structured design handoff with explicit mappings** In progress. I12 human/live trials and C1 native override proof remain pending by owner instruction. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: D4 — explicit implementation-case integration for Reflection** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -595,7 +595,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [ ] **C1 · P2 · L** — Pilot measurement and drift on Button/Card/StatTile; gate library generation on preserved instance overrides.
   - [x] Schema-1 measured pilot, source freshness and actual-renderer drift checks, explicit contexts and ambiguous token candidates.
   - [ ] Real fixture/native component instance override proof and measured constants; generation remains gated.
-- [ ] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics.
+- [x] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics. Completed 2026-10-21; [resolution report](#d1-completion-2026-10-21).
 - [ ] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need.
 - [ ] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root.
 - [ ] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize.
@@ -923,6 +923,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Consumer edits, actual file identity, initial design approval, theme choices, old-version visual comparison and implementation/provider adoption still need separate owner authorization. Branch features are unreleased; the existing 0.1.3 version string does not establish that they are installed. No cross-repository write, Penpot mutation, push, deploy or external message occurred.
 - **Next:** I12 — prepare and run measured human onboarding/collaboration trials
 
+
+<a id="d1-completion-2026-10-21"></a>
+### 2026-10-21 — D1: Structured design handoff and offline freshness checks
+
+- **Resolved:** Complete design inspections can now become a reproducible implementation handoff with explicit source identities, mapping hints and unknown semantics.
+- **Changed:** Added spec generation/check, schema-1 source/mapping fingerprints, exact library/component identity mappings and descendant-only text props. Design content stays literal untrusted evidence; atomic publication refuses partial/redacted trees.
+- **Validated:** pnpm check passes (522 tests), recorded-tree golden and hostile-text/hierarchy/mapping checks pass; pnpm smoke:package passes.
+- **Risks:** No human adoption trial. Offline freshness is against the supplied structured inspection, not the live file or a PNG. Native adapter mapping generation remains gated on C1; no fabricated component IDs or behavior/accessibility semantics.
+- **Next:** D4 — explicit implementation-case integration for Reflection
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -991,3 +1001,5 @@ Append reports here in completion order; each checked item links to its report.
 - **Validated:** `pnpm check` (519 tests) and `pnpm smoke:package` pass. Stub renderer tests cover anatomy drift, source invalidation, malformed evidence and preservation of old snapshots.
 - **Risks:** No real component fixture or native override proof. Declared sources are not automatic transitive dependency tracking. No fabricated measured constants or native library. C1 remains unchecked; progress 23/40.
 - **Next:** D1 structured handoff; live/human acceptance stays pending.
+
+- **2026-10-21 — D1 completed:** Structured design handoff and offline freshness checks. Progress 24/40; next D4 — explicit implementation-case integration for Reflection.

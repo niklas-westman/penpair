@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **D1 — structured design handoff with explicit mappings** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **D4 — explicit implementation-case integration for Reflection** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **D1 — Structured design handoff and offline freshness checks** (2026-10-21). Complete design inspections can now become a reproducible implementation handoff with explicit source identities, mapping hints and unknown semantics. Validation and limits: [delivery report](docs/improvements.md#d1-completion-2026-10-21).
 - [x] **H1 — Scoped Tradient follow-up proposal** (2026-10-21). Consumer adoption work is now a concrete owner-reviewable handoff without applying changes outside this repository. Validation and limits: [delivery report](docs/improvements.md#h1-completion-2026-10-21).
 - [x] **I9 — Explicit state, theme and responsive coverage** (2026-10-21). Baseline coverage now distinguishes configured capture completeness from approved case intent, unsupported/missing combinations and browser/accessibility work that has not run. Validation and limits: [delivery report](docs/improvements.md#i9-completion-2026-10-21).
 - [x] **B2 — Neutral build kit and adapter-owned recipes** (2026-10-21). Reusable plugin helpers replace throwaway preludes while keeping token bindings after value/font changes and keeping library knowledge outside the core. Validation and limits: [delivery report](docs/improvements.md#b2-completion-2026-10-21).
@@ -107,6 +108,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed D1: Structured design handoff and offline freshness checks; report in `docs/improvements.md`.
 - 2026-10-21: C1 preparation: measured three-component pilot, source/renderer drift checks, schema-1 snapshots and optional browser example; 519 tests and package smoke pass. Native override proof/generation remain gated. Continue D1.
 - 2026-10-21: I12 preparation: controlled scratch examples and offline fixtures pass; runbook/report template added. Human/live trials remain pending by owner instruction. Continue independent C1 tooling.
 - 2026-10-21: completed H1: Scoped Tradient follow-up proposal; report in `docs/improvements.md`.

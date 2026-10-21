@@ -62,3 +62,5 @@ export { kit, coreKit, checkKits, loadKits, type BuildKit, type RecipeInfo } fro
 export { runKitSmoke, kitSmokeOperation } from "./kit-smoke.js";
 
 export { baselineCoverage, readBaselineCoverage, designCaseKey, type BaselineCoverage, type CoverageRow } from "./baseline-coverage.js";
+
+export * from "./design-spec.js";
