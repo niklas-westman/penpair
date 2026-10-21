@@ -217,7 +217,7 @@ Guiding a person through a first setup? Follow [penpair-setup-guide](https://git
 - `npx @penpair/web doctor --json` says where things stand; every failing check carries a `remedy`.
 - Web is the default; Docker only when the person asks for offline work or local data.
 - **The personal MCP key never goes through you.** The person pastes it into `npx @penpair/web connect` (a hidden prompt), or pipes it from their clipboard.
-- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `skills install` gives you the rules for working in Penpot (`penpair-design`) and for judging a screen (`design-judgment`).
+- Done means `doctor` reports `ok: true` and "editor and plugin" connected. Then `skills install` provides operations (`penpair-design`), page construction (`penpair-recipes`), implementation evidence (`penpair-handoff`) and screen judgment (`design-judgment`).
 
 ## Commands
 

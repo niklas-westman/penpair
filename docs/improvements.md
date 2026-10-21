@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **28 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **29 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: E3 — focused recipes and handoff skills** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I10 — versioned formats, migrations and portable token exchange** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -598,7 +598,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics. Completed 2026-10-21; [resolution report](#d1-completion-2026-10-21).
 - [x] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need. Completed 2026-10-21; [resolution report](#d4-completion-2026-10-21).
 - [x] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root. Completed 2026-10-21; [resolution report](#e1-completion-2026-10-21).
-- [ ] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize.
+- [x] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize. Completed 2026-10-21; [resolution report](#e3-completion-2026-10-21).
 - [x] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance. Completed 2026-10-21; [resolution report](#d2-completion-2026-10-21).
 - [x] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8. Completed 2026-10-21; [resolution report](#d3-completion-2026-10-21).
 - [ ] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier.
@@ -973,6 +973,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Review-only fidelity: no embedded external assets/history and no full native restore guarantee. Page names must be unique for current selection APIs. Captures can leave the last inspected page open. Hosted archive/restore and native override trials remain pending.
 - **Next:** E3 — focused recipes and handoff skills
 
+
+<a id="e3-completion-2026-10-21"></a>
+### 2026-10-21 — E3: Focused recipe and handoff skills
+
+- **Resolved:** Agents now have concise construction and handoff workflows aligned with the implemented guarded commands, rather than an expanding all-purpose operations skill.
+- **Changed:** Added penpair-recipes and penpair-handoff with disclosed local workflow references, explicit completion criteria and actual evidence/approval boundaries. Shortened penpair-design, updated stale settling/recovery guidance, installer expectations and five-skill package smoke coverage.
+- **Validated:** pnpm check passes (537 tests); all five skills install from tarballs and package smoke passes. Skill-creator validation passes for the three new/revised entrypoints using an isolated temporary validation environment. Neutrality checks pass.
+- **Risks:** No real agent discovery or human usability trial was claimed. Skills require installed commands and project facts; optional library generation and actual browser acceptance remain gated on evidence. No repository agent instructions were installed or overwritten.
+- **Next:** I10 — versioned formats, migrations and portable token exchange
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1051,3 +1061,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — D2 completed:** Exact-artifact owner words and explicit baseline waivers. Progress 27/40; next D3 — deterministic structural snapshots and review diffs.
 
 - **2026-10-21 — D3 completed:** Deterministic page-split structural review snapshots. Progress 28/40; next E3 — focused recipes and handoff skills.
+
+- **2026-10-21 — E3 completed:** Focused recipe and handoff skills. Progress 29/40; next I10 — versioned formats, migrations and portable token exchange.

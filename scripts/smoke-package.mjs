@@ -68,7 +68,7 @@ check((await readdir(join(web, "node_modules/@penpair"))).sort().join(",") === "
 check((await penpair(web, "--version")).trim() === version, `penpair --version is ${version}`);
 check(JSON.parse(await penpair(web, "config", "schema")).type === "object", "the packed command includes the project configuration schema");
 const skills = (await penpair(web, "skills")).split("\n").filter(Boolean);
-check(["design-judgment", "penpair-setup", "penpair-design"].every((name) => skills.includes(name)), `the three skills ship (${skills.join(", ")})`);
+check(["design-judgment", "penpair-setup", "penpair-design", "penpair-recipes", "penpair-handoff"].every((name) => skills.includes(name)), `the five skills ship (${skills.join(", ")})`);
 const help = await penpair(web, "--help");
 check(/penpair setup/.test(help) && /not part of this install/.test(help), "the help starts with setup and says where Docker comes from");
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet } from "@penpair/web"; console.log(typeof defineSnippet);'], { cwd: web })).trim() === "function", "@penpair/web exports everything the core has");
