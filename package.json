@@ -14,11 +14,15 @@
     "bump": "node scripts/bump.mjs",
     "release": "node scripts/release.mjs",
     "check:versions": "node scripts/check-versions.mjs",
-    "docs:generate": "pnpm --filter @penpair/core build && node scripts/generate-troubleshooting.mjs"
+    "docs:generate": "pnpm --filter @penpair/core build && node scripts/generate-troubleshooting.mjs",
+    "changeset": "changeset",
+    "version-packages": "node scripts/version-packages.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@types/node": "22.12.0",
     "typescript": "5.6.3",
-    "vitest": "3.2.4"
+    "vitest": "3.2.4",
+    "yaml": "2.9.1"
   }
 }

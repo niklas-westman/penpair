@@ -37,8 +37,17 @@ The owner requested finishing branch code and leaving live trials pending. Those
 - The release workflow requires owner activation, protected-environment policy and npm publisher settings. No remote policy or actual OIDC/provenance result has been established. All packages remain 0.1.3; the branch is unreleased.
 - Consumer changes and upstream sends remain owner actions. Existing optional trend/Card composition and the consumer SidebarNav corrected parts of the original brief; historical measurements remain version/context-scoped.
 
+## Release automation follow-up
+
+R1 adds Changesets version PRs with one fixed group for all six packages and an
+API-verified exact merged-PR gate before publishing. Ordinary feature merges do
+not publish. The PR token has no npm role; publishing uses OIDC and retains the
+existing release guards. Both paths start disabled. Review the [activation
+checklist](releasing.md#one-time-owner-activation) and [local PR draft](pr-improvements.md).
+The pending minor note proposes 0.2.0; actual package versions remain 0.1.3.
+
 ## Validation and handoff
 
-Final verification covers `pnpm check`, `pnpm smoke:package`, docs/anchor and generated-remedy checks, targeted skill-entrypoint validation, release helper syntax and workflow YAML boundaries. The final recorded suite has 563 tests across core, adapter, implementation bridge and Docker. The final full branch check and six-package smoke both passed before handoff. Live/editor/browser/human acceptance remains pending as listed above.
+Final verification covers `pnpm check`, `pnpm smoke:package`, docs/anchor and generated-remedy checks, targeted skill-entrypoint validation, release helper syntax and workflow YAML boundaries. The final recorded suite has 579 tests across core, adapter, implementation bridge and Docker. The final full branch check and six-package smoke both passed before handoff. Live/editor/browser/human acceptance remains pending as listed above.
 
 Review this branch locally against main. External authorization is needed before any push, merge, release activation, publishing, version bump, consumer write or non-scratch Penpot change. No new confirmation is needed for the already authorized local implementation work.

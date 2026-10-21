@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Enable Corepack
         run: corepack enable
@@ -28,6 +30,16 @@ jobs:
 
       - name: Typecheck, test and build
         run: pnpm check
+
+      - name: Validate pending Changesets release notes
+        run: pnpm changeset status
+
+      - name: Require release notes or verify the version PR
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-pr-changeset.mjs
+        env:
+          PENPAIR_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PENPAIR_PR_HEAD: ${{ github.head_ref }}
 
       - name: Pack all packages, install them in empty projects and run them
         run: pnpm smoke:package

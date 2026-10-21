@@ -5,37 +5,96 @@ All packages in this repository are released **together, at one version, even a 
 | Guard | What it stops |
 | --- | --- |
 | `pnpm check` (and CI) runs `scripts/check-versions.mjs` | Any package at a different version, a version that differs from `packages/core/src/version.ts`, a private package, an internal dependency that is not `workspace:*`, a package without the publish guard |
-| `pnpm bump patch\|minor\|major\|x.y.z` | Drift starting at all: it sets every package and `version.ts` in one step |
+| `pnpm version-packages` | One Changesets fixed group versions every package, synchronizes `version.ts` and refreshes the lockfile |
+| `pnpm check:versions` | Missing, duplicate, ignored or separately grouped release packages, including packages added later |
 | `prepublishOnly` in every package | `pnpm publish` inside one package: it refuses unless `pnpm release` started it, and checks the versions again |
 | `pnpm release` | A half release: it checks, publishes the whole set in dependency order, looks each one up on npm, and reports anything missing |
 
 Publishing cannot be undone: a version, once published, cannot be replaced. Check first, publish once.
 
-## One time
+## Normal release: review a version PR
 
-1. The npm organisation `penpair` exists (npmjs.com, Add organization, free for public packages).
-2. `npm whoami` prints your user name. If it answers `401`, run `npm login`.
+1. Add `pnpm changeset` to each package/script change, select an affected package
+   and patch/minor/major, and describe the user-visible change. Commit the note
+   with the feature. Documentation-only changes need no note; a script change
+   with no release impact can use `pnpm changeset --empty`.
+2. Merge the feature PR. Once enabled, `.github/workflows/version-pr.yml` creates
+   or updates one **Release Penpair** PR from `changeset-release/main`.
+3. Review the generated package changelogs and shared version. The highest bump
+   requested across pending notes applies to **every** member of the fixed group,
+   including unchanged packages. `pnpm version-packages` runs Changesets, updates
+   the CLI source constant, refreshes the lockfile and checks consistency. It
+   never publishes. Never run it on a feature branch.
+4. Merge the version PR after CI passes. `.github/workflows/release.yml` checks
+   the GitHub API for that exact merged, same-repository release PR and verifies
+   a higher committed version with no pending notes. Ordinary main pushes skip
+   publishing. The protected `npm-release` environment may require an additional
+   owner approval, depending on its configured protection.
+5. The existing `pnpm release` entrypoint reruns checks and all package smoke
+   installs, publishes packed tarballs in dependency order with npm OIDC and
+   provenance, and verifies all six registry versions. A moved main branch stops
+   the job instead of publishing a different commit. Do not merge another main
+   change until a release finishes; use manual recovery if it has moved.
 
-## Each release
+All automation starts disabled. Merging this implementation PR alone does not
+publish anything. The branch has a minor changeset proposing **0.2.0** for the
+whole improvement batch; all actual package versions remain **0.1.3** until the
+separate version PR is generated and reviewed.
+
+## One-time owner activation
+
+- [ ] Review and merge the release implementation; do not enable automation on
+  an unreviewed branch. Confirm GitHub's current action/runtime requirements.
+- [ ] Protect `main`: require the CI job and owner approval, dismiss stale
+  approvals, restrict bypasses, and disable automatic merging of release PRs.
+  Prefer squash/merge commits; the automatic gate requires GitHub's recorded
+  merge SHA to equal the exact main push (ambiguous rebase history fails closed).
+- [ ] Add repository secret `CHANGESETS_PR_TOKEN`: a fine-grained GitHub token
+  limited to this repository with Contents and Pull requests read/write, or a
+  managed GitHub App token with the same rights. No npm permission is needed.
+  Use a bot identity and restrict writes to `changeset-release/main` where your
+  GitHub plan supports it. The token lets generated PR checks run automatically;
+  do not give it branch-protection bypass. Never put it in repository files.
+- [ ] Set `PENPAIR_RELEASE_AUTOMATION_ENABLED=true` to enable version PR creation.
+  Inspect the first generated PR and confirm its CI checks actually run.
+- [ ] Create/protect environment `npm-release`, restrict deployments to main and
+  configure required reviewers if retaining a second approval before publish.
+- [ ] Configure the exact GitHub repository, `release.yml` workflow and
+  `npm-release` environment as npm trusted publisher for **every** package.
+  Node >=22.14.0/npm >=11.5.1 and supported hosted runners are required; the
+  workflow uses Node 24 and checks npm before publishing.
+- [ ] Verify publishing/bootstrap permissions for every package, especially the
+  previously refused short name `penpair` and the new comparison adapter. A
+  missing or blocked package stops the full-family release; automatic publishing
+  has no `--except` escape hatch.
+- [ ] Set `PENPAIR_TRUSTED_RELEASE_ENABLED=true` only when the full family is
+  provisioned. Merge the reviewed version PR to release. Inspect registry versions
+  and provenance for all packages afterward.
+
+No npm token is needed for this path. The PR token authorizes GitHub changes;
+short-lived OIDC authorizes npm publishing. The versioning job has no OIDC
+permission; the publishing job has no repository write token. No workflow creates
+or pushes tags or GitHub releases automatically.
+
+## Local owner-led recovery
+
+`pnpm bump patch|minor|major|x.y.z` remains a deliberate emergency tool, never
+combined with Changesets versioning for the same release. Normal versions are
+owned by the generated version PR. Do not hand-edit package versions. The root
+workspace version is private and is excluded.
+
+For a reviewed, committed, clean and pushed main release, local `npm login`/OTP
+publishing remains available:
 
 ```bash
-pnpm bump patch              # or minor, major, or an exact x.y.z: every package and version.ts move together
-# add a section to CHANGELOG.md
-pnpm check                   # typecheck, tests, build and the version check
-git commit -am "Release 0.1.3" && git push
-
-pnpm release                 # dry run: checks everything, prints the plan, publishes nothing
-pnpm release --publish       # the real thing; requires exact version confirmation, then npm authentication/OTP (or add --otp <code>)
+pnpm release                          # dry run; publishes nothing
+pnpm release --publish --confirm-version X.Y.Z
 ```
 
-`pnpm release` refuses unless all of this is true, and tells you which part is not:
-
-- every package has the same version, and the source version matches;
-- you are on `main`, the working tree is clean, and `main` equals `origin/main`, so what is published is what is on GitHub;
-- npm has none of the packages at this version (or it is an interrupted release, below);
-- `pnpm check` and `pnpm smoke:package` pass (the smoke test packs every package, installs the tarballs in empty projects and runs them).
-
-Then it publishes in dependency order (the core, then the packages that depend on it), waits until npm shows each one, and finally looks up all of them. If any is missing it says `INCOMPLETE` and exits with 3.
+The manual GitHub **Publish reviewed Penpair release** dispatch also remains:
+enter the exact version already on main. It rejects mismatches or pending notes;
+set `continue_release` only after inspecting an interrupted release. The dispatch
+still passes through the protected environment and all unchanged release guards.
 
 ## If a release stops half way
 
@@ -76,14 +135,21 @@ The core ships `dist`, `skills`, `LICENSE` and a short `README.md`. The web pack
 
 Update the version in `PLAN.md` and add the change log line. A problem found in a published version is answered with a new version of **all** packages, never by changing a published one.
 
-## Owner-gated trusted publishing
+## Authentication and limits
 
-The branch prepares a manual GitHub workflow in `.github/workflows/release.yml`. It stays disabled unless the owner sets repository variable `PENPAIR_TRUSTED_RELEASE_ENABLED=true`. The owner must first configure `npm-release` as a protected environment with required reviewers and main-only deployment rules, and configure the exact repository/workflow/environment as trusted publisher for **each package**, including new packages and the short name. No remote setting or release was changed here.
+See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
+[provenance requirements](https://docs.npmjs.com/generating-provenance-statements/).
+Publishing validates the workflow context and rejects long-lived npm token
+fallback, packs with pnpm to rewrite `workspace:*` to exact versions, and publishes
+single tarballs with npm and provenance. These local checks are operational guards;
+npm authenticates the actual identity against owner-managed publisher settings.
 
-The entrypoint keeps the existing main/clean/pushed, lockstep version, internal dependency, package prepublish guard, registry-state and publish-order checks. Actual publishing additionally requires typing the exact checked version, or explicit `--confirm-version X.Y.Z` for noninteractive runs. The workflow supplies that reviewed version; it never bumps, tags or pushes. Interrupted releases still require explicit continuation and whole-family registry verification. The local authenticated/OTP recovery path remains available.
+npm cannot atomically publish multiple packages. A network/permission failure can
+leave some published and others missing; the release reports failure and requires
+explicit continuation at the same version. A rerun never silently resumes.
 
-Trusted mode validates manual-main GitHub/OIDC context and runtime minimums, refuses long-lived token environment fallback, runs each unchanged package guard, packs with pnpm to rewrite `workspace:*` into exact versions, then publishes that single tarball with npm and provenance. Tarball hashes are reported. These local checks are operational guards; npm authenticates the real workload identity against owner-managed settings. Environment protection must be verified in GitHub, not inferred from a YAML name.
-
-According to [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/), use supported hosted runners, Node >=22.14.0/npm >=11.5.1, exact workflow settings and appropriate direct-publish permission. Provenance requires supported public source/package conditions; confirm [provenance requirements](https://docs.npmjs.com/generating-provenance-statements/). A package or publisher configuration that cannot be provisioned must stop the release, not bypass a guard. New/blocked names may need owner-led bootstrap or support resolution before the full family is releasable.
-
-Before activation, review current runtime/actions and advisory status, verify every npm publisher permission and repository URL, and inspect the intended tarballs. After a separately authorized release, verify registry versions and provenance for all packages. Offline tests here use fake commands; they do not prove npm/GitHub account policy or an actual OIDC exchange. Owner activation, publishing, version bumps, tags and pushes remain pending.
+GitHub branch/environment protection and npm settings must be checked remotely
+before activation. Tests use the real Changesets CLI in disposable workspaces and
+fake GitHub/OIDC evidence; they do not establish account permissions or a live
+publishing result. Owner activation, pushes, merges, version bumps and publishing
+remain separate actions.

@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **R1 — Reviewed whole-family Changesets releases** (2026-10-21). One fixed group, generated version PR, exact merged-PR publication gate and manual recovery; real package versions remain unchanged. Owner activation remains pending in [release setup](docs/releasing.md#one-time-owner-activation).
 - [x] **H2 — Evidence-qualified unsent upstream request draft** (2026-10-21). Upstream asks now distinguish observed source contracts and historical measurements, avoiding requests for capabilities that already exist. Validation and limits: [delivery report](docs/improvements.md#h2-completion-2026-10-21).
 - [x] **G2 — Owner-gated trusted publishing and exact release confirmation** (2026-10-21). A reviewed release can use short-lived CI authentication/provenance without losing existing lockstep/package guards or silently publishing an unintended version. Validation and limits: [delivery report](docs/improvements.md#g2-completion-2026-10-21).
 - [x] **A4 — Private file and OS credential references** (2026-10-21). Projects can resolve personal MCP credentials from private storage without copying them into repository connection files or exposing provider output. Validation and limits: [delivery report](docs/improvements.md#a4-completion-2026-10-21).
@@ -121,6 +122,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: R1 release follow-up: added Changesets version PRs and API-gated whole-family OIDC publishing, retained recovery guards and prepared the branch PR draft. All automation stays disabled pending owner setup.
 - 2026-10-21: completed H2: Evidence-qualified unsent upstream request draft; report in `docs/improvements.md`.
 - 2026-10-21: completed G2: Owner-gated trusted publishing and exact release confirmation; report in `docs/improvements.md`.
 - 2026-10-21: completed A4: Private file and OS credential references; report in `docs/improvements.md`.

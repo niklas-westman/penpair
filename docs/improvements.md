@@ -1161,3 +1161,23 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — G2 completed:** Owner-gated trusted publishing and exact release confirmation. Progress 36/40; next H2 — evidence-qualified upstream requests for owner review.
 
 - **2026-10-21 — H2 completed:** Evidence-qualified unsent upstream request draft. Progress 37/40; next Branch review — locally eligible work complete; live and owner gates pending.
+
+## R1 — Release automation follow-up (2026-10-21)
+
+- [x] Add one Changesets fixed group containing every package and reject omissions, duplicates, ignored packages or split groups.
+- [x] Prepare one version PR containing package changelogs, the shared package version, CLI version constant and refreshed lockfile.
+- [x] Require a new changeset for package/script PRs and reserve version bumps for the version PR; validate notes in CI.
+- [x] Gate automatic publication on GitHub API evidence for the exact merged, same-repository version PR, then retain existing checks, dependency order and all-package registry verification.
+- [x] Preserve explicit manual recovery; separate the GitHub PR token from npm OIDC and start both automation paths disabled.
+- [x] Add activation instructions and a local [PR draft](pr-improvements.md).
+- [ ] Owner: configure GitHub protections/PR token and every npm trusted publisher, verify package/name availability, inspect the generated version PR and activate publishing.
+
+**Resolved:** Release notes and shared version changes no longer need to be assembled manually. Unchanged packages participate in the same version, and ordinary main merges do not publish.
+
+**Changed:** Added Changesets 3.0.3, an explicit six-package fixed group, source-version/lockfile versioning wrapper, version-PR workflow and exact merged-PR publishing gate. Added CI release-note policy, gate/config/real-CLI tests, release documentation and the pending minor note for this improvement batch. This supersedes G2's manual-only workflow preparation while preserving manual dispatch/recovery.
+
+**Validated:** `pnpm check` (579 tests), frozen-lockfile installation, six-package smoke installs, actionlint 1.7.12 on all three workflows, parsed workflow permission/gate tests, changed-document link checks and real Changesets CLI tests. A separate disposable full-wrapper rehearsal produced 0.2.0, six changelogs and the matching source constant; the actual branch remains 0.1.3. Automated tests use fake GitHub/OIDC evidence rather than real publication.
+
+**Risks:** Remote branch/environment protections, PR-token permissions, npm trusted-publisher/bootstrap settings and the previously refused short name need owner verification. npm multi-package publication is sequential, not atomic; partial failures require explicit continuation. A moved main or ambiguous merge SHA fails closed. No push, merge, tag, real version bump, activation or publish was performed.
+
+**Next:** Review the full improvement branch using [the review guide](branch-review.md), then authorize a push and draft PR when ready. Live G3/I12/C1 acceptance gates remain pending.
