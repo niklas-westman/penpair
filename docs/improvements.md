@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **9 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **10 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I7 — stable command results, structured MCP envelopes and incomplete-output contracts** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I11 — lazy extension loading and explicit executable-code trust boundaries** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -570,7 +570,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints. Completed 2026-10-21; [resolution report](#i3-completion-2026-10-21).
 - [x] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion. Completed 2026-10-21; [resolution report](#a3-completion-2026-10-21).
 - [x] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely. Completed 2026-10-21; [resolution report](#i5-completion-2026-10-21).
-- [ ] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting.
+- [x] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting. Completed 2026-10-21; [resolution report](#i7-completion-2026-10-21).
 - [ ] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports.
 - [ ] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run.
 - [ ] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview.
@@ -780,6 +780,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live export trial. Unknown font/render dependencies remain explicit; browser/API metadata does not prove font correctness. Atomicity applies to each local publication, not a power-loss-proof multi-file transaction. Root Reflection cases are a convenience: pair by captureId or follow the manifest's immutable casesFile. Interrupted output can leave unreferenced generations. Existing integrations that hard-code id.png must follow generated paths. Legacy approvals keep unknown provenance instead of inventing a revision.
 - **Next:** I7 — stable command results, structured MCP envelopes and incomplete-output contracts
 
+
+<a id="i7-completion-2026-10-21"></a>
+### 2026-10-21 — I7: Versioned command results and interruption contracts
+
+- **Resolved:** Automation can distinguish completed, drifting, incomplete, failed, cancelled and uncertain commands without parsing human prose or losing truncation evidence.
+- **Changed:** Shared runCommand service/type/schema; one versioned JSON stdout document with data, target/run evidence, completeness, timings and structured errors. Progress uses stderr. Core and bundled adapter adopt it; existing JSON roots move under data. Added strict flag/numeric validation, explicit exit codes, cooperative overall deadlines and SIGINT/SIGTERM handling, plus validated structured MCP executor envelopes with legacy compatibility. Updated smoke consumers and setup guidance.
+- **Validated:** pnpm check passes: 383 tests (297 core, 58 adapter, 28 Docker). Contract fixtures cover offline success, invalid config, adapter drift/status, redaction, truncation, suspension, malformed structured responses, cancellation and deadlines. Real HTTP tests cancel stalled reads/writes and confirm no write replay. Bundled adapter snapshot/check/status use the actual common envelope. pnpm smoke:package and git diff --check pass.
+- **Risks:** JSON shape is deliberately changed: prior top-level command fields now live under data. Interactive setup/connect refuse JSON/deadline mode; doctor supplies their subsequent machine-readable check. SDK cancellation does not stop a delivered plugin mutation, so its outcome remains uncertain. Synchronous extensions must cooperate with deadlines. Third-party adapters writing directly to process/global console streams must migrate to context.output; they are not sandboxed. No live interruption test.
+- **Next:** I11 — lazy extension loading and explicit executable-code trust boundaries
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -804,3 +814,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — A3 completed:** Team onboarding and advisory write coordination. Progress 8/40; next I5 — artifact provenance, consistent capture and atomic publication.
 
 - **2026-10-21 — I5 completed:** Artifact provenance and consistent atomic publication. Progress 9/40; next I7 — stable command results, structured MCP envelopes and incomplete-output contracts.
+
+- **2026-10-21 — I7 completed:** Versioned command results and interruption contracts. Progress 10/40; next I11 — lazy extension loading and explicit executable-code trust boundaries.

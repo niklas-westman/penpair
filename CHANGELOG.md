@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Versioned command contract:** `--json` now emits one shared envelope; earlier JSON roots move under `data`. Core and bundled adapter results retain completeness, target/run evidence and structured errors. Added explicit incomplete/uncertain/cancelled/deadline exits, cooperative request cancellation, strict flag/numeric validation, and structured MCP executor-envelope support with legacy text compatibility.
+
 - **Artifact provenance and safe publication:** schema-2 baseline manifests separate capture and approval identity/revision/hash. Complete coherent runs publish immutable capture generations before atomically publishing the manifest; missing/unstable captures preserve previous output. Generated Reflection cases follow approved paths. PNG/archive outputs stage complete bytes; archives retain exclusive no-replacement behavior.
 
 - **Team safeguards:** offline `onboard [--json]`, local checkout writer locks and capability-driven shared advisory markers for journaled writes. Explicit abandoned-lock override, lease expiry and independent ownership checks; same-execution revision, archive-source and token-source guards stop stale mutations. Cross-machine markers are explicitly non-atomic.

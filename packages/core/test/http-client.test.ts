@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
+import { collectCommand, CommandInterruptedError } from "../src/command-result.js";
 import { connect, executeCode, type PenpotToolClient } from "../src/client.js";
 
+const noReply = Symbol("no-reply");
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const close of cleanups.splice(0)) await close(); });
 
@@ -13,11 +15,11 @@ async function server(call: (request: IncomingMessage, response: ServerResponse)
     let text = "";
     for await (const chunk of request) text += chunk;
     const body = JSON.parse(text);
-    if (body.method === "notifications/initialized") { response.writeHead(202); response.end(); return; }
+    if (body.method.startsWith("notifications/")) { response.writeHead(202); response.end(); return; }
     const reply = (result: unknown) => { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ jsonrpc: "2.0", id: body.id, result })); };
     if (body.method === "initialize") reply({ protocolVersion: body.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "fake-penpot", version: "test" } });
     else if (body.method === "tools/list") reply({ tools: [{ name: "execute_code", inputSchema: { type: "object", properties: { code: { type: "string" } } } }] });
-    else { calls++; const result = call(request, response); if (!response.destroyed && !response.writableEnded) reply(result); }
+    else { calls++; const result = call(request, response); if (result !== noReply && !response.destroyed && !response.writableEnded) reply(result); }
   });
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
   const address = http.address();
@@ -39,6 +41,31 @@ describe("real HTTP MCP connection path", () => {
     const client = await connected(fake.endpoint);
     expect(await client.listTools!()).toEqual(["execute_code"]);
     expect((await executeCode(client, "return {}", { effect: "read" })).result).toEqual({ ok: true, observed: 1 });
+    expect(fake.calls()).toBe(1);
+  });
+
+  it.each(["read", "write"] as const)("cancels a stalled HTTP %s without replaying it", async (effect) => {
+    const fake = await server(() => noReply);
+    const client = await connected(fake.endpoint);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new CommandInterruptedError("deadline")), 30);
+    try {
+      const result = await collectCommand("request", async () => { await executeCode(client, "execute()", { effect }); return 0; }, { signal: controller.signal });
+      expect(result).toMatchObject({ outcome: effect === "write" ? "uncertain" : "deadline", exitCode: effect === "write" ? 4 : 124 });
+      expect(fake.calls()).toBe(1);
+    } finally { clearTimeout(timer); }
+  });
+
+  it("accepts structured executor envelopes through the SDK", async () => {
+    const fake = await server(() => ({ content: [], structuredContent: { result: { ok: true, measured: 2 }, log: "structured" } }));
+    const client = await connected(fake.endpoint);
+    expect(await executeCode(client, "return {}", { effect: "read" })).toMatchObject({ result: { measured: 2 }, log: "structured" });
+  });
+
+  it("rejects malformed structured data even when legacy text looks successful", async () => {
+    const fake = await server(() => ({ ...success, structuredContent: { log: "missing result" } }));
+    const client = await connected(fake.endpoint);
+    await expect(executeCode(client, "write()", { effect: "write" })).rejects.toMatchObject({ code: "write-uncertain" });
     expect(fake.calls()).toBe(1);
   });
 

@@ -9,6 +9,9 @@ import { diffSnapshots, formatDiff, readSnapshot, writeSnapshot, type SnapshotDi
 import { loadThemeInput } from "./theme-input.js";
 import { buildSnapshot, type TokenSnapshot } from "./tokens.js";
 
+const print = (context: AdapterContext, ...values: unknown[]): void => (context.output?.log ?? console.log)(...values);
+const diagnostic = (context: AdapterContext, ...values: unknown[]): void => (context.output?.error ?? console.error)(...values);
+
 const adapterVersion = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 /** What the project's configuration, the installed Marwes and the project's themes say the Penpot tokens should be. */
@@ -74,24 +77,25 @@ async function snapshotCommand(context: AdapterContext, args: string[]): Promise
   const { values } = flags(args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   const fresh = check.expectation.fresh;
-  if (values.json) console.log(JSON.stringify({ current: check.current, summary: summary(fresh), diff: check.diff, problems: check.problems }, null, 2));
+  if (values.json) print(context, JSON.stringify({ current: check.current, summary: summary(fresh), diff: check.diff, problems: check.problems }, null, 2));
   else {
-    console.log(`Expected from the installed ${summary(fresh)}`);
-    for (const line of formatDiff(check.diff)) console.log(`  ${line}`);
-    if (coverage(fresh)) console.log(`note ${coverage(fresh)}`);
-    for (const problem of check.problems.filter((p) => !p.startsWith("there is no snapshot"))) console.log(`FAIL ${problem}`);
+    print(context, `Expected from the installed ${summary(fresh)}`);
+    for (const line of formatDiff(check.diff)) print(context, `  ${line}`);
+    if (coverage(fresh)) print(context, `note ${coverage(fresh)}`);
+    for (const problem of check.problems.filter((p) => !p.startsWith("there is no snapshot"))) print(context, `FAIL ${problem}`);
   }
   if (check.expectation.problems.length > 0) return 1;
   if (check.current) {
-    if (!values.json) console.log(`ok   ${check.expectation.settings.snapshot} is current`);
+    if (!values.json) print(context, `ok   ${check.expectation.settings.snapshot} is current`);
     return 0;
   }
   if (!values.write) {
-    if (!values.json) console.log(`${check.committed ? "The committed snapshot is stale." : "There is no snapshot yet."} Run again with --write to save ${check.expectation.settings.snapshot}.`);
+    if (!values.json) print(context, `${check.committed ? "The committed snapshot is stale." : "There is no snapshot yet."} Run again with --write to save ${check.expectation.settings.snapshot}.`);
     return 2;
   }
   await writeSnapshot(context.root, check.expectation.settings.snapshot, fresh);
-  if (!values.json) console.log(`wrote ${check.expectation.settings.snapshot}. Review the change in git and commit it; then \`penpair marwes tokens diff\` shows what Penpot needs.`);
+  context.output?.result({ current: true, snapshot: check.expectation.settings.snapshot, hash: fresh.hash, written: true });
+  if (!values.json) print(context, `wrote ${check.expectation.settings.snapshot}. Review the change in git and commit it; then \`penpair marwes tokens diff\` shows what Penpot needs.`);
   return 0;
 }
 
@@ -99,18 +103,18 @@ async function checkCommand(context: AdapterContext, args: string[]): Promise<nu
   const { values } = flags(args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (values.json) {
-    console.log(JSON.stringify({ current: check.current, installed: check.expectation.installed.versions, diff: check.diff, problems: check.problems }, null, 2));
+    print(context, JSON.stringify({ current: check.current, installed: check.expectation.installed.versions, diff: check.diff, problems: check.problems }, null, 2));
     return check.current ? 0 : check.expectation.problems.length > 0 ? 1 : 2;
   }
   if (check.current) {
-    console.log(`ok   ${check.expectation.settings.snapshot} is current (${summary(check.expectation.fresh)})`);
+    print(context, `ok   ${check.expectation.settings.snapshot} is current (${summary(check.expectation.fresh)})`);
     return 0;
   }
-  for (const line of formatDiff(check.diff)) console.log(`  ${line}`);
-  for (const problem of check.problems) console.log(`FAIL ${problem}`);
+  for (const line of formatDiff(check.diff)) print(context, `  ${line}`);
+  for (const problem of check.problems) print(context, `FAIL ${problem}`);
   if (check.committed && check.expectation.problems.length === 0) {
     const cause = check.committed.marwesVersion !== check.expectation.installed.version ? `it was made from Marwes ${check.committed.marwesVersion} and the installed Marwes is ${check.expectation.installed.version}` : "the installed Marwes or the project's theme has changed since it was made";
-    console.log(`FAIL the committed snapshot is stale: ${cause}. ${staleAdvice}`);
+    print(context, `FAIL the committed snapshot is stale: ${cause}. ${staleAdvice}`);
   }
   return check.expectation.problems.length > 0 ? 1 : 2;
 }
@@ -127,22 +131,22 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
   const { values } = flags(args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
-    console.error(`FAIL ${check.problems.join("; ")}`);
+    diagnostic(context, `FAIL ${check.problems.join("; ")}`);
     return 1;
   }
   const { drift, impact } = await readPenpot(context, check.committed, true);
   if (values.json) {
-    console.log(JSON.stringify({ snapshotCurrent: check.current, drift, impact }, null, 2));
+    print(context, JSON.stringify({ snapshotCurrent: check.current, drift, impact }, null, 2));
     return drift.inSync ? 0 : 2;
   }
-  if (!check.current) console.log(`note: the committed snapshot is stale against the installed Marwes (${staleAdvice}); the comparison below is against the committed one.`);
+  if (!check.current) print(context, `note: the committed snapshot is stale against the installed Marwes (${staleAdvice}); the comparison below is against the committed one.`);
   if (drift.inSync) {
-    console.log(`ok   Penpot matches ${summary(check.committed)}`);
+    print(context, `ok   Penpot matches ${summary(check.committed)}`);
     return 0;
   }
-  console.log(values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
-  for (const line of formatDrift(drift, impact)) console.log(`  ${line}`);
-  console.log("`penpair marwes tokens push --apply` brings Penpot to the snapshot (Marwes is authoritative: a value changed by hand in Penpot is put back).");
+  print(context, values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
+  for (const line of formatDrift(drift, impact)) print(context, `  ${line}`);
+  print(context, "`penpair marwes tokens push --apply` brings Penpot to the snapshot (Marwes is authoritative: a value changed by hand in Penpot is put back).");
   return 2;
 }
 
@@ -151,27 +155,29 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
   if ((values.resume || values.checkpoint || values["force-lock"]) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
-    console.error(`FAIL ${check.problems.join("; ")}`);
+    diagnostic(context, `FAIL ${check.problems.join("; ")}`);
     return 1;
   }
   if (!check.current) {
-    for (const line of formatDiff(check.diff)) console.log(`  ${line}`);
-    console.error(`STOP the committed snapshot is stale against the installed Marwes or the theme, and the repository's record must lead. ${staleAdvice} Then push.`);
+    for (const line of formatDiff(check.diff)) print(context, `  ${line}`);
+    diagnostic(context, `STOP the committed snapshot is stale against the installed Marwes or the theme, and the repository's record must lead. ${staleAdvice} Then push.`);
     return 2;
   }
   const { drift, impact, live } = await readPenpot(context, check.committed, true);
   const plan = planPush(check.committed, live, { prune: values.prune === true });
   if (drift.inSync && plan.length === 0 && !values.resume) {
-    console.log(`ok   Penpot already matches ${summary(check.committed)}; nothing to write`);
+    context.output?.result({ verified: true, unchanged: true, drift });
+    print(context, `ok   Penpot already matches ${summary(check.committed)}; nothing to write`);
     return 0;
   }
-  console.log(values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
-  for (const line of formatDrift(drift, impact)) console.log(`  ${line}`);
-  console.log("Plan:");
-  for (const line of describePlan(plan)) console.log(`  ${line}`);
+  print(context, values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
+  for (const line of formatDrift(drift, impact)) print(context, `  ${line}`);
+  print(context, "Plan:");
+  for (const line of describePlan(plan)) print(context, `  ${line}`);
   if (!values.apply) {
-    console.log("Nothing was written. Run again with --apply to do it.");
-    if (!values.prune && drift.sets.some((s) => s.tokens.some((t) => t.kind === "extra")) ) console.log("Tokens added by hand are kept unless you add --prune.");
+    context.output?.result({ phase: "inspected", plan, drift, snapshotCurrent: check.current, verified: false });
+    print(context, "Nothing was written. Run again with --apply to do it.");
+    if (!values.prune && drift.sets.some((s) => s.tokens.some((t) => t.kind === "extra")) ) print(context, "Tokens added by hand are kept unless you add --prune.");
     return 0;
   }
   const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message), {
@@ -180,13 +186,14 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
       ...(values.checkpoint ? { checkpoint: (runId) => createCheckpoint(client, { label: "token push", runId }, { apply: true }) } : {}),
     },
   }));
-  for (const step of report.steps) console.log(`done ${step}`);
+  context.output?.result(report);
+  for (const step of report.steps) print(context, `done ${step}`);
   if (report.verified) {
-    console.log(`ok   verified: Penpot now matches the snapshot and no shape moved or was rebound (${report.structureAfter.count} shapes unchanged)`);
+    print(context, `ok   verified: Penpot now matches the snapshot and no shape moved or was rebound (${report.structureAfter.count} shapes unchanged)`);
     return 0;
   }
-  if (!report.structureUnchanged) console.error(`FAIL the shapes changed while pushing tokens (${report.structureBefore.hash} -> ${report.structureAfter.hash}); look at the file before going on`);
-  for (const line of formatDrift(report.drift)) console.error(`FAIL still different: ${line}`);
+  if (!report.structureUnchanged) diagnostic(context, `FAIL the shapes changed while pushing tokens (${report.structureBefore.hash} -> ${report.structureAfter.hash}); look at the file before going on`);
+  for (const line of formatDrift(report.drift)) diagnostic(context, `FAIL still different: ${line}`);
   return 1;
 }
 
@@ -210,11 +217,12 @@ async function statusCommand(context: AdapterContext, args: string[]): Promise<n
       lines.push(drift.inSync ? "ok   Penpot matches the snapshot" : `FAIL Penpot differs from the snapshot (${drift.sets.reduce((n, s) => n + s.tokens.length, 0)} token(s), ${drift.themes.length} theme(s)); see \`penpair marwes tokens diff\``);
       if (!drift.inSync && code === 0) code = 2;
     } catch (error) {
+      if (code === 0) code = 3;
       lines.push(`skip Penpot: not checked (${String((error as Error).message).split("\n")[0]})`);
     }
   }
-  if (values.json) console.log(JSON.stringify({ installed: check.expectation.installed.versions, snapshotCurrent: check.current, penpotInSync: drift?.inSync ?? null, exit: code }, null, 2));
-  else for (const line of lines) console.log(line);
+  if (values.json) print(context, JSON.stringify({ installed: check.expectation.installed.versions, snapshotCurrent: check.current, penpotInSync: drift?.inSync ?? null, complete: Boolean(drift), exit: code }, null, 2));
+  else for (const line of lines) print(context, line);
   return code;
 }
 
@@ -231,15 +239,19 @@ export const marwesCommand: AdapterCommand = {
   async run(context, args) {
     const [area, sub, ...rest] = args;
     if (area !== "tokens" || !sub) {
-      console.error(`usage:\n  ${marwesCommand.usage.join("\n  ")}`);
+      diagnostic(context, `usage:\n  ${marwesCommand.usage.join("\n  ")}`);
       return 1;
     }
     const commands: Record<string, (c: AdapterContext, a: string[]) => Promise<number>> = { snapshot: snapshotCommand, check: checkCommand, diff: diffCommand, push: pushCommand, status: statusCommand };
     const run = commands[sub];
     if (!run) {
-      console.error(`unknown: penpair marwes tokens ${sub}\nusage:\n  ${marwesCommand.usage.join("\n  ")}`);
+      diagnostic(context, `unknown: penpair marwes tokens ${sub}\nusage:\n  ${marwesCommand.usage.join("\n  ")}`);
       return 1;
     }
+    const parsed = flags(rest);
+    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock"] : [])]);
+    if (parsed.positionals.length) throw new Error("Unexpected positional arguments after the token subcommand");
+    for (const key of Object.keys(parsed.values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by tokens ${sub}`);
     return run(context, rest);
   },
 };

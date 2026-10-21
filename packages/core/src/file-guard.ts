@@ -1,4 +1,4 @@
-import { maxSnippetBytes, type PenpotToolClient } from "./client.js";
+import { executionEnvelope, maxSnippetBytes, type PenpotToolClient } from "./client.js";
 import { PenpairError } from "./errors.js";
 import type { ProjectFile } from "./instance/config.js";
 
@@ -31,10 +31,8 @@ if (!__penpairActualFile || __penpairActualFile.id !== __penpairExpectedFile.id)
       if (Buffer.byteLength(code, "utf8") > maxSnippetBytes)
         throw new PenpairError("snippet-too-large", "The snippet including its file guard exceeds 90 KB");
       const outcome = await client.callTool(name, { ...args, code });
-      let envelope: { result?: unknown; log?: unknown } | undefined;
-      try { envelope = JSON.parse(outcome.text); } catch { /* Normal transport/tool handling reports malformed output. */ }
-      let result = envelope?.result;
-      if (typeof result === "string") { try { result = JSON.parse(result); } catch { /* A plain string is also a valid tool result. */ } }
+      const envelope = executionEnvelope(outcome);
+      const result = envelope?.result;
       if (typeof result === "object" && result !== null && "fileMismatch" in result && result.fileMismatch === true)
         throw new PenpairError("file-mismatch", String("message" in result ? result.message : "The connected file changed"));
       if (typeof envelope?.log === "string") {

@@ -74,7 +74,7 @@ check(/penpair setup/.test(help) && /not part of this install/.test(help), "the 
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet } from "@penpair/web"; console.log(typeof defineSnippet);'], { cwd: web })).trim() === "function", "@penpair/web exports everything the core has");
 await penpair(web, "init", "--external", "https://design.penpot.app", "--gitignore");
 check(/profile/.test(await readFile(join(web, "penpair.config.json"), "utf8")), "init --external writes the config");
-check(JSON.parse(await penpair(web, "config", "check", "--json")).valid === true, "config check validates the installed project's settings offline");
+check(JSON.parse(await penpair(web, "config", "check", "--json")).data.valid === true, "config check validates the installed project's settings offline");
 await penpair(web, "skills", "install");
 check(/^name: penpair-setup/m.test(await readFile(join(web, ".skills/penpair-setup/SKILL.md"), "utf8")), "skills install writes the setup skill");
 check(/Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")), "the npm page's README is the repository's");

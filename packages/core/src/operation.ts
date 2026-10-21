@@ -1,3 +1,4 @@
+import { commandSleep } from "./command-result.js";
 import type { ExecuteOptions, PenpotToolClient } from "./client.js";
 import { runSnippet, type Snippet, type SnippetResult } from "./snippet.js";
 import { switchPage } from "./snippets/read.js";
@@ -45,7 +46,7 @@ export interface OperationReport {
   verified: boolean;
 }
 
-const defaultSleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const defaultSleep = commandSleep;
 
 /** Runs a snippet; if the editor shows another page, opens the right one, waits, and tries once more. */
 export async function runOnPage(

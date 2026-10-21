@@ -1,3 +1,4 @@
+import { commandSleep } from "./command-result.js";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import type { PenpotToolClient } from "./client.js";
@@ -48,7 +49,7 @@ return { ok: true, base64: btoa(bin), length: bytes.length, capture };`,
     "read",
   );
 
-const defaultSleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const defaultSleep = commandSleep;
 
 /** Exports one shape as PNG. A first call can fail once and then work; this retries, and by default waits for a stable render. */
 export async function exportShapePng(client: PenpotToolClient, shapeId: string, options: ExportOptions = {}): Promise<ExportResult> {

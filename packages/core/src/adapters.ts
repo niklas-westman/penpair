@@ -1,3 +1,4 @@
+import type { CommandOutput } from "./command-result.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +11,7 @@ import { readProjectConfig, type ProjectConfig } from "./instance/config.js";
  * project and knows nothing about any of them. An adapter keeps its own settings in its own block of the same file.
  */
 export interface AdapterContext {
+  output?: CommandOutput;
   /** Removes this connection's credentials before recovery evidence is persisted or reported. */
   redact?(text: string): string;
   /** The project's folder. */

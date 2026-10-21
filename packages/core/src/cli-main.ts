@@ -1,3 +1,4 @@
+import { withCommandSignal, commandSignal, commandOutput as output, commandFailure, commandRedactor, collectCommand, CommandInterruptedError, type CommandResult } from "./command-result.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -151,14 +152,30 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     },
   });
   const [command, ...rest] = positionals;
+  const flags: Record<string, string[]> = {
+    pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale"],
+    archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
+    run: ["param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
+    skills: ["to", "only", "force"], snippets: [], init: ["instance", "port", "gitignore", "external"], setup: ["web", "docker", "external", "instance", "port"],
+    connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
+  };
+  const network = ["pages", "tree", "audit", "tokens", "export", "archive", "run", "baselines", "probe", "backup", "doctor"];
+  const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
+  for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
+  for (const [key, min, max, integer] of [["depth", 0, 100, true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
+    const raw = values[key]; if (raw === undefined) continue;
+    const number = Number(raw);
+    if (!raw.trim() || !Number.isFinite(number) || number < min || number > max || integer && !Number.isInteger(number)) throw new Error(`--${key} must be ${integer ? "an integer" : "a number"} from ${min} to ${max}`);
+  }
+  if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
     throw new Error("--resume and --checkpoint require an operation command (archive/run) with --apply");
   if (values.version) {
-    console.log(version);
+    output.log(version);
     return 0;
   }
   if (!command || values.help) {
-    console.log(usage(Boolean(cli.local), cli.adapters));
+    output.log(usage(Boolean(cli.local), cli.adapters));
     return 0;
   }
 
@@ -167,12 +184,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (!beforeFile || !afterFile || !values.theme) throw new Error("usage: penpair tokens diff <before.json> <after.json> --theme <name>");
     const load = async (file: string): Promise<TokenDump> => JSON.parse(await readFile(file, "utf8")) as TokenDump;
     const diff = diffEffective(effectiveValues(await load(beforeFile), values.theme), effectiveValues(await load(afterFile), values.theme));
-    console.log(JSON.stringify(diff, null, 2));
+    output.log(JSON.stringify(diff, null, 2));
     return diff.added.length + diff.removed.length + diff.changed.length === 0 ? 0 : 2;
   }
 
   const root = process.cwd();
-  const log = (message: string): void => console.error(`… ${message}`);
+  const log = (message: string): void => output.error(`… ${message}`);
   if (values.standalone) {
     const inspection = ["pages", "tree", "audit", "export"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
     if (await loadOptionalConfig(root) || !inspection || values.apply || values.write)
@@ -209,7 +226,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 
   const connectIo = (): ConnectIo => ({
-    say: (line) => console.log(line),
+    say: (line) => output.log(line),
     askHidden,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     confirmFile: async (file) => values["pin-file"] === true || /^(y|yes)$/i.test(await askLine(`Pin this project's file to "${file.name}" (${file.id})? [y/N] `, "n")),
@@ -234,7 +251,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (command === "connect") {
       const project = await loadConfig(root);
       await connectProject(root, project, connectIo(), { replace: values.replace === true, anyFile: values["any-file"] === true });
-      console.log("Next: `penpair doctor`, then `penpair skills install` if you have not yet.");
+      output.log("Next: `penpair doctor`, then `penpair skills install` if you have not yet.");
       return 0;
     }
     let where: SetupWhere | undefined;
@@ -252,7 +269,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         local: cli.local,
         installSkills: async () => {
           const report = await installSkills({ root });
-          console.log(`Installed ${report.installed.length} rule file(s) in ${report.to}/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
+          output.log(`Installed ${report.installed.length} rule file(s) in ${report.to}/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
         },
       },
     );
@@ -262,16 +279,19 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "skills") {
     if (rest[0] === "install") {
       const report = await installSkills({ root, to: values.to, only: values.only, force: values.force });
-      for (const file of report.installed) console.log(`wrote     ${file}`);
-      for (const file of report.kept) console.log(`kept      ${file} (differs from the shipped one; --force replaces it, except the project-owned files)`);
-      for (const link of report.linked) console.log(`linked    ${link}`);
-      console.log(`${report.unchanged.length} file(s) already up to date`);
-      console.log("\nAdd to your AGENTS.md skills table:\n" + report.agentsRows.join("\n"));
-      for (const old of report.legacy) console.log(`\nnote ${old.folder} is the old name of ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Delete the old folder and its links (.agents/skills/${path.posix.basename(old.folder)}, .claude/skills/${path.posix.basename(old.folder)}) and update its row in your AGENTS.md.`);
-      console.log("\nThen fill in references/project-facts.md in penpair-design: it is yours and is never replaced.");
+      output.result(report);
+      for (const file of report.installed) output.log(`wrote     ${file}`);
+      for (const file of report.kept) output.log(`kept      ${file} (differs from the shipped one; --force replaces it, except the project-owned files)`);
+      for (const link of report.linked) output.log(`linked    ${link}`);
+      output.log(`${report.unchanged.length} file(s) already up to date`);
+      output.log("\nAdd to your AGENTS.md skills table:\n" + report.agentsRows.join("\n"));
+      for (const old of report.legacy) output.log(`\nnote ${old.folder} is the old name of ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Delete the old folder and its links (.agents/skills/${path.posix.basename(old.folder)}, .claude/skills/${path.posix.basename(old.folder)}) and update its row in your AGENTS.md.`);
+      output.log("\nThen fill in references/project-facts.md in penpair-design: it is yours and is never replaced.");
       return 0;
     }
-    for (const name of await listBundledSkills()) console.log(name);
+    const bundled = await listBundledSkills();
+    output.result({ skills: bundled });
+    for (const name of bundled) output.log(name);
     return 0;
   }
 
@@ -279,30 +299,33 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     const { registry, problems, files } = await registryFor();
     if (rest[0] === "check") {
       const found = [...problems, ...checkProjectSnippets(registry)];
+      output.result({ files, problems: found, valid: found.length === 0 });
       const project = registry.list().filter((entry) => entry.source === "project");
-      console.log(`${project.length} project snippet(s) from ${files.length} file(s)`);
-      for (const problem of found) console.log(`FAIL ${problem}`);
-      if (found.length === 0) console.log("ok   every snippet is valid plugin code and small enough");
+      output.log(`${project.length} project snippet(s) from ${files.length} file(s)`);
+      for (const problem of found) output.log(`FAIL ${problem}`);
+      if (found.length === 0) output.log("ok   every snippet is valid plugin code and small enough");
       return found.length === 0 ? 0 : 1;
     }
+    output.result({ snippets: registry.list().map(({ name, description, kind, params, source }) => ({ name, description, kind, params, source })), problems, complete: problems.length === 0 });
     for (const entry of registry.list()) {
-      console.log(`${entry.name.padEnd(14)} ${entry.kind === "write" ? "changes " : "reads   "} ${entry.source === "project" ? "[project] " : ""}${entry.description}`);
-      for (const p of entry.params) console.log(`${"".padEnd(14)}   --param ${p.name}=<${p.type}>${p.required ? " (required)" : p.default !== undefined ? ` (default ${JSON.stringify(p.default)})` : ""}${p.description ? ` ${p.description}` : ""}`);
+      output.log(`${entry.name.padEnd(14)} ${entry.kind === "write" ? "changes " : "reads   "} ${entry.source === "project" ? "[project] " : ""}${entry.description}`);
+      for (const p of entry.params) output.log(`${"".padEnd(14)}   --param ${p.name}=<${p.type}>${p.required ? " (required)" : p.default !== undefined ? ` (default ${JSON.stringify(p.default)})` : ""}${p.description ? ` ${p.description}` : ""}`);
     }
-    for (const problem of problems) console.error(`warning: ${problem}`);
+    for (const problem of problems) output.error(`warning: ${problem}`);
     return 0;
   }
   if (command === "init") {
     const result = await init(root, { instance: values.instance, port: values.port ? Number(values.port) : undefined, gitignore: values.gitignore, external: values.external }, { local: cli.local });
+    output.result({ createdConfig: result.createdConfig, createdSecrets: result.createdSecrets, instance: result.config.instance, files: result.files, gitignoreAdded: result.gitignoreAdded });
     if (isExternal(result.config)) {
-      console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`);
-      console.log("next: in Penpot switch on Account, Integrations, MCP Server and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)");
+      output.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`);
+      output.log("next: in Penpot switch on Account, Integrations, MCP Server and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)");
       return 0;
     }
-    console.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (instance ${result.config.instance}, Penpot ${result.config.penpotVersion}, port ${result.config.ports.frontend})`);
-    console.log(`wrote ${result.config.directory}/docker-compose.yaml; secrets ${result.createdSecrets ? "generated" : "kept"} in ${result.config.directory}/.env`);
-    if (!result.gitignoreAdded) console.log(`keep ${result.config.directory}/ out of git (add it to .gitignore, or run init with --gitignore)`);
-    console.log("next: penpair up, then penpair connect");
+    output.log(`${result.createdConfig ? "created" : "kept"} penpair.config.json (instance ${result.config.instance}, Penpot ${result.config.penpotVersion}, port ${result.config.ports.frontend})`);
+    output.log(`wrote ${result.config.directory}/docker-compose.yaml; secrets ${result.createdSecrets ? "generated" : "kept"} in ${result.config.directory}/.env`);
+    if (!result.gitignoreAdded) output.log(`keep ${result.config.directory}/ out of git (add it to .gitignore, or run init with --gitignore)`);
+    output.log("next: penpair up, then penpair connect");
     return 0;
   }
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
@@ -312,11 +335,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     const all: DoctorCheck[] = [...checks, ...(keyCheck ? [keyCheck] : []), ...(backupCheck ? [backupCheck] : [])];
     const ok = all.every((check) => check.ok);
     if (values.json) {
-      console.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), file: all.find((check) => check.file)?.file, checks: all }, null, 2));
+      output.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), file: all.find((check) => check.file)?.file, checks: all }, null, 2));
       return ok ? 0 : 1;
     }
-    for (const check of all) console.log(`${check.warning ? "WARN" : check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
-    if (!mcp) console.log("skip editor and plugin: no key yet. Run `penpair connect`.");
+    for (const check of all) output.log(`${check.warning ? "WARN" : check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
+    if (!mcp) output.log("skip editor and plugin: no key yet. Run `penpair connect`.");
     return ok ? 0 : 1;
   }
   const lifecycle = new Set(["up", "down", "status", "doctor", "backup", "restore"]);
@@ -331,18 +354,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     const c: LocalContext = { root, config: requireLocal(project), runner: nodeRunner, log };
     if (command === "up") {
       const result = await local.up(c);
-      console.log(result.ready ? `Penpot is up at ${result.url}. Create an account and open a file, then run \`penpair connect\`.` : `The containers started but ${result.url} does not answer yet. Run \`penpair status\`.`);
+      output.log(result.ready ? `Penpot is up at ${result.url}. Create an account and open a file, then run \`penpair connect\`.` : `The containers started but ${result.url} does not answer yet. Run \`penpair status\`.`);
       return result.ready ? 0 : 1;
     }
     if (command === "down") {
       await local.down(c);
-      console.log("stopped; the data volumes are kept");
+      output.log("stopped; the data volumes are kept");
       return 0;
     }
     if (command === "status") {
       const state = await local.status(c);
-      for (const s of state.services) console.log(`${s.state.padEnd(10)} ${s.service}${s.health ? ` (${s.health})` : ""}`);
-      console.log(`${state.frontendReachable ? "answers" : "does not answer"} at ${state.url}; backend ${state.backendReady ? "ready" : "not ready"}`);
+      for (const s of state.services) output.log(`${s.state.padEnd(10)} ${s.service}${s.health ? ` (${s.health})` : ""}`);
+      output.log(`${state.frontendReachable ? "answers" : "does not answer"} at ${state.url}; backend ${state.backendReady ? "ready" : "not ready"}`);
       return state.frontendReachable && state.backendReady ? 0 : 1;
     }
     if (command === "doctor") {
@@ -353,18 +376,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (rest[0] === "verify") {
         if (!rest[1]) throw new Error("usage: penpair backup verify <backup directory>");
         const result = await local.verifyBackup(c, rest[1]);
-        for (const check of result.checks) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}`);
+        for (const check of result.checks) output.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}`);
         return result.ok ? 0 : 1;
       }
       const result = await local.backup(c);
-      console.log(`backup in ${result.directory} (${result.manifest.counts.files} files, ${result.manifest.counts.storageObjects} assets). It holds account data: never commit it.`);
+      output.log(`backup in ${result.directory} (${result.manifest.counts.files} files, ${result.manifest.counts.storageObjects} assets). It holds account data: never commit it.`);
       return 0;
     }
     if (command === "restore") {
       if (!rest[0]) throw new Error("usage: penpair restore <backup directory> --yes");
       const result = await local.restore(c, rest[0], { yes: values.yes === true });
-      for (const check of result.checks) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}`);
-      if (result.safetyBackup) console.log(`safety backup of the previous data: ${result.safetyBackup}`);
+      for (const check of result.checks) output.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}`);
+      if (result.safetyBackup) output.log(`safety backup of the previous data: ${result.safetyBackup}`);
       return result.ok ? 0 : 1;
     }
   }
@@ -372,6 +395,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadConfig(root);
   if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
   const endpoint = await resolveEndpoint();
+  commandRedactor((text) => redactEndpoint(text, endpoint));
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
   const guarded = async () => guardFile(await connect(endpoint), projectConfig?.file, {
     anyFile: values["any-file"] === true,
@@ -381,13 +405,14 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "probe") {
     if (values.deep && !values.write) throw new Error("probe --deep creates a temporary board, a token set and two components in the open file and removes them again. Run it on a scratch file, with --write to confirm.");
     const capabilityReport = await probe(endpoint, guarded, { integrity: values.integrity === true });
-    console.log(JSON.stringify(capabilityReport, null, 2));
+    output.log(JSON.stringify(capabilityReport, null, 2));
     if (capabilityReport.integrity?.supported && capabilityReport.integrity.valid === false) return 1;
     if (values.deep) {
       const client = await guarded();
       try {
-        const report = await runDeepCheck(client, { onWait: (m: string) => console.error(`… ${m}`) });
-        console.log(`\n${formatDeepReport(report)}`);
+        const report = await runDeepCheck(client, { onWait: (m: string) => output.error(`… ${m}`) });
+        output.result({ ...report, capabilities: capabilityReport });
+        output.log(`\n${formatDeepReport(report)}`);
         return report.ok ? 0 : 1;
       } finally {
         await client.close();
@@ -396,7 +421,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
   const client = await guarded();
-  const options = { onWait: (m: string) => console.error(`… ${m}`), onStep: (m: string) => console.error(`… ${m}`) };
+  commandRedactor((text) => redactEndpoint(text, endpoint));
+  const options = { signal: commandSignal(), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
     ...(values.apply ? { journal: {
@@ -409,17 +435,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const out = rest[1];
       if (!out || !out.endsWith(".penpot")) throw new Error("usage: penpair backup file <new.penpot>");
       const archive = await exportFileArchive(client);
-      if (archive.status !== "exported") { console.error(redactEndpoint(archive.message, endpoint)); return 1; }
+      if (archive.status !== "exported") { output.error(redactEndpoint(archive.message, endpoint)); return 1; }
       await atomicWriteFile(out, archive.bytes);
-      console.log(JSON.stringify({ file: out, fileId: archive.fileId, revn: archive.revn, bytes: archive.bytes.length, sha256: archive.sha256, restoreVerified: false }, null, 2));
-      console.error("Archive bytes saved. Restore is not verified: import into a scratch project and compare content and renders.");
+      output.log(JSON.stringify({ file: out, fileId: archive.fileId, revn: archive.revn, bytes: archive.bytes.length, sha256: archive.sha256, restoreVerified: false }, null, 2));
+      output.error("Archive bytes saved. Restore is not verified: import into a scratch project and compare content and renders.");
       return 0;
     }
     if (command === "run") {
       const [name] = rest;
       if (!name) throw new Error("usage: penpair run <snippet> [--param key=value ...] [--apply]");
       const { registry, problems } = await registryFor();
-      for (const problem of problems) console.error(`warning: ${problem}`);
+      for (const problem of problems) output.error(`warning: ${problem}`);
       const raw: Record<string, string | string[]> = {};
       for (const pair of values.param ?? []) {
         const at = pair.indexOf("=");
@@ -432,42 +458,45 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const entry = registry.get(name);
       if (entry.kind === "read" && (values.resume || values.checkpoint)) throw new Error("Read snippets have no write run to resume or checkpoint");
       const result = await registry.run(client, name, coerceParams(entry.params, raw), writeOptions(name));
-      console.log(JSON.stringify(result, null, 2));
-      if (entry.kind === "write" && !values.apply) console.error("Nothing was written. Run again with --apply to do it.");
+      output.log(JSON.stringify(result, null, 2));
+      if (entry.kind === "write" && !values.apply) output.error("Nothing was written. Run again with --apply to do it.");
       return (result as { verified?: boolean; phase?: string }).phase === "applied" && !(result as { verified?: boolean }).verified ? 1 : 0;
     }
     if (command === "baselines") {
       const config = (await loadConfig(root)).baselines;
       if (!config) throw new Error('penpair.config.json has no "baselines" block. Add {"page": "<page>", "root": "tests/baselines", "frames": [{"frame": "<frame name>", "id": "<file name>", "route": "<route>"}]}; see docs/guide.md.');
       const report = await exportBaselines(client, root, config, { ...options, apply: values.apply === true, update: values.update === true });
-      for (const r of report.results) console.log(`${r.status.padEnd(9)} ${r.id.padEnd(28)} ${r.frame}${r.imageWidth ? ` (${r.imageWidth}x${r.imageHeight})` : ""}${r.written ? "  written" : ""}`);
-      for (const file of report.wrote) console.log(`wrote     ${file}`);
+      output.result(report);
+      for (const r of report.results) output.log(`${r.status.padEnd(9)} ${r.id.padEnd(28)} ${r.frame}${r.imageWidth ? ` (${r.imageWidth}x${r.imageHeight})` : ""}${r.written ? "  written" : ""}`);
+      for (const file of report.wrote) output.log(`wrote     ${file}`);
       const changed = report.results.filter((r) => r.status === "changed" && !r.written);
-      if (!values.apply) console.error("Nothing was written. Run again with --apply to write new images.");
-      if (changed.length > 0) console.error(`${changed.length} design(s) differ from the image in the folder. That is a change of the approved design: review it in Penpot, then run again with --apply --update to approve it.`);
-      if (report.results.some((r) => r.status === "missing" || r.status === "unstable")) return 1;
+      if (!values.apply) output.error("Nothing was written. Run again with --apply to write new images.");
+      if (changed.length > 0) output.error(`${changed.length} design(s) differ from the image in the folder. That is a change of the approved design: review it in Penpot, then run again with --apply --update to approve it.`);
+      if (!report.complete) return 3;
       return changed.length > 0 ? 2 : 0;
     }
-    if (command === "pages") console.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));
+    if (command === "pages") output.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));
     else if (command === "tree") {
       if (!values.page) throw new Error("--page is required");
       const record = await runOnPage(client, tree({ page: values.page, depth: values.depth ? Number(values.depth) : 3, namePrefix: values.prefix }), values.page, options);
-      console.log(((record.lines as string[]) ?? []).join("\n"));
+      if (values.json) output.log(JSON.stringify(record));
+      else output.log(((record.lines as string[]) ?? []).join("\n"));
+      if (record.truncated === true) { output.error("Tree output is truncated; narrow the scope before treating it as complete."); return 3; }
     } else if (command === "audit") {
       if (!values.page || !values.prefix) throw new Error("--page and --prefix are required");
       const steps = values.steps ? values.steps.split(",").map(Number) : undefined;
       const record = await runOnPage(client, audit({ page: values.page, framePrefix: values.prefix, spacingSteps: steps, ignoreUnbound: list(values.ignore) }), values.page, options);
-      console.log(JSON.stringify(record.frames, null, 2));
+      output.log(JSON.stringify(record.frames, null, 2));
     } else if (command === "tokens" && rest[0] === "dump") {
       const { ok: _ok, readOnly: _readOnly, ...dump } = await runSnippet(client, tokensDump(), options);
-      console.log(JSON.stringify(dump, null, 2));
+      output.log(JSON.stringify(dump, null, 2));
     } else if (command === "export") {
       const [shapeId, out] = rest;
       if (!shapeId || !out) throw new Error("usage: penpair export <shapeId> <out.png> [--page <name>] [--scale 1]");
       const result = await exportShapePng(client, shapeId, { ...options, page: values.page, scale: values.scale ? Number(values.scale) : 1 });
-      if (!result.stable) throw new Error("Export did not stabilize; previous output was preserved");
+      if (!result.stable) throw new PenpairError("incomplete-output", "Export did not stabilize; previous output was preserved");
       await atomicWriteFile(out, result.png, { replace: true });
-      console.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, capture: result.capture }, null, 2));
+      output.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, capture: result.capture }, null, 2));
     } else if (command === "archive") {
       if (!values.page || !values.name) throw new Error("--page and --name are required");
       const report = await runOperation(
@@ -476,11 +505,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         { page: values.page, archiveName: values.name, keepPrefixes: list(values.keep), partPrefixes: list(values.parts), x: values.x ? Number(values.x) : 9000 },
         writeOptions("archive"),
       );
-      console.log(JSON.stringify(report, null, 2));
-      if (report.phase === "inspected") console.error("Nothing was written. Run again with --apply to do it.");
+      output.log(JSON.stringify(report, null, 2));
+      if (report.phase === "inspected") output.error("Nothing was written. Run again with --apply to do it.");
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else {
-      console.log(usage(Boolean(cli.local), cli.adapters));
+      output.log(usage(Boolean(cli.local), cli.adapters));
       return 1;
     }
     return 0;
@@ -499,10 +528,12 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
     root,
     config,
     rawConfig,
-    log: (message) => console.error(`… ${message}`),
+    output,
+    log: (message) => output.error(`… ${message}`),
     async withPenpot(work) {
       const endpoint = await resolveEndpoint();
       redact = (text) => redactEndpoint(text, endpoint);
+      commandRedactor(redact);
       assertEndpointIsInstance(endpoint.description, config);
       const client = guardFile(await connect(endpoint), config.file, { anyFile: args.includes("--any-file"), warn: context.log });
       try {
@@ -516,29 +547,29 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
 }
 
 /** Runs the command line and returns the exit code. The `penpair` command calls it with nothing extra; a package that adds a way to run Penpot calls it with its profile. */
-export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
+async function runCliInternal(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = process.cwd();
     if (argv[0] === "onboard") {
       if (argv.slice(1).some((arg) => arg !== "--json")) throw new Error("usage: penpair onboard [--json]");
       const report = onboardingChecklist(await loadConfig(root));
-      if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
+      if (argv.includes("--json")) output.log(JSON.stringify(report, null, 2));
       else {
-        console.log(`Join ${report.project}: ${report.origin}`);
-        if (report.fileUrl) console.log(`File: ${report.fileUrl}`);
-        report.steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
-        report.warnings.forEach((warning) => console.log(`Note: ${warning}`));
+        output.log(`Join ${report.project}: ${report.origin}`);
+        if (report.fileUrl) output.log(`File: ${report.fileUrl}`);
+        report.steps.forEach((step, index) => output.log(`${index + 1}. ${step}`));
+        report.warnings.forEach((warning) => output.log(`Note: ${warning}`));
       }
       return 0;
     }
     if (argv[0] === "runs") {
-      if (argv.length > 2 || argv[1]?.startsWith("--")) throw new Error("usage: penpair runs [run-id]");
-      console.log(JSON.stringify(argv[1] ? await readJournal(root, argv[1]) : await listJournals(root), null, 2));
+      if (argv.filter((arg) => arg !== "--json").length > 2 || argv[1]?.startsWith("--") && argv[1] !== "--json") throw new Error("usage: penpair runs [run-id]");
+      output.log(JSON.stringify(argv[1] && argv[1] !== "--json" ? await readJournal(root, argv[1]) : await listJournals(root), null, 2));
       return 0;
     }
     if (argv[0] === "config") {
-      if (argv[1] === "schema" && argv.length === 2) {
-        console.log(JSON.stringify(projectConfigSchema, null, 2));
+      if (argv[1] === "schema" && argv.slice(2).every((arg) => arg === "--json")) {
+        output.log(JSON.stringify(projectConfigSchema, null, 2));
         return 0;
       }
       if (argv[1] !== "check" || argv.slice(2).some((arg) => arg !== "--json"))
@@ -547,10 +578,11 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
         await loadConfig(root);
       } catch (error) {
         if (!argv.includes("--json") || !(error instanceof ConfigError)) throw error;
-        console.log(JSON.stringify({ valid: false, file: "penpair.config.json", error: { code: error.code, message: error.message } }));
+        commandFailure(error);
+        output.log(JSON.stringify({ valid: false, file: "penpair.config.json", error: { code: error.code, message: error.message } }));
         return 1;
       }
-      console.log(argv.includes("--json") ? JSON.stringify({ valid: true, file: "penpair.config.json" }) : "ok   penpair.config.json is valid (extension settings are validated by their adapters)");
+      output.log(argv.includes("--json") ? JSON.stringify({ valid: true, file: "penpair.config.json" }) : "ok   penpair.config.json is valid (extension settings are validated by their adapters)");
       return 0;
     }
     const raw = await readRawConfig(root);
@@ -560,10 +592,59 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
     const adapterCommand = loaded.adapters.flatMap((adapter) => adapter.commands).find((command) => command.name === first);
     if (adapterCommand) return await runAdapterCommand(adapterCommand, root, argv.slice(1));
     const builtIn = (reservedCommands as readonly string[]).includes(first ?? "");
-    if (loaded.problems.length > 0 && (!builtIn || argv.includes("--help"))) for (const problem of loaded.problems) console.error(`warning: ${problem}`);
+    if (loaded.problems.length > 0 && (!builtIn || argv.includes("--help"))) for (const problem of loaded.problems) output.error(`warning: ${problem}`);
     return await main(argv, { ...options, adapters: loaded.adapters });
   } catch (error: unknown) {
-    console.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof ConnectError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);
-    return 1;
+    commandFailure(error);
+    output.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof ConnectError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);
+    const value = error as { code?: string; outcome?: string };
+    return value.code === "write-uncertain" || value.outcome === "uncertain" ? 4 : value.code === "incomplete-output" ? 3 : value.code === "cancelled" ? 130 : value.code === "deadline" ? 124 : 1;
+  }
+}
+
+
+export async function runCommand(argv: string[], options: CliOptions & { signal?: AbortSignal } = {}): Promise<CommandResult> {
+  const args = [...argv.filter((arg) => arg !== "--json"), "--json"];
+  return collectCommand(args[0] ?? "help", async () => {
+    if (["setup", "connect"].includes(argv[0] ?? "")) throw new Error("Interactive setup/connect require a terminal; run without --json and use doctor --json afterwards");
+    return runCliInternal(args, options);
+  }, { signal: options.signal });
+}
+
+export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
+  const controller = new AbortController();
+  const interrupt = () => controller.abort(new CommandInterruptedError("cancelled"));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const args = [...argv];
+  const timeoutAt = args.indexOf("--timeout-ms");
+  let invalidTimeout = false;
+  if (timeoutAt !== -1) {
+    const milliseconds = Number(args[timeoutAt + 1]);
+    invalidTimeout = !Number.isInteger(milliseconds) || milliseconds < 1 || milliseconds > 1_800_000 || args.indexOf("--timeout-ms", timeoutAt + 1) !== -1;
+    args.splice(timeoutAt, 2);
+    if (!invalidTimeout) timer = setTimeout(() => controller.abort(new CommandInterruptedError("deadline")), milliseconds);
+  }
+  const json = args.includes("--json");
+  if (!json && ["setup", "connect"].includes(args[0] ?? "")) {
+    if (timer) clearTimeout(timer);
+    if (timeoutAt !== -1) { console.error("--timeout-ms is not supported for interactive setup/connect"); return 1; }
+    return runCliInternal(args, options);
+  }
+  process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
+  try {
+    if (invalidTimeout) {
+      const result = await collectCommand(args[0] ?? "help", async () => { throw new Error("--timeout-ms must be one integer from 1 to 1800000"); });
+      if (json) console.log(JSON.stringify(result, null, 2)); else console.error(result.errors[0]?.message);
+      return result.exitCode;
+    }
+    return await withCommandSignal(controller.signal, async () => {
+      if (!json) return runCliInternal(args, options);
+      const result = await runCommand(args, { ...options, signal: controller.signal });
+      console.log(JSON.stringify(result, null, 2));
+      return result.exitCode;
+    });
+  } finally {
+    if (timer) clearTimeout(timer);
+    process.removeListener("SIGINT", interrupt); process.removeListener("SIGTERM", interrupt);
   }
 }

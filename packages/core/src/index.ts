@@ -2,7 +2,7 @@ export { version } from "./version.js";
 
 export * from "./adapters.js";
 export * from "./baselines.js";
-export { runCli } from "./cli-main.js";
+export { runCommand, runCli } from "./cli-main.js";
 export * from "./client.js";
 export { guardFile } from "./file-guard.js";
 export * from "./deep-check.js";
@@ -38,3 +38,5 @@ export { writeCoordinator, guardRevision, type WriteLease, type CoordinationOpti
 export { onboardingChecklist } from "./onboard.js";
 
 export { atomicWriteFile } from "./atomic-output.js";
+
+export { commandResultSchema, collectCommand, commandOutput, type CommandResult, type CommandFailure, type CommandOutput } from "./command-result.js";

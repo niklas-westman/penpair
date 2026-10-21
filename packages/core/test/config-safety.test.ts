@@ -109,7 +109,7 @@ describe("configuration before CLI connections and imports", () => {
     await fs.writeFile(path.join(root, "throws.mjs"), 'throw new Error("must not import");');
     const spies = cliSpies(root);
     expect(await runCli(["config", "check", "--json"])).toBe(0);
-    expect(JSON.parse(String(spies.output.mock.calls[0]?.[0]))).toEqual({ valid: true, file: "penpair.config.json" });
+    expect(JSON.parse(String(spies.output.mock.calls[0]?.[0]))).toMatchObject({ schemaVersion: 1, outcome: "success", data: { valid: true, file: "penpair.config.json" } });
     expect((await adapters.readRawConfig(root)).example).toEqual({ enabled: true });
     expect(spies.imports).not.toHaveBeenCalled();
     expect(spies.resolve).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe("configuration before CLI connections and imports", () => {
     await fs.writeFile(file(root), "{");
     const spies = cliSpies(root);
     expect(await runCli(["config", "check", "--json"])).toBe(1);
-    expect(JSON.parse(String(spies.output.mock.calls[0]?.[0]))).toMatchObject({ valid: false, error: { code: "invalid-json" } });
+    expect(JSON.parse(String(spies.output.mock.calls[0]?.[0]))).toMatchObject({ schemaVersion: 1, outcome: "failed", data: { valid: false, error: { code: "invalid-json" } }, errors: [{ code: "invalid-json" }] });
     expect(await runCli(["config", "schema"])).toBe(0);
     expect(JSON.parse(String(spies.output.mock.calls[1]?.[0]))).toMatchObject({ type: "object", required: ["instance"] });
     expect(spies.imports).not.toHaveBeenCalled();
