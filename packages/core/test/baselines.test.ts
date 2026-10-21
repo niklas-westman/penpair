@@ -1,3 +1,5 @@
+import { recordApproval } from "../src/approvals.js";
+import { exportShapePng } from "../src/export.js";
 import { mkdir, mkdtemp, readFile, readdir, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -105,9 +107,22 @@ describe("exporting baselines", () => {
     expect(again.results.find((r) => r.id === "candidates-tablet")).toMatchObject({ status: "same" });
     expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).toContain("a");
     expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).not.toContain("edited");
+    await expect(exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true, update: true })).rejects.toThrow(/owner words/);
+    await recordApproval(root, await exportShapePng(penpot({ frames, images: changed }), "a1", { ...fast, page: config.page, stable: true }), { note: "Approved changed layout (offline fixture)", by: "Fixture owner" });
     const approved = await exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true, update: true });
     expect(approved.results.find((r) => r.id === "candidates-desktop")).toMatchObject({ status: "changed", written: true });
     expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).toContain("edited");
+  });
+
+  it("can replace a forced reference with exact owner evidence without changing pixels", async () => {
+    const root = await project();
+    await exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true });
+    const changed = { ...images, a1: settled(1512, 982, "forced") };
+    const forced = await exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true, update: true, forceReason: "Offline experiment only" });
+    expect(forced.results[0]!.approved).toMatchObject({ approval: { kind: "forced-reference" } });
+    await recordApproval(root, await exportShapePng(penpot({ frames, images: changed }), "a1", { ...fast, page: config.page, stable: true }), { note: "Approved the reviewed exact frame (fixture)", by: "Fixture owner" });
+    const approved = await exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true, update: true });
+    expect(approved.results[0]).toMatchObject({ status: "same", written: true, approved: { approval: { kind: "owner-words" } } });
   });
 
   it("describes the image on disk, not the new design, when a changed design was not approved", async () => {
@@ -205,7 +220,7 @@ describe("explicit baseline case provenance", () => {
     const next = { ...initial, frames: [{ ...initial.frames[0]!, case: { ...designCase, fixture: "fixture-v2" } }] };
     const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, next, { ...fast, apply: true });
     expect(report.results[0]).toMatchObject({ status: "changed", written: false, captured: { case: { fixture: "fixture-v2" } }, approved: { case: { fixture: "fixture-v1" } } });
-    const approved = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, next, { ...fast, apply: true, update: true });
+    const approved = await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, next, { ...fast, apply: true, update: true, forceReason: "Offline case-migration fixture" });
     expect(approved.results[0]).toMatchObject({ written: true, approved: { case: { fixture: "fixture-v2" } } });
   });
   it("pins case metadata before asynchronous capture instead of approving a caller's later mutation", async () => {
@@ -217,7 +232,7 @@ describe("explicit baseline case provenance", () => {
     const root = await project(), initial = rich();
     await exportBaselines(penpot({ frames, images, activeThemeIds: ["light-id"] }), root, initial, { ...fast, apply: true });
     const file = path.join(root, config.root, "penpair-baselines.json"), before = await readFile(file, "utf8");
-    const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["dark-id"] }), root, initial, { ...fast, apply: true, update: true });
+    const report = await exportBaselines(penpot({ frames, images, activeThemeIds: ["dark-id"] }), root, initial, { ...fast, apply: true, update: true, forceReason: "Offline active-theme refusal fixture" });
     expect(report).toMatchObject({ complete: false, wrote: [], results: [{ status: "case-mismatch", problems: [expect.stringMatching(/theme IDs/)] }] });
     expect(await readFile(file, "utf8")).toBe(before);
     const mismatch = { ...initial, frames: [{ ...initial.frames[0]!, case: { ...designCase, viewport: { width: 100, height: 80 } } }] };

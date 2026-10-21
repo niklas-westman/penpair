@@ -1,3 +1,4 @@
+import { recordApproval, approvalFingerprint, artifactSha } from "./approvals.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { buildDesignSpec, renderDesignSpec, checkDesignSpec, readDesignJson, validateComponentMap, emptyComponentMap, writeDesignSpec } from "./design-spec.js";
 import { readBaselineCoverage } from "./baseline-coverage.js";
@@ -15,7 +16,7 @@ import { PenpairError } from "./errors.js";
 import { captureInspection, inspectChunk, validateCaptureBudget, validateInspectionQuery, type InspectionField, type InspectionQuery, type CaptureBudget } from "./inspection.js";
 import { resolveProjectOutput } from "./project-input.js";
 import { mkdir } from "node:fs/promises";
-import { captureShots, exportShapeByName } from "./shots.js";
+import { captureShots, exportShapeByName, findShapesByName } from "./shots.js";
 import { exportShapePng } from "./export.js";
 import { exportBaselines } from "./baselines.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
@@ -148,6 +149,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     allowPositionals: true,
     options: {
       include: { type: "string", multiple: true },
+      note: { type: "string" }, by: { type: "string" }, "case": { type: "string" }, "force-reason": { type: "string" },
       from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
       inspect: { type: "string" }, readback: { type: "string" },
       page: { type: "string" },
@@ -203,16 +205,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const [command, ...rest] = positionals;
   const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
+    approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
     pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     kit: ["include"], recipes: ["include"],
     "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
-    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity", "kit"],
+    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
+  const network = ["approve", "spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
   for (const [key, min, max, integer] of [["depth", 0, command==="inspect"?10000:100, true], ["limit",1,1000,true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
@@ -555,7 +558,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
-  const options = { signal: commandSignal(), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
+  const options = { signal: commandSignal(), redact: endpointRedactor(endpoint), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
     ...(values.apply ? { journal: {
@@ -604,7 +607,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (command === "baselines") {
       const config = (await loadCommandConfig(root)).baselines;
       if (!config) throw new Error('penpair.config.json has no "baselines" block. Add {"page": "<page>", "root": "tests/baselines", "frames": [{"frame": "<frame name>", "id": "<file name>", "route": "<route>"}]}; see docs/guide.md.');
-      const report = await exportBaselines(client, root, config, { ...options, apply: values.apply === true, update: values.update === true });
+      const report = await exportBaselines(client, root, config, { ...options, apply: values.apply === true, update: values.update === true, forceReason: values["force-reason"] });
       output.result(report);
       for (const r of report.results) output.log(`${r.status.padEnd(9)} ${r.id.padEnd(28)} ${r.frame}${r.imageWidth ? ` (${r.imageWidth}x${r.imageHeight})` : ""}${r.written ? "  written" : ""}`);
       for (const file of report.wrote) output.log(`wrote     ${file}`);
@@ -628,6 +631,21 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const record = await runOnPage(client, audit({ page: values.page, framePrefix: values.prefix, spacingSteps: steps, ignoreUnbound: list(values.ignore) }), values.page, options);
       output.log(JSON.stringify(record, null, 2));
       if (record.truncated===true) return 3;
+    } else if (command === "approve") {
+      if (rest.length || !values.page || !values.frame || values.write && (!values.note?.trim() || !values.by?.trim()) || !values.write && (values.note || values.by)) throw new CommandArgumentError("approve --page PAGE --frame ID [--case CASE_ID] previews evidence; --write requires --note exact-owner-words and --by identity");
+      let intent: import("./baselines-config.js").BaselineCase | undefined;
+      if (values.case) {
+        const baseline = projectConfig?.baselines, wanted = baseline?.frames.find(f => f.id === values.case);
+        if (!wanted?.case || baseline?.page !== values.page) throw new Error("Approval case must reference an explicitly configured frame on this page");
+        const found = await findShapesByName(client, wanted.frame, values.page);
+        if (found.matches.length !== 1 || found.matches[0]!.id !== values.frame) throw new Error("Approval frame ID does not match the configured case");
+        intent = wanted.case;
+      }
+      const captured = await exportShapePng(client, values.frame, { ...options, page: values.page, stable: true });
+      if (!captured.stable) throw new Error("Approval export did not stabilize");
+      const sha256 = artifactSha(captured.png);
+      const report = values.write ? await recordApproval(root, captured, { note: values.note!, by: values.by! }, intent, endpointRedactor(endpoint)) : { schemaVersion: 1, kind: "approval-candidate", capture: captured.capture, sha256, fingerprint: approvalFingerprint(captured.capture, sha256, intent), recorded: false };
+      output.result(report); output.log(JSON.stringify(report, null, 2)); return 0;
     } else if (command === "spec") {
       const capture = await captureInspection(client, { shapeId: values.frame!, page: values.page!, kind: "shape" });
       if (!capture.complete || capture.kind !== "shape-inspection") { output.result(capture); return 3; }

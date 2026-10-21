@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **26 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **27 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: D2 — exact-artifact owner approval records** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: D3 — deterministic structural snapshots and review diffs** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -599,7 +599,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need. Completed 2026-10-21; [resolution report](#d4-completion-2026-10-21).
 - [x] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root. Completed 2026-10-21; [resolution report](#e1-completion-2026-10-21).
 - [ ] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize.
-- [ ] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance.
+- [x] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance. Completed 2026-10-21; [resolution report](#d2-completion-2026-10-21).
 - [ ] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8.
 - [ ] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier.
 - [ ] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2.
@@ -953,6 +953,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live agent/editor trial. Trusted registered modules can execute imports and must preserve protocol stdout; no raw-code tool or sandbox. Cancellation is cooperative. Library-specific typed adapter schemas are not guessed. E3 is sequenced after D2/D3 so it documents stable approval/snapshot commands.
 - **Next:** D2 — exact-artifact owner approval records
 
+
+<a id="d2-completion-2026-10-21"></a>
+### 2026-10-21 — D2: Exact-artifact owner words and explicit baseline waivers
+
+- **Resolved:** Changed references can no longer silently become approved through an update flag alone; supplied owner words are bound to exact capture evidence.
+- **Changed:** Added append-only schema-1 approval records and immutable PNG evidence with preview-first CLI, bounded validation and local append locking. Changed baseline updates require matching identity/context/hash or a persisted forced-reference reason. Waivers do not satisfy approved rich coverage or comparison plans; later owner approval can promote a waived reference without pixel changes. Added prepublication redaction refusal.
+- **Validated:** pnpm check passes (533 tests), including approval tampering/refusal, changed-baseline enforcement, waiver promotion and comparison-plan rejection. Six-package smoke passes.
+- **Risks:** No real approvals were recorded. Supplied words are not authenticated identity/consent. Initial explicit capture retains existing reference behavior; old references are not retroactively attributed to owner words. Revision matching is deliberately conservative.
+- **Next:** D3 — deterministic structural snapshots and review diffs
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1027,3 +1037,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — D4 completed:** Explicit implementation cases and comparison evidence adapter. Progress 25/40; next E1 — typed MCP tools pinned to an explicit project root.
 
 - **2026-10-21 — E1 completed:** Explicit-root typed stdio MCP services. Progress 26/40; next D2 — exact-artifact owner approval records.
+
+- **2026-10-21 — D2 completed:** Exact-artifact owner words and explicit baseline waivers. Progress 27/40; next D3 — deterministic structural snapshots and review diffs.

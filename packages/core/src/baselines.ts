@@ -1,3 +1,4 @@
+import { matchingApproval } from "./approvals.js";
 import { pngSize } from "./png.js";
 export { pngSize } from "./png.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -30,7 +31,7 @@ export type BaselineStatus =
   | "missing"
   | "case-mismatch";
 
-export interface ArtifactProvenance extends CaptureIdentity { case?: BaselineCase; layout?: LayoutResult; sha256: string; capturedAt: string; toolVersion: string; file: string }
+export interface ArtifactProvenance extends CaptureIdentity { approval?: { kind: "owner-words"; id: string; recordHash: string } | { kind: "forced-reference"; reason: string }; case?: BaselineCase; layout?: LayoutResult; sha256: string; capturedAt: string; toolVersion: string; file: string }
 export interface BaselineResult {
   case?: BaselineCase;
   problems?: string[];
@@ -71,6 +72,8 @@ export interface BaselinesOptions extends ExportOptions {
   apply?: boolean;
   /** Also replace images whose design has changed. This is the act of approving the new design as the reference; it is the owner's call. */
   update?: boolean;
+  /** Explicit waiver for a changed baseline; retained as a forced reference, never an owner approval. */
+  forceReason?: string;
 }
 
 const sha = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
@@ -90,6 +93,7 @@ async function readIfExists(file: string): Promise<Buffer | undefined> {
  * the design never silently becomes the new reference.
  */
 export async function exportBaselines(client: PenpotToolClient, projectRoot: string, config: BaselinesConfig, options: BaselinesOptions = {}): Promise<BaselinesReport> {
+  if (options.forceReason !== undefined && (!options.update || !options.apply || !options.forceReason.trim() || options.forceReason.length > 2000)) throw new Error("A nonempty force reason requires apply and update");
   config = structuredClone(config); validateBaselines(config, message => { throw new Error(message); });
   const listing = await runOnPage(client, frames({ page: config.page }), config.page, options);
   if (listing.ok !== true || typeof listing.fileId !== "string" || !listing.fileId || typeof listing.pageId !== "string" || !listing.pageId || !Number.isInteger(listing.revn) || !Array.isArray(listing.frames)) throw new Error("Baseline listing lacks file/page/revision evidence");
@@ -132,7 +136,14 @@ export async function exportBaselines(client: PenpotToolClient, projectRoot: str
     if (caseProblems.length) { results.push({ ...base, status: "case-mismatch", written: false, captured, approved: old?.approved, sha256: old?.sha256, problems: caseProblems }); continue; }
     const oldCase = old?.approved && "case" in old.approved ? old.approved.case : undefined;
     const status: BaselineStatus = !existing ? "new" : sha(existing) === captured.sha256 && observationHash(oldCase ?? null) === observationHash(wanted.case ?? null) && (!old?.approved || "legacy" in old.approved || old.approved.fileId === captured.fileId && old.approved.pageId === captured.pageId && old.approved.frameId === captured.frameId) ? "same" : "changed";
-    const approve = status === "new" || status === "changed" && options.update === true;
+    const promoteWaiver = status === "same" && old?.approved && "approval" in old.approved && old.approved.approval?.kind === "forced-reference" && options.update === true;
+    if ((status === "changed" || promoteWaiver) && options.update && options.apply) {
+      const record = await matchingApproval(projectRoot, exported.capture, captured.sha256, wanted.case);
+      if (record) captured.approval = { kind: "owner-words", id: record.id, recordHash: record.hash };
+      else if (options.forceReason) captured.approval = { kind: "forced-reference", reason: options.forceReason };
+      else throw new Error("Changed baseline requires matching exact-artifact owner words (penpair approve), or an explicit --force-reason waiver; previous artifacts preserved");
+    }
+    const approve = status === "new" || status === "changed" && options.update === true || Boolean(promoteWaiver);
     const approved = approve ? captured : old?.approved ?? { legacy: true as const, sha256: sha(existing!) };
     const image = approve ? exported.png : existing!;
     const size = pngSize(image);
@@ -145,6 +156,8 @@ export async function exportBaselines(client: PenpotToolClient, projectRoot: str
   if (observationHash(source(listing)) !== observationHash(source(after))) throw new Error("Baseline source changed before publication; previous artifacts were preserved");
   const complete = results.length === config.frames.length && results.every((result) => result.status !== "missing" && result.status !== "unstable" && result.status !== "case-mismatch");
   if (options.apply && complete) {
+    const evidence = JSON.stringify({ config, results, forceReason: options.forceReason });
+    if (options.redact && options.redact(evidence) !== evidence) throw new Error("Baseline evidence requires credential redaction; previous artifacts preserved");
     options.signal?.throwIfAborted();
     options.onStep?.("publishing complete capture");
     options.signal?.throwIfAborted();
@@ -161,12 +174,12 @@ export async function exportBaselines(client: PenpotToolClient, projectRoot: str
       // Immutable generation first. The canonical manifest is the commit point and is published last.
       await atomicWriteFile(path.join(folder, "reflection-cases.json"), `${JSON.stringify({ ...cases, captureId: runId }, null, 2)}\n`, { replace: true });
       options.signal?.throwIfAborted();
-      for (const result of results) result.written = result.status === "new" || result.status === "changed" && options.update === true;
+      for (const result of results) result.written = result.file === result.captured?.file && (result.status === "new" || options.update === true);
       const manifest = { schemaVersion: 2, complete: true, captureId: runId, penpotFile: listing.file, fileId: listing.fileId, page: config.page, pageId: listing.pageId,
-        coverage: baselineCoverage(config, results), capturedRevision: listing.revn, casesFile: `${generation}/reflection-cases.json`, note: "Capture provenance and approved provenance are separate. Only --apply --update approves a changed hash.", frames: results };
+        coverage: baselineCoverage(config, results), capturedRevision: listing.revn, casesFile: `${generation}/reflection-cases.json`, note: "Capture provenance and approved provenance are separate. Changed references require exact-artifact owner words or a recorded forced-reference waiver.", frames: results };
       await atomicWriteFile(path.join(folder, "penpair-baselines.json"), `${JSON.stringify(manifest, null, 2)}\n`, { replace: true });
       for (const result of results) {
-        result.written = result.status === "new" || result.status === "changed" && options.update === true;
+        result.written = result.file === result.captured?.file && (result.status === "new" || options.update === true);
         if (result.written) wrote.push(path.join(config.root, result.file));
       }
       wrote.push(path.join(config.root, "reflection-cases.json"), path.join(config.root, "penpair-baselines.json"));

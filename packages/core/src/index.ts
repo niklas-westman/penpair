@@ -66,3 +66,5 @@ export { baselineCoverage, readBaselineCoverage, designCaseKey, type BaselineCov
 export * from "./design-spec.js";
 
 export * from "./mcp-server.js";
+
+export * from "./approvals.js";

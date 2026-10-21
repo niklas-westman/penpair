@@ -24,7 +24,7 @@ export function planImplementationCases(config: BaselinesConfig, results: Baseli
     if (!wanted.route) continue;
     const result = results.find(r => r.id === wanted.id), setup = mapping.cases.find(c => c.id === wanted.id)?.setup;
     const approved = result?.approved && !("legacy" in result.approved) ? result.approved : undefined;
-    if (!wanted.case || !result || !approved?.case || !setup || !["same", "new", "changed"].includes(result.status) || !result.captured || approved.sha256 !== result.captured.sha256 || observationHash(approved.case) !== observationHash(wanted.case) || approved.frameId !== result.frameId || approved.fileId !== result.captured.fileId || approved.pageId !== result.captured.pageId || approved.revision !== result.captured.revision || approved.file !== result.file) {
+    if (approved?.approval?.kind === "forced-reference" || !wanted.case || !result || !approved?.case || !setup || !["same", "new", "changed"].includes(result.status) || !result.captured || approved.sha256 !== result.captured.sha256 || observationHash(approved.case) !== observationHash(wanted.case) || approved.frameId !== result.frameId || approved.fileId !== result.captured.fileId || approved.pageId !== result.captured.pageId || approved.revision !== result.captured.revision || approved.file !== result.file) {
       pending.push({ id: wanted.id, reason: "Requires current exact approved case provenance and an explicit implementation setup; legacy cases keep the existing generated Reflection path" }); continue;
     }
     validateBaselineCase(wanted.case, message => { throw new Error(message); });

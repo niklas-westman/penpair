@@ -20,6 +20,10 @@ describe("explicit implementation-case bridge", () => {
   const changed = structuredClone(config); changed.frames[0]!.case!.theme = "light";
   expect(planImplementationCases(changed, results, mapping).complete).toBe(false);
  });
+ it("keeps forced references out of approved comparison plans", () => {
+  const waived = structuredClone(results); (waived[0]!.approved as ArtifactProvenance).approval = { kind: "forced-reference", reason: "experiment" };
+  expect(planImplementationCases(config, waived, mapping)).toMatchObject({ complete: false, cases: [] });
+ });
  it("validates independent byte evidence and exact observed setup without creating a visual approval", async () => {
   const root = await fixture(), plan = planImplementationCases(config, results, mapping);
   expect(await runImplementationCases(root, plan, { runCase: async () => evidence })).toMatchObject({ complete: true, cases: [{ withinThreshold: true }], visualApproval: false, verdict: "owner-review-required" });
