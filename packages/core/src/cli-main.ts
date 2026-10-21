@@ -1,3 +1,4 @@
+import { prepareFileScript, runFileScript } from "./run-file.js";
 import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-edit.js";
 import { withCommandSignal, commandSignal, commandOutput as output, commandFailure, commandRedactor, collectCommand, CommandInterruptedError, type CommandResult } from "./command-result.js";
 import { readFile } from "node:fs/promises";
@@ -60,6 +61,7 @@ Read-only:
   penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
   penpair tree --page <name> [--depth 3] [--prefix <text>]
   penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
+  penpair run-file <script.js> [--include helpers.js]    trusted plugin body; read declaration or reviewed inspect/apply/readback
   penpair tokens dump                                  typed token sets and themes as JSON
   penpair tokens add-set|set|remove|promote              inspect token edits; --apply writes once
   penpair tokens diff <before.json> <after.json> --theme <name>
@@ -121,6 +123,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     args: argv,
     allowPositionals: true,
     options: {
+      include: { type: "string", multiple: true },
+      inspect: { type: "string" }, readback: { type: "string" },
       page: { type: "string" },
       out: { type: "string" },
       fields: {type:"string"}, cursor:{type:"string"}, all:{type:"boolean"},
@@ -175,11 +179,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const flags: Record<string, string[]> = {
     pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
+    "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "baselines", "probe", "backup", "doctor"];
+  const network = ["inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
   for (const [key, min, max, integer] of [["depth", 0, command==="inspect"?10000:100, true], ["limit",1,1000,true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
@@ -215,8 +220,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
-  if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
-    throw new Error("--resume and --checkpoint require an operation command (archive/run) with --apply");
+  if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !(["archive", "run", "run-file"].includes(command ?? "") || command === "tokens" && tokenEdit)))
+    throw new Error("--resume and --checkpoint require an operation command (archive/run/run-file/tokens) with --apply");
   if (values.version) {
     output.log(version);
     return 0;
@@ -451,8 +456,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
   }
 
+  if (command === "run-file" && rest.length !== 1) throw new CommandArgumentError("run-file requires exactly one plugin body path");
   const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadConfig(root);
   if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
+  let preparedFile: Awaited<ReturnType<typeof prepareFileScript>> | undefined;
+  if (command === "run-file") {
+    const params: Record<string, string> = Object.create(null);
+    for (const pair of values.param ?? []) { const at = pair.indexOf("="); if (at < 1) throw new CommandArgumentError("--param needs key=value"); const key = pair.slice(0, at); if (Object.hasOwn(params, key)) throw new CommandArgumentError("Duplicate script parameter: " + key); params[key] = pair.slice(at + 1); }
+    preparedFile = await prepareFileScript(root, rest[0]!, { include: values.include, inspect: values.inspect, readback: values.readback, page: values.page, params });
+    if (preparedFile.kind === "read" && values.apply) throw new CommandArgumentError("Read files do not require or accept --apply");
+  }
   const endpoint = await resolveEndpoint();
   commandRedactor(endpointRedactor(endpoint));
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
@@ -499,6 +512,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       output.log(JSON.stringify({ file: out, fileId: archive.fileId, revn: archive.revn, bytes: archive.bytes.length, sha256: archive.sha256, restoreVerified: false }, null, 2));
       output.error("Archive bytes saved. Restore is not verified: import into a scratch project and compare content and renders.");
       return 0;
+    }
+    if (command === "run-file") {
+      const report = await runFileScript(client, preparedFile!, writeOptions("run-file"));
+      output.log(JSON.stringify(report, null, 2));
+      if (report.phase === "inspected") output.error("Nothing was written. Review the inspection, then use --apply.");
+      return report.complete === false ? 3 : report.phase === "applied" && !report.verified ? 1 : 0;
     }
     if (command === "run") {
       const [name] = rest;

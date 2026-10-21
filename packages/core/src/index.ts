@@ -54,3 +54,5 @@ export * from "./inspection.js";
 export { tokenTypes, validateEditableToken, validateTokenEdit, planTokenEdit, tokenEditOperation, type EditableToken, type TokenEdit, type TokenEditState, type TokenEditPlan } from "./token-edit.js";
 
 export { ensureGitignoreEntry } from "./instance/gitignore.js";
+
+export { prepareFileScript, runFileScript, type FileScriptOptions, type PreparedFileScript } from "./run-file.js";

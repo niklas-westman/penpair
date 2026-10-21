@@ -143,3 +143,7 @@ Use `inspect <shape-id> --page <name> --all` for bounded structured evidence wit
 ## Token editing
 
 `tokens add-set`, `set`, `remove` and `promote` inspect first and require `--apply` for guarded writes. See [semantics, bounds and recovery](token-editing.md).
+
+## Plugin bodies from files
+
+`run-file script.js --include helpers.js --param key=value --page Candidate` runs trusted declared reads. Reviewed write files require explicit inspection/readback files, idempotency declarations and `--apply`. See [script contracts, examples and recovery](run-file.md).

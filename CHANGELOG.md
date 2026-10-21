@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Reviewed file scripts:** `run-file` compiles bounded project-local plugin bodies offline, concatenates ordered declared-read helpers and passes literal parameters. Writes require idempotency plus inspect/readback contracts and share the journaled operation verifier. Read headers remain trusted declarations, never sandbox guarantees. Fixed CLI admission of token-edit recovery/checkpoint flags.
+
 - **Resolved mode trials:** `marwes tokens diff --resolved` and `verify-modes` inspect before temporarily selecting isolated themes with `--apply`. Actual resolved values and global precedence are compared against bounded snapshot expectations. Complete original theme/set selection is independently restored, including bounded cancellation cleanup. Coherent mode images publish only after restoration; unknowns, drift and uncertain execution remain distinct.
 
 - **Ownership reconciliation:** token pushes compare desired/live properties against a private, file-bound verified ancestor. Designer/conflicting/untracked values require an explicit overwrite decision or local adoption proposal. Prune preserves tokens without ownership evidence and unmanaged theme membership. Cross-set references and bound type replacements refuse before and inside destructive mutations; concurrent ancestor publication preserves newer evidence.

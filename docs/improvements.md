@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **19 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **20 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: B1 — guarded script-file execution with honest trust and verification outcomes** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: B2 — neutral build kit and adapter-owned recipes** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -583,7 +583,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **C2 · P1 · M** — Manage project-owned extra sets and safe token CRUD. Completed 2026-10-21; [resolution report](#c2-completion-2026-10-21).
 - [x] **I6 · P1 · M** — Add explicit ownership, conflicts and reference-aware destructive plans. Completed 2026-10-21; [resolution report](#i6-completion-2026-10-21).
 - [x] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably. Completed 2026-10-21; [resolution report](#c3-completion-2026-10-21).
-- [ ] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol.
+- [x] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol. Completed 2026-10-21; [resolution report](#b1-completion-2026-10-21).
 - [ ] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes.
 - [ ] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures.
 - [ ] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here.
@@ -880,6 +880,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live pinned-version mutation trial. Contexts are isolated themes, not every combination of brand/density axes. Unsupported formulas/units, nested font forms and composite shadows remain unknown. Cancellation cleanup is cooperative; restoration failure needs inspection. Images are review evidence, not baseline approval.
 - **Next:** B1 — guarded script-file execution with honest trust and verification outcomes
 
+
+<a id="b1-completion-2026-10-21"></a>
+### 2026-10-21 — B1: Reviewed plugin bodies from files
+
+- **Resolved:** Project scripts can run through the core file/page/size guards with ordered helpers and literal parameters, rather than a throwaway transport runner.
+- **Changed:** Added offline source loading/compilation and run-file. Trusted reads require declarations; writes preserve the repository write protocol through idempotency declarations and explicit inspect/readback files, with positive evidence, journals and recovery. Unverified arbitrary writes refuse instead of claiming verification. Documented the stricter refinement to Claude's raw executor proposal. Also fixed CLI admission of token-edit recovery/checkpoint flags.
+- **Validated:** pnpm check passed: 484 tests (368 core, 88 adapter, 28 Docker), build/typecheck/version guards; package smoke and git diff --check passed. Tests cover include order, UTF-8 wrapped size, syntax, realpath boundaries, page guarding before includes, positive evidence, lost acknowledgment, changed-source resume refusal, lazy extensions and actual token-edit CLI resume.
+- **Risks:** Read-only/idempotency declarations remain trusted code contracts and cannot sandbox JavaScript. Script authors own meaningful postconditions and in-mutation source checks. Large runtime inspections can safely exceed the final request guard before delivery. No new live write trial or automatic visual approval.
+- **Next:** B2 — neutral build kit and adapter-owned recipes
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -924,3 +934,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I6 completed:** Ownership conflicts and reference-aware reconciliation. Progress 18/40; next C3 — actual per-theme resolution and reliable selection restoration.
 
 - **2026-10-21 — C3 completed:** Actual mode resolution and complete selection restoration. Progress 19/40; next B1 — guarded script-file execution with honest trust and verification outcomes.
+
+- **2026-10-21 — B1 completed:** Reviewed plugin bodies from files. Progress 20/40; next B2 — neutral build kit and adapter-owned recipes.

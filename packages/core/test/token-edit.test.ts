@@ -106,6 +106,11 @@ describe("guarded token CRUD", () => {
     expect(connect).not.toHaveBeenCalled();
     const report = await runCommand(["tokens", "add-set", "Project", "--apply"]);
     expect(report.exitCode).toBe(0); expect(f.sets[0]!.name).toBe("Project");
+    const editArgs = ["tokens", "set", "Project", "radius", "--type", "borderRadius", "--value", '"8"', "--apply"];
+    f.loseNextWrite();
+    const lost = await runCommand(editArgs); expect(lost.exitCode).toBe(4);
+    expect(lost.runId).toBeTruthy();
+    expect((await runCommand([...editArgs, "--resume", lost.runId!])).exitCode).toBe(0);
   });
   it("rejects duplicates and malformed values while preserving structured token data", () => {
     expect(() => validateTokenEdit({ kind: "set", set: "P", token: { ...radius, type: "unknown" } })).toThrow(/type/);

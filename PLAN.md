@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **B1 — guarded script-file execution with honest trust and verification outcomes** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **B2 — neutral build kit and adapter-owned recipes** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **B1 — Reviewed plugin bodies from files** (2026-10-21). Project scripts can run through the core file/page/size guards with ordered helpers and literal parameters, rather than a throwaway transport runner. Validation and limits: [delivery report](docs/improvements.md#b1-completion-2026-10-21).
 - [x] **C3 — Actual mode resolution and complete selection restoration** (2026-10-21). Declared membership no longer stands in for actual per-theme resolution: isolated mode trials read live resolved values, expose global order drift and independently verify restoration of every original theme/set flag. Validation and limits: [delivery report](docs/improvements.md#c3-completion-2026-10-21).
 - [x] **I6 — Ownership conflicts and reference-aware reconciliation** (2026-10-21). Designer edits and upstream changes are distinguished before pushes; unmanaged tokens and retained references are protected during destructive plans. Validation and limits: [delivery report](docs/improvements.md#i6-completion-2026-10-21).
 - [x] **C2 — Declared project extras and guarded token editing** (2026-10-21). Project token sets can be recreated from config and participate in snapshot/check/diff/push; one-off token edits use the same guarded write and recovery contract. Validation and limits: [delivery report](docs/improvements.md#c2-completion-2026-10-21).
@@ -103,6 +104,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed B1: Reviewed plugin bodies from files; report in `docs/improvements.md`.
 - 2026-10-21: completed C3: Actual mode resolution and complete selection restoration; report in `docs/improvements.md`.
 - 2026-10-21: completed I6: Ownership conflicts and reference-aware reconciliation; report in `docs/improvements.md`.
 - 2026-10-21: completed C2: Declared project extras and guarded token editing; report in `docs/improvements.md`.
