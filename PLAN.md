@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **H2 — evidence-qualified upstream requests for owner review** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **Branch review — locally eligible work complete; live and owner gates pending** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **H2 — Evidence-qualified unsent upstream request draft** (2026-10-21). Upstream asks now distinguish observed source contracts and historical measurements, avoiding requests for capabilities that already exist. Validation and limits: [delivery report](docs/improvements.md#h2-completion-2026-10-21).
 - [x] **G2 — Owner-gated trusted publishing and exact release confirmation** (2026-10-21). A reviewed release can use short-lived CI authentication/provenance without losing existing lockstep/package guards or silently publishing an unintended version. Validation and limits: [delivery report](docs/improvements.md#g2-completion-2026-10-21).
 - [x] **A4 — Private file and OS credential references** (2026-10-21). Projects can resolve personal MCP credentials from private storage without copying them into repository connection files or exposing provider output. Validation and limits: [delivery report](docs/improvements.md#a4-completion-2026-10-21).
 - [x] **C4 — Advisory theme-family hue gaps** (2026-10-21). Projects can spot unchanged brand-family defaults after a primary-color change while retaining intentional contrasting brand choices. Validation and limits: [delivery report](docs/improvements.md#c4-completion-2026-10-21).
@@ -120,6 +121,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed H2: Evidence-qualified unsent upstream request draft; report in `docs/improvements.md`.
 - 2026-10-21: completed G2: Owner-gated trusted publishing and exact release confirmation; report in `docs/improvements.md`.
 - 2026-10-21: completed A4: Private file and OS credential references; report in `docs/improvements.md`.
 - 2026-10-21: completed C4: Advisory theme-family hue gaps; report in `docs/improvements.md`.

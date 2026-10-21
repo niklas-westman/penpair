@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **36 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **37 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: H2 — evidence-qualified upstream requests for owner review** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: Branch review — locally eligible work complete; live and owner gates pending** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -439,6 +439,8 @@ Tradient `main` at `3aa7a1c` has the setup. Recommended next:
 9. Move the Dashboard build scripts into the repo (`design/snippets/dashboard.mjs`, listed under `snippets`) once B1/B2 exist, so the page can be rebuilt by anyone.
 
 ### H2. Upstream asks for Marwes (P2, S)
+
+**Source correction (2026-10-21).** Installed React/core 1.11.0 source confirms optional StatTile trend props already exist, and StatCard accepts Card children. The consumer already has SidebarNav. Reprioritized, unsent owner-review draft: `docs/upstream/marwes-requests.md`; historical numerical measurements remain context-scoped until C1 live proof.
 Facts from the run, phrased as requests:
 - Publish the radii of Card (8) and StatTile (24) and the pill radius as theme tokens (today they are component constants, so Penpot needed project tokens).
 - A typography token for the StatTile value (28/600/-0.84), or document the scale.
@@ -608,7 +610,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices. Completed 2026-10-21; [resolution report](#c4-completion-2026-10-21).
 - [x] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified. Completed 2026-10-21; [resolution report](#a4-completion-2026-10-21).
 - [x] **G2 · P2 · M** — Prepare owner-approved trusted publishing/provenance while keeping lockstep release guards. Completed 2026-10-21; [resolution report](#g2-completion-2026-10-21).
-- [ ] **H2 · P2 · S** — Present measured upstream Marwes requests; let the owner decide what to send.
+- [x] **H2 · P2 · S** — Present measured upstream Marwes requests; let the owner decide what to send. Completed 2026-10-21; [resolution report](#h2-completion-2026-10-21).
 
 ## 4. Definition of done (every item)
 
@@ -1053,6 +1055,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Owner must configure/review GitHub environment protections and every npm trusted publisher/name before enabling. Actual OIDC exchange, registry provenance and blocked/new-name bootstrap remain pending; presence of an environment name alone does not prove protection.
 - **Next:** H2 — evidence-qualified upstream requests for owner review
 
+
+<a id="h2-completion-2026-10-21"></a>
+### 2026-10-21 — H2: Evidence-qualified unsent upstream request draft
+
+- **Resolved:** Upstream asks now distinguish observed source contracts and historical measurements, avoiding requests for capabilities that already exist.
+- **Changed:** Added prioritized owner-review draft and reproducible 1.11.0 source-map inventory. Corrected optional StatTile trend support, existing StatCard child composition and consumer SidebarNav assumptions. Added the full branch review guide and retained all external send/adoption checkboxes unchecked.
+- **Validated:** Final pnpm check passes (563 tests); six-package smoke passes; source inventory JSON, local links, release syntax and workflow boundaries validate. Consumer inspection was read-only and its pre-existing untracked penpot-poc folder remains unchanged. Nothing was sent upstream.
+- **Risks:** No new live component measurement, browser accessibility reproduction or latest-upstream capability claim. Owner chooses requests/wording and any future send. G3, I12 and C1 live acceptance remain unchecked; C1 native generation remains deliberately gated.
+- **Next:** Branch review — locally eligible work complete; live and owner gates pending
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1147,3 +1159,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — A4 completed:** Private file and OS credential references. Progress 35/40; next G2 — owner-gated trusted publishing and release confirmation.
 
 - **2026-10-21 — G2 completed:** Owner-gated trusted publishing and exact release confirmation. Progress 36/40; next H2 — evidence-qualified upstream requests for owner review.
+
+- **2026-10-21 — H2 completed:** Evidence-qualified unsent upstream request draft. Progress 37/40; next Branch review — locally eligible work complete; live and owner gates pending.
