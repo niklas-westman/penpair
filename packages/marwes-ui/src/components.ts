@@ -132,6 +132,7 @@ export function diffComponentSnapshots(before: ComponentSnapshot, after: Compone
 export async function componentsCommand(context: AdapterContext, args: string[]): Promise<number> {
   const [sub, ...rest] = args;
   const { values, positionals } = parseCommandArgs({ args: rest, allowPositionals: true, options: { write: { type: "boolean" }, measure: { type: "boolean" }, json: { type: "boolean" } } });
+  if (sub === "schema") { if (positionals.length || Object.keys(values).some(k => k !== "json")) throw new Error("components schema accepts only --json"); context.output?.result(componentSnapshotSchema); (context.output?.log ?? console.log)(JSON.stringify(componentSnapshotSchema)); return 0; }
   if (!["snapshot", "check", "diff", "build"].includes(sub ?? "") || positionals.length || (values.write && sub !== "snapshot") || (values.measure && sub !== "check")) throw new Error("Usage: marwes components snapshot [--write] | check [--measure] | diff | build");
   if (sub === "build") throw new Error("Native library generation is gated: first prove preserved text/style instance overrides with the pinned Penpot API in an owner-authorized scratch file. No library was generated.");
   const pilot = readComponentPilot(context.rawConfig);
@@ -163,3 +164,9 @@ export async function componentsCommand(context: AdapterContext, args: string[])
   context.output?.result(report); (context.output?.log ?? console.log)(JSON.stringify(report, null, 2));
   return !complete ? 3 : report.written || report.current ? 0 : 2;
 }
+
+export const componentSnapshotSchema = {
+ $schema: "https://json-schema.org/draft/2020-12/schema", $id: "urn:penpair:schema:v1:component-pilot", type: "object",
+ required: ["schemaVersion", "kind", "sourceHash", "hash", "marwesVersion", "cases", "nativeLibrary"],
+ properties: { schemaVersion: { const: 1 }, kind: { const: "component-pilot" }, sourceHash: { type: "string" }, hash: { type: "string" }, marwesVersion: { type: "string" }, cases: { type: "array", minItems: 6, maxItems: 60 }, nativeLibrary: { const: "gated-on-instance-override-proof" } }, additionalProperties: true,
+} as const;

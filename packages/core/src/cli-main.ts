@@ -1,3 +1,5 @@
+import { artifactSchemas, migrateProjectConfig } from "./formats.js";
+import { importDtcg, exportDtcg } from "./portable-tokens.js";
 import { captureStructuralSnapshot, writeStructuralSnapshot, readStructuralSnapshot, diffStructuralSnapshots, renderStructuralDiff } from "./structure-snapshot.js";
 import { recordApproval, approvalFingerprint, artifactSha } from "./approvals.js";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -206,6 +208,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const [command, ...rest] = positionals;
   const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
+    formats: ["out"],
     snapshot: ["write", "out", "from"],
     approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
@@ -265,6 +268,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "formats") {
+    const [action, input] = rest;
+    if (action === "schema" && rest.length === 2 && !values.out && artifactSchemas[input!]) { output.result(artifactSchemas[input!]); output.log(JSON.stringify(artifactSchemas[input!], null, 2)); return 0; }
+    if (!["import-tokens", "export-tokens", "migrate-config"].includes(action ?? "") || rest.length !== 2) throw new CommandArgumentError("formats schema NAME | import-tokens FILE | export-tokens FILE | migrate-config FILE [--out NEW_FILE]");
+    const raw = await readDesignJson(projectRoot(), input!, 8 * 1024 * 1024);
+    const result = action === "import-tokens" ? importDtcg(raw) : action === "export-tokens" ? exportDtcg(raw) : migrateProjectConfig(raw);
+    if (values.out) { const target = await resolveProjectOutput(projectRoot(), values.out); await mkdir(path.dirname(target), { recursive: true }); await atomicWriteFile(target, JSON.stringify(result, null, 2) + "\n"); }
+    output.result(result); output.log(JSON.stringify(result, null, 2)); return 0;
+  }
   if (command === "snapshot" && rest[0] === "diff") {
     if (rest.length !== 2 || !values.from || values.write || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("snapshot diff BEFORE_FOLDER --from AFTER_FOLDER [--out FILE]");
     const diff = diffStructuralSnapshots(await readStructuralSnapshot(projectRoot(), rest[1]!), await readStructuralSnapshot(projectRoot(), values.from));

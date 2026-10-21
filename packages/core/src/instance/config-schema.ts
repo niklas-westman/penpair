@@ -10,6 +10,7 @@ export const projectConfigSchema = {
   type: "object",
   required: ["instance"],
   properties: {
+    schemaVersion: { const: 1 },
     backup: { type: "object", required: ["noteFile", "remindAfterDays"], properties: { noteFile: { type: "string", minLength: 1, pattern: "^(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$" }, remindAfterDays: { type: "integer", minimum: 1 } } },
     file: { type: "object", required: ["id"], properties: { id: { type: "string", minLength: 1, pattern: "\\S" }, name: { type: "string" } } },
     instance: { type: "string", pattern: "^[a-z][a-z0-9-]{0,30}$" },

@@ -7,6 +7,7 @@ export interface ProjectFile { id: string; name?: string }
 export interface BackupReminder { noteFile: string; remindAfterDays: number }
 
 export interface InstanceConfig {
+  schemaVersion?: 1;
   file?: ProjectFile;
   backup?: BackupReminder;
   /** Short name; it becomes part of the compose project, so containers and volumes of two instances never collide. */
@@ -28,6 +29,7 @@ export interface InstanceConfig {
 
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
 export interface ExternalConfig {
+  schemaVersion?: 1;
   file?: ProjectFile;
   backup?: BackupReminder;
   instance: string;
@@ -54,7 +56,11 @@ export function composeProjectOf(config: InstanceConfig): string {
   return config.composeProject ?? `penpair-${config.instance}`;
 }
 
+function validateSchemaVersion(value: unknown): void {
+ if (value && typeof value === "object" && "schemaVersion" in value && value.schemaVersion !== 1) throw new ConfigError("Unsupported project config schemaVersion; legacy/unversioned and v1 are supported. Use the producer's documented migration for another major version.");
+}
 export function validateConfig(value: unknown): InstanceConfig {
+  validateSchemaVersion(value);
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };
@@ -86,6 +92,7 @@ const instanceNamePattern = /^[a-z][a-z0-9-]{0,30}$/;
 
 /** Accepts either kind of project config: a local Docker instance or an external Penpot. */
 export function validateProjectConfig(value: unknown): ProjectConfig {
+  validateSchemaVersion(value);
   const profile = typeof value === "object" && value !== null ? (value as { profile?: { type?: unknown } }).profile : undefined;
   if (profile === undefined) return validateConfig(value);
   if (typeof profile !== "object" || profile === null || Array.isArray(profile) || profile.type !== "external")

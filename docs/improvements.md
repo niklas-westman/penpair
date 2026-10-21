@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **29 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **30 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I10 — versioned formats, migrations and portable token exchange** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: F1 — concise docs paths and generated troubleshooting inventory** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -601,7 +601,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize. Completed 2026-10-21; [resolution report](#e3-completion-2026-10-21).
 - [x] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance. Completed 2026-10-21; [resolution report](#d2-completion-2026-10-21).
 - [x] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8. Completed 2026-10-21; [resolution report](#d3-completion-2026-10-21).
-- [ ] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier.
+- [x] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier. Completed 2026-10-21; [resolution report](#i10-completion-2026-10-21).
 - [ ] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2.
 - [ ] **F2 · P2 · S** — Add web status/open using the shared identity and capability report.
 - [ ] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns.
@@ -983,6 +983,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No real agent discovery or human usability trial was claimed. Skills require installed commands and project facts; optional library generation and actual browser acceptance remain gated on evidence. No repository agent instructions were installed or overwritten.
 - **Next:** I10 — versioned formats, migrations and portable token exchange
 
+
+<a id="i10-completion-2026-10-21"></a>
+### 2026-10-21 — I10: Versioned schema envelopes, explicit migrations and portable tokens
+
+- **Resolved:** Persistent artifacts now have discoverable versioned schema envelopes and explicit migration/exchange paths instead of relying on implicit format assumptions.
+- **Changed:** Added schema discovery, v1 project-config validation/migration preserving adapter blocks, explicit legacy token snapshot migration with ownership decisions, and bounded DTCG 2025.10 subset import/export preserving aliases, units, typography and supported color spaces. Unsupported features refuse rather than silently lose data; outputs are exclusive new files.
+- **Validated:** pnpm check passes (541 tests), including nested aliases/cycles/type errors, composite typography, dimensions/colors and legacy snapshot migration. Portable subset tests rerun after budget tightening; six-package smoke passes.
+- **Risks:** Schema envelopes complement runtime identity/hash/completeness validation. No full DTCG/resolver conformance or native Penpot import is claimed. Arithmetic, property references and unsupported units/color models remain outside the portable subset. No real project or design formats were migrated automatically.
+- **Next:** F1 — concise docs paths and generated troubleshooting inventory
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1063,3 +1073,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — D3 completed:** Deterministic page-split structural review snapshots. Progress 28/40; next E3 — focused recipes and handoff skills.
 
 - **2026-10-21 — E3 completed:** Focused recipe and handoff skills. Progress 29/40; next I10 — versioned formats, migrations and portable token exchange.
+
+- **2026-10-21 — I10 completed:** Versioned schema envelopes, explicit migrations and portable tokens. Progress 30/40; next F1 — concise docs paths and generated troubleshooting inventory.
