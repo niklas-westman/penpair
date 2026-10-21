@@ -29,6 +29,8 @@ export interface ResolveOptions {
   variableNames?: string[];
   /** The MCP server name looked up in the Codex and Claude Code configuration. */
   serverName?: string;
+  /** Long-lived project tools may disable unrelated global client configuration fallback. */
+  globalConfig?: boolean;
 }
 
 function describe(url: string, source: EndpointSource): Endpoint {
@@ -128,6 +130,7 @@ export async function resolveEndpoint(options: ResolveOptions = {}): Promise<End
       if (fromFile) return describe(fromFile, "env-file");
     }
   }
+  if (options.globalConfig === false) throw new PenpairError("endpoint-unconfigured", "No project Penpot endpoint in the environment or configured project env file; global client fallback is disabled");
   const codex = await readOptional(path.join(home, ".codex/config.toml"));
   const fromCodex = codex === undefined ? undefined : parseCodexServerUrl(codex, serverName);
   if (fromCodex) return describe(fromCodex, "codex-config");

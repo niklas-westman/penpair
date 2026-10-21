@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { buildDesignSpec, renderDesignSpec, checkDesignSpec, readDesignJson, validateComponentMap, emptyComponentMap, writeDesignSpec } from "./design-spec.js";
 import { readBaselineCoverage } from "./baseline-coverage.js";
 import { runKitSmoke } from "./kit-smoke.js";
@@ -26,7 +27,7 @@ import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } fr
 import { runSnippet } from "./snippet.js";
 import { audit, pages, tree } from "./snippets/read.js";
 import { diffEffective, effectiveValues, parseTokenDump, type TokenDump } from "./tokens-diff.js";
-import { ConfigError, isExternal, loadConfig, loadOptionalConfig, requireLocal } from "./instance/config.js";
+import { ConfigError, isExternal, loadConfig, loadOptionalConfig, requireLocal, type ProjectConfig } from "./instance/config.js";
 import { projectConfigSchema } from "./instance/config-schema.js";
 import { init } from "./instance/init.js";
 import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
@@ -116,7 +117,24 @@ const adapterUsage = (adapters: Adapter[]): string =>
 
 const list = (value: string | undefined): string[] => (value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
 
+const commandProjects = new AsyncLocalStorage<{ root: string; projectEndpointOnly?: boolean; pinnedConfig?: ProjectConfig; strictFileGuard?: boolean }>();
+const targetSignature = (config: ProjectConfig) => JSON.stringify({ instance: config.instance, file: config.file, profile: "profile" in config ? config.profile : null, ports: "ports" in config ? config.ports : null });
+async function loadCommandConfig(root: string): Promise<ProjectConfig> {
+  const config = await loadConfig(root), pinned = commandProjects.getStore()?.pinnedConfig;
+  if (pinned && targetSignature(config) !== targetSignature(pinned)) throw new Error("Pinned project target changed; restart and review the server configuration");
+  return config;
+}
+const projectRoot = () => commandProjects.getStore()?.root ?? process.cwd();
+const projectEndpoint = (root: string) => resolveEndpoint({ envFiles: [path.join(root, ".env.local")], globalConfig: !commandProjects.getStore()?.projectEndpointOnly });
+
 export interface CliOptions {
+  /** Explicit request-scoped project root; never changes the process working directory. */
+  root?: string;
+  /** Refuse unrelated global client endpoint fallback (used by the stdio server). */
+  projectEndpointOnly?: boolean;
+  /** Immutable server target: every loaded project configuration must still match. */
+  pinnedConfig?: ProjectConfig;
+  strictFileGuard?: boolean;
   /** Adapters already loaded (the command loads the project's own from penpair.config.json). */
   adapters?: Adapter[];
   configuredAdapters?: string[];
@@ -244,28 +262,28 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
   if (command === "spec" && values.from) {
     if (rest.length > 1 || rest.length === 1 && rest[0] !== "check" || values.page || values.frame || values.standalone || values["any-file"] || values["any-instance"]) throw new CommandArgumentError("Offline spec requires --from INSPECTION [--map MAPPING] [--out FILE]; spec check also requires --out");
-    const inspection = await readDesignJson(process.cwd(), values.from) as import("./inspection.js").InspectionDocument;
-    const mapping = values.map ? validateComponentMap(await readDesignJson(process.cwd(), values.map, 1024 * 1024)) : emptyComponentMap;
+    const inspection = await readDesignJson(projectRoot(), values.from) as import("./inspection.js").InspectionDocument;
+    const mapping = values.map ? validateComponentMap(await readDesignJson(projectRoot(), values.map, 1024 * 1024)) : emptyComponentMap;
     if (rest[0] === "check") {
       if (!values.out) throw new CommandArgumentError("spec check requires --out and --from");
-      const file = await import("./project-input.js").then(m => m.resolveProjectInput(process.cwd(), values.out!));
+      const file = await import("./project-input.js").then(m => m.resolveProjectInput(projectRoot(), values.out!));
       const report = checkDesignSpec(await readFile(file, "utf8"), inspection, mapping); output.result(report); output.log(JSON.stringify(report)); return report.current ? 0 : 2;
     }
     const spec = buildDesignSpec(inspection, mapping), markdown = renderDesignSpec(spec);
-    if (values.out) await writeDesignSpec(process.cwd(), values.out, markdown);
+    if (values.out) await writeDesignSpec(projectRoot(), values.out, markdown);
     output.result(spec); if (!values.json) output.log(markdown); return 0;
   }
   if (command === "spec" && (rest.length || !values.page || !values.frame)) throw new CommandArgumentError("Live spec requires --page and --frame ID (or --from for offline generation)");
   if (command === "baselines" && rest[0] === "coverage") {
     if (rest.length !== 1 || values.apply || values.update || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("baselines coverage is an offline report with optional --json");
-    const config = await loadConfig(process.cwd()); if (!config.baselines) throw new Error("Configure baselines before reporting coverage");
-    const report = await readBaselineCoverage(process.cwd(), config.baselines, config.file?.id);
+    const config = await loadCommandConfig(projectRoot()); if (!config.baselines) throw new Error("Configure baselines before reporting coverage");
+    const report = await readBaselineCoverage(projectRoot(), config.baselines, config.file?.id);
     output.result(report); if (!values.json) output.log(JSON.stringify(report, null, 2));
     return report.designCasesComplete ? 0 : 3;
   }
   if (command === "kit" || command === "recipes") {
     if (command === "kit" ? rest.length !== 1 || rest[0] !== "check" : rest.length) throw new CommandArgumentError("Use kit check, or recipes, with optional ordered --include aliases");
-    const kits = await loadKits(process.cwd(), values.include ?? ["@kit"]);
+    const kits = await loadKits(projectRoot(), values.include ?? ["@kit"]);
     output.result(command === "kit" ? checkKits(kits) : { recipes: kits.flatMap(value => value.recipes.map(recipe => ({ ...recipe, include: value.include }))), includes: kits.map(value => value.include) });
     if (!values.json) output.log(command === "kit" ? JSON.stringify(checkKits(kits), null, 2) : kits.flatMap(value => value.recipes.map(recipe => `${value.include} ${recipe.name}: ${recipe.description}`)).join("\n"));
     return 0;
@@ -279,7 +297,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return !diff.complete ? 3 : diff.added.length + diff.removed.length + diff.changed.length === 0 ? 0 : 2;
   }
 
-  const root = process.cwd();
+  const root = projectRoot();
   const log = (message: string): void => output.error(`… ${message}`);
   if (values.standalone) {
     const inspection = ["inspect", "pages", "tree", "audit", "export", "shots"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
@@ -290,7 +308,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   /** What `doctor` needs to look for the editor and plugin, or nothing when no endpoint is set yet. */
   async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string; fileId?: string }> } | undefined> {
     try {
-      const endpoint = await resolveEndpoint();
+      const endpoint = await projectEndpoint(root);
       commandRedactor(endpointRedactor(endpoint));
       return {
         origin: endpoint.description.origin,
@@ -343,7 +361,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
   if (command === "setup" || command === "connect") {
     if (command === "connect") {
-      const project = await loadConfig(root);
+      const project = await loadCommandConfig(root);
       await connectProject(root, project, connectIo(), { replace: values.replace === true, anyFile: values["any-file"] === true });
       output.log("Next: `penpair doctor`, then `penpair skills install` if you have not yet.");
       return 0;
@@ -434,7 +452,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
-    const backupCheck = await backupNoteCheck(root, await loadConfig(root));
+    const backupCheck = await backupNoteCheck(root, await loadCommandConfig(root));
     const all: DoctorCheck[] = [...checks, ...(keyCheck ? [keyCheck] : []), ...(backupCheck ? [backupCheck] : [])];
     const ok = all.every((check) => check.ok);
     if (values.json) {
@@ -447,7 +465,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   const lifecycle = new Set(["up", "down", "status", "doctor", "backup", "restore"]);
   if (lifecycle.has(command) && !(command === "backup" && rest[0] === "file")) {
-    const project = await loadConfig(root);
+    const project = await loadCommandConfig(root);
     if (isExternal(project) && command !== "doctor") requireLocal(project);
     if (isExternal(project)) {
       const mcp = await mcpProbeFor();
@@ -496,7 +514,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 
   if (command === "run-file" && rest.length !== 1) throw new CommandArgumentError("run-file requires exactly one plugin body path");
-  const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadConfig(root);
+  const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadCommandConfig(root);
   if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
   let preparedFile: Awaited<ReturnType<typeof prepareFileScript>> | undefined;
   if (command === "run-file") {
@@ -508,12 +526,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     preparedFile = await prepareFileScript(root, rest[0]!, { virtualIncludes, include: values.include, inspect: values.inspect, readback: values.readback, page: values.page, params });
     if (preparedFile.kind === "read" && values.apply) throw new CommandArgumentError("Read files do not require or accept --apply");
   }
-  const endpoint = await resolveEndpoint();
+  const endpoint = await projectEndpoint(root);
   commandRedactor(endpointRedactor(endpoint));
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
   const guarded = async () => guardFile(await connect(endpoint), projectConfig?.file, {
     anyFile: values["any-file"] === true,
-    mode: ["pages", "tree", "audit", "tokens"].includes(command) || command === "probe" && !values.deep && !values.integrity ? "warn" : "strict",
+    mode: !commandProjects.getStore()?.strictFileGuard && (["pages", "tree", "audit", "tokens"].includes(command) || command === "probe" && !values.deep && !values.integrity) ? "warn" : "strict",
     warn: log,
   });
   if (command === "probe") {
@@ -584,7 +602,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       return (result as { verified?: boolean; phase?: string }).phase === "applied" && !(result as { verified?: boolean }).verified ? 1 : 0;
     }
     if (command === "baselines") {
-      const config = (await loadConfig(root)).baselines;
+      const config = (await loadCommandConfig(root)).baselines;
       if (!config) throw new Error('penpair.config.json has no "baselines" block. Add {"page": "<page>", "root": "tests/baselines", "frames": [{"frame": "<frame name>", "id": "<file name>", "route": "<route>"}]}; see docs/guide.md.');
       const report = await exportBaselines(client, root, config, { ...options, apply: values.apply === true, update: values.update === true });
       output.result(report);
@@ -670,7 +688,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
 /** Runs one command of an adapter with a context that can reach the project's Penpot. */
 async function runAdapterCommand(command: Adapter["commands"][number], root: string, args: string[]): Promise<number> {
-  const config = await loadConfig(root);
+  const config = await loadCommandConfig(root);
   const rawConfig = await readRawConfig(root);
   let redact = (text: string) => redactEndpoint(text);
   const context: AdapterContext = {
@@ -681,7 +699,7 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
     output,
     log: (message) => output.error(`… ${message}`),
     async withPenpot(work) {
-      const endpoint = await resolveEndpoint();
+      const endpoint = await projectEndpoint(root);
       redact = (text) => redactEndpoint(text, endpoint);
       commandRedactor(endpointRedactor(endpoint));
       assertEndpointIsInstance(endpoint.description, config);
@@ -693,16 +711,17 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
       }
     },
   };
+  commandSignal()?.throwIfAborted();
   return command.run(context, args.filter((arg) => arg !== "--any-file"));
 }
 
 /** Runs the command line and returns the exit code. The `penpair` command calls it with nothing extra; a package that adds a way to run Penpot calls it with its profile. */
 async function runCliInternal(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
-    const root = process.cwd();
+    const root = projectRoot();
     if (argv[0] === "onboard") {
       if (argv.slice(1).some((arg) => arg !== "--json")) throw new Error("usage: penpair onboard [--json]");
-      const report = onboardingChecklist(await loadConfig(root));
+      const report = onboardingChecklist(await loadCommandConfig(root));
       if (argv.includes("--json")) output.log(JSON.stringify(report, null, 2));
       else {
         output.log(`Join ${report.project}: ${report.origin}`);
@@ -725,7 +744,7 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
       if (argv[1] !== "check" || argv.slice(2).some((arg) => arg !== "--json"))
         throw new ConfigError("usage: penpair config check [--json] | penpair config schema");
       try {
-        await loadConfig(root);
+        await loadCommandConfig(root);
       } catch (error) {
         if (!argv.includes("--json") || !(error instanceof ConfigError)) throw error;
         commandFailure(error);
@@ -759,11 +778,19 @@ export async function runCommand(argv: string[], options: CliOptions & { signal?
   const args = [...argv.filter((arg) => arg !== "--json"), "--json"];
   return collectCommand(args[0] ?? "help", async () => {
     if (["setup", "connect"].includes(argv[0] ?? "")) throw new Error("Interactive setup/connect require a terminal; run without --json and use doctor --json afterwards");
-    return runCliInternal(args, options);
+    return commandProjects.run({ root: path.resolve(options.root ?? projectRoot()), projectEndpointOnly: options.projectEndpointOnly, pinnedConfig: options.pinnedConfig, strictFileGuard: options.strictFileGuard }, () => runCliInternal(args, options));
   }, { signal: options.signal });
 }
 
-export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
+async function runCliBound(argv: string[], options: CliOptions = {}): Promise<number> {
+  if (argv[0] === "mcp") {
+    try {
+      const parsed = parseCommandArgs({ args: argv.slice(1), allowPositionals: true, options: { root: { type: "string" }, "allow-writes": { type: "boolean" } } });
+      if (!parsed.values.root || !path.isAbsolute(parsed.values.root) || parsed.positionals.length) throw new Error("mcp requires an explicit absolute --root PROJECT; optionally --allow-writes");
+      const { serveMcp } = await import("./mcp-server.js");
+      await serveMcp({ root: parsed.values.root, allowWrites: parsed.values["allow-writes"] === true, cli: options }); return 0;
+    } catch (error) { console.error(redactEndpoint(String((error as Error).message))); return 1; }
+  }
   const controller = new AbortController();
   const interrupt = () => controller.abort(new CommandInterruptedError("cancelled"));
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -799,4 +826,8 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
     if (timer) clearTimeout(timer);
     process.removeListener("SIGINT", interrupt); process.removeListener("SIGTERM", interrupt);
   }
+}
+
+export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
+  return commandProjects.run({ root: path.resolve(options.root ?? projectRoot()), projectEndpointOnly: options.projectEndpointOnly, pinnedConfig: options.pinnedConfig, strictFileGuard: options.strictFileGuard }, () => runCliBound(argv, options));
 }

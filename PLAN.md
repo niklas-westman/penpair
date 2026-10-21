@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **E1 — typed MCP tools pinned to an explicit project root** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **D2 — exact-artifact owner approval records** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **E1 — Explicit-root typed stdio MCP services** (2026-10-21). Agents can use bounded project-specific tools through the same command services with a lifetime file pin and no mutable process-directory routing. Validation and limits: [delivery report](docs/improvements.md#e1-completion-2026-10-21).
 - [x] **D4 — Explicit implementation cases and comparison evidence adapter** (2026-10-21). Rich design cases now have an explicit setup/readback bridge instead of being silently compared in a default browser state. Validation and limits: [delivery report](docs/improvements.md#d4-completion-2026-10-21).
 - [x] **D1 — Structured design handoff and offline freshness checks** (2026-10-21). Complete design inspections can now become a reproducible implementation handoff with explicit source identities, mapping hints and unknown semantics. Validation and limits: [delivery report](docs/improvements.md#d1-completion-2026-10-21).
 - [x] **H1 — Scoped Tradient follow-up proposal** (2026-10-21). Consumer adoption work is now a concrete owner-reviewable handoff without applying changes outside this repository. Validation and limits: [delivery report](docs/improvements.md#h1-completion-2026-10-21).
@@ -109,6 +110,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed E1: Explicit-root typed stdio MCP services; report in `docs/improvements.md`.
 - 2026-10-21: completed D4: Explicit implementation cases and comparison evidence adapter; report in `docs/improvements.md`.
 - 2026-10-21: completed D1: Structured design handoff and offline freshness checks; report in `docs/improvements.md`.
 - 2026-10-21: C1 preparation: measured three-component pilot, source/renderer drift checks, schema-1 snapshots and optional browser example; 519 tests and package smoke pass. Native override proof/generation remain gated. Continue D1.

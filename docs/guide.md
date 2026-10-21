@@ -155,3 +155,5 @@ Use `inspect <shape-id> --page <name> --all` for bounded structured evidence wit
 ## State, theme and responsive coverage
 
 Add explicit `frames[].case` metadata and a required matrix under `baselines.coverage`. `baselines coverage --json` validates approved images offline and exposes missing/unsupported slots. Rich cases remain pending browser setup mappings; see [coverage semantics and approval](coverage.md).
+
+For project-specific agent tools, use the [explicit-root stdio server and client examples](mcp.md). It exposes typed guarded services and defaults to omitting design-write tools.

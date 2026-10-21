@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **25 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **26 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: E1 — typed MCP tools pinned to an explicit project root** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: D2 — exact-artifact owner approval records** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -597,7 +597,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
   - [ ] Real fixture/native component instance override proof and measured constants; generation remains gated.
 - [x] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics. Completed 2026-10-21; [resolution report](#d1-completion-2026-10-21).
 - [x] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need. Completed 2026-10-21; [resolution report](#d4-completion-2026-10-21).
-- [ ] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root.
+- [x] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root. Completed 2026-10-21; [resolution report](#e1-completion-2026-10-21).
 - [ ] **E3 · P2 · M** — Package proven recipes/handoff practices as focused skills after commands stabilize.
 - [ ] **D2 · P2 · M** — Record owner approvals against exact artifact hashes and preserve their provenance.
 - [ ] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8.
@@ -943,6 +943,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live consumer/provider trial. Actual application activation and checker invocation belong to a trusted project provider using its pinned stack. Pixel ratios are evidence, not visual/accessibility approval. Consumer edits remain a separate owner action.
 - **Next:** E1 — typed MCP tools pinned to an explicit project root
 
+
+<a id="e1-completion-2026-10-21"></a>
+### 2026-10-21 — E1: Explicit-root typed stdio MCP services
+
+- **Resolved:** Agents can use bounded project-specific tools through the same command services with a lifetime file pin and no mutable process-directory routing.
+- **Changed:** Added stdio server, typed validated allowlist, strict file guards even for basic reads, target-change refusal, response budgets, SDK cancellation and explicit registered-write opt-in. Global client endpoint fallback is disabled for server calls. Added request-scoped root support and fixed cancellation immediately before extension invocation.
+- **Validated:** pnpm check passes (529 tests); SDK in-memory discovery/refusal/root-isolation tests and six-package smoke pass. Client examples checked against official configuration documentation.
+- **Risks:** No live agent/editor trial. Trusted registered modules can execute imports and must preserve protocol stdout; no raw-code tool or sandbox. Cancellation is cooperative. Library-specific typed adapter schemas are not guessed. E3 is sequenced after D2/D3 so it documents stable approval/snapshot commands.
+- **Next:** D2 — exact-artifact owner approval records
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1015,3 +1025,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — D1 completed:** Structured design handoff and offline freshness checks. Progress 24/40; next D4 — explicit implementation-case integration for Reflection.
 
 - **2026-10-21 — D4 completed:** Explicit implementation cases and comparison evidence adapter. Progress 25/40; next E1 — typed MCP tools pinned to an explicit project root.
+
+- **2026-10-21 — E1 completed:** Explicit-root typed stdio MCP services. Progress 26/40; next D2 — exact-artifact owner approval records.

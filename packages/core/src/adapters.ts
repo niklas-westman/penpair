@@ -53,7 +53,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
-  "spec", "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
+  "mcp", "spec", "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
   "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
 ] as const;
 
