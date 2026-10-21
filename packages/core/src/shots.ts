@@ -9,6 +9,7 @@ import { frames } from "./snippets/read.js";
 import { exportShapePng, type ExportOptions, type CaptureIdentity } from "./export.js";
 import { resolveProjectOutput } from "./project-input.js";
 import { atomicWriteFile } from "./atomic-output.js";
+import type { LayoutResult } from "./layout.js";
 import { pngSize } from "./baselines.js";
 import { observationHash } from "./journal.js";
 
@@ -38,7 +39,7 @@ export async function exportShapeByName(client: PenpotToolClient, name: string, 
   return result;
 }
 
-export interface ShotsReport { schemaVersion: 1; complete: boolean; fileId: string; pageId: string; revision: number; captures: { name: string; file: string; sha256: string; capture: CaptureIdentity; width: number; height: number }[]; wrote: string[]; reason?: string }
+export interface ShotsReport { schemaVersion: 1; complete: boolean; fileId: string; pageId: string; revision: number; captures: { name: string; file: string; sha256: string; capture: CaptureIdentity; layout?: LayoutResult; width: number; height: number }[]; wrote: string[]; reason?: string }
 /** Ad-hoc captures use immutable generations, but never carry baseline approval records. */
 export async function captureShots(client: PenpotToolClient, root: string, params: { page: string; prefix?: string; out?: string }, options: ExportOptions & { signal?: AbortSignal } = {}): Promise<ShotsReport> {
   const listing = await runOnPage(client, frames({ page: params.page }), params.page, options);
@@ -57,7 +58,7 @@ export async function captureShots(client: PenpotToolClient, root: string, param
     if (result.capture.fileId !== report.fileId || result.capture.pageId !== report.pageId || result.capture.revision !== report.revision) throw new Error("Shots source changed during capture; no output was published");
     const size = pngSize(result.png);
     if (!size || size.width <= 0 || size.height <= 0) throw new Error("Shot export is missing valid PNG dimensions");
-    report.captures.push({ ...size, name: frame.name, file: `${generation}/shot-${String(index + 1).padStart(4, "0")}.png`, sha256: createHash("sha256").update(result.png).digest("hex"), capture: result.capture });
+    report.captures.push({ layout: result.layout, ...size, name: frame.name, file: `${generation}/shot-${String(index + 1).padStart(4, "0")}.png`, sha256: createHash("sha256").update(result.png).digest("hex"), capture: result.capture });
     images.push(result.png);
   }
   const after = await runOnPage(client, frames({ page: params.page }), params.page, options);

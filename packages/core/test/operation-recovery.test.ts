@@ -10,7 +10,7 @@ import type { PenpotToolClient } from "../src/client.js";
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 it("resumes a registered-style operation from independent observations after a lost acknowledgment", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "penpair-operation-"));
-  const penpot = { currentFile: { id: "file", revn: 1 }, value: 0, writes: 0 };
+  const penpot = { currentPage: { id: "page", root: { id: "root", x:0, y:0, width:0, height:0, children:[] } }, currentFile: { id: "file", revn: 1 }, value: 0, writes: 0 };
   let lost = false;
   const client: PenpotToolClient = {
     async callTool(_name, args) {

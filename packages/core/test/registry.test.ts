@@ -14,6 +14,7 @@ function editor(answer: (code: string) => unknown): PenpotToolClient & { codes: 
     codes,
     async callTool(_name, args) {
       codes.push(String(args.code));
+      if (String(args.code).includes("const geometry = [], stack")) return reply({ok:true,fileId:"file",pageId:"page",native:true,geometry:[["root",0,0,10,10]],truncated:false});
       return reply(answer(String(args.code)));
     },
     async close() {},

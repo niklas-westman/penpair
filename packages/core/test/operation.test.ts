@@ -14,6 +14,10 @@ function editor(script: Record<string, unknown[]>, startsOnWrongPage = false): P
     log,
     async callTool(_name, args) {
       const code = String(args.code);
+      if (code.includes("const geometry = [], stack")) {
+        log.push("layout-state");
+        return reply({ ok: true, fileId: "file", pageId: "page", native: true, geometry: [["root",0,0,10,10]], truncated: false });
+      }
       const name = ["switch-page", "archive-inspect", "archive-apply", "archive-readback"].find((n) => script[n] && matches(code, n)) ?? "unknown";
       log.push(name);
       if (name === "switch-page") { wrong = false; return reply({ ok: true, switched: true }); }
@@ -52,7 +56,7 @@ describe("running an operation", () => {
     const waited: number[] = [];
     const client = editor(script);
     const report = await runOperation(client, archiveOperation, params, { apply: true, settleMs: 7_000, sleep: async (ms) => void waited.push(ms) });
-    expect(client.log).toEqual(["archive-inspect", "archive-apply", "archive-readback"]);
+    expect(client.log).toEqual(["archive-inspect", "archive-apply", "layout-state", "archive-readback"]);
     expect(waited).toContain(7_000);
     expect(report).toMatchObject({ phase: "applied", verified: true, problems: [] });
   });

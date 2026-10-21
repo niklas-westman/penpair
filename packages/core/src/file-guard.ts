@@ -17,7 +17,7 @@ export function guardFile(client: PenpotToolClient, expected: ProjectFile | unde
     ...client,
     close: () => client.close(),
     ...(client.listTools ? { listTools: () => client.listTools!() } : {}),
-    async callTool(name, args) {
+    async callTool(name, args, callOptions) {
       if (name !== "execute_code" || typeof args.code !== "string")
         throw new PenpairError("file-mismatch", "The file guard only permits guarded execute_code calls.");
       const guard = `{ const __penpairExpectedFile = ${JSON.stringify(expected)};
@@ -30,7 +30,7 @@ if (!__penpairActualFile || __penpairActualFile.id !== __penpairExpectedFile.id)
       const code = guard + args.code;
       if (Buffer.byteLength(code, "utf8") > maxSnippetBytes)
         throw new PenpairError("snippet-too-large", "The snippet including its file guard exceeds 90 KB");
-      const outcome = await client.callTool(name, { ...args, code });
+      const outcome = await client.callTool(name, { ...args, code }, callOptions);
       const envelope = executionEnvelope(outcome);
       const result = envelope?.result;
       if (typeof result === "object" && result !== null && "fileMismatch" in result && result.fileMismatch === true)

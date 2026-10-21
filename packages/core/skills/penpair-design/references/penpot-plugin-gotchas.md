@@ -101,7 +101,7 @@ Reported: resizing a non-square path to a square stretched the glyph. Preserve i
 
 ### 2026-10-21 — Layout remains unsettled after a build
 
-Reported: tree/export results stayed unsettled for roughly 10–30 seconds. Use bounded native/fallback layout checks followed by independent stable exports; neither a fixed delay nor one render proves the final state. Default integration is tracked in the settle work.
+Reported: tree/export results stayed unsettled for roughly 10–30 seconds. Use bounded native/fallback layout checks followed by independent stable exports; neither a fixed delay nor one render proves the final state. Default operation/export integration now uses these checks. Delayed token persistence and visual correctness still require independent evidence.
 
 ### 2026-10-21 — Background editor suspension
 

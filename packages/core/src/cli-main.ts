@@ -518,7 +518,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const result = values.name ? await exportShapeByName(client, values.name, values.page!, exportOptions) : await exportShapePng(client, shapeId!, exportOptions);
       if (!result.stable) throw new PenpairError("incomplete-output", "Export did not stabilize; previous output was preserved");
       await atomicWriteFile(out, result.png, { replace: true });
-      output.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, capture: result.capture }, null, 2));
+      output.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, layout: result.layout, capture: result.capture }, null, 2));
     } else if (command === "shots") {
       if (!values.page || rest.length) throw new Error("usage: penpair shots --page <name> [--prefix <prefix>] [--out design/shots]");
       const report = await captureShots(client, root, { page: values.page, prefix: values.prefix, out: values.out }, { ...options, scale: values.scale ? Number(values.scale) : 1 });

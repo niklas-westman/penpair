@@ -42,7 +42,7 @@ The `Scratch Penpot compatibility smoke` workflow is manual-dispatch only. Confi
 
 Library helpers accept the project's guarded client:
 
-- `waitForStableLayout(client, { shapeId, timeoutMs })`: prefers supported native completion; otherwise polls geometry. Native failure, target changes, incomplete samples and timeout cannot pass. Geometry stability does not establish token/font/pixel correctness; independent readback and stable exports remain necessary. Integration into default write/export settling is tracked by B4.
+- `waitForStableLayout(client, { shapeId, timeoutMs })`: prefers supported native completion; otherwise polls geometry. Native failure, target changes, incomplete samples and timeout cannot pass. Geometry stability does not establish token/font/pixel correctness; independent readback and stable exports remain necessary. Default operation/export and token verification paths now use this helper; see [layout settling](layout-settling.md). Live behavior on pinned versions remains unverified.
 - `validateFileIntegrity(client)`: distinguishes unsupported from a valid empty issue list or actual referential-integrity problems.
 - `createCheckpoint(client, { label, runId }, { apply })`: optional native version history. Without apply it inspects; with apply it saves a run-keyed named version once and independently finds it again. Reusing that run ID reuses an existing checkpoint; it does not provide atomic cross-client locking. No automatic restore/rollback is performed.
 
@@ -72,4 +72,4 @@ Scope: hosted Penpot 2.18.4, as reported in the design-build brief. These report
 | Layout/export takes roughly 10–30 seconds to settle | Bounded layout evidence plus independent stable exports; no fixed-delay proof. |
 | Hidden editor loses heartbeat, observed after 6–8 minutes | Keep a separate visible editor window; retry only declared reads and inspect uncertain writes. |
 
-The existing doctor remedy already says to keep the tab visible. Its text now also suggests a separate window; it does not predict the browser's suspension deadline. Recipe enforcement will be delivered with the kit, and default layout integration with the settle item. The documentation does not imply those later items are implemented.
+The existing doctor remedy already says to keep the tab visible. Its text now also suggests a separate window; it does not predict the browser's suspension deadline. Recipe enforcement will be delivered with the kit. Native/fallback layout behavior on live pinned versions remains to be checked. The documentation does not imply those later items are implemented.

@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
+import { waitForStableLayout } from "../src/layout.js";
+import { guardFile } from "../src/file-guard.js";
 import { collectCommand, CommandInterruptedError } from "../src/command-result.js";
 import { connect, executeCode, type PenpotToolClient } from "../src/client.js";
 
@@ -54,6 +56,13 @@ describe("real HTTP MCP connection path", () => {
       expect(result).toMatchObject({ outcome: effect === "write" ? "uncertain" : "deadline", exitCode: effect === "write" ? 4 : 124 });
       expect(fake.calls()).toBe(1);
     } finally { clearTimeout(timer); }
+  });
+
+  it("propagates a layout request budget through the file guard into the SDK", async () => {
+    const fake = await server(() => noReply);
+    const client = guardFile(await connected(fake.endpoint), { id: "file" });
+    expect(await waitForStableLayout(client, { timeoutMs: 100 })).toMatchObject({ stable: false, method: "unavailable", samples: 0 });
+    expect(fake.calls()).toBe(1);
   });
 
   it("accepts structured executor envelopes through the SDK", async () => {

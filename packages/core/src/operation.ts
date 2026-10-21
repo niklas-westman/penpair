@@ -1,3 +1,4 @@
+import { waitForStableLayout, type LayoutOptions, type LayoutResult } from "./layout.js";
 import { commandSleep } from "./command-result.js";
 import type { ExecuteOptions, PenpotToolClient } from "./client.js";
 import { runSnippet, type Snippet, type SnippetResult } from "./snippet.js";
@@ -26,6 +27,8 @@ export interface Operation<P> {
 }
 
 export interface OperationOptions extends ExecuteOptions {
+  /** Explicit opt-out is for callers that provide their own settling evidence. */
+  layout?: false | LayoutOptions;
   journal?: Omit<JournalOptions, "operation" | "input" | "target">;
   /** Without it only the read-only inspect runs. */
   apply?: boolean;
@@ -35,6 +38,7 @@ export interface OperationOptions extends ExecuteOptions {
 }
 
 export interface OperationReport {
+  layout?: LayoutResult;
   journal?: { runId: string; state: string };
   outcome: "inspected" | "verified" | "failed";
   operation: string;
@@ -71,8 +75,9 @@ export async function runOperation<P>(
   params: P,
   options: OperationOptions = {},
 ): Promise<OperationReport> {
+  if (options.settleMs !== undefined && (!Number.isFinite(options.settleMs) || options.settleMs < 0 || options.settleMs > 30000)) throw new Error("Minimum settle delay must be from 0 to 30000 ms");
   if (options.apply && options.journal) return journaledOperation(client, operation, params, options);
-  const { settleMs = 10_000, sleep = defaultSleep, onStep } = options;
+  const { settleMs = 0, sleep = defaultSleep, onStep } = options;
   const page = operation.page(params);
   onStep?.(`${operation.name}: inspecting`);
   const inspect = await runOnPage(client, operation.inspect(params), page, { ...options, effect: "read" });
@@ -81,17 +86,18 @@ export async function runOperation<P>(
   onStep?.(`${operation.name}: writing once`);
   const apply = await runOnPage(client, operation.apply(params, inspect), page, { ...options, effect: "write" });
   if (apply.ok !== true) throw new UncertainExecutionError(String((apply.execution as { runId?: string } | undefined)?.runId ?? "unknown"), `${operation.name}: apply returned no explicit acknowledgment`);
-  onStep?.(`${operation.name}: waiting ${Math.round(settleMs / 1000)} s before reading back`);
-  await sleep(settleMs);
+  if (settleMs > 0) await sleep(settleMs);
+  let layout: LayoutResult | undefined;
   let readback: SnippetResult | undefined;
   let problems: string[];
   try {
+    layout = await settleOperation(client, options);
     readback = await runOnPage(client, operation.readback(params), page, { ...options, effect: "read" });
     problems = verificationProblems(operation, { inspect, apply, readback });
   } catch (error) {
     problems = [`Independent verification failed: ${error instanceof Error ? error.message : String(error)}`];
   }
-  return { operation: operation.name, phase: "applied", outcome: problems.length === 0 ? "verified" : "failed", inspect, apply, readback, problems, verified: problems.length === 0 };
+  return { layout, operation: operation.name, phase: "applied", outcome: problems.length === 0 ? "verified" : "failed", inspect, apply, readback, problems, verified: problems.length === 0 };
 }
 
 function verificationProblems<P>(operation: Operation<P>, results: { inspect: SnippetResult; apply: SnippetResult; readback: SnippetResult }): string[] {
@@ -103,25 +109,36 @@ function verificationProblems<P>(operation: Operation<P>, results: { inspect: Sn
   return Array.isArray(result) && result.every((problem) => typeof problem === "string") ? result : ["Verifier must return a list of problems"];
 }
 
+async function settleOperation(client: PenpotToolClient, options: OperationOptions): Promise<LayoutResult | undefined> {
+  if (options.layout === false) return undefined;
+  options.onStep?.("waiting for bounded layout completion");
+  const layout = await waitForStableLayout(client, { sleep: options.sleep, ...options.layout });
+  if (!layout.stable) throw new PenpairError("incomplete-output", `Layout did not settle: ${layout.reason ?? "unknown reason"}`);
+  return layout;
+}
+
 async function journaledOperation<P>(client: PenpotToolClient, operation: Operation<P>, params: P, options: OperationOptions): Promise<OperationReport> {
+  const page = operation.page(params);
+  await runOnPage(client, operation.inspect(params), page, { ...options, effect: "read" });
+  await settleOperation(client, options);
   const initialTarget = await readJournalTarget(client);
   const guarded = guardFile(client, { id: initialTarget.fileId });
-  const page = operation.page(params);
   const observe = async () => {
     const inspection = await runOnPage(guarded, operation.inspect(params), page, { ...options, effect: "read" });
+    const layout = await settleOperation(guarded, options);
     const readback = await runOnPage(guarded, operation.readback(params), page, { ...options, effect: "read" });
     if (inspection.ok !== true || readback.ok !== true) throw new Error("Operation inspection/readback did not acknowledge its observations");
-    return { inspection, readback };
+    return { inspection, readback, layout };
   };
   type Observation = Awaited<ReturnType<typeof observe>>;
   const verify = (current: Observation, before: Observation, result?: unknown) => verificationProblems(operation, { inspect: before.inspection, apply: result as SnippetResult ?? { ok: true, reconciled: true }, readback: current.readback }).length === 0;
   const record = await runJournaledSteps([{ key: "apply", label: operation.name,
-    signature: [operation.inspect(params).code, operation.apply(params).code, operation.readback(params).code, operation.verify.toString(), operation.reconcile?.toString()].join("\n"),
+    signature: [operation.inspect(params).code, operation.apply(params).code, operation.readback(params).code, operation.verify.toString(), operation.reconcile?.toString(), settleOperation.toString(), waitForStableLayout.toString()].join("\n"),
     inspect: observe,
     apply: async (current, target) => {
       const result = await runOnPage(guardRevision(guarded, target), operation.apply(params, current.inspection), page, { ...options, effect: "write" });
       if (result.ok !== true) throw new Error("Apply returned no explicit acknowledgment");
-      await (options.sleep ?? defaultSleep)(options.settleMs ?? 10_000);
+      await (options.sleep ?? defaultSleep)(options.settleMs ?? 0);
       return result;
     }, verify,
     reconcile: (before, current, result) => {
@@ -129,9 +146,9 @@ async function journaledOperation<P>(client: PenpotToolClient, operation: Operat
       if (operation.reconcile) return operation.reconcile({ before: before.inspection, current: current.inspection, readback: current.readback });
       return observationHash(before.inspection, true) === observationHash(current.inspection, true) ? "pending" : "conflict";
     },
-  }], { ...options.journal!, coordinate: writeCoordinator(guarded, { root: options.journal!.root, operation: operation.name, forceLock: options.journal!.forceLock, warn: options.onStep }), operation: operation.name, input: params, payload: { params }, target: () => readJournalTarget(guarded), onStep: options.onStep ?? options.journal!.onStep, redact: options.redact ?? options.journal!.redact });
+  }], { ...options.journal!, coordinate: writeCoordinator(guarded, { root: options.journal!.root, operation: operation.name, forceLock: options.journal!.forceLock, warn: options.onStep }), operation: operation.name, input: { params, layout: options.layout ?? {}, minimumWaitMs: options.settleMs ?? 0 }, payload: { params }, target: () => readJournalTarget(guarded), onStep: options.onStep ?? options.journal!.onStep, redact: options.redact ?? options.journal!.redact });
   const saved = record.steps[0]!;
-  return { operation: operation.name, phase: "applied", outcome: "verified", inspect: (saved.before as Observation).inspection, apply: saved.result as SnippetResult | undefined, readback: (saved.after as Observation).readback, problems: [], verified: true, journal: { runId: record.runId, state: record.state } };
+  return { layout: (saved.after as Observation).layout, operation: operation.name, phase: "applied", outcome: "verified", inspect: (saved.before as Observation).inspection, apply: saved.result as SnippetResult | undefined, readback: (saved.after as Observation).readback, problems: [], verified: true, journal: { runId: record.runId, state: record.state } };
 }
 
 /** Nests the frames that are not part of the live work into one archive board. Frames keep their names, ids and component links. */

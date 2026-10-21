@@ -133,3 +133,5 @@ Adapters, snippet definitions and theme files execute trusted project code. Buil
 Use `skills install --agents AGENTS.md --dry-run` to preview owned-marker instruction integration, then repeat without dry-run. Default destination selection and conflicting instruction files are explained in [skill installation](skill-installation.md).
 
 Use `export --name <exact-name> --page <page> <out.png>` when a rebuild changed IDs, or `shots --page <page> --prefix <prefix>` for ad-hoc captures without baseline approval. See [named exports and shots](shots.md).
+
+Normal operations and captures now use [bounded layout settling](layout-settling.md). Layout evidence, independent postcondition checks, stable renders and visual approval remain distinct.

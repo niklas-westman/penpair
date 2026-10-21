@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Bounded layout settling:** operation verification, recovery, exports and token pushes now prefer native completion or bounded geometry polling instead of an unconditional ten-second sleep. Request budgets propagate through guards to the SDK; malformed/late/timeout samples cannot pass. Two matching exports and independent postconditions remain required, and reports retain measured layout evidence.
+
 - **Named exports and shots:** exact page-scoped shape lookup refuses ambiguous names, incomplete search and stale lookup/capture identity. Ad-hoc shots reuse stable exports, publish complete immutable generations and carry capture provenance without approving baselines. CLI option typos gain explanatory hints without automatic reinterpretation.
 
 - **Instruction integration:** skills install/setup can target `--agents <path>`. The installer owns only marked skills rows, preserves other instructions, refuses malformed markers and ambiguous default files, and exposes resolved paths. `skills install --dry-run` previews all files/links and the instruction diff without writes. Local output paths reject symlink escapes and dangling links; repeated installs remain idempotent.

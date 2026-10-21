@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **14 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **15 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: B4 — integrate bounded layout settling into operations and exports** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I8 — structured, complete inspection with bounded payloads and revision-bound cursors** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -575,7 +575,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run. Completed 2026-10-21; [resolution report](#b5-completion-2026-10-21).
 - [x] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview. Completed 2026-10-21; [resolution report](#e2-completion-2026-10-21).
 - [x] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots. Completed 2026-10-21; [resolution report](#b3-completion-2026-10-21).
-- [ ] **B4 · P1 · M** — Settle with bounded native/fallback checks and independent exports.
+- [x] **B4 · P1 · M** — Settle with bounded native/fallback checks and independent exports. Completed 2026-10-21; [resolution report](#b4-completion-2026-10-21).
 
 ### Gate 3 — make one repeatable design-to-code path work
 
@@ -830,6 +830,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live named-export/shot trial. Name search is bounded at 10000 nodes and shots at 100 selected frames; narrow the scope rather than treating partial output as complete. Captures establish technical stability/provenance, not visual approval or font correctness. Interrupted publication may leave an unreferenced generation; old referenced generations remain intact.
 - **Next:** B4 — integrate bounded layout settling into operations and exports
 
+
+<a id="b4-completion-2026-10-21"></a>
+### 2026-10-21 — B4: Bounded layout settling in normal write and capture paths
+
+- **Resolved:** Normal operations no longer treat an unconditional sleep as layout proof, and export/recovery cannot silently accept moving, malformed, late or timed-out geometry.
+- **Changed:** Integrated capability-driven native/fallback layout checks into operation verification/recovery, exports, captures and token pushes. Journals settle before planning and on reconciliation; measured layout evidence appears in reports/artifact provenance. Layout observations forward remaining per-request budgets through guards to the SDK without suspension retries. Removed the default ten-second operation sleep while retaining an explicit bounded minimum for measured asynchronous contracts. Stable renders and positive readback remain separate.
+- **Validated:** pnpm check passes: 417 tests (329 core, 60 adapter, 28 Docker). Actual plugin-source tests cover changing geometry, native/fallback completion, malformed/late samples, failed verification, stable-render checks after settlement and post-write recovery without duplication. A real stalled HTTP request proves timeout propagation through the file guard. Adapter post-batch settlement failure resumes safely. pnpm smoke:package and git diff --check pass.
+- **Risks:** No live pinned-version settling trial. Native/geometry completion does not establish token persistence, font correctness or visual approval; delayed bindings can still fail positive readback and require explicit recovery or a measured minimum delay. Custom clients must honor request budgets. Explicit library opt-out requires the caller's own evidence. Build-kit reuse remains B2; no new live compatibility claim or transactional guarantee.
+- **Next:** I8 — structured, complete inspection with bounded payloads and revision-bound cursors
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -864,3 +874,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — E2 completed:** Owned-marker instruction integration and preview. Progress 13/40; next B3 — unambiguous named exports, ad-hoc shots and option hints.
 
 - **2026-10-21 — B3 completed:** Exact-name exports and complete ad-hoc shots. Progress 14/40; next B4 — integrate bounded layout settling into operations and exports.
+
+- **2026-10-21 — B4 completed:** Bounded layout settling in normal write and capture paths. Progress 15/40; next I8 — structured, complete inspection with bounded payloads and revision-bound cursors.

@@ -16,6 +16,22 @@ async function setup() {
 }
 
 describe("token push recovery through actual plugin snippets", () => {
+  it("keeps post-batch layout failure recoverable and verifies layout on resume", async () => {
+    const { snapshot, penpot, plan, options } = await setup();
+    const original = penpot.client.callTool.bind(penpot.client);
+    let interrupted = true, wrote = false;
+    penpot.client.callTool = async (name, args) => {
+      const code = String(args.code);
+      if (wrote && interrupted && code.includes("const geometry = [], stack")) return {text:JSON.stringify({result:{ok:true,fileId:"fixture-file",pageId:"fixture-page",native:true,error:"layout timeout"},log:""}),isError:false};
+      const result = await original(name, args);
+      if (code.includes("set.addToken")) wrote = true;
+      return result;
+    };
+    await expect(applyPlan(penpot.client, snapshot, plan, undefined, options)).rejects.toMatchObject({outcome:"uncertain"});
+    interrupted = false;
+    expect(await applyPlan(penpot.client, snapshot, [], undefined, {journal:{...options.journal,resume:true}})).toMatchObject({verified:true,layout:{stable:true}});
+    for (const set of penpot.sets) expect(new Set(set.tokens.map((token)=>token.name)).size).toBe(set.tokens.length);
+  });
   it("refuses a stale CLI plan and a source edit immediately before mutation", async () => {
     const { snapshot, penpot, plan, options } = await setup();
     const stale = { sets: [], themes: [{ group: "changed", name: "changed", active: false, sets: [] }] };

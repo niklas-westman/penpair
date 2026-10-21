@@ -144,7 +144,11 @@ class FakeTheme {
 export function fakePenpot(shapes: FakeShape[] = []): FakePenpot {
   const reject = new Set<string>();
   const state: Pick<FakePenpot, "sets" | "themes" | "shapes" | "calls"> = { sets: [], themes: [], shapes, calls: [] };
+  const root = { id: "fixture-root", x: 0, y: 0, width: 0, height: 0, children: shapes };
+  const page = { id: "fixture-page", name: "Page 1", root };
   const penpot = {
+    currentPage: page,
+    waitForLayoutUpdate: async () => undefined,
     library: {
       local: {
         tokens: {
@@ -167,7 +171,7 @@ export function fakePenpot(shapes: FakeShape[] = []): FakePenpot {
         },
       },
     },
-    currentFile: { id: "fixture-file", revn: 1, pages: [{ name: "Page 1", root: { children: shapes } }] },
+    currentFile: { id: "fixture-file", revn: 1, pages: [page] },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (...args: string[]) => (penpot: unknown) => Promise<unknown>;
   const client: PenpotToolClient = {

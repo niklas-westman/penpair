@@ -1,3 +1,5 @@
+import { waitForStableLayout, type LayoutResult } from "./layout.js";
+import { PenpairError } from "./errors.js";
 import { commandSleep } from "./command-result.js";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
@@ -21,6 +23,7 @@ export interface CaptureIdentity {
   scale: number; penpotApiVersion: string | null; renderEnvironment: string | null; activeThemes: string[];
 }
 export interface ExportResult {
+  layout?: LayoutResult;
   capture: CaptureIdentity;
   png: Buffer;
   /** Whether two consecutive exports were byte-identical. Always false when `stable` is off. */
@@ -72,14 +75,19 @@ export async function exportShapePng(client: PenpotToolClient, shapeId: string, 
     }
   };
   let previous = await once();
-  if (!stable) return { ...previous, stable: false, exports: 1 };
+  let layout: LayoutResult | undefined;
+  if (options.layout !== false) {
+    layout = await waitForStableLayout(client, { shapeId, sleep, ...options.layout });
+    if (!layout.stable) throw new PenpairError("incomplete-output", `Layout did not settle before export: ${layout.reason ?? "unknown reason"}`);
+  }
+  if (!stable) return { layout, ...previous, stable: false, exports: 1 };
   const hash = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
   for (let count = 2; count <= maxExports; count++) {
     await sleep(2_000);
     const next = await once();
     if (JSON.stringify(next.capture) !== JSON.stringify(previous.capture)) throw new Error("Export identity, revision or render environment changed between captures");
-    if (hash(next.png) === hash(previous.png)) return { ...next, stable: true, exports: count };
+    if (hash(next.png) === hash(previous.png)) return { layout, ...next, stable: true, exports: count };
     previous = next;
   }
-  return { ...previous, stable: false, exports: maxExports };
+  return { layout, ...previous, stable: false, exports: maxExports };
 }

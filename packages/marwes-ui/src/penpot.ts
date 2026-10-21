@@ -1,4 +1,4 @@
-import { guardRevision, writeCoordinator, runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
+import { waitForStableLayout, type LayoutOptions, type LayoutResult, guardRevision, writeCoordinator, runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
 import { canonical, normalizeValue, type PenpotToken, type PenpotTokenSet, type TokenSnapshot } from "./tokens.js";
 import { actionSatisfied, reconcileAction, remainingAction } from "./reconciliation.js";
 
@@ -292,6 +292,7 @@ return { ok: true, active: !!theme[0].active };`, { group: action.group, name: a
 }
 
 export interface ApplyReport {
+  layout?: LayoutResult;
   journal?: { runId: string; state: string };
   steps: string[];
   structureBefore: { count: number; hash: string };
@@ -327,8 +328,15 @@ export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
  * Carries out the plan one write at a time, stopping at the first anomaly, then reads everything back: the file must now match the
  * expectation, and no shape may have moved or been rebound.
  */
-export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { prune?: boolean; expectedLive?: LiveTokens; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
+export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { layout?: false | LayoutOptions; prune?: boolean; expectedLive?: LiveTokens; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
   if (options.journal) client = guardFile(client, { id: (await readJournalTarget(client)).fileId });
+  let layout: LayoutResult | undefined;
+  const settle = async () => {
+    if (options.layout === false) return;
+    layout = await waitForStableLayout(client, options.layout);
+    if (!layout.stable) throw new Error(`Layout did not settle during token verification: ${layout.reason ?? "unknown reason"}`);
+  };
+  await settle();
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
     const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
     if (r.ok !== true || !Number.isInteger(r.count) || Number(r.count) < 0 || typeof r.hash !== "string" || !r.hash)
@@ -353,9 +361,9 @@ export async function applyPlan(client: PenpotToolClient, expected: TokenSnapsho
     if (!options.journal.resume && options.expectedLive && observationHash(options.expectedLive) !== observationHash(baseline.live)) throw new Error("Token source changed since the CLI plan; inspect again before writing");
     const work = actions.flatMap<Action>((action) => "tokens" in action ? inBatches(action.tokens).map((tokens) => ({ ...action, tokens })) : [action]);
     const record = await runJournaledSteps(work.map<JournalStep<typeof baseline>>((action, index) => ({
-      key: `step-${index}-${observationHash(action).slice(0, 12)}`, label: describeAction(action), signature: [actionSnippet(action, "tokens" in action ? action.tokens : undefined).code, actionSatisfied.toString(), reconcileAction.toString(), remainingAction.toString()].join("\n"),
+      key: `step-${index}-${observationHash(action).slice(0, 12)}`, label: describeAction(action), signature: [actionSnippet(action, "tokens" in action ? action.tokens : undefined).code, actionSatisfied.toString(), reconcileAction.toString(), remainingAction.toString(), waitForStableLayout.toString()].join("\n"),
       initial: baseline,
-      inspect: async () => ({ live: await readLive(guarded), structure: await fingerprint() }),
+      inspect: async () => { await settle(); return { live: await readLive(guarded), structure: await fingerprint() }; },
       apply: async (current, target) => {
         const residual = remainingAction(action, current.live);
         if (!residual) return { ok: true, reconciled: true };
@@ -366,12 +374,13 @@ if (JSON.stringify({sets:observed.sets, themes:observed.themes}) !== ${JSON.stri
       },
       verify: (current) => current.structure.hash === originalStructure.hash && actionSatisfied(action, current.live),
       reconcile: (before, current) => current.structure.hash !== originalStructure.hash ? "conflict" : reconcileAction(action, before.live, current.live),
-    })), { ...options.journal, coordinate: writeCoordinator(guarded, { root: options.journal.root, operation: "tokens-push", forceLock: options.journal.forceLock, warn: onStep }), operation: "tokens-push", input: { snapshot: observationHash(expected), prune: options.prune === true }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
-      finalVerify: async () => compareToPenpot(expected, await readLive(guarded)).inSync && (await fingerprint()).hash === originalStructure.hash,
+    })), { ...options.journal, coordinate: writeCoordinator(guarded, { root: options.journal.root, operation: "tokens-push", forceLock: options.journal.forceLock, warn: onStep }), operation: "tokens-push", input: { snapshot: observationHash(expected), prune: options.prune === true, layout: options.layout ?? {} }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
+      finalVerify: async () => { await settle(); return compareToPenpot(expected, await readLive(guarded)).inSync && (await fingerprint()).hash === originalStructure.hash; },
     });
+    await settle();
     const structureAfter = await fingerprint();
     const drift = compareToPenpot(expected, await readLive(guarded));
-    return { steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, verified: drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
+    return { layout, steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, verified: drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
   }
   const steps: string[] = [];
   for (const action of actions) {
@@ -385,9 +394,10 @@ if (JSON.stringify({sets:observed.sets, themes:observed.themes}) !== ${JSON.stri
       steps.push(message);
     }
   }
+  await settle();
   const structureAfter = await fingerprint();
   const drift = compareToPenpot(expected, await readLive(client));
-  return { steps, structureBefore, structureAfter, structureUnchanged: structureBefore.hash === structureAfter.hash, drift, verified: drift.inSync && structureBefore.hash === structureAfter.hash };
+  return { layout, steps, structureBefore, structureAfter, structureUnchanged: structureBefore.hash === structureAfter.hash, drift, verified: drift.inSync && structureBefore.hash === structureAfter.hash };
 }
 
 /** The use count of every token a drift would change, so a bump can be judged by what it reaches. */

@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { PenpotToolClient } from "./client.js";
 import type { BaselinesConfig } from "./baselines-config.js";
+import type { LayoutResult } from "./layout.js";
 import { version } from "./version.js";
 import { atomicWriteFile } from "./atomic-output.js";
 import { observationHash } from "./journal.js";
@@ -24,7 +25,7 @@ export type BaselineStatus =
   /** The page has no top-level frame with that name. */
   | "missing";
 
-export interface ArtifactProvenance extends CaptureIdentity { sha256: string; capturedAt: string; toolVersion: string; file: string }
+export interface ArtifactProvenance extends CaptureIdentity { layout?: LayoutResult; sha256: string; capturedAt: string; toolVersion: string; file: string }
 export interface BaselineResult {
   captured?: ArtifactProvenance;
   approved?: ArtifactProvenance | { legacy: true; sha256: string };
@@ -117,7 +118,7 @@ export async function exportBaselines(client: PenpotToolClient, projectRoot: str
     if (!pngSize(exported.png)) throw new Error("Baseline export is not a PNG with dimensions");
     const existing = await readIfExists(path.join(folder, file));
     if (old && (!existing || old.sha256 !== sha(existing) || old.approved && old.approved.sha256 !== old.sha256)) throw new Error("Approved baseline bytes no longer match their manifest; inspect before replacing");
-    const captured: ArtifactProvenance = { ...exported.capture, sha256: sha(exported.png), capturedAt: new Date().toISOString(), toolVersion: version, file: `${generation}/${wanted.id}.png` };
+    const captured: ArtifactProvenance = { layout: exported.layout, ...exported.capture, sha256: sha(exported.png), capturedAt: new Date().toISOString(), toolVersion: version, file: `${generation}/${wanted.id}.png` };
     const status: BaselineStatus = !existing ? "new" : sha(existing) === captured.sha256 ? "same" : "changed";
     const approve = status === "new" || status === "changed" && options.update === true;
     const approved = approve ? captured : old?.approved ?? { legacy: true as const, sha256: sha(existing!) };

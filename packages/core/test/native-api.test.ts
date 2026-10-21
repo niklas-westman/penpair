@@ -27,6 +27,13 @@ describe("native layout with older-API fallback", () => {
     expect(await waitForStableLayout(f.client)).toMatchObject({ stable: true, method: "native", samples: 1 });
     expect(waits).toBe(1);
   });
+  it("does not accept malformed geometry or a late native completion", async () => {
+    const malformed: PenpotToolClient = { async callTool() { return { text: JSON.stringify({result:{ok:true,fileId:"file",pageId:"page",native:true,truncated:false,geometry:[["root",0,null,10,10]]},log:""}),isError:false}; }, async close(){} };
+    await expect(waitForStableLayout(malformed)).rejects.toThrow(/no geometry evidence/);
+    const late = fixture();
+    Object.assign(late.penpot, { waitForLayoutUpdate: async () => new Promise((resolve) => setTimeout(resolve, 10)) });
+    expect(await waitForStableLayout(late.client, { timeoutMs: 1 })).toMatchObject({stable:false,method:"native",reason:expect.stringContaining("deadline")});
+  });
   it("polls geometry until an old API settles", async () => {
     const f = fixture((n) => { f.shape.width = n < 3 ? n * 10 : 30; });
     expect(await waitForStableLayout(f.client, { sleep: noSleep })).toMatchObject({ stable: true, method: "geometry", samples: 4 });
@@ -38,7 +45,9 @@ describe("native layout with older-API fallback", () => {
   });
   it("stops bounded geometry polling when every read changes", async () => {
     const f = fixture((n) => { f.shape.width = n; });
-    expect(await waitForStableLayout(f.client, { timeoutMs: 10, intervalMs: 2, sleep: noSleep })).toMatchObject({ stable: false, method: "geometry", samples: 6 });
+    const result = await waitForStableLayout(f.client, { timeoutMs: 100, intervalMs: 20, sleep: noSleep });
+    expect(result).toMatchObject({ stable: false, method: "geometry" });
+    expect(result.samples).toBeLessThanOrEqual(6);
   });
   it("rejects a missing target and a target change between samples", async () => {
     const missing = fixture();

@@ -12,7 +12,7 @@ function sequence(results: unknown[]) {
   };
   return { client, count: () => calls };
 }
-const fast = { apply: true, settleMs: 0, sleep: async () => undefined };
+const fast = { layout: false as const, apply: true, settleMs: 0, sleep: async () => undefined };
 const operation: Operation<undefined> = {
   name: "fixture", page: () => undefined,
   inspect: () => snippet("inspect", "return { ok: true };"),

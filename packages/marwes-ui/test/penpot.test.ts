@@ -11,7 +11,7 @@ describe("independent token verification evidence", () => {
     await expect(readLive(missing)).rejects.toThrow(/not verified/);
   });
   it("rejects a missing structure fingerprint before any planned write", async () => {
-    await expect(applyPlan(missing, await expected(), [])).rejects.toThrow(/count and hash/);
+    await expect(applyPlan(missing, await expected(), [], undefined, { layout: false })).rejects.toThrow(/count and hash/);
   });
 });
 
