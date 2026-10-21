@@ -1,10 +1,14 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { atomicWriteFile, resolveProjectInput, resolveProjectOutput } from "@penpair/core";
 import { canonical, type PenpotToken, type TokenSnapshot } from "./tokens.js";
 
 export async function readSnapshot(root: string, file: string): Promise<TokenSnapshot | undefined> {
   try {
-    return JSON.parse(await readFile(path.join(root, file), "utf8")) as TokenSnapshot;
+    const snapshot = JSON.parse(await readFile(await resolveProjectInput(root, file), "utf8")) as TokenSnapshot;
+    if (![1, 2].includes(snapshot.schemaVersion) || !Array.isArray(snapshot.sets) || !Array.isArray(snapshot.themes) || typeof snapshot.hash !== "string" || typeof snapshot.project !== "string") throw new Error("Unsupported or malformed snapshot; regenerate with tokens snapshot --write");
+    if (snapshot.schemaVersion === 2 && (!snapshot.ownership || Object.keys(snapshot.ownership).length !== snapshot.sets.length || snapshot.sets.some(set => !["adapter", "project"].includes(snapshot.ownership?.[set.name] ?? "")))) throw new Error("Invalid schema-2 set ownership");
+    return snapshot;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw new Error(`${file} is not a readable snapshot: ${String((error as Error).message)}`);
@@ -12,9 +16,9 @@ export async function readSnapshot(root: string, file: string): Promise<TokenSna
 }
 
 export async function writeSnapshot(root: string, file: string, snapshot: TokenSnapshot): Promise<void> {
-  const target = path.join(root, file);
+  const target = await resolveProjectOutput(root, file);
   await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, `${JSON.stringify(snapshot, null, 2)}\n`);
+  await atomicWriteFile(target, `${JSON.stringify(snapshot, null, 2)}\n`, { replace: true });
 }
 
 export interface TokenChange {

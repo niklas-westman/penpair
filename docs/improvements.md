@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **16 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **17 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: C2 — project-owned extra sets and guarded token CRUD** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I6 — ownership conflicts and reference-aware destructive plans** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -580,7 +580,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 ### Gate 3 — make one repeatable design-to-code path work
 
 - [x] **I8 · P1 · M** — Add structured, complete inspection with bounded payloads. Completed 2026-10-21; [resolution report](#i8-completion-2026-10-21).
-- [ ] **C2 · P1 · M** — Manage project-owned extra sets and safe token CRUD.
+- [x] **C2 · P1 · M** — Manage project-owned extra sets and safe token CRUD. Completed 2026-10-21; [resolution report](#c2-completion-2026-10-21).
 - [ ] **I6 · P1 · M** — Add explicit ownership, conflicts and reference-aware destructive plans.
 - [ ] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably.
 - [ ] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol.
@@ -850,6 +850,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No new live pinned-version trial. Projection includes explicit unknowns, including mixed text ranges. Chunking recomputes source; the content fingerprint is noncryptographic and final SHA-256 is integrity evidence, not authentication. Live latency remains unmeasured.
 - **Next:** C2 — project-owned extra sets and guarded token CRUD
 
+
+<a id="c2-completion-2026-10-21"></a>
+### 2026-10-21 — C2: Declared project extras and guarded token editing
+
+- **Resolved:** Project token sets can be recreated from config and participate in snapshot/check/diff/push; one-off token edits use the same guarded write and recovery contract.
+- **Changed:** Added neutral add-set/set/remove/promote operations, source rechecks, conservative reference/binding refusal and independent state verification. Promotion copies without deleting its source. Added validated marwes.extras, schema-2 ownership maps, legacy snapshot review support and atomic publication. Component-derived constants remain assigned to C1 measured fixtures rather than invented here.
+- **Validated:** pnpm check passed: 450 tests (359 core, 63 adapter, 28 Docker), build/typecheck/version guards. Package smoke and diff whitespace checks passed. Simulated writes cover idempotency, source changes, lost acknowledgment recovery, rejected operations, ignored writes and extra-set drift.
+- **Risks:** No live mutation trial. Large complete preconditions can refuse the 90 KB request guard safely. One-off edits do not update declarations; ownership conflict reconciliation is I6 and actual theme precedence is C3. C1 must supply measured component constants.
+- **Next:** I6 — ownership conflicts and reference-aware destructive plans
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -888,3 +898,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — B4 completed:** Bounded layout settling in normal write and capture paths. Progress 15/40; next I8 — structured, complete inspection with bounded payloads and revision-bound cursors.
 
 - **2026-10-21 — I8 completed:** Structured inspection and measured transfer budgets. Progress 16/40; next C2 — project-owned extra sets and guarded token CRUD.
+
+- **2026-10-21 — C2 completed:** Declared project extras and guarded token editing. Progress 17/40; next I6 — ownership conflicts and reference-aware destructive plans.

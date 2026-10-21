@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Project token sets and CRUD:** neutral inspect/apply/readback commands for inactive set creation, same-type token upsert, reference-aware removal and conflict-free promotion copies. Source rechecks, journals and independent complete readback share the write protocol. The token adapter includes declared project extras in both modes; schema-2 snapshots record ownership and retain version-1 review support.
+
 - **Structured inspection:** selected-frame full text, hierarchy, layout, bindings and provenance with explicit unknowns; bounded Unicode-safe transfers, stale-cursor rejection and measured request/response budgets. Typed token dumps preserve composites; tree/audit previews expose truncation and totals. Incomplete or credential-redacted captures refuse artifact publication. See `docs/inspection.md` for versioned formats and legacy token migration.
 
 - **Bounded layout settling:** operation verification, recovery, exports and token pushes now prefer native completion or bounded geometry polling instead of an unconditional ten-second sleep. Request budgets propagate through guards to the SDK; malformed/late/timeout samples cannot pass. Two matching exports and independent postconditions remain required, and reports retain measured layout evidence.

@@ -30,6 +30,7 @@ export async function computeExpectation(root: string, rawConfig: Record<string,
     core: installed.core,
     version: installed.version,
     name: settings.name,
+    extras: settings.extras,
     project: { ...(light ? { light: light.input } : {}), ...(dark ? { dark: dark.input } : {}) },
     generatedBy: `@penpair/marwes-ui@${adapterVersion}`,
   });

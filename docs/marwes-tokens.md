@@ -117,3 +117,22 @@ penpair marwes tokens push --apply                # bring Penpot along; it reads
 Everything Marwes resolves for a theme becomes a token: colours, density sizes, the two radii, the three font families and the typography styles, plus the spacing scale. A variable that is not (today: `--mw-density-spacing-multiplier`, a multiplier) is listed in the snapshot's `unmapped` field and in `snapshot` output, so the gap is visible and a change to it is noticed.
 
 Not covered yet: Marwes **components** in Penpot. Tokens come first; components are built as pages need them.
+
+## Project-owned extra sets and snapshot migration
+
+Declare extra sets under `marwes.extras` in `penpair.config.json`. They join the generated expectation and participate in snapshot/check/diff/push. Each extra is appended after the mode overlays in both themes, in declaration order:
+
+```json
+"extras": [{
+  "name": "Acme · Page",
+  "tokens": [{ "name": "page-card-radius", "type": "borderRadius", "value": "{mw-ui-radius} * 2", "description": "Project card radius" }]
+}]
+```
+
+These are project declarations, including their formulas; they are not inferred component measurements. C1 owns evidence for component-derived constants. Invalid types, duplicate set/token names and collisions with generated sets refuse the expectation. Up to 50 extra sets and 10000 extra tokens are accepted. Values are strings or composite objects with string-valued fields.
+
+New snapshots use `schemaVersion: 2` and an explicit `ownership` map: generated sets are `adapter`, extras are `project`. Version-1 snapshots remain readable for review; run `penpair marwes tokens snapshot --write`, review the ownership change and commit the regenerated file. Unknown versions or malformed version-2 ownership refuse loading. Hashes now include ownership. Writes publish atomically within the project path.
+
+An existing live catalog can still place a set in a different global precedence order. Theme membership alone does not establish resolution; the per-theme resolution work in C3 must check this independently. Ownership labels alone do not yet perform three-way conflict reconciliation (I6).
+
+For one-off edits, the neutral core supplies [guarded token editing](token-editing.md). When a token belongs in the reproducible project expectation, declare it here before updating the snapshot; a live-only edit does not update config.

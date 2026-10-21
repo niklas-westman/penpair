@@ -50,3 +50,5 @@ export { parseCommandArgs, CommandArgumentError } from "./cli-arguments.js";
 export { findShapesByName, exportShapeByName, captureShots, type ShapeLookup, type ShapeMatch, type ShotsReport } from "./shots.js";
 
 export * from "./inspection.js";
+
+export { tokenTypes, validateEditableToken, validateTokenEdit, planTokenEdit, tokenEditOperation, type EditableToken, type TokenEdit, type TokenEditState, type TokenEditPlan } from "./token-edit.js";

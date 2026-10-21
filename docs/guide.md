@@ -139,3 +139,7 @@ Normal operations and captures now use [bounded layout settling](layout-settling
 ## Complete inspection
 
 Use `inspect <shape-id> --page <name> --all` for bounded structured evidence with full text and typed properties. `tree` and audit examples remain previews. See [inspection formats, budgets and migration](inspection.md) before consuming captures or cursors.
+
+## Token editing
+
+`tokens add-set`, `set`, `remove` and `promote` inspect first and require `--apply` for guarded writes. See [semantics, bounds and recovery](token-editing.md).

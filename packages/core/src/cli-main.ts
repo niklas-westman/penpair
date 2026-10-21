@@ -1,3 +1,4 @@
+import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-edit.js";
 import { withCommandSignal, commandSignal, commandOutput as output, commandFailure, commandRedactor, collectCommand, CommandInterruptedError, type CommandResult } from "./command-result.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -59,7 +60,8 @@ Read-only:
   penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
   penpair tree --page <name> [--depth 3] [--prefix <text>]
   penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
-  penpair tokens dump                                  token sets and themes as JSON
+  penpair tokens dump                                  typed token sets and themes as JSON
+  penpair tokens add-set|set|remove|promote              inspect token edits; --apply writes once
   penpair tokens diff <before.json> <after.json> --theme <name>
   penpair export <shapeId> <out.png> [--page <name>] [--scale 1]
   penpair export --name <exact-name> --page <name> <out.png>
@@ -130,6 +132,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       steps: { type: "string" },
       ignore: { type: "string" },
       theme: { type: "string" },
+      type: { type: "string" }, value: { type: "string" }, description: { type: "string" },
       scale: { type: "string" },
       name: { type: "string" },
       keep: { type: "string" },
@@ -170,7 +173,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const [command, ...rest] = positionals;
   const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
-    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:["theme"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
+    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
@@ -186,6 +189,19 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   if (command === "export" && (rest.length !== (values.name ? 1 : 2) || values.name && !values.page)) throw new CommandArgumentError("Export requires an ID and output path, or --name with an explicit --page and one output path");
   if (command === "shots" && (!values.page || rest.length)) throw new CommandArgumentError("Shots requires --page and supports optional --prefix/--out");
+  let tokenEdit: TokenEdit | undefined;
+  if (command === "tokens" && !["dump", "diff"].includes(rest[0] ?? "")) {
+    const [kind, set, name] = rest;
+    if (kind === "add-set" && rest.length === 2) tokenEdit = { kind, set: set! };
+    else if (kind === "remove" && rest.length === 3) tokenEdit = { kind, set: set!, name: name! };
+    else if (kind === "promote" && rest.length === 3) tokenEdit = { kind, set: set!, to: name! };
+    else if (kind === "set" && rest.length === 3 && values.type && values.value) {
+      let value: unknown; try { value = JSON.parse(values.value); } catch { throw new CommandArgumentError("--value must be JSON: quote strings or supply a composite object"); }
+      tokenEdit = { kind, set: set!, token: { name: name!, type: values.type, value: value as string, description: values.description ?? "" } };
+    } else throw new CommandArgumentError("Usage: tokens add-set SET; tokens set SET NAME --type TYPE --value JSON; tokens remove SET NAME; tokens promote SOURCE DESTINATION");
+    if (kind !== "set" && [values.type, values.value, values.description].some(v => v !== undefined)) throw new CommandArgumentError("Token value options apply only to tokens set");
+    tokenEdit = validateTokenEdit(tokenEdit);
+  }
   let inspectionRequest: {query:InspectionQuery;budget:CaptureBudget}|undefined;
   if (command==="inspect" || command==="tokens" && rest[0]==="dump") {
     if (rest.length!==1 || command==="inspect"&&!values.page) throw new CommandArgumentError("Inspect requires one shape ID and --page; tokens dump accepts no extra positionals");
@@ -556,6 +572,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const report = await captureShots(client, root, { page: values.page, prefix: values.prefix, out: values.out }, { ...options, scale: values.scale ? Number(values.scale) : 1 });
       output.log(JSON.stringify(report, null, 2));
       return report.complete ? 0 : 3;
+    } else if (command === "tokens" && tokenEdit) {
+      const report = await runOperation(client, tokenEditOperation, tokenEdit, writeOptions("tokens-edit"));
+      output.log(JSON.stringify(report, null, 2));
+      if (!values.apply) output.error("Nothing was written. Run again with --apply to execute this token edit.");
+      return report.phase === "applied" && !report.verified ? 1 : 0;
     } else if (command === "archive") {
       if (!values.page || !values.name) throw new Error("--page and --name are required");
       const report = await runOperation(
