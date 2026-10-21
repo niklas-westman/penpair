@@ -90,7 +90,7 @@ export async function doctorExternal(config: ExternalConfig, options: DoctorOpti
     add("editor and plugin", true, `connected to file "${file}"`);
     if (config.file) out.push(fileIdentityCheck(config, actual));
   } catch (error) {
-    add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible.");
+    add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible in a separate window if needed.");
   }
   return out;
 }

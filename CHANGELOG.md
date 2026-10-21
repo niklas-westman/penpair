@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Dated build gotchas:** thirteen hosted-2.18.4 reports now appear in the shipped neutral skill and compatibility reference, explicitly distinguished from new live reproductions. Doctor suggests a visible separate editor window; write suspension guidance follows the no-replay policy.
+
 - **Explicit extension trust:** built-in commands/help avoid adapter imports; help lists configured extension names. Built-in snippet runs avoid project modules, and `snippets/run --builtins-only` gives an explicit restricted registry. Local adapter/snippet/theme entry points reject real-path escapes; read declarations remain trusted code. Added literal design-data formatting and quoted tree labels.
 
 - **Versioned command contract:** `--json` now emits one shared envelope; earlier JSON roots move under `data`. Core and bundled adapter results retain completeness, target/run evidence and structured errors. Added explicit incomplete/uncertain/cancelled/deadline exits, cooperative request cancellation, strict flag/numeric validation, and structured MCP executor-envelope support with legacy text compatibility.

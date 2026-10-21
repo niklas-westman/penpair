@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **11 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **12 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: B5 — publish the dated, version-scoped build gotchas** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: E2 — owned-marker instruction integration with explicit destination and dry-run preview** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -572,7 +572,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely. Completed 2026-10-21; [resolution report](#i5-completion-2026-10-21).
 - [x] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting. Completed 2026-10-21; [resolution report](#i7-completion-2026-10-21).
 - [x] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports. Completed 2026-10-21; [resolution report](#i11-completion-2026-10-21).
-- [ ] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run.
+- [x] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run. Completed 2026-10-21; [resolution report](#b5-completion-2026-10-21).
 - [ ] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview.
 - [ ] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots.
 - [ ] **B4 · P1 · M** — Settle with bounded native/fallback checks and independent exports.
@@ -800,6 +800,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Extensions and transitive imports retain full Node privileges; read labels are declarations, not sandboxing. Unknown extension command discovery can import all configured adapters. Absolute/escaping local entry points now need a project wrapper or installed package. Later documentation exporters must reuse the literal-data formatter. No live Penpot operation was needed or run.
 - **Next:** B5 — publish the dated, version-scoped build gotchas
 
+
+<a id="b5-completion-2026-10-21"></a>
+### 2026-10-21 — B5: Dated and version-scoped build gotchas
+
+- **Resolved:** The build brief's operational knowledge is now shipped with the design skill instead of remaining in one session, with evidence scope and safe workarounds visible.
+- **Changed:** Added thirteen dated hosted-2.18.4 reference sections covering layout sizing, blank text, opacity, formulas/themes, component restrictions/creation, binding keys, font application, icon aspect ratio, settling and suspension. The compatibility guide distinguishes reported observations from branch reproductions. Core/Docker doctor hints suggest a visible separate window; suspension guidance follows read-only retry and uncertain-write recovery.
+- **Validated:** pnpm check passes: 389 tests, including shipped-skill and neutrality checks. git diff --check passes. Package layout did not change; the prior I11 package smoke passed. No new live run or packaging smoke was needed for these reference/hint changes.
+- **Risks:** These thirteen brief observations were not independently rerun here. The references are scoped to reported hosted 2.18.4 behavior, not universal API rules. Recipe enforcement remains B2 and default settle integration remains B4; no new live compatibility pass is claimed.
+- **Next:** E2 — owned-marker instruction integration with explicit destination and dry-run preview
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -828,3 +838,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I7 completed:** Versioned command results and interruption contracts. Progress 10/40; next I11 — lazy extension loading and explicit executable-code trust boundaries.
 
 - **2026-10-21 — I11 completed:** Lazy executable extensions and explicit trust boundaries. Progress 11/40; next B5 — publish the dated, version-scoped build gotchas.
+
+- **2026-10-21 — B5 completed:** Dated and version-scoped build gotchas. Progress 12/40; next E2 — owned-marker instruction integration with explicit destination and dry-run preview.

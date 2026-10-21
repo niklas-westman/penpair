@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **B5 — publish the dated, version-scoped build gotchas** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **E2 — owned-marker instruction integration with explicit destination and dry-run preview** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **B5 — Dated and version-scoped build gotchas** (2026-10-21). The build brief's operational knowledge is now shipped with the design skill instead of remaining in one session, with evidence scope and safe workarounds visible. Validation and limits: [delivery report](docs/improvements.md#b5-completion-2026-10-21).
 - [x] **I11 — Lazy executable extensions and explicit trust boundaries** (2026-10-21). Built-in help and inspection no longer execute configured adapters unnecessarily, and selected local executable entry points cannot silently escape the project through traversal or symlinks. Validation and limits: [delivery report](docs/improvements.md#i11-completion-2026-10-21).
 - [x] **I7 — Versioned command results and interruption contracts** (2026-10-21). Automation can distinguish completed, drifting, incomplete, failed, cancelled and uncertain commands without parsing human prose or losing truncation evidence. Validation and limits: [delivery report](docs/improvements.md#i7-completion-2026-10-21).
 - [x] **I5 — Artifact provenance and consistent atomic publication** (2026-10-21). A new capture can no longer relabel an old approved image with the current revision, and incomplete captures cannot publish a misleading complete manifest. Validation and limits: [delivery report](docs/improvements.md#i5-completion-2026-10-21).
@@ -95,6 +96,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed B5: Dated and version-scoped build gotchas; report in `docs/improvements.md`.
 - 2026-10-21: completed I11: Lazy executable extensions and explicit trust boundaries; report in `docs/improvements.md`.
 - 2026-10-21: completed I7: Versioned command results and interruption contracts; report in `docs/improvements.md`.
 - 2026-10-21: completed I5: Artifact provenance and consistent atomic publication; report in `docs/improvements.md`.

@@ -283,7 +283,7 @@ export async function doctor(c: Context, options: DoctorOptions = {}): Promise<D
       add("editor and plugin", true, `connected to file "${file}"`);
       if (c.config.file) out.push(fileIdentityCheck(c.config, actual));
     } catch (error) {
-      add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible.");
+      add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible in a separate window if needed.");
     }
   }
   return out;

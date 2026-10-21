@@ -51,3 +51,25 @@ Current upstream references: [Penpot API](https://doc.plugins.penpot.app/interfa
 ## Hosted archive candidate
 
 `backup file` requests the documented `currentFile.export("penpot", "all")` signature, bounds the returned payload and refuses to accept an archive if file identity/revision changed. Simulated tests do not resolve the observed live export failure or establish import fidelity. Follow the [scratch round-trip checklist](backup.md#prove-the-restore-on-scratch) before marking this path proven; the live table remains unchanged.
+
+## Build-brief observations reviewed 2026-10-21
+
+Scope: hosted Penpot 2.18.4, as reported in the design-build brief. These reports were incorporated into the shipped [plugin gotchas reference](../packages/core/skills/penpair-design/references/penpot-plugin-gotchas.md#build-report-hosted-penpot-2184-reviewed-2026-10-21); they were not independently rerun on this branch and do not add passes to the live matrix.
+
+| Reported area | Workaround or verification requirement |
+| --- | --- |
+| Stretch row nested in a hugging parent | Try start alignment plus intentional explicit child height; inspect actual geometry. |
+| Fill child changes parent hug sizing | Reassert auto only when hug is the intended parent contract; read back sizing. |
+| Fixed sizing leaves the 100 px default | Resize to explicit intended dimensions. |
+| Empty characters rejected | Omit the node or deliberately use a non-breaking space. |
+| `fillOpacity` cannot be assigned | Use whole-shape opacity or the fill array; verify after token binding. |
+| Token formulas and adding a set to an existing theme | Inspect resolved values under the intended active theme; portability is a separate question. |
+| Instance children cannot be freely removed/reordered | Match structural variants; verify supported overrides. |
+| Layout padding setters differ from token binding keys | Keep setter and binding names distinct. |
+| Component creation splits path/name and can race saved bindings | Use the local library API and observe bindings before creation. |
+| A font token alone did not guarantee the exported face | Find/apply the actual font variant and review the export. |
+| Square resizing distorts a non-square path | Preserve aspect ratio inside a fixed-size wrapper. |
+| Layout/export takes roughly 10–30 seconds to settle | Bounded layout evidence plus independent stable exports; no fixed-delay proof. |
+| Hidden editor loses heartbeat, observed after 6–8 minutes | Keep a separate visible editor window; retry only declared reads and inspect uncertain writes. |
+
+The existing doctor remedy already says to keep the tab visible. Its text now also suggests a separate window; it does not predict the browser's suspension deadline. Recipe enforcement will be delivered with the kit, and default layout integration with the settle item. The documentation does not imply those later items are implemented.

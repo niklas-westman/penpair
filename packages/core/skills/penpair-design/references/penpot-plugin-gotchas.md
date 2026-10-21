@@ -50,3 +50,59 @@ Each one cost real time. They are written as the behaviour to use. Penpot 2.18.3
 
 - Penpot draws a shadow blur harder than CSS: a token blur 12 at 10 % looks like CSS `0 0 8px 4px` at 10 %. Fit the CSS to the exported frame and keep the mapping in a parity test.
 - Text widths differ a few percent between Penpot and the browser; compare with a pixel check, not by eye.
+
+## Build report: hosted Penpot 2.18.4, reviewed 2026-10-21
+
+The following observations came from the reviewed build brief. They are version-scoped reports, not new live reproductions on this branch or guarantees about another version. Preserve the symptom and workaround in a reproduction when upgrading. Recipe safeguards are tracked in the build-kit work; this reference alone does not enforce them.
+
+### 2026-10-21 — Stretch row inside a hugging parent
+
+Reported: `alignItems: "stretch"` produced zero height and overlapping children in this nesting. Use `start` and an explicit height for blank/fill children, then verify actual geometry and an export. Do not generalize this to every stretch layout.
+
+### 2026-10-21 — Fill child changes a hugging parent
+
+Reported: a child with `layoutChild.verticalSizing = "fill"` changed the parent's sizing to `fix`. Reassert `parent.flex.verticalSizing = "auto"` after building when hug is intended; read it back. A deliberate fixed parent should keep its intended sizing.
+
+### 2026-10-21 — Fixed sizing does not assign the desired height
+
+Reported: setting `flex.verticalSizing = "fix"` left the board at its 100 px default. Use `board.resize(width, height)` for the intended dimensions and verify the resulting box.
+
+### 2026-10-21 — Empty text characters rejected
+
+Reported: `text.characters = ""` was rejected. Omit an unnecessary text node, or use a non-breaking space when a blank placeholder is intentional. Confirm its dimensions and accessibility meaning in the eventual implementation.
+
+### 2026-10-21 — Fill opacity is not a shape setter
+
+Reported: assigning `shape.fillOpacity` failed because the object is not extensible. Use documented `shape.opacity` for the whole shape or opacity in the `fills` array for the fill. A fill-token binding can reset fill-level values, so bind after assigning values and inspect the result.
+
+### 2026-10-21 — Formulas and existing theme membership
+
+Reported: an arithmetic formula referencing a radius token resolved in a newly added token, and `theme.addSet(set)` added a set to an existing theme. Read `resolvedValue` under the intended active theme; this is not a portable alias-conformance claim. Use project token names, for example `{radius-base}*2`.
+
+### 2026-10-21 — Component instance structure is restricted
+
+Reported: removing or reordering instance children failed, while supported text/fill/token overrides worked. Choose components whose structures match the needed variants; do not treat an instance as a freely mutable group. Test supported overrides on the actual component/version.
+
+### 2026-10-21 — Layout setters and binding keys differ
+
+Layout uses `topPadding`, `rightPadding`, `bottomPadding`, `leftPadding`, `rowGap`, `columnGap`, `horizontalSizing` and `verticalSizing`. Token bindings use `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft` and their documented binding keys. Keep setter names and binding names separate in recipes.
+
+### 2026-10-21 — Component creation and saved bindings
+
+Reported: use `penpot.library.local.createComponent([board])`; a slash-separated board name becomes component path/name. Avoid repeating the full path when renaming the component. Independently observe token bindings before component creation; an elapsed sleep alone does not prove they were saved.
+
+### 2026-10-21 — Fonts need an actual applied face
+
+Reported: `penpot.fonts.findByName(fontName)` found the project's Google font, and `font.applyToText(text, variant)` for the desired weight corrected the exported face. Check the font/variant exists; do not silently pick another weight. Font-token identity alone is not proof that export drew the right face.
+
+### 2026-10-21 — Path boxes can distort glyphs
+
+Reported: resizing a non-square path to a square stretched the glyph. Preserve its aspect ratio, scale evenly, and place it inside a fixed-size icon board when a square slot is needed. Inspect the exported result.
+
+### 2026-10-21 — Layout remains unsettled after a build
+
+Reported: tree/export results stayed unsettled for roughly 10–30 seconds. Use bounded native/fallback layout checks followed by independent stable exports; neither a fixed delay nor one render proves the final state. Default integration is tracked in the settle work.
+
+### 2026-10-21 — Background editor suspension
+
+Reported: a hidden editor lost its heartbeat after roughly 6–8 minutes. Keep it visible, preferably in a separate window. That duration is an observation, not a timeout guarantee. Only declared reads retry suspension; possible writes remain uncertain and require independent inspection or explicit journal resume. Bring the editor forward before diagnosing the file.
