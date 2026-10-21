@@ -159,3 +159,5 @@ Each apply still checks file/source identity, original journal inputs and struct
 ## Adapter recipe source
 
 After `--include @kit`, opt into `--include @marwes-kit` for card, segmented, progress, icon-tile and stat-tile recipes. Project radius constants and progress sizing height remain explicit inputs; these recipes do not claim measured native-component parity. See [the build kit](build-kit.md).
+
+Component anatomy is a separate [measured three-component pilot](marwes-components.md); token sync does not establish component parity.

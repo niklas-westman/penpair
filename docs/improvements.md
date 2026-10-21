@@ -12,7 +12,7 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 Last updated: **2026-10-21**. Completed: **23 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: C1 — prepare measured component pilot and drift checks** In progress. I12 human/live trials remain pending by owner instruction. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: D1 — structured design handoff with explicit mappings** In progress. I12 human/live trials and C1 native override proof remain pending by owner instruction. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -593,6 +593,8 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 ### Gate 4 — expand only where the pilot demonstrates value
 
 - [ ] **C1 · P2 · L** — Pilot measurement and drift on Button/Card/StatTile; gate library generation on preserved instance overrides.
+  - [x] Schema-1 measured pilot, source freshness and actual-renderer drift checks, explicit contexts and ambiguous token candidates.
+  - [ ] Real fixture/native component instance override proof and measured constants; generation remains gated.
 - [ ] **D1 · P2 · L** — Build handoff from structured inspection and explicit component mappings; surface unknown semantics.
 - [ ] **D4 · P2 · M** — Extract Reflection integration only after the existing baseline path proves an unmet need.
 - [ ] **E1 · P2 · L** — Expose the same guarded command services as typed MCP tools, pinned to an explicit project root.
@@ -981,3 +983,11 @@ Append reports here in completion order; each checked item links to its report.
 - **Validated:** Offline actual-snippet tests cover contention and explicit recovery without duplicate objects; `pnpm check` passes (516 tests).
 - **Risks:** No human results, live server exclusion, visual review or route adoption observed. Owner requested finishing branch code with live trials pending. I12 remains unchecked; progress stays 23/40.
 - **Next:** C1 local component pilot tooling; native override proof and human adoption remain acceptance gates.
+
+### C1 preparation — 2026-10-21 (live acceptance pending)
+
+- **Resolved:** Component anatomy can be captured and compared without conflating source freshness, scalar equality and semantic binding.
+- **Changed:** Added explicit six-context Button/Card/StatTile pilot, trusted optional renderer, bounded/hash-checked schema-1 snapshots, atomic publication, actual measurement/source-only check modes and Playwright fixture example. Native build explicitly refuses before override proof.
+- **Validated:** `pnpm check` (519 tests) and `pnpm smoke:package` pass. Stub renderer tests cover anatomy drift, source invalidation, malformed evidence and preservation of old snapshots.
+- **Risks:** No real component fixture or native override proof. Declared sources are not automatic transitive dependency tracking. No fabricated measured constants or native library. C1 remains unchecked; progress 23/40.
+- **Next:** D1 structured handoff; live/human acceptance stays pending.

@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **C1 — prepare measured component pilot and drift checks** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **D1 — structured design handoff with explicit mappings** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -107,6 +107,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: C1 preparation: measured three-component pilot, source/renderer drift checks, schema-1 snapshots and optional browser example; 519 tests and package smoke pass. Native override proof/generation remain gated. Continue D1.
 - 2026-10-21: I12 preparation: controlled scratch examples and offline fixtures pass; runbook/report template added. Human/live trials remain pending by owner instruction. Continue independent C1 tooling.
 - 2026-10-21: completed H1: Scoped Tradient follow-up proposal; report in `docs/improvements.md`.
 - 2026-10-21: completed I9: Explicit state, theme and responsive coverage; report in `docs/improvements.md`.

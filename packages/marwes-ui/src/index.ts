@@ -19,3 +19,5 @@ export * from "./resolved-values.js";
 export * from "./mode-trial.js";
 
 export * from "./build-kit.js";
+
+export * from "./components.js";

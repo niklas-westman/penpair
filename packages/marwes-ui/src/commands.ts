@@ -1,3 +1,4 @@
+import { componentsCommand } from "./components.js";
 import { runModeTrial } from "./mode-trial.js";
 import { ownershipReport, readSyncAncestor, saveSyncAncestor } from "./ownership.js";
 import { mkdir } from "node:fs/promises";
@@ -285,10 +286,12 @@ export const marwesCommand: AdapterCommand = {
     "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations",
     "penpair marwes tokens diff --resolved [--apply] verify actual values in isolated themes and restore the complete original selection",
     "penpair marwes tokens verify-modes ID --page PAGE --out DIR [--apply] capture stable per-mode PNG evidence and restore selection",
+    "penpair marwes components snapshot [--write] | check [--measure] | diff — explicit three-component measurement pilot; native generation gated",
     "penpair marwes tokens status                   one screen: installed Marwes, snapshot, Penpot",
   ],
   async run(context, args) {
     const [area, sub, ...rest] = args;
+    if (area === "components") return componentsCommand(context, args.slice(1));
     if (area !== "tokens" || !sub) {
       diagnostic(context, `usage:\n  ${marwesCommand.usage.join("\n  ")}`);
       return 1;
