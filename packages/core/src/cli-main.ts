@@ -1,3 +1,4 @@
+import { captureStructuralSnapshot, writeStructuralSnapshot, readStructuralSnapshot, diffStructuralSnapshots, renderStructuralDiff } from "./structure-snapshot.js";
 import { recordApproval, approvalFingerprint, artifactSha } from "./approvals.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { buildDesignSpec, renderDesignSpec, checkDesignSpec, readDesignJson, validateComponentMap, emptyComponentMap, writeDesignSpec } from "./design-spec.js";
@@ -205,6 +206,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const [command, ...rest] = positionals;
   const inspectionFlags=["cursor","all","out","max-nodes","response-bytes","time-budget-ms","document-bytes","max-calls","max-total-bytes","capture-timeout-ms"];
   const flags: Record<string, string[]> = {
+    snapshot: ["write", "out", "from"],
     approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
     pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
@@ -215,7 +217,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["approve", "spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
+  const network = ["snapshot", "approve", "spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
   for (const [key, min, max, integer] of [["depth", 0, command==="inspect"?10000:100, true], ["limit",1,1000,true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
@@ -263,6 +265,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "snapshot" && rest[0] === "diff") {
+    if (rest.length !== 2 || !values.from || values.write || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("snapshot diff BEFORE_FOLDER --from AFTER_FOLDER [--out FILE]");
+    const diff = diffStructuralSnapshots(await readStructuralSnapshot(projectRoot(), rest[1]!), await readStructuralSnapshot(projectRoot(), values.from));
+    if (values.out) await writeDesignSpec(projectRoot(), values.out, renderStructuralDiff(diff));
+    output.result(diff); if (!values.json) output.log(renderStructuralDiff(diff)); return !diff.complete ? 3 : diff.totalChanges ? 2 : 0;
+  }
+  if (command === "snapshot" && (rest.length || values.from)) throw new CommandArgumentError("snapshot [--write] [--out FOLDER], or snapshot diff BEFORE --from AFTER");
   if (command === "spec" && values.from) {
     if (rest.length > 1 || rest.length === 1 && rest[0] !== "check" || values.page || values.frame || values.standalone || values["any-file"] || values["any-instance"]) throw new CommandArgumentError("Offline spec requires --from INSPECTION [--map MAPPING] [--out FILE]; spec check also requires --out");
     const inspection = await readDesignJson(projectRoot(), values.from) as import("./inspection.js").InspectionDocument;
@@ -631,6 +640,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const record = await runOnPage(client, audit({ page: values.page, framePrefix: values.prefix, spacingSteps: steps, ignoreUnbound: list(values.ignore) }), values.page, options);
       output.log(JSON.stringify(record, null, 2));
       if (record.truncated===true) return 3;
+    } else if (command === "snapshot") {
+      const snapshot = await captureStructuralSnapshot(client, options);
+      if (values.write) { const manifest = await writeStructuralSnapshot(root, values.out ?? "design/snapshots", snapshot, endpointRedactor(endpoint)); output.result(manifest); output.log(JSON.stringify(manifest, null, 2)); }
+      else { output.result(snapshot); output.log(JSON.stringify(snapshot, null, 2)); }
+      return 0;
     } else if (command === "approve") {
       if (rest.length || !values.page || !values.frame || values.write && (!values.note?.trim() || !values.by?.trim()) || !values.write && (values.note || values.by)) throw new CommandArgumentError("approve --page PAGE --frame ID [--case CASE_ID] previews evidence; --write requires --note exact-owner-words and --by identity");
       let intent: import("./baselines-config.js").BaselineCase | undefined;

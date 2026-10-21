@@ -81,9 +81,9 @@ const read = (object,key,unknowns,label=key) => { try { return clone(object[key]
 const pick = (object,keys,unknowns,prefix) => Object.fromEntries(keys.map(key=>[key,read(object,key,unknowns,prefix+"."+key)]));
 let estimatedBytes = 1024;
 if (CFG.kind === "shape") {
-  const root = penpot.currentPage.getShapeById(CFG.shapeId);
+  const root = CFG.shapeId === "@page-root" ? penpot.currentPage.root : penpot.currentPage.getShapeById(CFG.shapeId);
   if (!root) return {ok:false,message:"No shape with the requested ID on the selected page"};
-  document.scope = {shapeId:CFG.shapeId,fields:CFG.fields,depth:CFG.depth,maxNodes:CFG.maxNodes};
+  document.scope = {shapeId:root.id,selector:CFG.shapeId,fields:CFG.fields,depth:CFG.depth,maxNodes:CFG.maxNodes};
   const nodes = document.nodes = [], stack = [{shape:root,parentId:null,index:0,depth:0}], seen = new Set();
   let skipped = 0;
   while (stack.length) {

@@ -68,3 +68,5 @@ export * from "./design-spec.js";
 export * from "./mcp-server.js";
 
 export * from "./approvals.js";
+
+export * from "./structure-snapshot.js";
