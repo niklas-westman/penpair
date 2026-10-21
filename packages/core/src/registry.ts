@@ -44,6 +44,7 @@ export interface WriteDefinition extends DefinitionBase {
   apply: Body;
   readback: Body;
   verify?: Operation<Params>["verify"];
+  reconcile?: Operation<Params>["reconcile"];
 }
 
 export type SnippetDefinition = ReadDefinition | WriteDefinition;
@@ -135,6 +136,7 @@ export function normalize(def: SnippetDefinition, source: "built-in" | "project"
         verify:
           def.verify ??
           (({ readback }) => verifyEvidence(readback)),
+        ...(def.reconcile ? { reconcile: def.reconcile } : {}),
       },
     };
   }

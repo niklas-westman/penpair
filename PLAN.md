@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **I3 — recoverable operations and checkpoints.** G3 backup tooling is built/tested, but its live restore proof and D3 dependency remain open. Continue [the branch checklist](docs/improvements.md).
+- [ ] **A3 — team onboarding, advisory coordination and stale-source checks** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **I3 — Recoverable operations and checkpoints** (2026-10-21). Interrupted multi-step writes can now be inspected and explicitly resumed against actual state without blindly replaying completed mutations. Validation and limits: [delivery report](docs/improvements.md#i3-completion-2026-10-21).
 - [x] **I4 — Capability-driven native API support** (2026-10-21). Native APIs are detected instead of assumed, and unsupported/throwing methods cannot silently establish layout or file integrity. Optional named checkpoints use explicit apply and independent readback. Validation and limits: [delivery report](docs/improvements.md#i4-completion-2026-10-21).
 - [x] **G1 — Transport fault tests and scratch smoke harness** (2026-10-21). The connection path is now exercised over real HTTP through the installed MCP SDK, including authentication rejection, read retry and acknowledgment loss without write replay. Deep checks cannot pass with missing step/cleanup evidence. Validation and limits: [delivery report](docs/improvements.md#g1-completion-2026-10-21).
 - [x] **I2 — Require positive verification evidence** (2026-10-21). Empty, missing or primitive readbacks and an empty error list no longer produce verified success. A received acknowledgment is distinct from verified postconditions; malformed or throwing verifiers fail while preserving inspect/apply/readback evidence. Validation and limits: [delivery report](docs/improvements.md#i2-completion-2026-10-21).
@@ -90,6 +91,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed I3: Recoverable operations and checkpoints; report in `docs/improvements.md`.
 - 2026-10-21: G3 partial: bounded archive candidates, backup-note reminders and manual restore guide; 340 tests and package smoke pass. Full hosted round trip and D3 remain pending; proceed with independent I3.
 - 2026-10-21: completed I4: Capability-driven native API support; report in `docs/improvements.md`.
 - 2026-10-21: completed G1: Transport fault tests and scratch smoke harness; report in `docs/improvements.md`.

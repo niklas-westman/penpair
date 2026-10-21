@@ -1,5 +1,6 @@
-import { runSnippet, snippet, type PenpotToolClient, type Snippet } from "@penpair/core";
+import { runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
 import { canonical, normalizeValue, type PenpotToken, type PenpotTokenSet, type TokenSnapshot } from "./tokens.js";
+import { actionSatisfied, reconcileAction, remainingAction } from "./reconciliation.js";
 
 /** What the Penpot file holds today. */
 export interface LiveTokens {
@@ -291,6 +292,7 @@ return { ok: true, active: !!theme[0].active };`, { group: action.group, name: a
 }
 
 export interface ApplyReport {
+  journal?: { runId: string; state: string };
   steps: string[];
   structureBefore: { count: number; hash: string };
   structureAfter: { count: number; hash: string };
@@ -325,7 +327,8 @@ export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
  * Carries out the plan one write at a time, stopping at the first anomaly, then reads everything back: the file must now match the
  * expectation, and no shape may have moved or been rebound.
  */
-export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void): Promise<ApplyReport> {
+export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { prune?: boolean; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
+  if (options.journal) client = guardFile(client, { id: (await readJournalTarget(client)).fileId });
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
     const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
     if (r.ok !== true || !Number.isInteger(r.count) || Number(r.count) < 0 || typeof r.hash !== "string" || !r.hash)
@@ -333,6 +336,38 @@ export async function applyPlan(client: PenpotToolClient, expected: TokenSnapsho
     return { count: Number(r.count), hash: String(r.hash) };
   };
   const structureBefore = await fingerprint();
+  if (options.journal) {
+    const target = await readJournalTarget(client);
+    const guarded = guardFile(client, { id: target.fileId });
+    let originalStructure = structureBefore;
+    if (options.journal.resume) {
+      if (!options.journal.runId) throw new Error("Resume requires a run ID");
+      const prior = await readJournal(options.journal.root, options.journal.runId);
+      const payload = prior.payload as { actions?: Action[]; structure?: typeof structureBefore } | undefined;
+      if (!payload || !Array.isArray(payload.actions) || !payload.structure || typeof payload.structure.hash !== "string") throw new Error("Token journal has no original action/structure plan");
+      actions = payload.actions;
+      originalStructure = payload.structure;
+    }
+    if (structureBefore.hash !== originalStructure.hash) throw new Error("Shapes changed since the token run began; reconcile the design before resuming");
+    const baseline = { live: await readLive(guarded), structure: structureBefore };
+    const work = actions.flatMap<Action>((action) => "tokens" in action ? inBatches(action.tokens).map((tokens) => ({ ...action, tokens })) : [action]);
+    const record = await runJournaledSteps(work.map<JournalStep<typeof baseline>>((action, index) => ({
+      key: `step-${index}-${observationHash(action).slice(0, 12)}`, label: describeAction(action), signature: [actionSnippet(action, "tokens" in action ? action.tokens : undefined).code, actionSatisfied.toString(), reconcileAction.toString(), remainingAction.toString()].join("\n"),
+      initial: baseline,
+      inspect: async () => ({ live: await readLive(guarded), structure: await fingerprint() }),
+      apply: async (current) => {
+        const residual = remainingAction(action, current.live);
+        return residual ? runSnippet(guarded, actionSnippet(residual, "tokens" in residual ? residual.tokens : undefined), { effect: "write" }) : { ok: true, reconciled: true };
+      },
+      verify: (current) => current.structure.hash === originalStructure.hash && actionSatisfied(action, current.live),
+      reconcile: (before, current) => current.structure.hash !== originalStructure.hash ? "conflict" : reconcileAction(action, before.live, current.live),
+    })), { ...options.journal, operation: "tokens-push", input: { snapshot: observationHash(expected), prune: options.prune === true }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
+      finalVerify: async () => compareToPenpot(expected, await readLive(guarded)).inSync && (await fingerprint()).hash === originalStructure.hash,
+    });
+    const structureAfter = await fingerprint();
+    const drift = compareToPenpot(expected, await readLive(guarded));
+    return { steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, verified: drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
+  }
   const steps: string[] = [];
   for (const action of actions) {
     const work: (PenpotToken[] | undefined)[] = "tokens" in action ? inBatches(action.tokens) : [undefined];

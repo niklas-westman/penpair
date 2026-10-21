@@ -21,3 +21,7 @@ A write snippet has three parts: `inspect` (looks, returns what would change), `
 ## Suspended tabs and lost responses
 
 Only declared reads may retry automatically. Writes and unclassified plugin code run once. If a write reports `write-uncertain`, keep its run ID, independently inspect the pinned file, and reconcile what already exists before explicitly resuming. A run ID is a diagnostic reference, not an exactly-once guarantee. Successful execution (`ran`) still needs independent verification.
+
+## Interrupted operations
+
+CLI writes persist local run evidence before mutation. Inspect `penpair runs <run-id>` after failure; resume the original command only with explicit `--apply --resume <run-id>` and unchanged inputs. Resume independently checks actual state and stops on conflict. Never delete evidence to force a replay. `--checkpoint` requires a verified native version before operation steps; keep it on resume. Checkpoints are not transactions or independent backup restore proof. See the project recovery guide for limits.

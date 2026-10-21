@@ -29,6 +29,8 @@ import { version } from "./version.js";
 import { guardFile } from "./file-guard.js";
 import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
+import { createCheckpoint } from "./native-api.js";
+import { listJournals, readJournal } from "./journal.js";
 
 const usageHead = `penpair ${version}
 Start here (guided, plain language; safe to run again):
@@ -65,6 +67,8 @@ Hand a page's design to a check (Reflection or any image comparison):
                                                        a manifest and ready-made Reflection cases. Looks first; --apply writes new images;
                                                        --update also replaces images whose design changed (approving the new design)
 Changes in a Penpot file (inspect first; nothing is written without --apply):
+  penpair runs [run-id]                                list recovery runs or inspect one, offline
+  (write commands support --resume <run-id> --apply and optional --checkpoint)
   penpair archive --page <name> --name <archive board> --keep <prefixes> --parts <prefixes> [--x 9000] [--apply]
   penpair --version`;
 
@@ -131,6 +135,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       json: { type: "boolean" },
       deep: { type: "boolean" },
       integrity: { type: "boolean" },
+      resume: { type: "string" },
+      checkpoint: { type: "boolean" },
       force: { type: "boolean" },
       to: { type: "string" },
       only: { type: "string", multiple: true },
@@ -141,6 +147,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     },
   });
   const [command, ...rest] = positionals;
+  if ((values.resume || values.checkpoint) && (!values.apply || !["archive", "run"].includes(command ?? "")))
+    throw new Error("--resume and --checkpoint require an operation command (archive/run) with --apply");
   if (values.version) {
     console.log(version);
     return 0;
@@ -385,6 +393,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   const client = await guarded();
   const options = { onWait: (m: string) => console.error(`… ${m}`), onStep: (m: string) => console.error(`… ${m}`) };
+  const writeOptions = (operation: string) => ({
+    ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
+    ...(values.apply ? { journal: {
+      root, runId: values.resume, resume: Boolean(values.resume), requireCheckpoint: values.checkpoint === true,
+      ...(values.checkpoint ? { checkpoint: (runId: string) => createCheckpoint(client, { label: operation, runId }, { apply: true }) } : {}),
+    } } : {}),
+  });
   try {
     if (command === "backup" && rest[0] === "file") {
       const out = rest[1];
@@ -411,7 +426,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         raw[key] = earlier === undefined ? value : [...(Array.isArray(earlier) ? earlier : [earlier]), value];
       }
       const entry = registry.get(name);
-      const result = await registry.run(client, name, coerceParams(entry.params, raw), { ...options, apply: values.apply === true });
+      if (entry.kind === "read" && (values.resume || values.checkpoint)) throw new Error("Read snippets have no write run to resume or checkpoint");
+      const result = await registry.run(client, name, coerceParams(entry.params, raw), writeOptions(name));
       console.log(JSON.stringify(result, null, 2));
       if (entry.kind === "write" && !values.apply) console.error("Nothing was written. Run again with --apply to do it.");
       return (result as { verified?: boolean; phase?: string }).phase === "applied" && !(result as { verified?: boolean }).verified ? 1 : 0;
@@ -453,7 +469,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         client,
         archiveOperation,
         { page: values.page, archiveName: values.name, keepPrefixes: list(values.keep), partPrefixes: list(values.parts), x: values.x ? Number(values.x) : 9000 },
-        { ...options, apply: values.apply === true },
+        writeOptions("archive"),
       );
       console.log(JSON.stringify(report, null, 2));
       if (report.phase === "inspected") console.error("Nothing was written. Run again with --apply to do it.");
@@ -472,13 +488,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 async function runAdapterCommand(command: Adapter["commands"][number], root: string, args: string[]): Promise<number> {
   const config = await loadConfig(root);
   const rawConfig = await readRawConfig(root);
+  let redact = (text: string) => redactEndpoint(text);
   const context: AdapterContext = {
+    redact: (text) => redact(text),
     root,
     config,
     rawConfig,
     log: (message) => console.error(`… ${message}`),
     async withPenpot(work) {
       const endpoint = await resolveEndpoint();
+      redact = (text) => redactEndpoint(text, endpoint);
       assertEndpointIsInstance(endpoint.description, config);
       const client = guardFile(await connect(endpoint), config.file, { anyFile: args.includes("--any-file"), warn: context.log });
       try {
@@ -495,6 +514,11 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
 export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = process.cwd();
+    if (argv[0] === "runs") {
+      if (argv.length > 2 || argv[1]?.startsWith("--")) throw new Error("usage: penpair runs [run-id]");
+      console.log(JSON.stringify(argv[1] ? await readJournal(root, argv[1]) : await listJournals(root), null, 2));
+      return 0;
+    }
     if (argv[0] === "config") {
       if (argv[1] === "schema" && argv.length === 2) {
         console.log(JSON.stringify(projectConfigSchema, null, 2));

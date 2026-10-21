@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
+import { createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
 import { readMarwesSettings, type MarwesSettings } from "./config.js";
 import { familyProblems, loadInstalledMarwes, type InstalledMarwes } from "./marwes.js";
 import { applyPlan, compareToPenpot, describePlan, formatDrift, impactOf, planPush, readLive, type Drift } from "./penpot.js";
@@ -66,7 +66,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseArgs({ args, allowPositionals: true, options: { write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" } } });
+  parseArgs({ args, allowPositionals: true, options: { write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -140,7 +140,7 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
     console.log(`ok   Penpot matches ${summary(check.committed)}`);
     return 0;
   }
-  console.log(`Penpot differs from ${summary(check.committed)}:`);
+  console.log(values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
   for (const line of formatDrift(drift, impact)) console.log(`  ${line}`);
   console.log("`penpair marwes tokens push --apply` brings Penpot to the snapshot (Marwes is authoritative: a value changed by hand in Penpot is put back).");
   return 2;
@@ -148,6 +148,7 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
 
 async function pushCommand(context: AdapterContext, args: string[]): Promise<number> {
   const { values } = flags(args);
+  if ((values.resume || values.checkpoint) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
     console.error(`FAIL ${check.problems.join("; ")}`);
@@ -160,11 +161,11 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
   }
   const { drift, impact, live } = await readPenpot(context, check.committed, true);
   const plan = planPush(check.committed, live, { prune: values.prune === true });
-  if (drift.inSync && plan.length === 0) {
+  if (drift.inSync && plan.length === 0 && !values.resume) {
     console.log(`ok   Penpot already matches ${summary(check.committed)}; nothing to write`);
     return 0;
   }
-  console.log(`Penpot differs from ${summary(check.committed)}:`);
+  console.log(values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
   for (const line of formatDrift(drift, impact)) console.log(`  ${line}`);
   console.log("Plan:");
   for (const line of describePlan(plan)) console.log(`  ${line}`);
@@ -173,7 +174,12 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
     if (!values.prune && drift.sets.some((s) => s.tokens.some((t) => t.kind === "extra")) ) console.log("Tokens added by hand are kept unless you add --prune.");
     return 0;
   }
-  const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message)));
+  const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message), {
+    prune: values.prune === true,
+    journal: { root: context.root, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
+      ...(values.checkpoint ? { checkpoint: (runId) => createCheckpoint(client, { label: "token push", runId }, { apply: true }) } : {}),
+    },
+  }));
   for (const step of report.steps) console.log(`done ${step}`);
   if (report.verified) {
     console.log(`ok   verified: Penpot now matches the snapshot and no shape moved or was rebound (${report.structureAfter.count} shapes unchanged)`);

@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **6 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **7 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I3 — recoverable operations and checkpoints.** G3 tooling is implemented and verified offline; its checkbox stays open pending live restore proof and the D3 snapshot dependency. Work remains on `codex/penpair-improvements`.
+**Now: A3 — team onboarding, advisory coordination and stale-source checks** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -567,7 +567,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
   - [x] Bounded API export candidate, manual route/restore guide, opt-in advisory notes; offline tests and package smoke pass.
   - [ ] Live hosted export/import with token/component/assets/render comparison; disposable target not yet provided.
   - [ ] Link structural review snapshots after D3; they do not replace archives.
-- [ ] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints.
+- [x] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints. Completed 2026-10-21; [resolution report](#i3-completion-2026-10-21).
 - [ ] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion.
 - [ ] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely.
 - [ ] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting.
@@ -750,6 +750,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Remaining:** Live hosted archive export/import and content/render comparison require a disposable target; D3's structural snapshot safety net is a later dependency. G3 remains unchecked. No live Penpot writes or compatibility claims were made.
 - **Next:** I3 — journal and explicit recovery/resume; independent of the missing live target.
 
+
+<a id="i3-completion-2026-10-21"></a>
+### 2026-10-21 — I3: Recoverable operations and checkpoints
+
+- **Resolved:** Interrupted multi-step writes can now be inspected and explicitly resumed against actual state without blindly replaying completed mutations.
+- **Changed:** Private redacted local journals record target/revision, input/source hashes, original actions, pre-write started markers and independent verification. CLI archive/registered writes and adapter token pushes support explicit resume, offline runs inspection and optional required native checkpoints. Residual token work is rebuilt; conflicts stop recovery.
+- **Validated:** pnpm check passes: 354 tests (270 core, 56 adapter, 28 Docker), including acknowledgment loss at every fresh-push batch boundary, partial rejection, changed inputs, third values, required checkpoint refusal, permissions/redaction and actual operation-source execution. pnpm smoke:package and git diff --check pass.
+- **Risks:** No live scratch recovery/restore proof. Multi-step builds are non-transactional; no automatic rollback. Unmodeled partial custom writes and ambiguous archive ownership stop for inspection. Cross-writer coordination remains A3; filesystem journals are local recovery evidence, not backup restore proof.
+- **Next:** A3 — team onboarding, advisory coordination and stale-source checks
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -768,3 +778,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I4 completed:** Capability-driven native API support. Progress 6/40; next G3 — hosted-file backup and restore proof.
 
 - **2026-10-21 — G3 partial:** Backup candidate tooling and advisory notes tested; full restore proof and D3 remain pending. Count stays 6/40; next I3.
+
+- **2026-10-21 — I3 completed:** Recoverable operations and checkpoints. Progress 7/40; next A3 — team onboarding, advisory coordination and stale-source checks.

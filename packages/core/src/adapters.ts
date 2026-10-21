@@ -10,6 +10,8 @@ import { readProjectConfig, type ProjectConfig } from "./instance/config.js";
  * project and knows nothing about any of them. An adapter keeps its own settings in its own block of the same file.
  */
 export interface AdapterContext {
+  /** Removes this connection's credentials before recovery evidence is persisted or reported. */
+  redact?(text: string): string;
   /** The project's folder. */
   root: string;
   /** The project's validated configuration. */
@@ -46,7 +48,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
   "probe", "pages", "tree", "audit", "tokens", "export", "archive", "snippets", "run", "skills", "init", "setup", "connect",
-  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config",
+  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs",
 ] as const;
 
 export interface LoadedAdapters {

@@ -35,9 +35,9 @@ const matches = (code: string, name: string): boolean => {
 
 const script = {
   "switch-page": [{}],
-  "archive-inspect": [{ ok: true, willMove: 3, stays: 5 }],
+  "archive-inspect": [{ ok: true, willMove: 3, stays: 5, plan: [{ id: "a" }, { id: "b" }, { id: "c" }] }],
   "archive-apply": [{ ok: true, moved: 3 }],
-  "archive-readback": [{ ok: true, archive: { children: 3 }, loose: [] }],
+  "archive-readback": [{ ok: true, archive: { children: 3 }, insideIds: ["a", "b", "c"], loose: [] }],
 };
 
 describe("running an operation", () => {
@@ -58,7 +58,7 @@ describe("running an operation", () => {
   });
 
   it("reports what the readback found wrong", async () => {
-    const client = editor({ ...script, "archive-readback": [{ ok: true, archive: { children: 1 }, loose: ["Old / a", "Old / b"] }] });
+    const client = editor({ ...script, "archive-readback": [{ ok: true, archive: { children: 1 }, insideIds: ["a"], loose: ["Old / a", "Old / b"] }] });
     const report = await runOperation(client, archiveOperation, params, { apply: true, sleep: async () => undefined });
     expect(report.verified).toBe(false);
     expect(report.problems.join(" ")).toMatch(/holds 1 frames/);
@@ -74,7 +74,7 @@ describe("running an operation", () => {
   });
 
   it("treats nothing to move as already done", async () => {
-    const client = editor({ ...script, "archive-inspect": [{ ok: true, willMove: 0, stays: 9 }], "archive-apply": [{ ok: true, moved: 0 }], "archive-readback": [{ ok: true, archive: { children: 12 }, loose: [] }] });
+    const client = editor({ ...script, "archive-inspect": [{ ok: true, willMove: 0, stays: 9, plan: [] }], "archive-apply": [{ ok: true, moved: 0 }], "archive-readback": [{ ok: true, archive: { children: 12 }, insideIds: [], loose: [] }] });
     const report = await runOperation(client, archiveOperation, params, { apply: true, sleep: async () => undefined });
     expect(report.verified).toBe(true);
   });

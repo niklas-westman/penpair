@@ -1,6 +1,8 @@
 import { requirePage, snippet, type Snippet } from "../snippet.js";
 
 export interface ArchiveParams {
+  expectedPlan?: { id: string; name: string; x: number; y: number; w: number; h: number }[];
+  expectedArchiveId?: string | null;
   page: string;
   /** Name of the board the archived frames are nested into. */
   archiveName: string;
@@ -17,7 +19,9 @@ const select = `${requirePage}
 const top = penpot.currentPage.root.children;
 const isPart = (n) => CFG.partPrefixes.some((p) => n.startsWith(p));
 const isKept = (n) => CFG.keepPrefixes.some((p) => n.startsWith(p));
-const existing = top.find((c) => c.name === CFG.archiveName && c.type === "board");
+const archives = top.filter((c) => c.name === CFG.archiveName && c.type === "board");
+if (archives.length > 1) return { ok: false, message: "archive name is ambiguous" };
+const existing = archives[0];
 const candidates = top.filter((c) => c.type === "board" && c !== existing && !isPart(c.name) && !isKept(c.name));
 const plan = candidates.map((c) => ({ id: c.id, name: c.name, x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.width), h: Math.round(c.height) }));`;
 
@@ -26,7 +30,7 @@ export function archiveInspect(params: ArchiveParams): Snippet {
   return snippet(
     "archive-inspect",
     `${select}
-return { ok: true, readOnly: true, archiveExists: !!existing, willMove: plan.length, stays: top.filter((c) => c !== existing && !candidates.includes(c)).length, plan };`,
+return { ok: true, readOnly: true, archiveExists: !!existing, archiveId: existing ? existing.id : null, insideIds: existing ? existing.children.map((c) => c.id) : [], willMove: plan.length, stays: top.filter((c) => c !== existing && !candidates.includes(c)).length, plan };`,
     params,
   );
 }
@@ -36,6 +40,8 @@ export function archiveApply(params: ArchiveParams): Snippet {
   return snippet(
     "archive-apply",
     `${select}
+if (CFG.expectedPlan && JSON.stringify(plan) !== JSON.stringify(CFG.expectedPlan)) return { ok: false, message: "Archive source changed since inspection; no frames were moved" };
+if (Object.prototype.hasOwnProperty.call(CFG, "expectedArchiveId") && CFG.expectedArchiveId !== (existing ? existing.id : null)) return { ok: false, message: "Archive target changed since inspection; no frames were moved" };
 if (plan.length === 0) return { ok: true, moved: 0, archiveId: existing ? existing.id : null };
 const minX = Math.min(...plan.map((p) => p.x)), minY = Math.min(...plan.map((p) => p.y));
 const maxX = Math.max(...plan.map((p) => p.x + p.w)), maxY = Math.max(...plan.map((p) => p.y + p.h));
@@ -58,12 +64,14 @@ export function archiveReadback(params: ArchiveParams): Snippet {
     "archive-readback",
     `${requirePage}
 const top = penpot.currentPage.root.children;
-const archive = top.find((c) => c.name === CFG.archiveName && c.type === "board");
+const archives = top.filter((c) => c.name === CFG.archiveName && c.type === "board");
+if (archives.length > 1) return { ok: false, message: "archive name is ambiguous" };
+const archive = archives[0];
 const inside = archive ? archive.children.map((c) => c.id) : [];
 const isPart = (n) => CFG.partPrefixes.some((p) => n.startsWith(p));
 const isKept = (n) => CFG.keepPrefixes.some((p) => n.startsWith(p));
 const loose = top.filter((c) => c !== archive && c.type === "board" && !isPart(c.name) && !isKept(c.name)).map((c) => c.name);
-return { ok: true, readOnly: true, archive: archive ? { id: archive.id, x: Math.round(archive.x), y: Math.round(archive.y), children: inside.length } : null, loose };`,
+return { ok: true, readOnly: true, archive: archive ? { id: archive.id, x: Math.round(archive.x), y: Math.round(archive.y), children: inside.length } : null, insideIds: inside, loose };`,
     params,
   );
 }

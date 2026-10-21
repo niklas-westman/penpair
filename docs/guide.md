@@ -121,3 +121,5 @@ export default defineReflection({
 `baselineRoot` in the generated cases is relative to the Reflection config's folder, so keep the two in the same project root. The same images work with any other image comparison; the Reflection cases are one output of the manifest.
 
 The percentage a comparison reports is not a verdict: a correct implementation differs from a Penpot render by about 1 to 2% on text alone, so read the diff image.
+
+Interrupted write recovery, run inspection and optional checkpoints: [recovery guide](recovery.md).

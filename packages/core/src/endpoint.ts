@@ -145,7 +145,8 @@ export function redactEndpoint(text: string, endpoint?: Endpoint): string {
   let redacted = text;
   if (endpoint) {
     const parsed = new URL(endpoint.url);
-    for (const secret of [endpoint.url, parsed.search, parsed.search.slice(1)].filter((value) => value.length > 1))
+    const key = parsed.searchParams.get("userToken") ?? "";
+    for (const secret of [endpoint.url, parsed.search, parsed.search.slice(1), key, encodeURIComponent(key)].filter((value) => value.length > 1))
       redacted = redacted.split(secret).join("[redacted]");
   }
   return redacted.replace(/userToken=[^\s&"'<>]+/gi, "userToken=[redacted]");

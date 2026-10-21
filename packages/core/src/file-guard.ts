@@ -20,12 +20,12 @@ export function guardFile(client: PenpotToolClient, expected: ProjectFile | unde
     async callTool(name, args) {
       if (name !== "execute_code" || typeof args.code !== "string")
         throw new PenpairError("file-mismatch", "The file guard only permits guarded execute_code calls.");
-      const guard = `const __penpairExpectedFile = ${JSON.stringify(expected)};
+      const guard = `{ const __penpairExpectedFile = ${JSON.stringify(expected)};
 const __penpairActualFile = penpot.currentFile;
 if (!__penpairActualFile || __penpairActualFile.id !== __penpairExpectedFile.id) {
   const message = "Expected file " + (__penpairExpectedFile.name || __penpairExpectedFile.id) + " (" + __penpairExpectedFile.id + "), connected to " + (__penpairActualFile ? __penpairActualFile.name + " (" + __penpairActualFile.id + ")" : "no file") + ". Open the expected file and reconnect, or explicitly use --any-file.";
   ${options.mode === "warn" ? `console.warn(${JSON.stringify(warningPrefix)} + message);` : 'return { ok: false, fileMismatch: true, message };'}
-}
+} }
 `;
       const code = guard + args.code;
       if (Buffer.byteLength(code, "utf8") > maxSnippetBytes)

@@ -91,6 +91,7 @@ export interface FakePenpot {
   calls: string[];
   /** Makes the next addToken of this name throw, as Penpot does for a value it rejects. */
   rejectToken(name: string): void;
+  allowToken(name: string): void;
 }
 
 class FakeToken {
@@ -166,7 +167,7 @@ export function fakePenpot(shapes: FakeShape[] = []): FakePenpot {
         },
       },
     },
-    currentFile: { pages: [{ name: "Page 1", root: { children: shapes } }] },
+    currentFile: { id: "fixture-file", revn: 1, pages: [{ name: "Page 1", root: { children: shapes } }] },
   };
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (...args: string[]) => (penpot: unknown) => Promise<unknown>;
   const client: PenpotToolClient = {
@@ -178,5 +179,5 @@ export function fakePenpot(shapes: FakeShape[] = []): FakePenpot {
     },
     async close() {},
   };
-  return { client, ...state, rejectToken: (name) => void reject.add(name) };
+  return { client, ...state, rejectToken: (name) => void reject.add(name), allowToken: (name) => void reject.delete(name) };
 }

@@ -76,7 +76,7 @@ describe("resolving the endpoint", () => {
 describe("redaction", () => {
   it("removes the URL, its query and any userToken", async () => {
     const endpoint = await resolveEndpoint({ environment: { PENPAIR_MCP_URL: url }, home: await home() });
-    const text = `failed at ${url} with userToken=abc123 and ?userToken=secret-token`;
+    const text = `failed at ${url} with userToken=abc123 and ?userToken=secret-token and bare key secret-token`;
     const clean = redactEndpoint(text, endpoint);
     expect(clean).not.toContain("secret-token");
     expect(clean).not.toContain("abc123");
