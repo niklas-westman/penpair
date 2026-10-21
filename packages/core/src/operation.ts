@@ -5,6 +5,7 @@ import { archiveApply, archiveInspect, archiveReadback, type ArchiveParams } fro
 import { PenpairError } from "./errors.js";
 import { UncertainExecutionError } from "./client.js";
 import { observationHash, readJournalTarget, runJournaledSteps, type JournalOptions } from "./journal.js";
+import { guardRevision, writeCoordinator } from "./coordination.js";
 import { guardFile } from "./file-guard.js";
 
 /**
@@ -116,8 +117,8 @@ async function journaledOperation<P>(client: PenpotToolClient, operation: Operat
   const record = await runJournaledSteps([{ key: "apply", label: operation.name,
     signature: [operation.inspect(params).code, operation.apply(params).code, operation.readback(params).code, operation.verify.toString(), operation.reconcile?.toString()].join("\n"),
     inspect: observe,
-    apply: async (current) => {
-      const result = await runOnPage(guarded, operation.apply(params, current.inspection), page, { ...options, effect: "write" });
+    apply: async (current, target) => {
+      const result = await runOnPage(guardRevision(guarded, target), operation.apply(params, current.inspection), page, { ...options, effect: "write" });
       if (result.ok !== true) throw new Error("Apply returned no explicit acknowledgment");
       await (options.sleep ?? defaultSleep)(options.settleMs ?? 10_000);
       return result;
@@ -127,7 +128,7 @@ async function journaledOperation<P>(client: PenpotToolClient, operation: Operat
       if (operation.reconcile) return operation.reconcile({ before: before.inspection, current: current.inspection, readback: current.readback });
       return observationHash(before.inspection, true) === observationHash(current.inspection, true) ? "pending" : "conflict";
     },
-  }], { ...options.journal!, operation: operation.name, input: params, payload: { params }, target: () => readJournalTarget(guarded), onStep: options.onStep ?? options.journal!.onStep, redact: options.redact ?? options.journal!.redact });
+  }], { ...options.journal!, coordinate: writeCoordinator(guarded, { root: options.journal!.root, operation: operation.name, forceLock: options.journal!.forceLock, warn: options.onStep }), operation: operation.name, input: params, payload: { params }, target: () => readJournalTarget(guarded), onStep: options.onStep ?? options.journal!.onStep, redact: options.redact ?? options.journal!.redact });
   const saved = record.steps[0]!;
   return { operation: operation.name, phase: "applied", outcome: "verified", inspect: (saved.before as Observation).inspection, apply: saved.result as SnippetResult | undefined, readback: (saved.after as Observation).readback, problems: [], verified: true, journal: { runId: record.runId, state: record.state } };
 }

@@ -27,6 +27,7 @@ import { assertEndpointIsInstance, doctorExternal, LifecycleError, type DoctorCh
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./version.js";
 import { guardFile } from "./file-guard.js";
+import { onboardingChecklist } from "./onboard.js";
 import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
 import { createCheckpoint } from "./native-api.js";
@@ -67,6 +68,7 @@ Hand a page's design to a check (Reflection or any image comparison):
                                                        a manifest and ready-made Reflection cases. Looks first; --apply writes new images;
                                                        --update also replaces images whose design changed (approving the new design)
 Changes in a Penpot file (inspect first; nothing is written without --apply):
+  penpair onboard [--json]                              colleague setup checklist, offline
   penpair runs [run-id]                                list recovery runs or inspect one, offline
   (write commands support --resume <run-id> --apply and optional --checkpoint)
   penpair archive --page <name> --name <archive board> --keep <prefixes> --parts <prefixes> [--x 9000] [--apply]
@@ -137,6 +139,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       integrity: { type: "boolean" },
       resume: { type: "string" },
       checkpoint: { type: "boolean" },
+      "force-lock": { type: "boolean" },
       force: { type: "boolean" },
       to: { type: "string" },
       only: { type: "string", multiple: true },
@@ -147,7 +150,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     },
   });
   const [command, ...rest] = positionals;
-  if ((values.resume || values.checkpoint) && (!values.apply || !["archive", "run"].includes(command ?? "")))
+  if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
     throw new Error("--resume and --checkpoint require an operation command (archive/run) with --apply");
   if (values.version) {
     console.log(version);
@@ -396,7 +399,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
     ...(values.apply ? { journal: {
-      root, runId: values.resume, resume: Boolean(values.resume), requireCheckpoint: values.checkpoint === true,
+      root, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), requireCheckpoint: values.checkpoint === true,
       ...(values.checkpoint ? { checkpoint: (runId: string) => createCheckpoint(client, { label: operation, runId }, { apply: true }) } : {}),
     } } : {}),
   });
@@ -514,6 +517,18 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
 export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = process.cwd();
+    if (argv[0] === "onboard") {
+      if (argv.slice(1).some((arg) => arg !== "--json")) throw new Error("usage: penpair onboard [--json]");
+      const report = onboardingChecklist(await loadConfig(root));
+      if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
+      else {
+        console.log(`Join ${report.project}: ${report.origin}`);
+        if (report.fileUrl) console.log(`File: ${report.fileUrl}`);
+        report.steps.forEach((step, index) => console.log(`${index + 1}. ${step}`));
+        report.warnings.forEach((warning) => console.log(`Note: ${warning}`));
+      }
+      return 0;
+    }
     if (argv[0] === "runs") {
       if (argv.length > 2 || argv[1]?.startsWith("--")) throw new Error("usage: penpair runs [run-id]");
       console.log(JSON.stringify(argv[1] ? await readJournal(root, argv[1]) : await listJournals(root), null, 2));

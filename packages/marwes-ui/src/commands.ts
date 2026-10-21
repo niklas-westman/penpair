@@ -66,7 +66,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseArgs({ args, allowPositionals: true, options: { write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" } } });
+  parseArgs({ args, allowPositionals: true, options: { write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -148,7 +148,7 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
 
 async function pushCommand(context: AdapterContext, args: string[]): Promise<number> {
   const { values } = flags(args);
-  if ((values.resume || values.checkpoint) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
+  if ((values.resume || values.checkpoint || values["force-lock"]) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
     console.error(`FAIL ${check.problems.join("; ")}`);
@@ -175,8 +175,8 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
     return 0;
   }
   const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message), {
-    prune: values.prune === true,
-    journal: { root: context.root, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
+    prune: values.prune === true, expectedLive: live,
+    journal: { root: context.root, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
       ...(values.checkpoint ? { checkpoint: (runId) => createCheckpoint(client, { label: "token push", runId }, { apply: true }) } : {}),
     },
   }));

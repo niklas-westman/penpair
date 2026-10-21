@@ -3,6 +3,7 @@ import { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile } from
 import path from "node:path";
 import { redactEndpoint } from "./endpoint.js";
 import { ensureGitignoreEntry } from "./instance/gitignore.js";
+import type { WriteLease } from "./coordination.js";
 import { version } from "./version.js";
 import type { PenpotToolClient } from "./client.js";
 import { runSnippet, snippet } from "./snippet.js";
@@ -43,6 +44,8 @@ export interface OperationJournal {
 }
 export interface JournalOptions {
   root: string;
+  forceLock?: boolean;
+  coordinate?(runId: string, target: JournalTarget): Promise<WriteLease>;
   operation: string;
   input: unknown;
   payload?: unknown;
@@ -163,7 +166,9 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
     if (actual.fileId !== record.target.fileId) throw new Error("The operation target file changed");
     return actual;
   };
+  let lease: WriteLease | undefined;
   try {
+    lease = await options.coordinate?.(runId, target);
     if (options.checkpoint && record.steps.every((step) => step.state === "pending") && record.checkpoint === undefined) {
       record.state = "running";
       await persist();
@@ -177,6 +182,7 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
     for (let index = 0; index < steps.length; index++) {
       const step = steps[index]!;
       const saved = record.steps[index]!;
+      await lease?.check();
       const beforeInspection = await assertTarget();
       const current = await step.inspect();
       const afterInspection = await assertTarget();
@@ -220,5 +226,7 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
     if (record.state === "planned" || record.state === "running") record.state = "uncertain";
     try { await persist(); } catch { /* The pre-write started marker remains the recovery authority when a later local save fails. */ }
     throw new JournalRunError(runId, record.state, redact(error instanceof Error ? error.message : String(error)));
+  } finally {
+    if (lease) await lease.release().catch((error) => options.onStep?.(`Writer marker release needs inspection: ${redact(error instanceof Error ? error.message : String(error))}`));
   }
 }

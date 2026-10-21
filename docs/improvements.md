@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **7 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **8 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: A3 — team onboarding, advisory coordination and stale-source checks** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I5 — artifact provenance, consistent capture and atomic publication** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -568,7 +568,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
   - [ ] Live hosted export/import with token/component/assets/render comparison; disposable target not yet provided.
   - [ ] Link structural review snapshots after D3; they do not replace archives.
 - [x] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints. Completed 2026-10-21; [resolution report](#i3-completion-2026-10-21).
-- [ ] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion.
+- [x] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion. Completed 2026-10-21; [resolution report](#a3-completion-2026-10-21).
 - [ ] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely.
 - [ ] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting.
 - [ ] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports.
@@ -760,6 +760,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live scratch recovery/restore proof. Multi-step builds are non-transactional; no automatic rollback. Unmodeled partial custom writes and ambiguous archive ownership stop for inspection. Cross-writer coordination remains A3; filesystem journals are local recovery evidence, not backup restore proof.
 - **Next:** A3 — team onboarding, advisory coordination and stale-source checks
 
+
+<a id="a3-completion-2026-10-21"></a>
+### 2026-10-21 — A3: Team onboarding and advisory write coordination
+
+- **Resolved:** Colleagues get a project-specific onboarding checklist, and journaled writers detect ordinary contention and stale revisions/sources before mutation.
+- **Changed:** Offline onboard/JSON; private exclusive locks for one checkout; capability-driven shared writer markers with independent acquisition readback, per-step checks, expiry and explicit force-lock. Live local processes cannot be forced out. Same-execution revision checks cover journaled operations; archives recheck candidate identities and adapters compare source state immediately before mutation. Added team guidance and explicit unsupported/non-atomic behavior.
+- **Validated:** pnpm check passes: 363 tests (278 core, 57 adapter, 28 Docker). Tests cover acquisition/release, active conflict, expiry, explicit takeover, malformed markers, local running/dead owners, ownership loss, source edits between inspection and delivery, and stale revision refusal. pnpm smoke:package and git diff --check pass.
+- **Risks:** Shared plugin data has no atomic compare-and-swap: concurrent machines and forced takeovers are advisory, never distributed exclusion. Local locks protect one checkout; human editing remains possible. Unsupported shared methods warn and retain local exclusion only. Direct unjournaled library helpers and scratch probes require manual coordination. No live two-editor trial; direct file links may need the owner's full team-context URL.
+- **Next:** I5 — artifact provenance, consistent capture and atomic publication
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -780,3 +790,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — G3 partial:** Backup candidate tooling and advisory notes tested; full restore proof and D3 remain pending. Count stays 6/40; next I3.
 
 - **2026-10-21 — I3 completed:** Recoverable operations and checkpoints. Progress 7/40; next A3 — team onboarding, advisory coordination and stale-source checks.
+
+- **2026-10-21 — A3 completed:** Team onboarding and advisory write coordination. Progress 8/40; next I5 — artifact provenance, consistent capture and atomic publication.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Team safeguards:** offline `onboard [--json]`, local checkout writer locks and capability-driven shared advisory markers for journaled writes. Explicit abandoned-lock override, lease expiry and independent ownership checks; same-execution revision, archive-source and token-source guards stop stale mutations. Cross-machine markers are explicitly non-atomic.
+
 - **Recoverable writes:** local redacted journals persist original plans and started/completed phases for CLI writes and adapter token batches. Explicit `--resume` reconciles actual state, skips verified work and refuses conflicting inputs or edits. `runs` inspects evidence offline; optional `--checkpoint` requires verified native version support. No transaction or automatic rollback.
 
 - **Hosted backup candidates:** bounded `backup file <new.penpot>` exports with identity/revision/length/hash evidence and refusal to replace existing files. Exported bytes never imply a verified restore. Added manual export/scratch-restore guidance and opt-in non-blocking backup-note reminders; the first real archive round trip remains outstanding.

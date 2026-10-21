@@ -1,4 +1,4 @@
-import { runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
+import { guardRevision, writeCoordinator, runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
 import { canonical, normalizeValue, type PenpotToken, type PenpotTokenSet, type TokenSnapshot } from "./tokens.js";
 import { actionSatisfied, reconcileAction, remainingAction } from "./reconciliation.js";
 
@@ -327,7 +327,7 @@ export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
  * Carries out the plan one write at a time, stopping at the first anomaly, then reads everything back: the file must now match the
  * expectation, and no shape may have moved or been rebound.
  */
-export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { prune?: boolean; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
+export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { prune?: boolean; expectedLive?: LiveTokens; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
   if (options.journal) client = guardFile(client, { id: (await readJournalTarget(client)).fileId });
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
     const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
@@ -350,18 +350,23 @@ export async function applyPlan(client: PenpotToolClient, expected: TokenSnapsho
     }
     if (structureBefore.hash !== originalStructure.hash) throw new Error("Shapes changed since the token run began; reconcile the design before resuming");
     const baseline = { live: await readLive(guarded), structure: structureBefore };
+    if (!options.journal.resume && options.expectedLive && observationHash(options.expectedLive) !== observationHash(baseline.live)) throw new Error("Token source changed since the CLI plan; inspect again before writing");
     const work = actions.flatMap<Action>((action) => "tokens" in action ? inBatches(action.tokens).map((tokens) => ({ ...action, tokens })) : [action]);
     const record = await runJournaledSteps(work.map<JournalStep<typeof baseline>>((action, index) => ({
       key: `step-${index}-${observationHash(action).slice(0, 12)}`, label: describeAction(action), signature: [actionSnippet(action, "tokens" in action ? action.tokens : undefined).code, actionSatisfied.toString(), reconcileAction.toString(), remainingAction.toString()].join("\n"),
       initial: baseline,
       inspect: async () => ({ live: await readLive(guarded), structure: await fingerprint() }),
-      apply: async (current) => {
+      apply: async (current, target) => {
         const residual = remainingAction(action, current.live);
-        return residual ? runSnippet(guarded, actionSnippet(residual, "tokens" in residual ? residual.tokens : undefined), { effect: "write" }) : { ok: true, reconciled: true };
+        if (!residual) return { ok: true, reconciled: true };
+        const mutation = actionSnippet(residual, "tokens" in residual ? residual.tokens : undefined);
+        const sourceGuard = `{ const observed = await (async () => { ${readTokens().code} })();
+if (JSON.stringify({sets:observed.sets, themes:observed.themes}) !== ${JSON.stringify(JSON.stringify(current.live))}) return {ok:false, message:"Token source changed before mutation"}; }\n`;
+        return runSnippet(guardRevision(guarded, target), { ...mutation, code: sourceGuard + mutation.code }, { effect: "write" });
       },
       verify: (current) => current.structure.hash === originalStructure.hash && actionSatisfied(action, current.live),
       reconcile: (before, current) => current.structure.hash !== originalStructure.hash ? "conflict" : reconcileAction(action, before.live, current.live),
-    })), { ...options.journal, operation: "tokens-push", input: { snapshot: observationHash(expected), prune: options.prune === true }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
+    })), { ...options.journal, coordinate: writeCoordinator(guarded, { root: options.journal.root, operation: "tokens-push", forceLock: options.journal.forceLock, warn: onStep }), operation: "tokens-push", input: { snapshot: observationHash(expected), prune: options.prune === true }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
       finalVerify: async () => compareToPenpot(expected, await readLive(guarded)).inSync && (await fingerprint()).hash === originalStructure.hash,
     });
     const structureAfter = await fingerprint();

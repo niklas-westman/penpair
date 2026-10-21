@@ -25,3 +25,7 @@ Only declared reads may retry automatically. Writes and unclassified plugin code
 ## Interrupted operations
 
 CLI writes persist local run evidence before mutation. Inspect `penpair runs <run-id>` after failure; resume the original command only with explicit `--apply --resume <run-id>` and unchanged inputs. Resume independently checks actual state and stops on conflict. Never delete evidence to force a replay. `--checkpoint` requires a verified native version before operation steps; keep it on resume. Checkpoints are not transactions or independent backup restore proof. See the project recovery guide for limits.
+
+## Shared files
+
+Run `penpair onboard` for the personal-key colleague checklist. Journaled CLI writers acquire local locks and optional shared advisory markers. Coordinate with people: shared read/write markers are not atomic distributed locks and human edits remain possible. A stale revision or source observation stops the mutation. Inspect the named run and contact its owner before `--force-lock --apply`; active local processes cannot be forced out.

@@ -16,6 +16,21 @@ async function setup() {
 }
 
 describe("token push recovery through actual plugin snippets", () => {
+  it("refuses a stale CLI plan and a source edit immediately before mutation", async () => {
+    const { snapshot, penpot, plan, options } = await setup();
+    const stale = { sets: [], themes: [{ group: "changed", name: "changed", active: false, sets: [] }] };
+    await expect(applyPlan(penpot.client, snapshot, plan, undefined, { ...options, expectedLive: stale })).rejects.toThrow(/source changed/);
+    const original = penpot.client.callTool.bind(penpot.client);
+    let changed = false;
+    penpot.client.callTool = async (name, args) => {
+      if (!changed && String(args.code).includes("set.addToken")) {
+        changed = true; penpot.sets[0]!.name = "Designer renamed this";
+      }
+      return original(name, args);
+    };
+    await expect(applyPlan(penpot.client, snapshot, plan, undefined, options)).rejects.toThrow(/source changed before mutation/);
+    expect(penpot.sets[0]!.tokens).toHaveLength(0);
+  });
   it("recovers acknowledgment loss at every actual fresh-push batch boundary", async () => {
     const reference = await setup();
     await applyPlan(reference.penpot.client, reference.snapshot, reference.plan, undefined, reference.options);
