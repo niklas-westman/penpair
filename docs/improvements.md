@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **12 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **13 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: E2 — owned-marker instruction integration with explicit destination and dry-run preview** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: B3 — unambiguous named exports, ad-hoc shots and option hints** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -573,7 +573,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting. Completed 2026-10-21; [resolution report](#i7-completion-2026-10-21).
 - [x] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports. Completed 2026-10-21; [resolution report](#i11-completion-2026-10-21).
 - [x] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run. Completed 2026-10-21; [resolution report](#b5-completion-2026-10-21).
-- [ ] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview.
+- [x] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview. Completed 2026-10-21; [resolution report](#e2-completion-2026-10-21).
 - [ ] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots.
 - [ ] **B4 · P1 · M** — Settle with bounded native/fallback checks and independent exports.
 
@@ -810,6 +810,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** These thirteen brief observations were not independently rerun here. The references are scoped to reported hosted 2.18.4 behavior, not universal API rules. Recipe enforcement remains B2 and default settle integration remains B4; no new live compatibility pass is claimed.
 - **Next:** E2 — owned-marker instruction integration with explicit destination and dry-run preview
 
+
+<a id="e2-completion-2026-10-21"></a>
+### 2026-10-21 — E2: Owned-marker instruction integration and preview
+
+- **Resolved:** Skill installation can integrate its own rows into an explicitly resolved instruction file without manual copy/paste, duplicating rows, or overwriting unrelated instructions.
+- **Changed:** skills install/setup accept an agents destination. A single existing AGENTS.md or CLAUDE.md is reused; absent files require explicit selection and conflicting defaults are reported incomplete. Marked blocks update idempotently, malformed markers fail before copies, and concurrent instruction edits are preserved. Dry-run plans every file/link and owned-block diff without writes. Output paths reject symlink escapes/dangling links; Markdown paths follow the actual skill/instruction folders. Complete files are published atomically and existing permissions are preserved.
+- **Validated:** pnpm check passes: 401 tests (314 core, 59 adapter, 28 Docker). Tests cover first install/repeat, absent/default/ambiguous files, malformed markers, CRLF/outside text preservation, nested/space-containing paths, preview with zero filesystem writes, concurrent owner edits and symlink refusal. pnpm smoke:package additionally verifies preview, application and no-op from installed tarballs. git diff --check passes.
+- **Risks:** Installation is a sequence of local file publications, not a multi-file transaction; errors can leave skill copies applied while instruction changes are refused. Both instruction files require explicit owner selection. Setup follows the same destination policy and reports missing selection; it does not silently create or choose competing instruction files. No global instructions or this repository's AGENTS.md were edited by running the feature.
+- **Next:** B3 — unambiguous named exports, ad-hoc shots and option hints
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -840,3 +850,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I11 completed:** Lazy executable extensions and explicit trust boundaries. Progress 11/40; next B5 — publish the dated, version-scoped build gotchas.
 
 - **2026-10-21 — B5 completed:** Dated and version-scoped build gotchas. Progress 12/40; next E2 — owned-marker instruction integration with explicit destination and dry-run preview.
+
+- **2026-10-21 — E2 completed:** Owned-marker instruction integration and preview. Progress 13/40; next B3 — unambiguous named exports, ad-hoc shots and option hints.

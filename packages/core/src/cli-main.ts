@@ -60,7 +60,7 @@ Read-only:
   penpair backup file <new.penpot>                     try a bounded full-file export, without replacing an existing archive
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
-  penpair skills install [--to <folder>] [--only <name>] [--force]   copy them into the project and make them discoverable
+  penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]   copy them into the project and make them discoverable
 Snippets (the built-in ones and the project's own, listed under "snippets" in penpair.config.json):
   penpair snippets                                     what can be run, with its parameters
   penpair snippets check                               validate the project's snippets without a connection
@@ -134,6 +134,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "pin-file": { type: "boolean" },
       standalone: { type: "boolean" },
       "builtins-only": { type: "boolean" },
+      agents: { type: "string" },
+      "dry-run": { type: "boolean" },
       web: { type: "boolean" },
       docker: { type: "boolean" },
       replace: { type: "boolean" },
@@ -158,7 +160,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
-    skills: ["to", "only", "force"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["web", "docker", "external", "instance", "port"],
+    skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
   const network = ["pages", "tree", "audit", "tokens", "export", "archive", "run", "baselines", "probe", "backup", "doctor"];
@@ -170,6 +172,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (!raw.trim() || !Number.isFinite(number) || number < min || number > max || integer && !Number.isInteger(number)) throw new Error(`--${key} must be ${integer ? "an integer" : "a number"} from ${min} to ${max}`);
   }
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
+  if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
   if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
     throw new Error("--resume and --checkpoint require an operation command (archive/run) with --apply");
   if (values.version) {
@@ -271,8 +274,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         log,
         local: cli.local,
         installSkills: async () => {
-          const report = await installSkills({ root });
-          output.log(`Installed ${report.installed.length} rule file(s) in ${report.to}/ (${report.unchanged.length} already there). Add these rows to your AGENTS.md skills table:\n${report.agentsRows.join("\n")}`);
+          const report = await installSkills({ root, agents: values.agents });
+          output.log(`Installed ${report.installed.length} rule file(s) in ${report.to}/ (${report.unchanged.length} already there).`);
+          if (report.instructions?.path) output.log(`Instructions: ${report.instructions.path} (${report.instructions.status})`);
+          else output.log(`Choose an instruction destination with skills install --agents <path>. Rows:\n${report.agentsRows.join("\n")}`);
         },
       },
     );
@@ -281,16 +286,23 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
   if (command === "skills") {
     if (rest[0] === "install") {
-      const report = await installSkills({ root, to: values.to, only: values.only, force: values.force });
+      const report = await installSkills({ root, to: values.to, only: values.only, force: values.force, agents: values.agents, dryRun: values["dry-run"] });
       output.result(report);
+      if (report.instructions?.path) output.log(`instructions: ${report.instructions.path} (${report.instructions.status})`);
+      if (report.dryRun) {
+        for (const file of report.wouldInstall ?? []) output.log(`would write ${file}`);
+        for (const file of report.wouldLink ?? []) output.log(`would link ${file}`);
+        if (report.instructions?.diff) output.log(report.instructions.diff);
+      }
+      if (report.instructions?.status === "choice-required") output.error("Both AGENTS.md and CLAUDE.md exist; choose --agents <path> explicitly. Instruction files were not changed.");
       for (const file of report.installed) output.log(`wrote     ${file}`);
       for (const file of report.kept) output.log(`kept      ${file} (differs from the shipped one; --force replaces it, except the project-owned files)`);
       for (const link of report.linked) output.log(`linked    ${link}`);
       output.log(`${report.unchanged.length} file(s) already up to date`);
-      output.log("\nAdd to your AGENTS.md skills table:\n" + report.agentsRows.join("\n"));
+      if (!report.instructions?.path) output.log("\nChoose --agents <path> to integrate these rows:\n" + report.agentsRows.join("\n"));
       for (const old of report.legacy) output.log(`\nnote ${old.folder} is the old name of ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Delete the old folder and its links (.agents/skills/${path.posix.basename(old.folder)}, .claude/skills/${path.posix.basename(old.folder)}) and update its row in your AGENTS.md.`);
       output.log("\nThen fill in references/project-facts.md in penpair-design: it is yours and is never replaced.");
-      return 0;
+      return report.instructions?.status === "choice-required" ? 3 : 0;
     }
     const bundled = await listBundledSkills();
     output.result({ skills: bundled });

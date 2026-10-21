@@ -88,7 +88,7 @@ export async function collectCommand(command: string, work: () => Promise<number
   };
   return sanitize({ schemaVersion: 1, command, outcome, phase: typeof record.phase === "string" ? record.phase : outcome === "uncertain" || outcome === "cancelled" || outcome === "deadline" ? "interrupted" : "finished", exitCode, target,
     runId: capture.errors.find((error) => error.runId)?.runId ?? (typeof journal?.runId === "string" ? journal.runId : null), data, messages: capture.messages, warnings: capture.warnings, errors: capture.errors,
-    completeness: { complete: !incomplete && outcome !== "uncertain" && outcome !== "cancelled" && outcome !== "deadline" && outcome !== "failed", ...(incomplete ? { reason: "Output is truncated or required observations are missing" } : {}) }, timings: { startedAt: new Date(started).toISOString(), durationMs: Math.max(0, Date.now() - started) } }) as CommandResult;
+    completeness: { complete: outcome === "success" || outcome === "drift", ...(incomplete ? { reason: "Output is truncated or required observations are missing" } : {}) }, timings: { startedAt: new Date(started).toISOString(), durationMs: Math.max(0, Date.now() - started) } }) as CommandResult;
 }
 
 /** Outer transport contract. Command-specific data remains owned by the command service. */

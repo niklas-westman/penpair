@@ -76,6 +76,11 @@ await penpair(web, "init", "--external", "https://design.penpot.app", "--gitigno
 check(/profile/.test(await readFile(join(web, "penpair.config.json"), "utf8")), "init --external writes the config");
 check(JSON.parse(await penpair(web, "config", "check", "--json")).data.valid === true, "config check validates the installed project's settings offline");
 await penpair(web, "skills", "install");
+const instructionPreview = JSON.parse(await penpair(web, "skills", "install", "--agents", "AGENTS.md", "--dry-run", "--json"));
+check(instructionPreview.data.instructions.status === "preview" && !(await readdir(web)).includes("AGENTS.md"), "instruction preview leaves the consumer untouched");
+await penpair(web, "skills", "install", "--agents", "AGENTS.md");
+check((await readFile(join(web, "AGENTS.md"), "utf8")).includes("<!-- penpair:skills:start -->"), "instruction integration ships and writes only its owned block");
+check(JSON.parse(await penpair(web, "skills", "install", "--agents", "AGENTS.md", "--json")).data.instructions.status === "unchanged", "instruction integration is idempotent from installed tarballs");
 check(/^name: penpair-setup/m.test(await readFile(join(web, ".skills/penpair-setup/SKILL.md"), "utf8")), "skills install writes the setup skill");
 check(/Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")), "the npm page's README is the repository's");
 check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("getting-started.md"), "the docs ship");

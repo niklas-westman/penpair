@@ -129,3 +129,5 @@ Baseline schema 2 keeps current capture and original approval provenance separat
 For scripts and tools, use the versioned [command result contract](command-contract.md): command-specific JSON now lives under `data`, progress uses stderr, and incomplete/uncertain/cancelled outcomes have explicit exit codes.
 
 Adapters, snippet definitions and theme files execute trusted project code. Built-in help/inspection avoid adapter imports; use `snippets --builtins-only` for the shipped registry. See [extension trust boundaries](extensions-trust.md).
+
+Use `skills install --agents AGENTS.md --dry-run` to preview owned-marker instruction integration, then repeat without dry-run. Default destination selection and conflicting instruction files are explained in [skill installation](skill-installation.md).

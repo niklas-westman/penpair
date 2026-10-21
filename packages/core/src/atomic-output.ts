@@ -3,9 +3,9 @@ import { link, open, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 
 /** Stage complete bytes beside the destination; publish once. Exclusive mode never replaces an existing file. */
-export async function atomicWriteFile(destination: string, data: string | Uint8Array, options: { replace?: boolean } = {}): Promise<void> {
+export async function atomicWriteFile(destination: string, data: string | Uint8Array, options: { replace?: boolean; mode?: number } = {}): Promise<void> {
   const temporary = path.join(path.dirname(destination), `.${path.basename(destination)}-${randomUUID()}.tmp`);
-  const handle = await open(temporary, "wx", 0o600);
+  const handle = await open(temporary, "wx", options.mode ?? 0o600);
   try {
     await handle.writeFile(data);
     await handle.sync();
