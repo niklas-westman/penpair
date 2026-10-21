@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { runCli, runCommand } from "../src/cli-main.js";
-import { collectCommand, commandOutput, commandSignal, CommandInterruptedError } from "../src/command-result.js";
+import { collectCommand, withCleanupDeadline, commandOutput, commandSignal, CommandInterruptedError } from "../src/command-result.js";
 import { executeCode, UncertainExecutionError } from "../src/client.js";
 import * as clientModule from "../src/client.js";
 import * as endpointModule from "../src/endpoint.js";
@@ -91,4 +91,18 @@ it("rejects ignored write flags and nonfinite numbers before connecting", async 
   expect(await runCommand(["pages", "--apply"])).toMatchObject({ outcome: "failed" });
   expect(await runCommand(["tree", "--page", "P", "--depth", "NaN"])).toMatchObject({ outcome: "failed" });
   expect(connect).not.toHaveBeenCalled();
+});
+
+it("bounds explicit restoration after cancellation while retaining the cancelled main command", async () => {
+  const controller = new AbortController(); let cleaned = false;
+  const result = await collectCommand("cleanup", async () => {
+    controller.abort(new CommandInterruptedError("cancelled"));
+    expect(commandSignal()?.aborted).toBe(true);
+    await withCleanupDeadline(async () => { expect(commandSignal()?.aborted).toBe(false); cleaned = true; }, 1000);
+    expect(commandSignal()?.aborted).toBe(true);
+    return 0;
+  }, { signal: controller.signal });
+  expect(cleaned).toBe(true);
+  expect(result.exitCode).toBe(130);
+  await expect(withCleanupDeadline(async () => { const signal = commandSignal()!; await new Promise<void>((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })); }, 5)).rejects.toThrow(/Restoration deadline/);
 });

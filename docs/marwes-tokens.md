@@ -150,4 +150,8 @@ New checkouts lack local ancestry: matching live values can be recorded with an 
 
 `--prune` removes only retired tokens present in the verified ancestor, inside currently declared managed sets. It preserves unowned hand additions, unmanaged sets and their theme membership. Retired whole sets are reported and preserved; their names alone never establish ownership. Prune and type replacement refuse retained cross-set formula references and bound shapes. Dependencies are checked again inside each destructive mutation. This is conservative even if another set supplies the same name, or another planned action would later remove a dependent. Change declarations/dependencies in a separate reviewed step.
 
-Each apply still checks file/source identity, original journal inputs and structure. A failed or uncertain push does not advance the ancestor. Per-theme actual resolution and global set precedence remain separate evidence (C3); membership and ownership do not establish those values.
+Each apply still checks file/source identity, original journal inputs and structure. A failed or uncertain push does not advance the ancestor. Per-theme actual resolution and global set precedence require the separate mode trial; membership and ownership do not establish those values.
+
+## Actual resolution and mode review
+
+`diff --resolved [--apply]` measures actual token resolution in each isolated declared theme, with full original selection restoration. `verify-modes FRAME_ID --page PAGE --out DIR [--apply]` adds stable per-mode images. See [mode verification, recovery and limits](mode-verification.md).

@@ -58,7 +58,15 @@ function renderHuman(value:unknown):unknown {
   try{return JSON.stringify(clean(JSON.parse(value)),null,2);}catch{return redactHuman(value);}
 }
 export function withCommandSignal<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> { return signals.run({signal,redactors:[]}, work); }
-export function commandSignal(): AbortSignal | undefined { return scope.getStore()?.signal ?? signals.getStore()?.signal; }
+const cleanupSignals = new AsyncLocalStorage<AbortSignal>();
+/** Bounded explicit restoration work may finish after the main command is cancelled. */
+export async function withCleanupDeadline<T>(work: () => Promise<T>, milliseconds = 10000): Promise<T> {
+  if (!Number.isInteger(milliseconds) || milliseconds < 1 || milliseconds > 30000) throw new Error("Cleanup deadline must be from 1 to 30000 ms");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error("Restoration deadline exceeded")), milliseconds);
+  try { return await cleanupSignals.run(controller.signal, work); } finally { clearTimeout(timer); }
+}
+export function commandSignal(): AbortSignal | undefined { return cleanupSignals.getStore() ?? scope.getStore()?.signal ?? signals.getStore()?.signal; }
 export async function commandSleep(milliseconds: number): Promise<void> {
   const signal = commandSignal();
   try { await wait(milliseconds, undefined, { signal }); } catch (error) { if (signal?.aborted) throw signal.reason; throw error; }

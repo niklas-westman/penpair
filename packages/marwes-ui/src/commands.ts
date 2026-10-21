@@ -1,3 +1,4 @@
+import { runModeTrial } from "./mode-trial.js";
 import { ownershipReport, readSyncAncestor, saveSyncAncestor } from "./ownership.js";
 import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -72,7 +73,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseCommandArgs({ args, allowPositionals: true, options: { overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
+  parseCommandArgs({ args, allowPositionals: true, options: { resolved: { type: "boolean" }, page: { type: "string" }, out: { type: "string" }, overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -137,6 +138,7 @@ async function readPenpot(context: AdapterContext, committed: TokenSnapshot, wan
 
 async function diffCommand(context: AdapterContext, args: string[]): Promise<number> {
   const { values } = flags(args);
+  if (values.resolved) return modeCommand(context, args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
     diagnostic(context, `FAIL ${check.problems.join("; ")}`);
@@ -157,6 +159,24 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
   for (const line of formatDrift(drift, impact)) print(context, `  ${line}`);
   print(context, "`penpair marwes tokens push --apply` brings Penpot to the snapshot (designer edits require explicit adoption or overwrite).");
   return 2;
+}
+
+async function modeCommand(context: AdapterContext, args: string[], frameId?: string): Promise<number> {
+  const { values } = flags(args);
+  if ((values.resume || values.checkpoint || values["force-lock"]) && !values.apply) throw new Error("Mode resume/checkpoint/force-lock require --apply");
+  if (frameId && (!values.page || !values.out)) throw new Error("verify-modes requires one frame ID, --page and --out");
+  if (values.out) await resolveProjectOutput(context.root, values.out);
+  const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
+  if (!check.committed || !check.current) { diagnostic(context, "Mode verification requires a current committed snapshot. " + staleAdvice); return 2; }
+  const report = await context.withPenpot(client => runModeTrial(client, check.committed!, {
+    root: context.root, apply: values.apply === true, resume: values.resume, forceLock: values["force-lock"] === true, redact: context.redact, onStep: context.log,
+    requireCheckpoint: values.checkpoint === true,
+    ...(values.checkpoint ? { checkpoint: runId => createCheckpoint(client, { label: "mode trial", runId }, { apply: true }) } : {}),
+    ...(frameId ? { frame: { id: frameId, page: values.page!, out: values.out! } } : {}),
+  }));
+  context.output?.result(report); print(context, JSON.stringify(report, null, 2));
+  if (!values.apply) { diagnostic(context, "Mode checks temporarily change active selection. Inspect planned states, then use --apply; the full original selection will be restored and verified separately."); return 0; }
+  return report.uncertain ? 4 : !report.restoration.verified ? 1 : !report.complete ? 3 : report.verified ? 0 : 2;
 }
 
 async function pushCommand(context: AdapterContext, args: string[]): Promise<number> {
@@ -263,6 +283,8 @@ export const marwesCommand: AdapterCommand = {
     "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)",
     "penpair marwes tokens diff [--json]            Penpot against the snapshot: missing, changed, added by hand, and what each change reaches",
     "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations",
+    "penpair marwes tokens diff --resolved [--apply] verify actual values in isolated themes and restore the complete original selection",
+    "penpair marwes tokens verify-modes ID --page PAGE --out DIR [--apply] capture stable per-mode PNG evidence and restore selection",
     "penpair marwes tokens status                   one screen: installed Marwes, snapshot, Penpot",
   ],
   async run(context, args) {
@@ -271,16 +293,17 @@ export const marwesCommand: AdapterCommand = {
       diagnostic(context, `usage:\n  ${marwesCommand.usage.join("\n  ")}`);
       return 1;
     }
-    const commands: Record<string, (c: AdapterContext, a: string[]) => Promise<number>> = { snapshot: snapshotCommand, check: checkCommand, diff: diffCommand, push: pushCommand, status: statusCommand };
+    const commands: Record<string, (c: AdapterContext, a: string[]) => Promise<number>> = { snapshot: snapshotCommand, check: checkCommand, diff: diffCommand, push: pushCommand, status: statusCommand, "verify-modes": (context, args) => modeCommand(context, args, flags(args).positionals[0]) };
     const run = commands[sub];
     if (!run) {
       diagnostic(context, `unknown: penpair marwes tokens ${sub}\nusage:\n  ${marwesCommand.usage.join("\n  ")}`);
       return 1;
     }
     const parsed = flags(rest);
-    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock", "overwrite", "adopt"] : [])]);
-    if (parsed.positionals.length) throw new Error("Unexpected positional arguments after the token subcommand");
+    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock", "overwrite", "adopt"] : sub === "diff" ? ["resolved", "apply", "resume", "checkpoint", "force-lock"] : sub === "verify-modes" ? ["page", "out", "apply", "resume", "checkpoint", "force-lock"] : [])]);
+    if (sub === "verify-modes" ? parsed.positionals.length !== 1 : parsed.positionals.length) throw new Error("Unexpected positional arguments after the token subcommand");
     for (const key of Object.keys(parsed.values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by tokens ${sub}`);
+    if (sub === "diff" && !parsed.values.resolved && [parsed.values.apply, parsed.values.resume, parsed.values.checkpoint, parsed.values["force-lock"]].some(Boolean)) throw new Error("Mode write flags require diff --resolved");
     return run(context, rest);
   },
 };

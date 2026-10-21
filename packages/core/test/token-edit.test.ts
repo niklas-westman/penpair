@@ -89,6 +89,13 @@ describe("guarded token CRUD", () => {
     const report = await runOperation(f.client, tokenEditOperation, edit, { apply: true, layout: false, journal: { root, runId: record.runId, resume: true } });
     expect(report.verified).toBe(true); expect(f.writes).toBe(1); expect(f.sets[0]!.tokens).toHaveLength(1);
   });
+  it("keeps redacted journal evidence incomplete even after a confirmed mutation", async () => {
+    const f = fixture(); f.catalog.addSet({ name: "Project" });
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-token-redaction-"));
+    const report = await runOperation(f.client, tokenEditOperation, { kind: "set", set: "Project", token: { ...radius, description: "SENSITIVE" } }, { apply: true, layout: false, journal: { root, redact: value => value.replaceAll("SENSITIVE", "[REDACTED]") } });
+    expect(report).toMatchObject({ complete: false, redacted: true, verified: false });
+    expect(JSON.stringify(report)).not.toContain("SENSITIVE");
+  });
   it("rejects invalid CLI input before connecting and runs the guarded service for configured writes", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "penpair-token-cli-"));
     await writeFile(path.join(root, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://example.test" }, file: { id: "f" } }));

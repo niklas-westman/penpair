@@ -13,3 +13,6 @@ export * from "./theme-input.js";
 export * from "./tokens.js";
 
 export * from "./ownership.js";
+
+export * from "./resolved-values.js";
+export * from "./mode-trial.js";

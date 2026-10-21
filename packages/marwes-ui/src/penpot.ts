@@ -298,6 +298,8 @@ return { ok: true, active: !!theme[0].active };`, { group: action.group, name: a
 }
 
 export interface ApplyReport {
+  redacted?: boolean;
+  complete?: boolean;
   layout?: LayoutResult;
   journal?: { runId: string; state: string };
   steps: string[];
@@ -407,7 +409,7 @@ if (JSON.stringify({sets:observed.sets, themes:observed.themes}) !== ${JSON.stri
     await settle();
     const structureAfter = await fingerprint();
     const drift = compareToPenpot(expected, await readLive(guarded), options);
-    return { layout, steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, verified: drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
+    return { layout, steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, ...(record.redacted ? { redacted: true, complete: false } : {}), verified: !record.redacted && drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
   }
   const steps: string[] = [];
   for (const action of actions) {

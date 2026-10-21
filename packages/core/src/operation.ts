@@ -38,6 +38,8 @@ export interface OperationOptions extends ExecuteOptions {
 }
 
 export interface OperationReport {
+  complete?: boolean;
+  redacted?: boolean;
   layout?: LayoutResult;
   journal?: { runId: string; state: string };
   outcome: "inspected" | "verified" | "failed";
@@ -148,7 +150,7 @@ async function journaledOperation<P>(client: PenpotToolClient, operation: Operat
     },
   }], { ...options.journal!, coordinate: writeCoordinator(guarded, { root: options.journal!.root, operation: operation.name, forceLock: options.journal!.forceLock, warn: options.onStep }), operation: operation.name, input: { params, layout: options.layout ?? {}, minimumWaitMs: options.settleMs ?? 0 }, payload: { params }, target: () => readJournalTarget(guarded), onStep: options.onStep ?? options.journal!.onStep, redact: options.redact ?? options.journal!.redact });
   const saved = record.steps[0]!;
-  return { layout: (saved.after as Observation).layout, operation: operation.name, phase: "applied", outcome: "verified", inspect: (saved.before as Observation).inspection, apply: saved.result as SnippetResult | undefined, readback: (saved.after as Observation).readback, problems: [], verified: true, journal: { runId: record.runId, state: record.state } };
+  return { layout: (saved.after as Observation).layout, operation: operation.name, phase: "applied", outcome: record.redacted ? "failed" : "verified", ...(record.redacted ? { redacted: true, complete: false } : {}), inspect: (saved.before as Observation).inspection, apply: saved.result as SnippetResult | undefined, readback: (saved.after as Observation).readback, problems: record.redacted ? ["Journal evidence required credential redaction; completeness cannot be confirmed"] : [], verified: !record.redacted, journal: { runId: record.runId, state: record.state } };
 }
 
 /** Nests the frames that are not part of the live work into one archive board. Frames keep their names, ids and component links. */

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Resolved mode trials:** `marwes tokens diff --resolved` and `verify-modes` inspect before temporarily selecting isolated themes with `--apply`. Actual resolved values and global precedence are compared against bounded snapshot expectations. Complete original theme/set selection is independently restored, including bounded cancellation cleanup. Coherent mode images publish only after restoration; unknowns, drift and uncertain execution remain distinct.
+
 - **Ownership reconciliation:** token pushes compare desired/live properties against a private, file-bound verified ancestor. Designer/conflicting/untracked values require an explicit overwrite decision or local adoption proposal. Prune preserves tokens without ownership evidence and unmanaged theme membership. Cross-set references and bound type replacements refuse before and inside destructive mutations; concurrent ancestor publication preserves newer evidence.
 
 - **Project token sets and CRUD:** neutral inspect/apply/readback commands for inactive set creation, same-type token upsert, reference-aware removal and conflict-free promotion copies. Source rechecks, journals and independent complete readback share the write protocol. The token adapter includes declared project extras in both modes; schema-2 snapshots record ownership and retain version-1 review support.

@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **18 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **19 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: C3 — actual per-theme resolution and reliable selection restoration** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: B1 — guarded script-file execution with honest trust and verification outcomes** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -582,7 +582,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I8 · P1 · M** — Add structured, complete inspection with bounded payloads. Completed 2026-10-21; [resolution report](#i8-completion-2026-10-21).
 - [x] **C2 · P1 · M** — Manage project-owned extra sets and safe token CRUD. Completed 2026-10-21; [resolution report](#c2-completion-2026-10-21).
 - [x] **I6 · P1 · M** — Add explicit ownership, conflicts and reference-aware destructive plans. Completed 2026-10-21; [resolution report](#i6-completion-2026-10-21).
-- [ ] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably.
+- [x] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably. Completed 2026-10-21; [resolution report](#c3-completion-2026-10-21).
 - [ ] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol.
 - [ ] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes.
 - [ ] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures.
@@ -870,6 +870,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Ancestors are local evidence rather than shared authentication; a new checkout requires an explicit decision for differing existing values. Adoption is a review proposal that must enter declarations, not an automatic edit to upstream generation. Conservative dependency refusal can require separate reviewed changes. No new live mutation trial; actual resolution is C3.
 - **Next:** C3 — actual per-theme resolution and reliable selection restoration
 
+
+<a id="c3-completion-2026-10-21"></a>
+### 2026-10-21 — C3: Actual mode resolution and complete selection restoration
+
+- **Resolved:** Declared membership no longer stands in for actual per-theme resolution: isolated mode trials read live resolved values, expose global order drift and independently verify restoration of every original theme/set flag.
+- **Changed:** Added diff --resolved and verify-modes inspection/apply paths, bounded reference/arithmetic expectations, actual resolved sampling and explicit unknowns. Journaled compound trials restore in finally with bounded cancellation cleanup. Stable per-mode images carry provenance and publish coherent generations only after restoration. Redacted journal evidence remains incomplete across operations and token services.
+- **Validated:** pnpm check passed: 477 tests (361 core, 88 adapter, 28 Docker), build/typecheck/version guards; package smoke and git diff --check passed. Fixtures cover order mistakes, multi-group/custom restoration, ignored activation, lost acknowledgment, cancellation, source changes, missing capabilities/values, restoration failure, redaction, artifact preservation and CLI wiring.
+- **Risks:** No live pinned-version mutation trial. Contexts are isolated themes, not every combination of brand/density axes. Unsupported formulas/units, nested font forms and composite shadows remain unknown. Cancellation cleanup is cooperative; restoration failure needs inspection. Images are review evidence, not baseline approval.
+- **Next:** B1 — guarded script-file execution with honest trust and verification outcomes
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -912,3 +922,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — C2 completed:** Declared project extras and guarded token editing. Progress 17/40; next I6 — ownership conflicts and reference-aware destructive plans.
 
 - **2026-10-21 — I6 completed:** Ownership conflicts and reference-aware reconciliation. Progress 18/40; next C3 — actual per-theme resolution and reliable selection restoration.
+
+- **2026-10-21 — C3 completed:** Actual mode resolution and complete selection restoration. Progress 19/40; next B1 — guarded script-file execution with honest trust and verification outcomes.

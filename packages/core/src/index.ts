@@ -39,7 +39,7 @@ export { onboardingChecklist } from "./onboard.js";
 
 export { atomicWriteFile } from "./atomic-output.js";
 
-export { commandResultSchema, collectCommand, commandOutput, type CommandResult, type CommandFailure, type CommandOutput } from "./command-result.js";
+export { commandSleep, withCleanupDeadline, commandResultSchema, collectCommand, commandOutput, type CommandResult, type CommandFailure, type CommandOutput } from "./command-result.js";
 
 export { resolveProjectInput, resolveProjectOutput, designDataBlock } from "./project-input.js";
 
