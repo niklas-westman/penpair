@@ -1,8 +1,9 @@
 import { defineAdapter } from "@penpair/core";
+import { marwesKit } from "./build-kit.js";
 import { marwesCommand } from "./commands.js";
 
 /** The adapter penpair loads when `@penpair/marwes-ui` is listed under "adapters" in penpair.config.json. */
-export default defineAdapter({ name: "@penpair/marwes-ui", commands: [marwesCommand] });
+export default defineAdapter({ name: "@penpair/marwes-ui", commands: [marwesCommand], kits: [marwesKit] });
 
 export * from "./commands.js";
 export * from "./config.js";
@@ -16,3 +17,5 @@ export * from "./ownership.js";
 
 export * from "./resolved-values.js";
 export * from "./mode-trial.js";
+
+export * from "./build-kit.js";

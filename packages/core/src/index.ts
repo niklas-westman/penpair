@@ -56,3 +56,7 @@ export { tokenTypes, validateEditableToken, validateTokenEdit, planTokenEdit, to
 export { ensureGitignoreEntry } from "./instance/gitignore.js";
 
 export { prepareFileScript, runFileScript, type FileScriptOptions, type PreparedFileScript } from "./run-file.js";
+
+export { kit, coreKit, checkKits, loadKits, type BuildKit, type RecipeInfo } from "./kit.js";
+
+export { runKitSmoke, kitSmokeOperation } from "./kit-smoke.js";

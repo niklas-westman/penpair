@@ -155,3 +155,7 @@ Each apply still checks file/source identity, original journal inputs and struct
 ## Actual resolution and mode review
 
 `diff --resolved [--apply]` measures actual token resolution in each isolated declared theme, with full original selection restoration. `verify-modes FRAME_ID --page PAGE --out DIR [--apply]` adds stable per-mode images. See [mode verification, recovery and limits](mode-verification.md).
+
+## Adapter recipe source
+
+After `--include @kit`, opt into `--include @marwes-kit` for card, segmented, progress, icon-tile and stat-tile recipes. Project radius constants and progress sizing height remain explicit inputs; these recipes do not claim measured native-component parity. See [the build kit](build-kit.md).

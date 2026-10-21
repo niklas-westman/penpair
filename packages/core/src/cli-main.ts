@@ -1,3 +1,5 @@
+import { runKitSmoke } from "./kit-smoke.js";
+import { checkKits, loadKits } from "./kit.js";
 import { prepareFileScript, runFileScript } from "./run-file.js";
 import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-edit.js";
 import { withCommandSignal, commandSignal, commandOutput as output, commandFailure, commandRedactor, collectCommand, CommandInterruptedError, type CommandResult } from "./command-result.js";
@@ -61,6 +63,7 @@ Read-only:
   penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
   penpair tree --page <name> [--depth 3] [--prefix <text>]
   penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
+  penpair kit check / recipes [--include @kit]          offline compilation and recipe metadata
   penpair run-file <script.js> [--include helpers.js]    trusted plugin body; read declaration or reviewed inspect/apply/readback
   penpair tokens dump                                  typed token sets and themes as JSON
   penpair tokens add-set|set|remove|promote              inspect token edits; --apply writes once
@@ -162,6 +165,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       json: { type: "boolean" },
       deep: { type: "boolean" },
       integrity: { type: "boolean" },
+      kit: { type: "boolean" },
       resume: { type: "string" },
       checkpoint: { type: "boolean" },
       "force-lock": { type: "boolean" },
@@ -179,8 +183,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const flags: Record<string, string[]> = {
     pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
+    kit: ["include"], recipes: ["include"],
     "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
-    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
+    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
@@ -218,6 +223,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     validateInspectionQuery(query);
     inspectionRequest={query,budget:validateCaptureBudget({maxCalls:numeric("max-calls"),maxTotalBytes:numeric("max-total-bytes"),timeoutMs:numeric("capture-timeout-ms")})};
   }
+  if (values.kit && (!values.deep || !values.write)) throw new CommandArgumentError("--kit requires the explicit scratch probe --deep --write");
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
   if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !(["archive", "run", "run-file"].includes(command ?? "") || command === "tokens" && tokenEdit)))
@@ -231,6 +237,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "kit" || command === "recipes") {
+    if (command === "kit" ? rest.length !== 1 || rest[0] !== "check" : rest.length) throw new CommandArgumentError("Use kit check, or recipes, with optional ordered --include aliases");
+    const kits = await loadKits(process.cwd(), values.include ?? ["@kit"]);
+    output.result(command === "kit" ? checkKits(kits) : { recipes: kits.flatMap(value => value.recipes.map(recipe => ({ ...recipe, include: value.include }))), includes: kits.map(value => value.include) });
+    if (!values.json) output.log(command === "kit" ? JSON.stringify(checkKits(kits), null, 2) : kits.flatMap(value => value.recipes.map(recipe => `${value.include} ${recipe.name}: ${recipe.description}`)).join("\n"));
+    return 0;
+  }
   if (command === "tokens" && rest[0] === "diff") {
     const [, beforeFile, afterFile] = rest;
     if (!beforeFile || !afterFile || !values.theme) throw new Error("usage: penpair tokens diff <before.json> <after.json> --theme <name>");
@@ -463,7 +476,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "run-file") {
     const params: Record<string, string> = Object.create(null);
     for (const pair of values.param ?? []) { const at = pair.indexOf("="); if (at < 1) throw new CommandArgumentError("--param needs key=value"); const key = pair.slice(0, at); if (Object.hasOwn(params, key)) throw new CommandArgumentError("Duplicate script parameter: " + key); params[key] = pair.slice(at + 1); }
-    preparedFile = await prepareFileScript(root, rest[0]!, { include: values.include, inspect: values.inspect, readback: values.readback, page: values.page, params });
+    const aliases = (values.include ?? []).filter(include => include.startsWith("@"));
+    const kits = aliases.length ? await loadKits(root, aliases) : [];
+    const virtualIncludes = Object.fromEntries(kits.map(value => [value.include, value.source]));
+    preparedFile = await prepareFileScript(root, rest[0]!, { virtualIncludes, include: values.include, inspect: values.inspect, readback: values.readback, page: values.page, params });
     if (preparedFile.kind === "read" && values.apply) throw new CommandArgumentError("Read files do not require or accept --apply");
   }
   const endpoint = await resolveEndpoint();
@@ -483,9 +499,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const client = await guarded();
       try {
         const report = await runDeepCheck(client, { onWait: (m: string) => output.error(`… ${m}`) });
-        output.result({ ...report, capabilities: capabilityReport });
+        const kitReport = values.kit && report.ok ? await runKitSmoke(client, root, { apply: true, onStep: log, redact: endpointRedactor(endpoint) }) : undefined;
+        output.result({ ...report, ...(kitReport ? { kit: kitReport } : {}), capabilities: capabilityReport });
         output.log(`\n${formatDeepReport(report)}`);
-        return report.ok ? 0 : 1;
+        return report.ok && (!kitReport || kitReport.verified) ? 0 : 1;
       } finally {
         await client.close();
       }

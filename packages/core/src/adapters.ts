@@ -1,3 +1,4 @@
+import type { BuildKit } from "./kit.js";
 import { resolveProjectInput } from "./project-input.js";
 import type { CommandOutput } from "./command-result.js";
 import { createRequire } from "node:module";
@@ -43,6 +44,8 @@ export interface AdapterCommand {
 export interface Adapter {
   name: string;
   commands: AdapterCommand[];
+  /** Explicit opt-in plugin-source includes. Built-in commands do not load these unless requested. */
+  kits?: BuildKit[];
 }
 
 /** Declares an adapter. Returns the definition unchanged, so a module can `export default defineAdapter({...})` with types checked. */
@@ -50,7 +53,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
-  "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "skills", "init", "setup", "connect",
+  "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
   "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
 ] as const;
 

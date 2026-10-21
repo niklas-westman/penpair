@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **20 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **21 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: B2 — neutral build kit and adapter-owned recipes** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I9 — explicit state, theme and responsive coverage** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -584,7 +584,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I6 · P1 · M** — Add explicit ownership, conflicts and reference-aware destructive plans. Completed 2026-10-21; [resolution report](#i6-completion-2026-10-21).
 - [x] **C3 · P1 · M** — Verify actual precedence and resolved values per theme; restore selection reliably. Completed 2026-10-21; [resolution report](#c3-completion-2026-10-21).
 - [x] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol. Completed 2026-10-21; [resolution report](#b1-completion-2026-10-21).
-- [ ] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes.
+- [x] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes. Completed 2026-10-21; [resolution report](#b2-completion-2026-10-21).
 - [ ] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures.
 - [ ] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here.
 - [ ] **I12 · P1 · M** — Complete measured human onboarding and collaboration trials; publish findings.
@@ -890,6 +890,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Read-only/idempotency declarations remain trusted code contracts and cannot sandbox JavaScript. Script authors own meaningful postconditions and in-mutation source checks. Large runtime inspections can safely exceed the final request guard before delivery. No new live write trial or automatic visual approval.
 - **Next:** B2 — neutral build kit and adapter-owned recipes
 
+
+<a id="b2-completion-2026-10-21"></a>
+### 2026-10-21 — B2: Neutral build kit and adapter-owned recipes
+
+- **Resolved:** Reusable plugin helpers replace throwaway preludes while keeping token bindings after value/font changes and keeping library knowledge outside the core.
+- **Changed:** Added plain kit() source and explicit @kit includes, typed layout/text/icon/component helpers, queued style/binding work, bounded settling, recipe registration and offline kit check/recipes commands. Generic adapter kit aliases preserve lazy imports. Added adapter card/segmented/progress/icon/stat recipes with explicit project constants, a repeatable reviewed Hello-card example, and an opt-in scratch kit probe that exports, cleans its owned root and independently verifies the original page. Spacing versus sizing bindings follow current API references.
+- **Validated:** pnpm check passed: 502 tests (383 core, 91 adapter, 28 Docker), build/typecheck/version guards. Package smoke and git diff --check passed. Fixtures cover binding order, active precedence, exact font faces, preserved styling, icon ratio, ambiguous overrides, bounded settling, kit loading, actual CLI aliases, cleanup, lost acknowledgment, redaction, stable preview publication and repeatable example IDs; failed deep probes skip further kit mutations.
+- **Risks:** No new live pinned-version probe. Helper queues are in-memory and not transactions; enclosing operations own partial roots. Adapter recipes are compositional starting points, not measured native-component parity (C1). Saved previews require visual review and never imply approval.
+- **Next:** I9 — explicit state, theme and responsive coverage
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -936,3 +946,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — C3 completed:** Actual mode resolution and complete selection restoration. Progress 19/40; next B1 — guarded script-file execution with honest trust and verification outcomes.
 
 - **2026-10-21 — B1 completed:** Reviewed plugin bodies from files. Progress 20/40; next B2 — neutral build kit and adapter-owned recipes.
+
+- **2026-10-21 — B2 completed:** Neutral build kit and adapter-owned recipes. Progress 21/40; next I9 — explicit state, theme and responsive coverage.

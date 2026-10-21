@@ -9,7 +9,7 @@ import { normalize, type Params, type WriteEntry } from "./registry.js";
 import { runOnPage, runOperation, type OperationOptions } from "./operation.js";
 
 interface SourceFile { file: string; sha256: string; body: string; declaration: "read" | "write" | "unknown"; idempotent: boolean }
-export interface FileScriptOptions { include?: string[]; page?: string; params?: Params; inspect?: string; readback?: string }
+export interface FileScriptOptions { include?: string[]; page?: string; params?: Params; inspect?: string; readback?: string; virtualIncludes?: Record<string, string> }
 export interface PreparedFileScript {
   kind: "read" | "write";
   source: { file: string; sha256: string }[];
@@ -51,7 +51,8 @@ export async function prepareFileScript(root: string, file: string, options: Fil
   if (Object.hasOwn(params, "inspection")) throw new Error("CFG.inspection is reserved for the independently captured write inspection");
   const helpers: SourceFile[] = [];
   for (const include of includes) {
-    const helper = await sourceFile(root, include);
+    const virtual = options.virtualIncludes?.[include];
+    const helper: SourceFile = virtual === undefined ? await sourceFile(root, include) : { file: include, body: virtual, sha256: digest(virtual), declaration: virtual.startsWith("// penpair: read\n") ? "read" : "unknown", idempotent: false };
     if (helper.declaration !== "read") throw new Error(`Include ${include} must declare // penpair: read for its top-level inclusion effects`);
     helpers.push(helper);
   }
