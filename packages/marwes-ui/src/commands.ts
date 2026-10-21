@@ -1,3 +1,4 @@
+import { lintThemeFamily } from "./theme-lint.js";
 import { componentsCommand } from "./components.js";
 import { runModeTrial } from "./mode-trial.js";
 import { ownershipReport, readSyncAncestor, saveSyncAncestor } from "./ownership.js";
@@ -280,6 +281,7 @@ export const marwesCommand: AdapterCommand = {
   name: "marwes",
   summary: "Marwes tokens in Penpot, and drift from the installed Marwes",
   usage: [
+    "penpair marwes theme lint [--json]              advisory family/default hue gaps; no design writes",
     "penpair marwes tokens schema | migrate --from FILE --ownership FILE [--out NEW_FILE]   schema and explicit legacy migration",
     "penpair marwes tokens snapshot [--write]       build the expected Penpot tokens from the installed Marwes and your theme; --write saves the snapshot",
     "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)",
@@ -292,6 +294,13 @@ export const marwesCommand: AdapterCommand = {
   ],
   async run(context, args) {
     const [area, sub, ...rest] = args;
+    if (area === "theme" && sub === "lint") {
+      if (rest.some(value => value !== "--json")) throw new Error("theme lint accepts only --json");
+      const expected=await computeExpectation(context.root,context.rawConfig,context.config.instance);
+      if(expected.problems.length)throw new Error(expected.problems.join("; "));
+      const defaults=buildSnapshot({core:expected.installed.core,version:expected.installed.version,name:expected.settings.name,generatedBy:`@penpair/marwes-ui@${adapterVersion}`});
+      const report=lintThemeFamily(defaults,expected.fresh,expected.settings.themeLint);context.output?.result(report);print(context,JSON.stringify(report,null,2));return 0;
+    }
     if (area === "components") return componentsCommand(context, args.slice(1));
     if (area !== "tokens" || !sub) {
       diagnostic(context, `usage:\n  ${marwesCommand.usage.join("\n  ")}`);

@@ -1,3 +1,4 @@
+import { readThemeLint, type ThemeLintSettings } from "./theme-lint.js";
 import path from "node:path";
 import { validateEditableToken } from "@penpair/core";
 import type { PenpotTokenSet } from "./tokens.js";
@@ -15,6 +16,7 @@ export interface MarwesSettings {
   snapshot: string;
   /** Explicit project-owned token sets, appended to both modes. */
   extras: PenpotTokenSet[];
+  themeLint: ThemeLintSettings;
 }
 
 export const defaultSnapshotPath = "design/marwes-tokens.snapshot.json";
@@ -45,6 +47,7 @@ export function readMarwesSettings(rawConfig: Record<string, unknown>, instance:
   return {
     name,
     extras: readExtras(v.extras),
+    themeLint: readThemeLint(v.themeLint),
     project: v.project === undefined ? "." : relative(v.project, "project"),
     themes: { light: themeReference(themes.light, "light"), dark: themeReference(themes.dark, "dark") },
     snapshot: v.snapshot === undefined ? defaultSnapshotPath : relative(v.snapshot, "snapshot"),
