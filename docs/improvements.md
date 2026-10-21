@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **31 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **32 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: F2 — web/project status and explicit file opening** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: F3 — configurable advisory audits with explicit unknowns** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -603,7 +603,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **D3 · P2 · L** — Add deterministic structural snapshots and review diffs atop I8. Completed 2026-10-21; [resolution report](#d3-completion-2026-10-21).
 - [x] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier. Completed 2026-10-21; [resolution report](#i10-completion-2026-10-21).
 - [x] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2. Completed 2026-10-21; [resolution report](#f1-completion-2026-10-21).
-- [ ] **F2 · P2 · S** — Add web status/open using the shared identity and capability report.
+- [x] **F2 · P2 · S** — Add web status/open using the shared identity and capability report. Completed 2026-10-21; [resolution report](#f2-completion-2026-10-21).
 - [ ] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns.
 - [ ] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices.
 - [ ] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified.
@@ -1003,6 +1003,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Owner-reviewed screenshots and a clean-machine human walkthrough remain pending. The error table covers stable core codes; config, interruption and unenumerated service domains are separately identified. Registry installs do not imply this unreleased branch is present.
 - **Next:** F2 — web/project status and explicit file opening
 
+
+<a id="f2-completion-2026-10-21"></a>
+### 2026-10-21 — F2: Observed project health and pinned public file opening
+
+- **Resolved:** Web and local projects now have a shared status view that separates connected facts from missing evidence, plus an explicit public file-opening command.
+- **Changed:** Added project status with deployment/file/page/API, skill and baseline evidence; explicit trusted adapter status hooks and token declaration freshness; preserved local container diagnostics. Added encoded pinned URLs, print-only preview and honest platform-opener failure handling. Exposed read-only project status through MCP.
+- **Validated:** pnpm check passes (547 tests) and six-package smoke passes. Tests cover foreign file refusal, adapter lines, explicit unknowns, encoded URL opening and failed opener diagnostics using stubs.
+- **Risks:** No actual browser/login rendering or live status trial was claimed. Direct links may need deployment team context. Adapter hooks execute trusted code only with explicit opt-in; missing optional evidence keeps overall status incomplete.
+- **Next:** F3 — configurable advisory audits with explicit unknowns
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1087,3 +1097,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I10 completed:** Versioned schema envelopes, explicit migrations and portable tokens. Progress 30/40; next F1 — concise docs paths and generated troubleshooting inventory.
 
 - **2026-10-21 — F1 completed:** Concise documentation paths and generated troubleshooting. Progress 31/40; next F2 — web/project status and explicit file opening.
+
+- **2026-10-21 — F2 completed:** Observed project health and pinned public file opening. Progress 32/40; next F3 — configurable advisory audits with explicit unknowns.

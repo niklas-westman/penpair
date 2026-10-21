@@ -21,6 +21,7 @@ const definitions: Definition[] = [
  { name: "tokens_dump", description: "Bounded token capture; completeness is explicit", properties: {}, required: [], command: () => ["tokens", "dump", "--max-total-bytes", "131072"] },
  { name: "run_status", description: "Inspect an explicit local recovery journal", properties: { id: string }, required: ["id"], command: a => ["runs", String(a.id)] },
  { name: "baselines_status", description: "Offline coverage/evidence status; no capture or approval", properties: {}, required: [], command: () => ["baselines", "coverage"] },
+ { name: "project_status", description: "Project health with explicit unknowns; no adapter imports", properties: {}, required: [], command: () => ["status"] },
  { name: "doctor", description: "Project connection/file identity diagnostics", properties: {}, required: [], command: () => ["doctor"] },
  { name: "design_spec", description: "Derived handoff for an exact frame ID; unknown semantics remain explicit", properties: { page: string, id: string }, required: ["page", "id"], command: a => ["spec", "--page", String(a.page), "--frame", String(a.id)] },
  { name: "export", description: "Capture stable PNG to a relative path inside the project; creates a local file", properties: { page: string, id: string, out: string }, required: ["page", "id", "out"], command: a => ["export", String(a.id), String(a.out), "--page", String(a.page)], localWrite: true },

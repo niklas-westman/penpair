@@ -1,3 +1,4 @@
+import { projectStatus, projectFileUrl, openProject } from "./project-status.js";
 import { artifactSchemas, migrateProjectConfig } from "./formats.js";
 import { importDtcg, exportDtcg } from "./portable-tokens.js";
 import { captureStructuralSnapshot, writeStructuralSnapshot, readStructuralSnapshot, diffStructuralSnapshots, renderStructuralDiff } from "./structure-snapshot.js";
@@ -152,6 +153,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     allowPositionals: true,
     options: {
       include: { type: "string", multiple: true },
+      adapters: { type: "boolean" }, print: { type: "boolean" },
       note: { type: "string" }, by: { type: "string" }, "case": { type: "string" }, "force-reason": { type: "string" },
       from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
       inspect: { type: "string" }, readback: { type: "string" },
@@ -218,7 +220,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
-    connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
+    connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], open: ["print"], status: ["adapters"], backup: [], restore: ["yes"],
   };
   const network = ["snapshot", "approve", "spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
@@ -487,6 +489,36 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (!mcp) output.log("skip editor and plugin: no key yet. Run `penpair connect`.");
     return ok ? 0 : 1;
   }
+  if (command === "open") {
+    if (rest.length) throw new CommandArgumentError("open accepts only --print for a URL preview");
+    const config = await loadCommandConfig(root), url = values.print ? projectFileUrl(config) : await openProject(config, openInBrowser);
+    output.result({ url, opened: !values.print }); if (!values.json) output.log(url); return 0;
+  }
+  if (command === "status") {
+    if (rest.length) throw new CommandArgumentError("status accepts optional --adapters");
+    const config = await loadCommandConfig(root);
+    let endpoint: Awaited<ReturnType<typeof resolveEndpoint>> | undefined;
+    try { endpoint = await projectEndpoint(root); commandRedactor(endpointRedactor(endpoint)); assertEndpointIsInstance(endpoint.description, config); }
+    catch (error) { if (endpoint) throw error; }
+    const report = await projectStatus(root, config, {
+      ...(endpoint ? { connection: async () => guardFile(await connect(endpoint!), config.file, { mode: "strict" }), redact: endpointRedactor(endpoint) } : {}),
+      ...(values.adapters ? { adapterStatus: async () => {
+        const loaded = await loadAdapters(root, config.adapters ?? []); if (loaded.problems.length) throw new Error(loaded.problems.join("; "));
+        const context = await adapterContext(root, []);
+        return (await Promise.all(loaded.adapters.map(async a => a.status ? a.status(context) : [{ id: a.name, label: a.name, state: "unknown" as const, detail: "No status hook" }]))).flat();
+      } } : {}),
+    });
+    let localState: unknown = null;
+    if (!isExternal(config)) {
+      if (cli.local) {
+        const state = await cli.local.status({ root, config, runner: nodeRunner, log }); localState = state;
+        report.lines.push({ id: "local-runtime", label: "Local containers", state: state.frontendReachable && state.backendReady ? "ok" : "failed", detail: `${state.url}; backend ${state.backendReady ? "ready" : "not ready"}` });
+      } else report.lines.push({ id: "local-runtime", label: "Local containers", state: "unknown", detail: "Install the local-instance command package for container diagnostics" });
+      report.complete = report.lines.every(line => line.state !== "unknown"); report.ok = report.complete && report.lines.every(line => line.state === "ok");
+    }
+    output.result({ ...report, localState }); if (!values.json) for (const line of report.lines) output.log(`${line.state.padEnd(7)} ${line.label}: ${line.detail}`);
+    return report.lines.some(l => l.state === "failed") ? 1 : report.ok ? 0 : 3;
+  }
   const lifecycle = new Set(["up", "down", "status", "doctor", "backup", "restore"]);
   if (lifecycle.has(command) && !(command === "backup" && rest[0] === "file")) {
     const project = await loadCommandConfig(root);
@@ -731,7 +763,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 }
 
 /** Runs one command of an adapter with a context that can reach the project's Penpot. */
-async function runAdapterCommand(command: Adapter["commands"][number], root: string, args: string[]): Promise<number> {
+async function adapterContext(root: string, args: string[]): Promise<AdapterContext> {
   const config = await loadCommandConfig(root);
   const rawConfig = await readRawConfig(root);
   let redact = (text: string) => redactEndpoint(text);
@@ -755,6 +787,10 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
       }
     },
   };
+  return context;
+}
+async function runAdapterCommand(command: Adapter["commands"][number], root: string, args: string[]): Promise<number> {
+  const context = await adapterContext(root, args);
   commandSignal()?.throwIfAborted();
   return command.run(context, args.filter((arg) => arg !== "--any-file"));
 }

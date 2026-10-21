@@ -41,9 +41,13 @@ export interface AdapterCommand {
   run(context: AdapterContext, args: string[]): Promise<number>;
 }
 
+export interface AdapterStatusLine { id: string; label: string; state: "ok" | "warning" | "failed" | "unknown"; detail: string }
+
 export interface Adapter {
   name: string;
   commands: AdapterCommand[];
+  /** Executed only by an explicit status --adapters request; trusted project code. */
+  status?(context: AdapterContext): Promise<AdapterStatusLine[]>;
   /** Explicit opt-in plugin-source includes. Built-in commands do not load these unless requested. */
   kits?: BuildKit[];
 }
@@ -54,7 +58,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
   "formats", "snapshot", "approve", "mcp", "spec", "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
-  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
+  "up", "down", "open", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
 ] as const;
 
 export interface LoadedAdapters {

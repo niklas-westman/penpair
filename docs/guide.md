@@ -10,7 +10,7 @@ Choose a tested workflow below, then use the extension and command references fo
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
 | Integration | [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [token adapter](marwes.md) |
-| Repair / operations | [Troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
+| Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 
 ## Extension points
 | Point | A project supplies | First implementations |
