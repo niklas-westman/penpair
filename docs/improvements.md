@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **22 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **23 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: H1 — scoped consumer follow-up proposal without cross-repository edits** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I12 — prepare and run measured human onboarding/collaboration trials** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -586,7 +586,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **B1 · P1 · M** — Run reviewed script files through the corrected execution protocol. Completed 2026-10-21; [resolution report](#b1-completion-2026-10-21).
 - [x] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes. Completed 2026-10-21; [resolution report](#b2-completion-2026-10-21).
 - [x] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures. Completed 2026-10-21; [resolution report](#i9-completion-2026-10-21).
-- [ ] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here.
+- [x] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here. Completed 2026-10-21; [resolution report](#h1-completion-2026-10-21).
 - [ ] **I12 · P1 · M** — Complete measured human onboarding and collaboration trials; publish findings.
 
 ### Gate 4 — expand only where the pilot demonstrates value
@@ -910,6 +910,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Theme/state/fixture labels are declared intent, not proof of activation or application behavior. Actual native theme IDs can be asserted separately. Font loading/version and browser interactions remain unverified; rich cases await D4 provider setup. No board dimensions imply WCAG compliance. No new live capture trial.
 - **Next:** H1 — scoped consumer follow-up proposal without cross-repository edits
 
+
+<a id="h1-completion-2026-10-21"></a>
+### 2026-10-21 — H1: Scoped Tradient follow-up proposal
+
+- **Resolved:** Consumer adoption work is now a concrete owner-reviewable handoff without applying changes outside this repository.
+- **Changed:** Added docs/tradient-followups.md with script/CI/env proposals, reviewed-build prerequisites, file-pin and schema-2 migration steps, project extras, baseline approval/route decisions and frontend/rebuild follow-ups. Read-only verification confirmed main at 3aa7a1c, absent design scripts/pin/baselines, schema-1 snapshot and an existing SidebarNav that should be reused rather than duplicated. All consumer action boxes remain unchecked.
+- **Validated:** Proposal JSON fragments parse, links/commands were checked against current local source, and git diff --check passed. Consumer status before and after remained the same pre-existing untracked penpot-poc directory. No new runtime tests were needed for this documentation-only item; the previous full check remains 514 passing tests.
+- **Risks:** Consumer edits, actual file identity, initial design approval, theme choices, old-version visual comparison and implementation/provider adoption still need separate owner authorization. Branch features are unreleased; the existing 0.1.3 version string does not establish that they are installed. No cross-repository write, Penpot mutation, push, deploy or external message occurred.
+- **Next:** I12 — prepare and run measured human onboarding/collaboration trials
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -960,3 +970,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — B2 completed:** Neutral build kit and adapter-owned recipes. Progress 21/40; next I9 — explicit state, theme and responsive coverage.
 
 - **2026-10-21 — I9 completed:** Explicit state, theme and responsive coverage. Progress 22/40; next H1 — scoped consumer follow-up proposal without cross-repository edits.
+
+- **2026-10-21 — H1 completed:** Scoped Tradient follow-up proposal. Progress 23/40; next I12 — prepare and run measured human onboarding/collaboration trials.

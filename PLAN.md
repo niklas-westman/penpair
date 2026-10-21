@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **H1 — scoped consumer follow-up proposal without cross-repository edits** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **I12 — prepare and run measured human onboarding/collaboration trials** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **H1 — Scoped Tradient follow-up proposal** (2026-10-21). Consumer adoption work is now a concrete owner-reviewable handoff without applying changes outside this repository. Validation and limits: [delivery report](docs/improvements.md#h1-completion-2026-10-21).
 - [x] **I9 — Explicit state, theme and responsive coverage** (2026-10-21). Baseline coverage now distinguishes configured capture completeness from approved case intent, unsupported/missing combinations and browser/accessibility work that has not run. Validation and limits: [delivery report](docs/improvements.md#i9-completion-2026-10-21).
 - [x] **B2 — Neutral build kit and adapter-owned recipes** (2026-10-21). Reusable plugin helpers replace throwaway preludes while keeping token bindings after value/font changes and keeping library knowledge outside the core. Validation and limits: [delivery report](docs/improvements.md#b2-completion-2026-10-21).
 - [x] **B1 — Reviewed plugin bodies from files** (2026-10-21). Project scripts can run through the core file/page/size guards with ordered helpers and literal parameters, rather than a throwaway transport runner. Validation and limits: [delivery report](docs/improvements.md#b1-completion-2026-10-21).
@@ -106,6 +107,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed H1: Scoped Tradient follow-up proposal; report in `docs/improvements.md`.
 - 2026-10-21: completed I9: Explicit state, theme and responsive coverage; report in `docs/improvements.md`.
 - 2026-10-21: completed B2: Neutral build kit and adapter-owned recipes; report in `docs/improvements.md`.
 - 2026-10-21: completed B1: Reviewed plugin bodies from files; report in `docs/improvements.md`.
