@@ -1,0 +1,44 @@
+name: Scratch Penpot compatibility smoke
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: Disposable scratch file ID with a connected editor
+        required: true
+      origin:
+        description: Expected Penpot origin
+        required: true
+        default: https://design.penpot.app
+      version:
+        description: Expected Penpot version (drift stops before writing)
+        required: true
+        default: 2.18.4
+permissions:
+  contents: read
+jobs:
+  scratch:
+    runs-on: ubuntu-latest
+    environment: penpot-smoke
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Probe the explicitly selected scratch file
+        env:
+          PENPAIR_MCP_URL: ${{ secrets.PENPAIR_SMOKE_MCP_URL }}
+          SMOKE_FILE: ${{ inputs.file_id }}
+          SMOKE_ORIGIN: ${{ inputs.origin }}
+          SMOKE_VERSION: ${{ inputs.version }}
+        run: pnpm smoke:live --scratch-file "$SMOKE_FILE" --origin "$SMOKE_ORIGIN" --expected-version "$SMOKE_VERSION" --confirm-scratch | tee live-smoke-report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-smoke-report
+          path: live-smoke-report.txt
+          if-no-files-found: ignore

@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **4 / 40**. In progress: **none**. Blocked: **none recorded**.
+Last updated: **2026-10-21**. Completed: **5 / 40**. In progress: **none**. Blocked: **none recorded**.
 
-**Now: G1 — transport fault tests and scratch smoke harness** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I4 — capability-driven native API support** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -561,7 +561,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 
 ### Gate 2 — establish recovery and a dependable daily loop
 
-- [ ] **G1 · P1 · M** — Land the HTTP fake server and failure-injection coverage first; keep hosted smoke manual until its editor/session dependency is addressed.
+- [x] **G1 · P1 · M** — Land the HTTP fake server and failure-injection coverage first; keep hosted smoke manual until its editor/session dependency is addressed. Completed 2026-10-21; [resolution report](#g1-completion-2026-10-21).
 - [ ] **I4 · P1 · M** — Probe capabilities and prefer supported native layout/integrity primitives.
 - [ ] **G3 · P1 · M** — Document manual hosted backup now, then prove export/import on scratch with library assets intact.
 - [ ] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints.
@@ -718,6 +718,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live Penpot writes. Verifiers and readback scripts are trusted project code; structural comparison cannot prove that a script measured its actual values honestly. Existing custom snippets that relied only on problems: [] must provide observations or an explicit verifier. Visual review and owner approval remain separate. Durable recovery remains I3.
 - **Next:** G1 — transport fault tests and scratch smoke harness
 
+
+<a id="g1-completion-2026-10-21"></a>
+### 2026-10-21 — G1: Transport fault tests and scratch smoke harness
+
+- **Resolved:** The connection path is now exercised over real HTTP through the installed MCP SDK, including authentication rejection, read retry and acknowledgment loss without write replay. Deep checks cannot pass with missing step/cleanup evidence.
+- **Changed:** Added an HTTP fake MCP server, generated color/font/typography normalization invariants, a scratch-file/origin/version-pinned live smoke library/CLI, and a protected-environment manual-dispatch workflow with redacted reports. Scheduling remains deliberately deferred until the required authenticated editor lifecycle is solved, as amended in the research plan.
+- **Validated:** pnpm check passed: build, typecheck, 316 tests (236 core, 52 adapter, 28 Docker), neutrality/boundary/version checks. HTTP fault tests use loopback only. Smoke preflight tests refuse unconfirmed/wrong-file/version-drift targets before writes and verify complete deep-check evidence. pnpm smoke:package passed. pnpm smoke:live without arguments correctly refused with usage and exit 1, without connecting. git diff --check passed.
+- **Risks:** No live Penpot smoke was run; the first owner-authorized scratch execution remains an integration trial. The manual workflow has not run on GitHub and requires a protected penpot-smoke environment, secret and foreground authenticated editor/plugin. No nightly schedule or infrastructure was activated. Compatibility version tables are unchanged; native behavior remains unverified until the actual trial.
+- **Next:** I4 — capability-driven native API support
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -730,3 +740,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — A2 completed:** Stop ambiguous write retries. Progress 3/40; next I2 — require positive verification evidence.
 
 - **2026-10-21 — I2 completed:** Require positive verification evidence. Progress 4/40; next G1 — transport fault tests and scratch smoke harness.
+
+- **2026-10-21 — G1 completed:** Transport fault tests and scratch smoke harness. Progress 5/40; next I4 — capability-driven native API support.

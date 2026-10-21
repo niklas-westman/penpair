@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Transport reliability tests and opt-in scratch smoke:** a real HTTP fake exercises the installed MCP client, including lost write responses. The manual `smoke:live` harness pins origin/file/version and refuses unconfirmed targets; its workflow requires a connected editor and a protected environment. Empty/incomplete deep-check evidence cannot pass. Added generated token-storage normalization invariants.
+
 - **Verified writes require observations.** Empty/missing/primitive readbacks and an empty error list no longer count as success. Registered writes need an explicit verifier or matching expected/actual observation objects. Failed readback/verifier results retain the applied evidence, and adapter token/structure reads reject missing evidence.
 
 - **Ambiguous writes are never retried automatically.** Only classified reads retry suspended requests; write/unknown failures report `write-uncertain` and a run ID. Operations, adapter mutations and deep probes use the same conservative policy; received snippet results include execution metadata separately from verification.

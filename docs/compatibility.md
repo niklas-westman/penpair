@@ -27,3 +27,11 @@ What has been checked, where, and what differs. Update it whenever a Penpot is p
 - Paid plans, and whether the free plan keeps the remote MCP.
 - Two people in the same hosted file while an agent writes.
 - Penpot's own version history as a backup for an external project.
+
+## Automated checks and manual scratch smoke
+
+The local suite includes a real HTTP fake MCP server: protocol negotiation, tool discovery, authentication rejection/redaction, read-only suspension retry, write acknowledgment loss and malformed replies. Generated normalization invariants exercise color case, font-list storage and typography normalization. These are transport/storage tests, not evidence of new live Penpot compatibility.
+
+After `pnpm build`, an owner can run `pnpm smoke:live --scratch-file <disposable-file-id> --origin <expected-origin> --expected-version <x.y.z> --confirm-scratch`. Set `PENPAIR_MCP_URL` in the environment (never as a command argument or committed value). The harness refuses missing confirmation, wrong instance/file and version drift before the mutating probe. It uses the existing tagged deep check and independently verifies cleanup. Every required step must be observed; empty reports cannot pass. An uncertain write is never replayed automatically; use the tag/run ID to inspect leftovers.
+
+The `Scratch Penpot compatibility smoke` workflow is manual-dispatch only. Configure a protected `penpot-smoke` environment and its `PENPAIR_SMOKE_MCP_URL` secret, then open the disposable file and keep its authenticated editor/plugin connected. CI cannot create that browser session from a key alone. The workflow stores a redacted text report; update the live compatibility table only after reviewing an actual run. A scheduled nightly hosted job remains deferred until editor-session lifecycle is solved. The first live run of this harness is still outstanding; no hosted/local version gained a new verified check from the unit tests.
