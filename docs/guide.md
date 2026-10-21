@@ -131,3 +131,5 @@ For scripts and tools, use the versioned [command result contract](command-contr
 Adapters, snippet definitions and theme files execute trusted project code. Built-in help/inspection avoid adapter imports; use `snippets --builtins-only` for the shipped registry. See [extension trust boundaries](extensions-trust.md).
 
 Use `skills install --agents AGENTS.md --dry-run` to preview owned-marker instruction integration, then repeat without dry-run. Default destination selection and conflicting instruction files are explained in [skill installation](skill-installation.md).
+
+Use `export --name <exact-name> --page <page> <out.png>` when a rebuild changed IDs, or `shots --page <page> --prefix <prefix>` for ad-hoc captures without baseline approval. See [named exports and shots](shots.md).

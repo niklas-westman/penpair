@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **13 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **14 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: B3 — unambiguous named exports, ad-hoc shots and option hints** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: B4 — integrate bounded layout settling into operations and exports** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -574,7 +574,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports. Completed 2026-10-21; [resolution report](#i11-completion-2026-10-21).
 - [x] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run. Completed 2026-10-21; [resolution report](#b5-completion-2026-10-21).
 - [x] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview. Completed 2026-10-21; [resolution report](#e2-completion-2026-10-21).
-- [ ] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots.
+- [x] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots. Completed 2026-10-21; [resolution report](#b3-completion-2026-10-21).
 - [ ] **B4 · P1 · M** — Settle with bounded native/fallback checks and independent exports.
 
 ### Gate 3 — make one repeatable design-to-code path work
@@ -820,6 +820,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Installation is a sequence of local file publications, not a multi-file transaction; errors can leave skill copies applied while instruction changes are refused. Both instruction files require explicit owner selection. Setup follows the same destination policy and reports missing selection; it does not silently create or choose competing instruction files. No global instructions or this repository's AGENTS.md were edited by running the feature.
 - **Next:** B3 — unambiguous named exports, ad-hoc shots and option hints
 
+
+<a id="b3-completion-2026-10-21"></a>
+### 2026-10-21 — B3: Exact-name exports and complete ad-hoc shots
+
+- **Resolved:** A rebuild no longer requires a separate ID-discovery script before capturing a uniquely named frame, and one-off screenshots no longer need baseline approval configuration.
+- **Changed:** Exact page-scoped name lookup/export refuses zero/multiple matches, duplicate page names, incomplete search and stale lookup/capture identity. Added shots for prefix-selected top-level frames, immutable complete capture generations, PNG dimensions/hash/provenance and manifest-last publication without baseline approvals. Nearby-option hints explain typos without changing execution. Built-in standalone capture remains explicit.
+- **Validated:** pnpm check passes: 410 tests (323 core, 59 adapter, 28 Docker). Actual plugin-source fixtures cover unique/missing/duplicate names, duplicate pages, revision changes, retained shot generations, empty/failed captures and preservation of previous manifests. A CLI test verifies selected PNG bytes and capture identity. Option-hint and snippet compilation tests pass. pnpm smoke:package and git diff --check pass.
+- **Risks:** No live named-export/shot trial. Name search is bounded at 10000 nodes and shots at 100 selected frames; narrow the scope rather than treating partial output as complete. Captures establish technical stability/provenance, not visual approval or font correctness. Interrupted publication may leave an unreferenced generation; old referenced generations remain intact.
+- **Next:** B4 — integrate bounded layout settling into operations and exports
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -852,3 +862,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — B5 completed:** Dated and version-scoped build gotchas. Progress 12/40; next E2 — owned-marker instruction integration with explicit destination and dry-run preview.
 
 - **2026-10-21 — E2 completed:** Owned-marker instruction integration and preview. Progress 13/40; next B3 — unambiguous named exports, ad-hoc shots and option hints.
+
+- **2026-10-21 — B3 completed:** Exact-name exports and complete ad-hoc shots. Progress 14/40; next B4 — integrate bounded layout settling into operations and exports.

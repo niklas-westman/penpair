@@ -44,3 +44,7 @@ export { commandResultSchema, collectCommand, commandOutput, type CommandResult,
 export { resolveProjectInput, resolveProjectOutput, designDataBlock } from "./project-input.js";
 
 export { planSkillInstructions, applySkillInstructions, type InstructionReport } from "./skill-instructions.js";
+
+export { parseCommandArgs, CommandArgumentError } from "./cli-arguments.js";
+
+export { findShapesByName, exportShapeByName, captureShots, type ShapeLookup, type ShapeMatch, type ShotsReport } from "./shots.js";

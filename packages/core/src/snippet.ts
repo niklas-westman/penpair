@@ -18,7 +18,8 @@ export function wrap(body: string, params: unknown = {}): string {
 }
 
 /** Plugin code for snippets that work on one page: they say so instead of acting on whatever page is open. */
-export const requirePage = `if (CFG.page && penpot.currentPage.name !== CFG.page) return { ok: false, wrongPage: true, current: penpot.currentPage.name, message: "the editor shows " + penpot.currentPage.name + ", not " + CFG.page };`;
+export const requirePage = `if (CFG.page && penpot.currentFile?.pages?.filter((p) => p.name === CFG.page).length > 1) return { ok:false, message:"page name is ambiguous; rename pages before selecting by name" };
+if (CFG.page && penpot.currentPage.name !== CFG.page) return { ok: false, wrongPage: true, current: penpot.currentPage.name, message: "the editor shows " + penpot.currentPage.name + ", not " + CFG.page };`;
 
 export function snippet(name: string, body: string, params: unknown = {}, effect: ExecuteOptions["effect"] = "unknown"): Snippet {
   const code = wrap(body, params);

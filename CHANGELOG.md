@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Named exports and shots:** exact page-scoped shape lookup refuses ambiguous names, incomplete search and stale lookup/capture identity. Ad-hoc shots reuse stable exports, publish complete immutable generations and carry capture provenance without approving baselines. CLI option typos gain explanatory hints without automatic reinterpretation.
+
 - **Instruction integration:** skills install/setup can target `--agents <path>`. The installer owns only marked skills rows, preserves other instructions, refuses malformed markers and ambiguous default files, and exposes resolved paths. `skills install --dry-run` previews all files/links and the instruction diff without writes. Local output paths reject symlink escapes and dangling links; repeated installs remain idempotent.
 
 - **Dated build gotchas:** thirteen hosted-2.18.4 reports now appear in the shipped neutral skill and compatibility reference, explicitly distinguished from new live reproductions. Doctor suggests a visible separate editor window; write suspension guidance follows the no-replay policy.

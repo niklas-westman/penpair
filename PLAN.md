@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **B3 — unambiguous named exports, ad-hoc shots and option hints** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **B4 — integrate bounded layout settling into operations and exports** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **B3 — Exact-name exports and complete ad-hoc shots** (2026-10-21). A rebuild no longer requires a separate ID-discovery script before capturing a uniquely named frame, and one-off screenshots no longer need baseline approval configuration. Validation and limits: [delivery report](docs/improvements.md#b3-completion-2026-10-21).
 - [x] **E2 — Owned-marker instruction integration and preview** (2026-10-21). Skill installation can integrate its own rows into an explicitly resolved instruction file without manual copy/paste, duplicating rows, or overwriting unrelated instructions. Validation and limits: [delivery report](docs/improvements.md#e2-completion-2026-10-21).
 - [x] **B5 — Dated and version-scoped build gotchas** (2026-10-21). The build brief's operational knowledge is now shipped with the design skill instead of remaining in one session, with evidence scope and safe workarounds visible. Validation and limits: [delivery report](docs/improvements.md#b5-completion-2026-10-21).
 - [x] **I11 — Lazy executable extensions and explicit trust boundaries** (2026-10-21). Built-in help and inspection no longer execute configured adapters unnecessarily, and selected local executable entry points cannot silently escape the project through traversal or symlinks. Validation and limits: [delivery report](docs/improvements.md#i11-completion-2026-10-21).
@@ -97,6 +98,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed B3: Exact-name exports and complete ad-hoc shots; report in `docs/improvements.md`.
 - 2026-10-21: completed E2: Owned-marker instruction integration and preview; report in `docs/improvements.md`.
 - 2026-10-21: completed B5: Dated and version-scoped build gotchas; report in `docs/improvements.md`.
 - 2026-10-21: completed I11: Lazy executable extensions and explicit trust boundaries; report in `docs/improvements.md`.

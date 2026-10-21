@@ -1,10 +1,11 @@
 import { withCommandSignal, commandSignal, commandOutput as output, commandFailure, commandRedactor, collectCommand, CommandInterruptedError, type CommandResult } from "./command-result.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { parseArgs } from "node:util";
+import { CommandArgumentError, parseCommandArgs } from "./cli-arguments.js";
 import { connect, executeCode } from "./client.js";
 import { redactEndpoint, resolveEndpoint } from "./endpoint.js";
 import { PenpairError } from "./errors.js";
+import { captureShots, exportShapeByName } from "./shots.js";
 import { exportShapePng } from "./export.js";
 import { exportBaselines } from "./baselines.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
@@ -57,6 +58,8 @@ Read-only:
   penpair tokens dump                                  token sets and themes as JSON
   penpair tokens diff <before.json> <after.json> --theme <name>
   penpair export <shapeId> <out.png> [--page <name>] [--scale 1]
+  penpair export --name <exact-name> --page <name> <out.png>
+  penpair shots --page <name> [--prefix <prefix>] [--out design/shots]
   penpair backup file <new.penpot>                     try a bounded full-file export, without replacing an existing archive
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
@@ -108,11 +111,12 @@ export interface CliOptions {
 }
 
 async function main(argv: string[], cli: CliOptions): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const { values, positionals } = parseCommandArgs({
     args: argv,
     allowPositionals: true,
     options: {
       page: { type: "string" },
+      out: { type: "string" },
       depth: { type: "string" },
       prefix: { type: "string" },
       steps: { type: "string" },
@@ -157,13 +161,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   });
   const [command, ...rest] = positionals;
   const flags: Record<string, string[]> = {
-    pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale"],
+    pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
-  const network = ["pages", "tree", "audit", "tokens", "export", "archive", "run", "baselines", "probe", "backup", "doctor"];
+  const network = ["pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
   for (const key of Object.keys(values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by ${command || "this command"}`);
   for (const [key, min, max, integer] of [["depth", 0, 100, true], ["scale", 0.01, 8, false], ["x", -10000000, 10000000, false], ["port", 1024, 65535, true]] as const) {
@@ -171,6 +175,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     const number = Number(raw);
     if (!raw.trim() || !Number.isFinite(number) || number < min || number > max || integer && !Number.isInteger(number)) throw new Error(`--${key} must be ${integer ? "an integer" : "a number"} from ${min} to ${max}`);
   }
+  if (command === "export" && (rest.length !== (values.name ? 1 : 2) || values.name && !values.page)) throw new CommandArgumentError("Export requires an ID and output path, or --name with an explicit --page and one output path");
+  if (command === "shots" && (!values.page || rest.length)) throw new CommandArgumentError("Shots requires --page and supports optional --prefix/--out");
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
   if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !["archive", "run"].includes(command ?? "")))
@@ -196,7 +202,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const root = process.cwd();
   const log = (message: string): void => output.error(`… ${message}`);
   if (values.standalone) {
-    const inspection = ["pages", "tree", "audit", "export"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
+    const inspection = ["pages", "tree", "audit", "export", "shots"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
     if (await loadOptionalConfig(root) || !inspection || values.apply || values.write)
       throw new ConfigError("--standalone is only for built-in inspection commands in a folder without penpair.config.json. It cannot bypass a project or run writes/snippets.");
   }
@@ -506,12 +512,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const { ok: _ok, readOnly: _readOnly, ...dump } = await runSnippet(client, tokensDump(), options);
       output.log(JSON.stringify(dump, null, 2));
     } else if (command === "export") {
-      const [shapeId, out] = rest;
-      if (!shapeId || !out) throw new Error("usage: penpair export <shapeId> <out.png> [--page <name>] [--scale 1]");
-      const result = await exportShapePng(client, shapeId, { ...options, page: values.page, scale: values.scale ? Number(values.scale) : 1 });
+      const [shapeId, out] = values.name ? [undefined, rest[0]] : rest;
+      if (!out || rest.length !== (values.name ? 1 : 2) || values.name && !values.page) throw new Error("usage: penpair export <shapeId> <out.png>, or export --name <exact-name> --page <name> <out.png>");
+      const exportOptions = { ...options, page: values.page, scale: values.scale ? Number(values.scale) : 1 };
+      const result = values.name ? await exportShapeByName(client, values.name, values.page!, exportOptions) : await exportShapePng(client, shapeId!, exportOptions);
       if (!result.stable) throw new PenpairError("incomplete-output", "Export did not stabilize; previous output was preserved");
       await atomicWriteFile(out, result.png, { replace: true });
       output.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, capture: result.capture }, null, 2));
+    } else if (command === "shots") {
+      if (!values.page || rest.length) throw new Error("usage: penpair shots --page <name> [--prefix <prefix>] [--out design/shots]");
+      const report = await captureShots(client, root, { page: values.page, prefix: values.prefix, out: values.out }, { ...options, scale: values.scale ? Number(values.scale) : 1 });
+      output.log(JSON.stringify(report, null, 2));
+      return report.complete ? 0 : 3;
     } else if (command === "archive") {
       if (!values.page || !values.name) throw new Error("--page and --name are required");
       const report = await runOperation(
