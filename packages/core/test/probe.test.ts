@@ -21,6 +21,14 @@ function connectFake(): Promise<PenpotToolClient> {
 }
 
 describe("probe", () => {
+  it("reports optional API presence without invoking write capabilities", async () => {
+    const neverWrite = () => { throw new Error("must not create a version during probe"); };
+    const penpot = { version: "fixture", currentFile: { id: "file", name: "demo", revn: 1, pages: [], saveVersion: neverWrite }, currentPage: { id: "page", name: "Home", root: { children: [] } }, library: { local: { tokens: { sets: [], themes: [] }, components: [] } } };
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    const result = await new AsyncFunction("penpot", capabilityCode)(penpot);
+    expect(result).toMatchObject({ schemaVersion: 1, fileId: "file", pageId: "page", apis: { saveVersion: "function", fileValidate: "undefined", layoutWait: "undefined" } });
+  });
+
   it("sends plugin code that is valid", () => {
     expect(compiles(capabilityCode)).toBeUndefined();
   });

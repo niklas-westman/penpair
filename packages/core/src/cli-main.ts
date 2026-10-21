@@ -40,7 +40,7 @@ Read-only:
   penpair config check [--json]                        validate project configuration offline, without loading extensions
   penpair config schema                               print its JSON Schema (also works while fixing invalid config)
   (without a project config, built-in inspection requires --standalone; writes require a project)
-  penpair probe                                        what the connected Penpot and its MCP offer, and the limits
+  penpair probe [--integrity]                          APIs and limits; optionally validate file integrity when supported
   penpair probe --deep --write                         also tries layout, tokens, components, swap, clone and export on a temporary
                                                        board it removes again (it touches the open file, so --write is required)
   (in a project with an instance every command below acts on that instance only; --any-instance overrides)
@@ -127,6 +127,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       update: { type: "boolean" },
       json: { type: "boolean" },
       deep: { type: "boolean" },
+      integrity: { type: "boolean" },
       force: { type: "boolean" },
       to: { type: "string" },
       only: { type: "string", multiple: true },
@@ -358,12 +359,14 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
   const guarded = async () => guardFile(await connect(endpoint), projectConfig?.file, {
     anyFile: values["any-file"] === true,
-    mode: ["pages", "tree", "audit", "tokens"].includes(command) || command === "probe" && !values.deep ? "warn" : "strict",
+    mode: ["pages", "tree", "audit", "tokens"].includes(command) || command === "probe" && !values.deep && !values.integrity ? "warn" : "strict",
     warn: log,
   });
   if (command === "probe") {
     if (values.deep && !values.write) throw new Error("probe --deep creates a temporary board, a token set and two components in the open file and removes them again. Run it on a scratch file, with --write to confirm.");
-    console.log(JSON.stringify(await probe(endpoint, guarded), null, 2));
+    const capabilityReport = await probe(endpoint, guarded, { integrity: values.integrity === true });
+    console.log(JSON.stringify(capabilityReport, null, 2));
+    if (capabilityReport.integrity?.supported && capabilityReport.integrity.valid === false) return 1;
     if (values.deep) {
       const client = await guarded();
       try {

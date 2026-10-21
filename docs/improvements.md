@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **5 / 40**. In progress: **none**. Blocked: **none recorded**.
+Last updated: **2026-10-21**. Completed: **6 / 40**. In progress: **none**. Blocked: **none recorded**.
 
-**Now: I4 — capability-driven native API support** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: G3 — hosted-file backup and restore proof** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -562,7 +562,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 ### Gate 2 — establish recovery and a dependable daily loop
 
 - [x] **G1 · P1 · M** — Land the HTTP fake server and failure-injection coverage first; keep hosted smoke manual until its editor/session dependency is addressed. Completed 2026-10-21; [resolution report](#g1-completion-2026-10-21).
-- [ ] **I4 · P1 · M** — Probe capabilities and prefer supported native layout/integrity primitives.
+- [x] **I4 · P1 · M** — Probe capabilities and prefer supported native layout/integrity primitives. Completed 2026-10-21; [resolution report](#i4-completion-2026-10-21).
 - [ ] **G3 · P1 · M** — Document manual hosted backup now, then prove export/import on scratch with library assets intact.
 - [ ] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints.
 - [ ] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion.
@@ -728,6 +728,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live Penpot smoke was run; the first owner-authorized scratch execution remains an integration trial. The manual workflow has not run on GitHub and requires a protected penpot-smoke environment, secret and foreground authenticated editor/plugin. No nightly schedule or infrastructure was activated. Compatibility version tables are unchanged; native behavior remains unverified until the actual trial.
 - **Next:** I4 — capability-driven native API support
 
+
+<a id="i4-completion-2026-10-21"></a>
+### 2026-10-21 — I4: Capability-driven native API support
+
+- **Resolved:** Native APIs are detected instead of assumed, and unsupported/throwing methods cannot silently establish layout or file integrity. Optional named checkpoints use explicit apply and independent readback.
+- **Changed:** Probe schema/version/time/target metadata and native method presence; optional probe --integrity with failing status for real issues; reusable bounded native-or-geometry layout wait; optional run-keyed version checkpoint helper with file-switch guard and no automatic rollback. New helpers are exported for the runner and adapters. Documentation distinguishes method presence, simulated tests and actual live compatibility.
+- **Validated:** pnpm check passed with 328 tests (248 core, 52 adapter, 28 Docker), build/typecheck/neutrality/boundary/version checks. Twelve new cases cover old/new/throwing APIs, native timeout, unsettled geometry, target changes, integrity errors, checkpoint inspect/apply/readback/reuse and read-only capability probing. pnpm smoke:package passed during this item; final evidence-validation tightening was followed by pnpm check. git diff --check passed.
+- **Risks:** No native API live checks on pinned 2.18.3/2.18.4; compatibility table remains unchanged. Layout completion does not establish token/font/pixel correctness. Version history is a recovery aid, not a restored independent backup or an atomic lock. Default write/export settling integration remains B4; operation journaling remains I3.
+- **Next:** G3 — hosted-file backup and restore proof
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -742,3 +752,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I2 completed:** Require positive verification evidence. Progress 4/40; next G1 — transport fault tests and scratch smoke harness.
 
 - **2026-10-21 — G1 completed:** Transport fault tests and scratch smoke harness. Progress 5/40; next I4 — capability-driven native API support.
+
+- **2026-10-21 — I4 completed:** Capability-driven native API support. Progress 6/40; next G3 — hosted-file backup and restore proof.

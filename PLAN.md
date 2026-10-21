@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **I4 — capability-driven native API support** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **G3 — hosted-file backup and restore proof** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **I4 — Capability-driven native API support** (2026-10-21). Native APIs are detected instead of assumed, and unsupported/throwing methods cannot silently establish layout or file integrity. Optional named checkpoints use explicit apply and independent readback. Validation and limits: [delivery report](docs/improvements.md#i4-completion-2026-10-21).
 - [x] **G1 — Transport fault tests and scratch smoke harness** (2026-10-21). The connection path is now exercised over real HTTP through the installed MCP SDK, including authentication rejection, read retry and acknowledgment loss without write replay. Deep checks cannot pass with missing step/cleanup evidence. Validation and limits: [delivery report](docs/improvements.md#g1-completion-2026-10-21).
 - [x] **I2 — Require positive verification evidence** (2026-10-21). Empty, missing or primitive readbacks and an empty error list no longer produce verified success. A received acknowledgment is distinct from verified postconditions; malformed or throwing verifiers fail while preserving inspect/apply/readback evidence. Validation and limits: [delivery report](docs/improvements.md#i2-completion-2026-10-21).
 - [x] **A2 — Stop ambiguous write retries** (2026-10-21). Suspension or a lost transport response can no longer silently replay a write. Even an explicit retry count cannot enable retries for write or unclassified code; only declared reads retry. Validation and limits: [delivery report](docs/improvements.md#a2-completion-2026-10-21).
@@ -89,6 +90,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed I4: Capability-driven native API support; report in `docs/improvements.md`.
 - 2026-10-21: completed G1: Transport fault tests and scratch smoke harness; report in `docs/improvements.md`.
 - 2026-10-21: completed I2: Require positive verification evidence; report in `docs/improvements.md`.
 - 2026-10-21: completed A2: Stop ambiguous write retries; report in `docs/improvements.md`.

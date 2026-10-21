@@ -7,6 +7,8 @@ export * from "./client.js";
 export { guardFile } from "./file-guard.js";
 export * from "./deep-check.js";
 export { runLiveSmoke } from "./live-smoke.js";
+export * from "./layout.js";
+export * from "./native-api.js";
 export * from "./local-profile.js";
 export * from "./endpoint.js";
 export * from "./errors.js";

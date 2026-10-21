@@ -61,6 +61,8 @@ Things to know:
 - `doctor` compares the MCP key's port with the instance's, because a key for another instance silently drives the wrong file.
 - Penpot's accounts come from the first registration in the browser; the MCP key is made in Account, Integrations, MCP Server and goes in `.env.local` as `PENPAIR_MCP_URL`.
 
+Native capability presence appears in `penpair probe`; `penpair probe --integrity` optionally checks file referential integrity without changing the document. Unsupported integrity checks are explicit, not successful validation. See [native API compatibility](compatibility.md#capability-driven-native-apis).
+
 ## Retry safety and uncertain writes
 
 Penpair retries suspended executions only when explicitly classified as reads. Writes and unclassified scripts are delivered once, even if a caller requests retries. A lost response, timeout, suspended-tab failure or failed mutating snippet reports `write-uncertain` with a run ID. Inspect the intended file independently and reconcile existing objects before explicitly running another write. Run IDs identify executions; they do not provide transactions, deduplication or rollback.
