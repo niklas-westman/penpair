@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **F3 — configurable advisory audits with explicit unknowns** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **C4 — advisory theme-family lint with reasoned suppressions** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **F3 — Configured advisory audits and explicit unknown evidence** (2026-10-21). Design review can now surface contrast, composition, target-size, naming and text signals without presenting inferred semantics or missing observations as compliance. Validation and limits: [delivery report](docs/improvements.md#f3-completion-2026-10-21).
 - [x] **F2 — Observed project health and pinned public file opening** (2026-10-21). Web and local projects now have a shared status view that separates connected facts from missing evidence, plus an explicit public file-opening command. Validation and limits: [delivery report](docs/improvements.md#f2-completion-2026-10-21).
 - [x] **F1 — Concise documentation paths and generated troubleshooting** (2026-10-21). First-time readers now have a short quick start and clear person/agent/team/workflow paths, with repair guidance linked to the actual core error inventory. Validation and limits: [delivery report](docs/improvements.md#f1-completion-2026-10-21).
 - [x] **I10 — Versioned schema envelopes, explicit migrations and portable tokens** (2026-10-21). Persistent artifacts now have discoverable versioned schema envelopes and explicit migration/exchange paths instead of relying on implicit format assumptions. Validation and limits: [delivery report](docs/improvements.md#i10-completion-2026-10-21).
@@ -116,6 +117,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed F3: Configured advisory audits and explicit unknown evidence; report in `docs/improvements.md`.
 - 2026-10-21: completed F2: Observed project health and pinned public file opening; report in `docs/improvements.md`.
 - 2026-10-21: completed F1: Concise documentation paths and generated troubleshooting; report in `docs/improvements.md`.
 - 2026-10-21: completed I10: Versioned schema envelopes, explicit migrations and portable tokens; report in `docs/improvements.md`.

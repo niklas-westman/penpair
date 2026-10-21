@@ -1,3 +1,4 @@
+import { validateAuditRules, type AuditRules } from "../audit-rules.js";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { validateBaselines, type BaselinesConfig } from "../baselines-config.js";
@@ -8,6 +9,7 @@ export interface BackupReminder { noteFile: string; remindAfterDays: number }
 
 export interface InstanceConfig {
   schemaVersion?: 1;
+  audit?: AuditRules;
   file?: ProjectFile;
   backup?: BackupReminder;
   /** Short name; it becomes part of the compose project, so containers and volumes of two instances never collide. */
@@ -30,6 +32,7 @@ export interface InstanceConfig {
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
 export interface ExternalConfig {
   schemaVersion?: 1;
+  audit?: AuditRules;
   file?: ProjectFile;
   backup?: BackupReminder;
   instance: string;
@@ -68,6 +71,7 @@ export function validateConfig(value: unknown): InstanceConfig {
   const v = value as Record<string, unknown>;
   validateFile(v.file);
   validateBackup(v.backup);
+  if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance))
     fail("instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)");
   if (typeof v.penpotVersion !== "string" || !/^\d+\.\d+(\.\d+)?$/.test(v.penpotVersion)) fail("penpotVersion must look like 2.18.3");
@@ -100,6 +104,7 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   const v = value as Record<string, unknown>;
   validateFile(v.file);
   validateBackup(v.backup);
+  if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };

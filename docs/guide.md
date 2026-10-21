@@ -8,7 +8,7 @@ Choose a tested workflow below, then use the extension and command references fo
 | --- | --- |
 | First run / shared file | [Getting started](getting-started.md), [team](team.md), [trial runbook](trials.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
-| Evidence | [Inspection](inspection.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
+| Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
 | Integration | [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [token adapter](marwes.md) |
 | Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 

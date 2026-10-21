@@ -11,6 +11,11 @@ export const projectConfigSchema = {
   required: ["instance"],
   properties: {
     schemaVersion: { const: 1 },
+    audit: { type: "object", additionalProperties: false, properties: {
+      contrast: { type: "boolean" }, library: { type: "boolean" }, touchTargets: { type: "boolean" }, names: { type: "boolean" }, blankText: { type: "boolean" },
+      interactiveIds: { type: "array", maxItems: 1000, items: { type: "string" } }, allowBlank: { type: "array", maxItems: 1000, items: { type: "string" } }, nameSegments: { type: "integer", minimum: 1, maximum: 10 },
+      suppressions: { type: "array", maxItems: 1000, items: { type: "object", required: ["rule", "nodeId", "reason"], properties: { rule: { enum: ["contrast", "library", "touch-target", "names", "blank-text"] }, nodeId: { type: "string" }, reason: { type: "string", minLength: 1 } } } },
+    } },
     backup: { type: "object", required: ["noteFile", "remindAfterDays"], properties: { noteFile: { type: "string", minLength: 1, pattern: "^(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$" }, remindAfterDays: { type: "integer", minimum: 1 } } },
     file: { type: "object", required: ["id"], properties: { id: { type: "string", minLength: 1, pattern: "\\S" }, name: { type: "string" } } },
     instance: { type: "string", pattern: "^[a-z][a-z0-9-]{0,30}$" },

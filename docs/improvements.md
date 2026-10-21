@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **32 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **33 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: F3 — configurable advisory audits with explicit unknowns** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: C4 — advisory theme-family lint with reasoned suppressions** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -604,7 +604,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I10 · P2 · M** — Add format migrations and a documented portable token subset; version new schemas earlier. Completed 2026-10-21; [resolution report](#i10-completion-2026-10-21).
 - [x] **F1 · P2 · M** — Restructure docs from tested user paths; write minimal team/recovery notes in Gate 2. Completed 2026-10-21; [resolution report](#f1-completion-2026-10-21).
 - [x] **F2 · P2 · S** — Add web status/open using the shared identity and capability report. Completed 2026-10-21; [resolution report](#f2-completion-2026-10-21).
-- [ ] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns.
+- [x] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns. Completed 2026-10-21; [resolution report](#f3-completion-2026-10-21).
 - [ ] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices.
 - [ ] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified.
 - [ ] **G2 · P2 · M** — Prepare owner-approved trusted publishing/provenance while keeping lockstep release guards.
@@ -1013,6 +1013,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No actual browser/login rendering or live status trial was claimed. Direct links may need deployment team context. Adapter hooks execute trusted code only with explicit opt-in; missing optional evidence keeps overall status incomplete.
 - **Next:** F3 — configurable advisory audits with explicit unknowns
 
+
+<a id="f3-completion-2026-10-21"></a>
+### 2026-10-21 — F3: Configured advisory audits and explicit unknown evidence
+
+- **Resolved:** Design review can now surface contrast, composition, target-size, naming and text signals without presenting inferred semantics or missing observations as compliance.
+- **Changed:** Added validated audit settings, exact-ID suppressions/blank allowances, complete structured offline/live audit paths and bounded findings. Contrast requires same-revision resolved active colors plus matching opaque observed paints; library coverage reports unknowns; target sizes require explicit interactive IDs. Added documented assumptions and standards references.
+- **Validated:** pnpm check passes (550 tests) and six-package smoke passes. Recorded-tree tests cover contrast ratios, mixed/alpha/foreign evidence, explicit target/blank signals, visible suppressions and truncation.
+- **Risks:** Advisory signals only: no accessibility conformance, inferred clickability, browser CSS scale or general paint compositing guarantee. Overlaps, hidden ancestors and real input behavior require independent review. No live audit trial was performed.
+- **Next:** C4 — advisory theme-family lint with reasoned suppressions
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1099,3 +1109,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — F1 completed:** Concise documentation paths and generated troubleshooting. Progress 31/40; next F2 — web/project status and explicit file opening.
 
 - **2026-10-21 — F2 completed:** Observed project health and pinned public file opening. Progress 32/40; next F3 — configurable advisory audits with explicit unknowns.
+
+- **2026-10-21 — F3 completed:** Configured advisory audits and explicit unknown evidence. Progress 33/40; next C4 — advisory theme-family lint with reasoned suppressions.

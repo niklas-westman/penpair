@@ -1,3 +1,4 @@
+import { auditDesignRules } from "./audit-rules.js";
 import { projectStatus, projectFileUrl, openProject } from "./project-status.js";
 import { artifactSchemas, migrateProjectConfig } from "./formats.js";
 import { importDtcg, exportDtcg } from "./portable-tokens.js";
@@ -153,6 +154,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     allowPositionals: true,
     options: {
       include: { type: "string", multiple: true },
+      rules: { type: "boolean" }, "token-source": { type: "string" },
       adapters: { type: "boolean" }, print: { type: "boolean" },
       note: { type: "string" }, by: { type: "string" }, "case": { type: "string" }, "force-reason": { type: "string" },
       from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
@@ -214,7 +216,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     snapshot: ["write", "out", "from"],
     approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
-    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
+    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore", "rules", "from", "token-source"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     kit: ["include"], recipes: ["include"],
     "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
@@ -270,6 +272,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
 
+  if (command === "audit" && values.from) {
+    if (rest.length || values.page || values.prefix || values.steps || values.ignore || values["any-file"] || values["any-instance"] || values.standalone) throw new CommandArgumentError("audit --from INSPECTION [--token-source TOKENS] uses configured advisory rules offline");
+    const config = await loadCommandConfig(projectRoot()); if (!config.audit) throw new Error("Configure explicit audit rules first");
+    const report = auditDesignRules(await readDesignJson(projectRoot(), values.from) as import("./inspection.js").InspectionDocument, config.audit, values["token-source"] ? await readDesignJson(projectRoot(), values["token-source"]) as import("./inspection.js").InspectionDocument : undefined);
+    output.result(report); output.log(JSON.stringify(report,null,2)); return report.complete ? 0 : 3;
+  }
   if (command === "formats") {
     const [action, input] = rest;
     if (action === "schema" && rest.length === 2 && !values.out && artifactSchemas[input!]) { output.result(artifactSchemas[input!]); output.log(JSON.stringify(artifactSchemas[input!], null, 2)); return 0; }
@@ -670,6 +678,14 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       for (const row of report.coverage.rows) if (row.status !== "approved-design-intent") output.error(`coverage ${row.status}: ${row.requirement.route} ${row.requirement.theme}/${row.requirement.state} ${row.requirement.viewport.width}x${row.requirement.viewport.height}${row.reason ? ": " + row.reason : ""}`);
       if (!report.complete || report.coverage.configured && !report.coverage.designCasesComplete) return 3;
       return changed.length > 0 ? 2 : 0;
+    }
+    if (command === "audit" && (values.rules || projectConfig?.audit)) {
+      if (!values.page || !projectConfig?.audit || rest.length || values.prefix || values.steps || values.ignore || values["token-source"]) throw new CommandArgumentError("Configured audit requires --page and explicit config rules, without legacy filters");
+      const shapes = await captureInspection(client, { kind: "shape", shapeId: "@page-root", page: values.page, depth: 10000, maxNodes: 50000 });
+      const tokens = projectConfig.audit.contrast ? await captureInspection(client, { kind: "tokens" }) : undefined;
+      if (!shapes.complete || tokens && !tokens.complete) { output.result({ complete:false, reason:"Audit inspection incomplete" }); return 3; }
+      const report = auditDesignRules(shapes as import("./inspection.js").InspectionDocument, projectConfig.audit, tokens as import("./inspection.js").InspectionDocument|undefined);
+      output.result(report); output.log(JSON.stringify(report,null,2)); return report.complete ? 0 : 3;
     }
     if (command === "pages") output.log(JSON.stringify(await runSnippet(client, pages(), options), null, 2));
     else if (command === "tree") {
