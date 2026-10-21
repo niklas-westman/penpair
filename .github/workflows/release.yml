@@ -1,0 +1,47 @@
+name: Owner-approved package release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version already committed with pnpm bump and reviewed on main
+        required: true
+        type: string
+      continue_release:
+        description: Resume an independently inspected interrupted release
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: penpair-package-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && vars.PENPAIR_TRUSTED_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Recheck guards, pack and publish the full family with OIDC
+        run: node scripts/ci-release.mjs
+        env:
+          PENPAIR_EXPECTED_VERSION: ${{ inputs.version }}
+          PENPAIR_CONTINUE_RELEASE: ${{ inputs.continue_release }}
+          PENPAIR_RELEASE_ENVIRONMENT: npm-release

@@ -29,5 +29,5 @@ jobs:
       - name: Typecheck, test and build
         run: pnpm check
 
-      - name: Pack both packages, install them in an empty project and run them
+      - name: Pack all packages, install them in empty projects and run them
         run: pnpm smoke:package

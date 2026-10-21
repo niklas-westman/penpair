@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **35 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **36 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: G2 — owner-gated trusted publishing and release confirmation** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: H2 — evidence-qualified upstream requests for owner review** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -607,7 +607,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns. Completed 2026-10-21; [resolution report](#f3-completion-2026-10-21).
 - [x] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices. Completed 2026-10-21; [resolution report](#c4-completion-2026-10-21).
 - [x] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified. Completed 2026-10-21; [resolution report](#a4-completion-2026-10-21).
-- [ ] **G2 · P2 · M** — Prepare owner-approved trusted publishing/provenance while keeping lockstep release guards.
+- [x] **G2 · P2 · M** — Prepare owner-approved trusted publishing/provenance while keeping lockstep release guards. Completed 2026-10-21; [resolution report](#g2-completion-2026-10-21).
 - [ ] **H2 · P2 · S** — Present measured upstream Marwes requests; let the owner decide what to send.
 
 ## 4. Definition of done (every item)
@@ -1043,6 +1043,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No personal store/key was accessed or changed. macOS access dialogs and actual provider compatibility remain untested; other platforms use private files and Windows ACL privacy requires owner management. History remediation/revocation remain owner actions.
 - **Next:** G2 — owner-gated trusted publishing and release confirmation
 
+
+<a id="g2-completion-2026-10-21"></a>
+### 2026-10-21 — G2: Owner-gated trusted publishing and exact release confirmation
+
+- **Resolved:** A reviewed release can use short-lived CI authentication/provenance without losing existing lockstep/package guards or silently publishing an unintended version.
+- **Changed:** Added exact typed/noninteractive version confirmation, optional validated OIDC mode and a guard-then-pnpm-pack-then-npm-publish path with artifact hashes. Added manual main-only workflow, owner enable variable, protected environment and pinned action commits. Existing version/main/clean/pushed/registry/publish-order guards and local OTP path remain in force.
+- **Validated:** pnpm check passes (563 tests), original release guards remain covered, and fake-command tests verify guard refusal and artifact-only provenance publishing. Workflow YAML/manual/protected boundaries validated offline; six-package smoke passes. No release command, workflow dispatch or remote policy mutation was run.
+- **Risks:** Owner must configure/review GitHub environment protections and every npm trusted publisher/name before enabling. Actual OIDC exchange, registry provenance and blocked/new-name bootstrap remain pending; presence of an environment name alone does not prove protection.
+- **Next:** H2 — evidence-qualified upstream requests for owner review
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1135,3 +1145,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — C4 completed:** Advisory theme-family hue gaps. Progress 34/40; next A4 — private credential files and OS credential references.
 
 - **2026-10-21 — A4 completed:** Private file and OS credential references. Progress 35/40; next G2 — owner-gated trusted publishing and release confirmation.
+
+- **2026-10-21 — G2 completed:** Owner-gated trusted publishing and exact release confirmation. Progress 36/40; next H2 — evidence-qualified upstream requests for owner review.

@@ -1,3 +1,9 @@
+import { publishTrustedPackage } from "./lib/trusted-package.mjs";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createInterface } from "node:readline/promises";
+import { confirmReleaseVersion, trustedPublishingContext } from "./lib/release-auth.mjs";
 // The only way to publish. All packages of this repository are released together, at one version, in dependency order.
 //   pnpm release                      checks everything and prints the plan; publishes nothing
 //   pnpm release --publish            does it (npm asks for your one-time code; or pass --otp <code>)
@@ -18,6 +24,9 @@ const publish = flag("--publish");
 const resume = flag("--continue");
 const excepted = args.flatMap((arg, i) => (arg === "--except" ? [args[i + 1]] : []));
 const otp = option("--otp");
+const trusted = flag("--trusted-publishing");
+const confirmedVersion = option("--confirm-version");
+if (trusted && (otp || excepted.length)) throw new Error("Trusted publishing uses OIDC and the complete package family; OTP/except options belong to the local recovery path");
 
 const say = (message) => console.log(message);
 const stop = (message, code = 1) => {
@@ -76,12 +85,30 @@ if (!publish) {
 }
 
 // 5. Publish, in order, each with the guard's permission, and look each one up afterwards.
-const login = await sh("npm", ["whoami"]).catch(() => "");
-if (!login) stop("you are not logged in to npm; run `npm login`");
-say(`\nPublishing as ${login}`);
+let confirmation = confirmedVersion;
+if (!confirmation && process.stdin.isTTY) {
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try { confirmation = await prompt.question(`Type ${version} to publish this checked package family: `); } finally { prompt.close(); }
+}
+try { confirmReleaseVersion(version, confirmation); } catch (error) { stop(error.message); }
+let packDirectory;
+if (trusted) {
+  try { trustedPublishingContext(process.env, { node: process.version, npm: await sh("npm", ["--version"]) }); } catch (error) { stop(error.message); }
+  packDirectory = await mkdtemp(path.join(tmpdir(), "penpair-trusted-release-"));
+  say("Publishing with owner-configured OIDC and provenance; registry identity is verified by npm.");
+} else {
+  const login = await sh("npm", ["whoami"]).catch(() => "");
+  if (!login) stop("you are not logged in to npm; run `npm login`");
+  say(`\nPublishing as ${login}`);
+}
 for (const p of todo) {
   say(`\n=== ${p.name}@${version}`);
-  const code = await inherit("pnpm", ["publish", "--access", "public", ...(otp ? ["--otp", otp] : [])], p.directory, { PENPAIR_RELEASE: "1" });
+  let code;
+  if (trusted) {
+    const artifact = await publishTrustedPackage({ root, packDirectory, package: p, run: inherit }).catch(error => stop(error.message));
+    say(`packed ${p.name}: sha256 ${artifact.sha256}`);
+    code = artifact.code;
+  } else code = await inherit("pnpm", ["publish", "--access", "public", ...(otp ? ["--otp", otp] : [])], p.directory, { PENPAIR_RELEASE: "1" });
   if (code !== 0) stop(`publishing ${p.name} failed. Nothing after it was published. Fix the cause, then run \`pnpm release --publish --continue\`.`, 2);
   let seen = false;
   for (let attempt = 0; attempt < 12 && !seen; attempt++) {
