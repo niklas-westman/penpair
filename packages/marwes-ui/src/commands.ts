@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
+import { resolveProjectInput, createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
 import { readMarwesSettings, type MarwesSettings } from "./config.js";
 import { familyProblems, loadInstalledMarwes, type InstalledMarwes } from "./marwes.js";
 import { applyPlan, compareToPenpot, describePlan, formatDrift, impactOf, planPush, readLive, type Drift } from "./penpot.js";
@@ -24,7 +24,7 @@ export interface Expectation {
 
 export async function computeExpectation(root: string, rawConfig: Record<string, unknown>, instance: string): Promise<Expectation> {
   const settings = readMarwesSettings(rawConfig, instance);
-  const installed = await loadInstalledMarwes(path.resolve(root, settings.project));
+  const installed = await loadInstalledMarwes(await resolveProjectInput(root, settings.project));
   const [light, dark] = await Promise.all([settings.themes.light, settings.themes.dark].map((reference) => (reference ? loadThemeInput(root, reference) : undefined)));
   const fresh = buildSnapshot({
     core: installed.core,

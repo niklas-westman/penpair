@@ -57,7 +57,7 @@ const fx = (s) => (s.flex ? " flex:" + s.flex.dir + "/" + s.flex.horizontalSizin
 const lc = (s) => (s.layoutChild ? " lc:" + (s.layoutChild.horizontalSizing || "") + "-" + (s.layoutChild.verticalSizing || "") + (s.layoutChild.absolute ? " ABS" : "") : "");
 const walk = (s, d) => {
   if (d > depth || lines.length >= limit) return;
-  lines.push("  ".repeat(d) + s.type[0] + " " + s.name + " " + Math.round(s.width) + "x" + Math.round(s.height) + "@" + Math.round(s.x) + "," + Math.round(s.y) + fx(s) + lc(s) + (s.type === "text" ? " «" + (s.characters || "").slice(0, 24) + "»" : "") + (s.hidden ? " HIDDEN" : ""));
+  lines.push("  ".repeat(d) + s.type[0] + " " + JSON.stringify(s.name) + " " + Math.round(s.width) + "x" + Math.round(s.height) + "@" + Math.round(s.x) + "," + Math.round(s.y) + fx(s) + lc(s) + (s.type === "text" ? " «" + JSON.stringify((s.characters || "").slice(0, 24)) + "»" : "") + (s.hidden ? " HIDDEN" : ""));
   (s.children || []).forEach((c) => walk(c, d + 1));
 };
 penpot.currentPage.root.children.filter((c) => !CFG.namePrefix || c.name.startsWith(CFG.namePrefix)).forEach((c) => walk(c, 0));

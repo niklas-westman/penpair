@@ -127,3 +127,5 @@ Interrupted write recovery, run inspection and optional checkpoints: [recovery g
 Baseline schema 2 keeps current capture and original approval provenance separate, publishes immutable image generations, and requires a complete capture. See [artifact publication](artifacts.md) for paths, migration and interruption behavior.
 
 For scripts and tools, use the versioned [command result contract](command-contract.md): command-specific JSON now lives under `data`, progress uses stderr, and incomplete/uncertain/cancelled outcomes have explicit exit codes.
+
+Adapters, snippet definitions and theme files execute trusted project code. Built-in help/inspection avoid adapter imports; use `snippets --builtins-only` for the shipped registry. See [extension trust boundaries](extensions-trust.md).

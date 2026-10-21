@@ -109,7 +109,7 @@ check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet, 
 // 5. The Marwes adapter: installed beside the web command, loaded from the project's configuration, offline.
 const marwes = await consumer("marwes", [`penpair-web-${version}.tgz`, `penpair-marwes-ui-${version}.tgz`], { "@penpair/core": asFile(core) });
 await writeFile(join(marwes, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://design.penpot.app" }, adapters: ["@penpair/marwes-ui"], marwes: { project: "." } }));
-check(/penpair marwes tokens check/.test(await penpair(marwes, "--help")), "the help lists the adapter's commands once it is listed in the configuration");
+check(/Configured executable extensions[\s\S]*@penpair\/marwes-ui/.test(await penpair(marwes, "--help")), "help names configured extensions without executing them");
 const noMarwes = await runFailing("npx", ["--no-install", "penpair", "marwes", "tokens", "check"], { cwd: marwes });
 check(/No @marwes-ui\/react, vue or svelte is installed/.test(noMarwes), "and its commands run, saying plainly when Marwes is not installed in the project");
 console.log(`\npackages smoke-tested from ${packDir}`);

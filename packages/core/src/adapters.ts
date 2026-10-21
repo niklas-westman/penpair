@@ -1,3 +1,4 @@
+import { resolveProjectInput } from "./project-input.js";
 import type { CommandOutput } from "./command-result.js";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -50,7 +51,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
   "probe", "pages", "tree", "audit", "tokens", "export", "archive", "snippets", "run", "skills", "init", "setup", "connect",
-  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard",
+  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
 ] as const;
 
 export interface LoadedAdapters {
@@ -63,8 +64,9 @@ export type AdapterImporter = (specifier: string, root: string) => Promise<unkno
 /** Resolves an adapter the way the project would: a relative path from the project's folder, or a package installed in the project. */
 export const importFromProject: AdapterImporter = async (specifier, root) => {
   let file: string;
-  if (specifier.startsWith(".") || path.isAbsolute(specifier)) file = path.resolve(root, specifier);
+  if (specifier.startsWith(".") || path.isAbsolute(specifier)) file = await resolveProjectInput(root, specifier);
   else {
+    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[a-z0-9._-]+)*$/i.test(specifier) || specifier.split("/").includes("..")) throw new Error("Adapter must name an installed package or a relative project module");
     try {
       file = createRequire(path.join(root, "package.json")).resolve(specifier);
     } catch {

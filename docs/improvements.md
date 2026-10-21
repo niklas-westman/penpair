@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **10 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **11 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I11 — lazy extension loading and explicit executable-code trust boundaries** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: B5 — publish the dated, version-scoped build gotchas** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -571,7 +571,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion. Completed 2026-10-21; [resolution report](#a3-completion-2026-10-21).
 - [x] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely. Completed 2026-10-21; [resolution report](#i5-completion-2026-10-21).
 - [x] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting. Completed 2026-10-21; [resolution report](#i7-completion-2026-10-21).
-- [ ] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports.
+- [x] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports. Completed 2026-10-21; [resolution report](#i11-completion-2026-10-21).
 - [ ] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run.
 - [ ] **E2 · P1 · S** — Add idempotent instruction-file integration with explicit destination and preview.
 - [ ] **B3 · P1 · S** — Export by unambiguous name/ID and reuse the exporter for ad-hoc shots.
@@ -790,6 +790,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** JSON shape is deliberately changed: prior top-level command fields now live under data. Interactive setup/connect refuse JSON/deadline mode; doctor supplies their subsequent machine-readable check. SDK cancellation does not stop a delivered plugin mutation, so its outcome remains uncertain. Synchronous extensions must cooperate with deadlines. Third-party adapters writing directly to process/global console streams must migrate to context.output; they are not sandboxed. No live interruption test.
 - **Next:** I11 — lazy extension loading and explicit executable-code trust boundaries
 
+
+<a id="i11-completion-2026-10-21"></a>
+### 2026-10-21 — I11: Lazy executable extensions and explicit trust boundaries
+
+- **Resolved:** Built-in help and inspection no longer execute configured adapters unnecessarily, and selected local executable entry points cannot silently escape the project through traversal or symlinks.
+- **Changed:** Lazy adapter discovery for extension commands only; help names configured extensions without importing them. Built-in registry runs skip project snippet modules and snippets/run accept builtins-only. Canonical local adapter/snippet/theme entry paths are bounded to the project; installed package resolution remains supported. Added a labeled literal design-data formatter, quoted multiline tree labels, trust guidance and agent instructions.
+- **Validated:** pnpm check passes: 389 tests (302 core, 59 adapter, 28 Docker). Side-effect fixtures prove no imports for built-in help/config/onboard/runs/built-in snippet inspection, while an explicitly requested extension executes. Tests cover inside/outside symlinks, directory escapes, actual theme entry-point refusal, malicious Markdown fences/directional controls, and multiline layer labels. pnpm smoke:package and git diff --check pass.
+- **Risks:** Extensions and transitive imports retain full Node privileges; read labels are declarations, not sandboxing. Unknown extension command discovery can import all configured adapters. Absolute/escaping local entry points now need a project wrapper or installed package. Later documentation exporters must reuse the literal-data formatter. No live Penpot operation was needed or run.
+- **Next:** B5 — publish the dated, version-scoped build gotchas
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -816,3 +826,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I5 completed:** Artifact provenance and consistent atomic publication. Progress 9/40; next I7 — stable command results, structured MCP envelopes and incomplete-output contracts.
 
 - **2026-10-21 — I7 completed:** Versioned command results and interruption contracts. Progress 10/40; next I11 — lazy extension loading and explicit executable-code trust boundaries.
+
+- **2026-10-21 — I11 completed:** Lazy executable extensions and explicit trust boundaries. Progress 11/40; next B5 — publish the dated, version-scoped build gotchas.

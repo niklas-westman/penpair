@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { resolveProjectInput } from "@penpair/core";
 import { createJiti } from "jiti";
 
 export interface ThemeReference {
@@ -12,12 +12,14 @@ export interface ThemeReference {
 
 /** Loads a theme the project already has, as the app itself would: the same file, the same export. */
 export async function loadThemeInput(root: string, reference: ThemeReference): Promise<{ input: Record<string, unknown>; fileHash: string }> {
-  const file = path.resolve(root, reference.module);
+  let file: string;
   let source: Buffer;
   try {
+    file = await resolveProjectInput(root, reference.module);
     source = await readFile(file);
-  } catch {
-    throw new Error(`The theme file ${reference.module} does not exist (marwes.themes in penpair.config.json).`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new Error(`The theme file ${reference.module} does not exist (marwes.themes in penpair.config.json).`);
+    throw error;
   }
   const jiti = createJiti(file, { interopDefault: true, moduleCache: false });
   const loaded = (await jiti.import(file)) as Record<string, unknown>;

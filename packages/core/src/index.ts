@@ -40,3 +40,5 @@ export { onboardingChecklist } from "./onboard.js";
 export { atomicWriteFile } from "./atomic-output.js";
 
 export { commandResultSchema, collectCommand, commandOutput, type CommandResult, type CommandFailure, type CommandOutput } from "./command-result.js";
+
+export { resolveProjectInput, designDataBlock } from "./project-input.js";

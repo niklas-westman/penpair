@@ -90,8 +90,8 @@ const usageConnection = `Connecting to a Penpot (one project, configured in penp
   penpair doctor [--json]                              what is up, what is not, and what to do about it (--json for scripts and agents)
 `;
 
-const usage = (hasLocal: boolean, adapters: Adapter[] = []): string =>
-  usageHead.replace("@@INSTANCE@@", usageConnection + (hasLocal ? usageLocalInstance : usageNoLocalInstance)).replace("@@SETUP@@", hasLocal ? "  penpair setup --docker                               Penpot on this computer in Docker\n" : "") + adapterUsage(adapters);
+const usage = (hasLocal: boolean, adapters: Adapter[] = [], configured: string[] = []): string =>
+  usageHead.replace("@@INSTANCE@@", usageConnection + (hasLocal ? usageLocalInstance : usageNoLocalInstance)).replace("@@SETUP@@", hasLocal ? "  penpair setup --docker                               Penpot on this computer in Docker\n" : "") + adapterUsage(adapters) + (configured.length ? `\nConfigured executable extensions (not loaded for built-in help):\n${configured.map((name) => `  ${JSON.stringify(name)}`).join("\n")}\nUse the extension command to load its trusted project code.\n` : "");
 
 /** The commands that adapters from penpair.config.json add, after the core's own. */
 const adapterUsage = (adapters: Adapter[]): string =>
@@ -102,6 +102,7 @@ const list = (value: string | undefined): string[] => (value ?? "").split(",").m
 export interface CliOptions {
   /** Adapters already loaded (the command loads the project's own from penpair.config.json). */
   adapters?: Adapter[];
+  configuredAdapters?: string[];
   /** A way to run Penpot on this computer, from a package that provides one (`@penpair/docker`). Without it those commands explain where they come from. */
   local?: LocalProfile;
 }
@@ -132,6 +133,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "any-file": { type: "boolean" },
       "pin-file": { type: "boolean" },
       standalone: { type: "boolean" },
+      "builtins-only": { type: "boolean" },
       web: { type: "boolean" },
       docker: { type: "boolean" },
       replace: { type: "boolean" },
@@ -155,8 +157,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const flags: Record<string, string[]> = {
     pages: [], tree: ["page", "depth", "prefix"], audit: ["page", "prefix", "steps", "ignore"], tokens: ["theme"], export: ["page", "scale"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
-    run: ["param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
-    skills: ["to", "only", "force"], snippets: [], init: ["instance", "port", "gitignore", "external"], setup: ["web", "docker", "external", "instance", "port"],
+    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update"], probe: ["deep", "write", "integrity"],
+    skills: ["to", "only", "force"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], status: [], backup: [], restore: ["yes"],
   };
   const network = ["pages", "tree", "audit", "tokens", "export", "archive", "run", "baselines", "probe", "backup", "doctor"];
@@ -174,8 +176,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     output.log(version);
     return 0;
   }
-  if (!command || values.help) {
-    output.log(usage(Boolean(cli.local), cli.adapters));
+  if (!command || command === "help" || values.help) {
+    output.log(usage(Boolean(cli.local), cli.adapters, cli.configuredAdapters));
     return 0;
   }
 
@@ -218,8 +220,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
   }
 
-  async function registryFor(): Promise<{ registry: SnippetRegistry; problems: string[]; files: string[] }> {
+  async function registryFor(requested?: string): Promise<{ registry: SnippetRegistry; problems: string[]; files: string[] }> {
     const registry = builtInRegistry();
+    if (values["builtins-only"] || requested && registry.list().some((entry) => entry.name === requested)) return { registry, problems: [], files: [] };
     const snippets = (await loadOptionalConfig(root))?.snippets;
     const report = await loadProjectSnippets(root, snippets, registry);
     return { registry, problems: report.problems, files: report.files };
@@ -444,7 +447,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (command === "run") {
       const [name] = rest;
       if (!name) throw new Error("usage: penpair run <snippet> [--param key=value ...] [--apply]");
-      const { registry, problems } = await registryFor();
+      const { registry, problems } = await registryFor(name);
       for (const problem of problems) output.error(`warning: ${problem}`);
       const raw: Record<string, string | string[]> = {};
       for (const pair of values.param ?? []) {
@@ -509,7 +512,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (report.phase === "inspected") output.error("Nothing was written. Run again with --apply to do it.");
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else {
-      output.log(usage(Boolean(cli.local), cli.adapters));
+      output.log(usage(Boolean(cli.local), cli.adapters, cli.configuredAdapters));
       return 1;
     }
     return 0;
@@ -587,13 +590,15 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
     }
     const raw = await readRawConfig(root);
     const specifiers = Array.isArray(raw.adapters) ? raw.adapters.filter((entry): entry is string => typeof entry === "string") : [];
-    const loaded = options.adapters ? { adapters: options.adapters, problems: [] as string[] } : specifiers.length > 0 ? await loadAdapters(root, specifiers) : { adapters: [] as Adapter[], problems: [] as string[] };
     const [first] = argv;
+    const builtIn = first === undefined || first.startsWith("--") || (reservedCommands as readonly string[]).includes(first);
+    if (builtIn) return await main(argv, { ...options, configuredAdapters: specifiers });
+    // Dynamic discovery is necessary only for a requested extension command; it executes trusted project modules.
+    const loaded = options.adapters ? { adapters: options.adapters, problems: [] as string[] } : await loadAdapters(root, specifiers);
     const adapterCommand = loaded.adapters.flatMap((adapter) => adapter.commands).find((command) => command.name === first);
     if (adapterCommand) return await runAdapterCommand(adapterCommand, root, argv.slice(1));
-    const builtIn = (reservedCommands as readonly string[]).includes(first ?? "");
-    if (loaded.problems.length > 0 && (!builtIn || argv.includes("--help"))) for (const problem of loaded.problems) output.error(`warning: ${problem}`);
-    return await main(argv, { ...options, adapters: loaded.adapters });
+    for (const problem of loaded.problems) output.error(`warning: ${problem}`);
+    return await main(argv, { ...options, adapters: loaded.adapters, configuredAdapters: specifiers });
   } catch (error: unknown) {
     commandFailure(error);
     output.error(error instanceof PenpairError ? error.message : error instanceof ConfigError || error instanceof ConnectError || error instanceof LifecycleError || error instanceof RegistryError ? `penpair: ${error.message}` : `penpair: ${String((error as Error)?.message ?? error)}`);

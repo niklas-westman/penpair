@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Explicit extension trust:** built-in commands/help avoid adapter imports; help lists configured extension names. Built-in snippet runs avoid project modules, and `snippets/run --builtins-only` gives an explicit restricted registry. Local adapter/snippet/theme entry points reject real-path escapes; read declarations remain trusted code. Added literal design-data formatting and quoted tree labels.
+
 - **Versioned command contract:** `--json` now emits one shared envelope; earlier JSON roots move under `data`. Core and bundled adapter results retain completeness, target/run evidence and structured errors. Added explicit incomplete/uncertain/cancelled/deadline exits, cooperative request cancellation, strict flag/numeric validation, and structured MCP executor-envelope support with legacy text compatibility.
 
 - **Artifact provenance and safe publication:** schema-2 baseline manifests separate capture and approval identity/revision/hash. Complete coherent runs publish immutable capture generations before atomically publishing the manifest; missing/unstable captures preserve previous output. Generated Reflection cases follow approved paths. PNG/archive outputs stage complete bytes; archives retain exclusive no-replacement behavior.
