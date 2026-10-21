@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Hosted backup candidates:** bounded `backup file <new.penpot>` exports with identity/revision/length/hash evidence and refusal to replace existing files. Exported bytes never imply a verified restore. Added manual export/scratch-restore guidance and opt-in non-blocking backup-note reminders; the first real archive round trip remains outstanding.
+
 - **Capability-driven native support:** versioned probe metadata and optional `probe --integrity`, bounded native/fallback layout waiting, explicit unsupported/failure results, and run-keyed optional version checkpoints with independent readback. No Penpot version bump or new live-compatibility claim.
 
 - **Transport reliability tests and opt-in scratch smoke:** a real HTTP fake exercises the installed MCP client, including lost write responses. The manual `smoke:live` harness pins origin/file/version and refuses unconfirmed targets; its workflow requires a connected editor and a protected environment. Empty/incomplete deep-check evidence cannot pass. Added generated token-storage normalization invariants.

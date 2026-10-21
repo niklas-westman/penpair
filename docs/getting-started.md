@@ -72,7 +72,9 @@ This copies the rules the assistant follows (how to work safely in Penpot, and h
 Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visible, and start working with the assistant.
 
 ### Your safety net
-`up`, `down`, `status`, `backup` and `restore` belong to the Docker alternative and do not apply here. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
+See the [hosted backup and scratch-restore guide](backup.md). `penpair backup file <new.penpot>` can try a bounded file export; it never replaces an existing archive and does not claim restore proof. Larger/failing exports use the manual UI route. Optional backup-note reminders are disabled unless configured.
+
+`up`, `down`, Docker `status`, instance `backup` and instance `restore` belong to the Docker alternative; `backup file` is the separate hosted-file export candidate described above. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
 
 ## What it will not do
 It needs the Penpot tab open and visible while the assistant works, so it cannot run on its own overnight. It changes one Penpot at a time and only the page you have open.

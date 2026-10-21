@@ -27,6 +27,8 @@ import { assertEndpointIsInstance, doctorExternal, LifecycleError, type DoctorCh
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./version.js";
 import { guardFile } from "./file-guard.js";
+import { exportFileArchive } from "./file-archive.js";
+import { backupNoteCheck } from "./backup-note.js";
 
 const usageHead = `penpair ${version}
 Start here (guided, plain language; safe to run again):
@@ -50,6 +52,7 @@ Read-only:
   penpair tokens dump                                  token sets and themes as JSON
   penpair tokens diff <before.json> <after.json> --theme <name>
   penpair export <shapeId> <out.png> [--page <name>] [--scale 1]
+  penpair backup file <new.penpot>                     try a bounded full-file export, without replacing an existing archive
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
   penpair skills install [--to <folder>] [--only <name>] [--force]   copy them into the project and make them discoverable
@@ -293,18 +296,19 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
-    const all: DoctorCheck[] = keyCheck ? [...checks, keyCheck] : checks;
+    const backupCheck = await backupNoteCheck(root, await loadConfig(root));
+    const all: DoctorCheck[] = [...checks, ...(keyCheck ? [keyCheck] : []), ...(backupCheck ? [backupCheck] : [])];
     const ok = all.every((check) => check.ok);
     if (values.json) {
       console.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), file: all.find((check) => check.file)?.file, checks: all }, null, 2));
       return ok ? 0 : 1;
     }
-    for (const check of all) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
+    for (const check of all) console.log(`${check.warning ? "WARN" : check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}${"remedy" in check && check.remedy ? `\n       → ${check.remedy}` : ""}`);
     if (!mcp) console.log("skip editor and plugin: no key yet. Run `penpair connect`.");
     return ok ? 0 : 1;
   }
   const lifecycle = new Set(["up", "down", "status", "doctor", "backup", "restore"]);
-  if (lifecycle.has(command)) {
+  if (lifecycle.has(command) && !(command === "backup" && rest[0] === "file")) {
     const project = await loadConfig(root);
     if (isExternal(project) && command !== "doctor") requireLocal(project);
     if (isExternal(project)) {
@@ -382,6 +386,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const client = await guarded();
   const options = { onWait: (m: string) => console.error(`… ${m}`), onStep: (m: string) => console.error(`… ${m}`) };
   try {
+    if (command === "backup" && rest[0] === "file") {
+      const out = rest[1];
+      if (!out || !out.endsWith(".penpot")) throw new Error("usage: penpair backup file <new.penpot>");
+      const archive = await exportFileArchive(client);
+      if (archive.status !== "exported") { console.error(redactEndpoint(archive.message, endpoint)); return 1; }
+      await writeFile(out, archive.bytes, { flag: "wx" });
+      console.log(JSON.stringify({ file: out, fileId: archive.fileId, revn: archive.revn, bytes: archive.bytes.length, sha256: archive.sha256, restoreVerified: false }, null, 2));
+      console.error("Archive bytes saved. Restore is not verified: import into a scratch project and compare content and renders.");
+      return 0;
+    }
     if (command === "run") {
       const [name] = rest;
       if (!name) throw new Error("usage: penpair run <snippet> [--param key=value ...] [--apply]");

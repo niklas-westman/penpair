@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **G3 — hosted-file backup and restore proof** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **I3 — recoverable operations and checkpoints.** G3 backup tooling is built/tested, but its live restore proof and D3 dependency remain open. Continue [the branch checklist](docs/improvements.md).
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -90,6 +90,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: G3 partial: bounded archive candidates, backup-note reminders and manual restore guide; 340 tests and package smoke pass. Full hosted round trip and D3 remain pending; proceed with independent I3.
 - 2026-10-21: completed I4: Capability-driven native API support; report in `docs/improvements.md`.
 - 2026-10-21: completed G1: Transport fault tests and scratch smoke harness; report in `docs/improvements.md`.
 - 2026-10-21: completed I2: Require positive verification evidence; report in `docs/improvements.md`.

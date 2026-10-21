@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **6 / 40**. In progress: **none**. Blocked: **none recorded**.
+Last updated: **2026-10-21**. Completed: **6 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: G3 — hosted-file backup and restore proof** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I3 — recoverable operations and checkpoints.** G3 tooling is implemented and verified offline; its checkbox stays open pending live restore proof and the D3 snapshot dependency. Work remains on `codex/penpair-improvements`.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -564,6 +564,9 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **G1 · P1 · M** — Land the HTTP fake server and failure-injection coverage first; keep hosted smoke manual until its editor/session dependency is addressed. Completed 2026-10-21; [resolution report](#g1-completion-2026-10-21).
 - [x] **I4 · P1 · M** — Probe capabilities and prefer supported native layout/integrity primitives. Completed 2026-10-21; [resolution report](#i4-completion-2026-10-21).
 - [ ] **G3 · P1 · M** — Document manual hosted backup now, then prove export/import on scratch with library assets intact.
+  - [x] Bounded API export candidate, manual route/restore guide, opt-in advisory notes; offline tests and package smoke pass.
+  - [ ] Live hosted export/import with token/component/assets/render comparison; disposable target not yet provided.
+  - [ ] Link structural review snapshots after D3; they do not replace archives.
 - [ ] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints.
 - [ ] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion.
 - [ ] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely.
@@ -738,6 +741,15 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No native API live checks on pinned 2.18.3/2.18.4; compatibility table remains unchanged. Layout completion does not establish token/font/pixel correctness. Version history is a recovery aid, not a restored independent backup or an atomic lock. Default write/export settling integration remains B4; operation journaling remains I3.
 - **Next:** G3 — hosted-file backup and restore proof
 
+
+### 2026-10-21 — G3 progress: backup candidates built; restore proof pending
+
+- **Resolved so far:** Bounded full-file export candidates now check identity/revision and byte length, print a hash, refuse to overwrite prior backups, and fall back to manual export on unsupported/failed/oversized results. Optional advisory notes are disabled unless configured.
+- **Changed:** Added `backup file`, exporter/backup-note helpers and schema, doctor warning output, backup/restore guide and compatibility notes. Archive bytes and owner-maintained notes explicitly do not prove a restore.
+- **Validated:** `pnpm check` passed (340 tests: 260 core, 52 adapter, 28 Docker) and `pnpm smoke:package` passed. Twelve new tests cover export outcomes, changed revision, budget, existing-backup protection, disabled/fresh/stale/malformed/mismatched/unverified notes. `git diff --check` passed.
+- **Remaining:** Live hosted archive export/import and content/render comparison require a disposable target; D3's structural snapshot safety net is a later dependency. G3 remains unchecked. No live Penpot writes or compatibility claims were made.
+- **Next:** I3 — journal and explicit recovery/resume; independent of the missing live target.
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -754,3 +766,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — G1 completed:** Transport fault tests and scratch smoke harness. Progress 5/40; next I4 — capability-driven native API support.
 
 - **2026-10-21 — I4 completed:** Capability-driven native API support. Progress 6/40; next G3 — hosted-file backup and restore proof.
+
+- **2026-10-21 — G3 partial:** Backup candidate tooling and advisory notes tested; full restore proof and D3 remain pending. Count stays 6/40; next I3.

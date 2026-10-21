@@ -12,6 +12,7 @@ export interface Check {
 export const frontendUrl = (config: InstanceConfig): string => `http://127.0.0.1:${config.ports.frontend}`;
 
 export interface DoctorCheck extends Check {
+  warning?: boolean;
   remedy?: string;
   file?: { expected: ProjectConfig["file"] | null; actual: { id?: string; name: string }; ok: boolean };
 }

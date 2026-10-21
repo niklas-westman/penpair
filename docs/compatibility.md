@@ -47,3 +47,7 @@ Library helpers accept the project's guarded client:
 - `createCheckpoint(client, { label, runId }, { apply })`: optional native version history. Without apply it inspects; with apply it saves a run-keyed named version once and independently finds it again. Reusing that run ID reuses an existing checkpoint; it does not provide atomic cross-client locking. No automatic restore/rollback is performed.
 
 Current upstream references: [Penpot API](https://doc.plugins.penpot.app/interfaces/Penpot), [File API](https://doc.plugins.penpot.app/interfaces/File), [FileVersion API](https://doc.plugins.penpot.app/interfaces/FileVersion). Unit fixtures cover missing, present and throwing APIs. These helpers have not yet been exercised against the pinned 2.18.3/2.18.4 instances; the live compatibility table above is intentionally unchanged.
+
+## Hosted archive candidate
+
+`backup file` requests the documented `currentFile.export("penpot", "all")` signature, bounds the returned payload and refuses to accept an archive if file identity/revision changed. Simulated tests do not resolve the observed live export failure or establish import fidelity. Follow the [scratch round-trip checklist](backup.md#prove-the-restore-on-scratch) before marking this path proven; the live table remains unchanged.
