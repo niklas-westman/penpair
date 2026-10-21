@@ -67,6 +67,12 @@ Penpair retries suspended executions only when explicitly classified as reads. W
 
 Library callers pass `effect: "read"` only for code they trust to be read-only. Registered read snippets and built-in reads carry that classification. Operation inspect/readback phases are reads and apply is a write; adapter mutations and deep probes use the same policy. Successful snippet reports include `execution.runId` and `outcome: "ran"`; this means a result was received, while operation verification remains a separate step.
 
+## Verified operations
+
+A received result (`execution.outcome: "ran"`) is an acknowledgment, not verification. An operation reports `outcome: inspected`, `verified`, or `failed`; an ambiguous apply throws `write-uncertain`. Inspect/apply require explicit `ok: true`. Readback must supply real observations; empty objects, primitives and `problems: []` alone do not verify a write. Failed independent verification retains inspect/apply/readback evidence in the report and causes CLI writes to exit nonzero.
+
+For registered writes, supply an explicit `verify({ inspect, apply, readback })` returning a list of problems, or return `verification: { expected: { count: 2 }, actual: { count: measuredCount } }` from readback. Both observations must be nonempty objects; the default verifier compares them structurally. Read `actual` from the real file independently. Code that copies its expected values into actual is not independent evidence. The verifier and read declarations remain trusted project code. Structural verification, visual review and owner approval are separate steps.
+
 ## Baselines for a check
 
 `penpair baselines` hands a page's design to a check that compares the implementation against images. It reads the `baselines` block of `penpair.config.json`:

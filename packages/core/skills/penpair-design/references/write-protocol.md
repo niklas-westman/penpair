@@ -16,7 +16,7 @@ The Penpot design, then the component library, then the code. When a value looks
 
 ## Writing a snippet the protocol accepts
 
-A write snippet has three parts: `inspect` (looks, returns what would change), `apply` (changes once, idempotent), `readback` (looks again from scratch and returns `problems: []`; any entry means the change is not confirmed). Name everything the snippet makes so a leftover can be found and removed by hand. See `penpair snippets` and `defineSnippet`.
+A write snippet has three parts: `inspect` (looks, returns what would change), `apply` (changes once, idempotent), `readback` (looks again from scratch and returns explicit observations). Supply an explicit `verify` callback, or return `verification: { expected: { count: 2 }, actual: { count: measuredCount } }` with nonempty expected/actual objects. Every phase returns `ok: true`; a missing result or an empty `problems` array cannot establish success. A nonempty `problems` array reports failure. Name everything the snippet makes so a leftover can be found and removed by hand. See `penpair snippets` and `defineSnippet`.
 
 ## Suspended tabs and lost responses
 

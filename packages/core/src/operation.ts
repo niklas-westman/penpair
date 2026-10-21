@@ -2,6 +2,8 @@ import type { ExecuteOptions, PenpotToolClient } from "./client.js";
 import { runSnippet, type Snippet, type SnippetResult } from "./snippet.js";
 import { switchPage } from "./snippets/read.js";
 import { archiveApply, archiveInspect, archiveReadback, type ArchiveParams } from "./snippets/archive.js";
+import { PenpairError } from "./errors.js";
+import { UncertainExecutionError } from "./client.js";
 
 /**
  * A Penpot change done the safe way: look first, change once, read back independently. `verify` compares the three
@@ -26,6 +28,7 @@ export interface OperationOptions extends ExecuteOptions {
 }
 
 export interface OperationReport {
+  outcome: "inspected" | "verified" | "failed";
   operation: string;
   phase: "inspected" | "applied";
   inspect: SnippetResult;
@@ -64,14 +67,28 @@ export async function runOperation<P>(
   const page = operation.page(params);
   onStep?.(`${operation.name}: inspecting`);
   const inspect = await runOnPage(client, operation.inspect(params), page, { ...options, effect: "read" });
-  if (!options.apply) return { operation: operation.name, phase: "inspected", inspect, problems: [], verified: false };
+  if (inspect.ok !== true) throw new PenpairError("tool-failed", `${operation.name}: inspect did not return an explicit ok result; nothing was applied`);
+  if (!options.apply) return { operation: operation.name, outcome: "inspected", phase: "inspected", inspect, problems: [], verified: false };
   onStep?.(`${operation.name}: writing once`);
   const apply = await runOnPage(client, operation.apply(params), page, { ...options, effect: "write" });
+  if (apply.ok !== true) throw new UncertainExecutionError(String((apply.execution as { runId?: string } | undefined)?.runId ?? "unknown"), `${operation.name}: apply returned no explicit acknowledgment`);
   onStep?.(`${operation.name}: waiting ${Math.round(settleMs / 1000)} s before reading back`);
   await sleep(settleMs);
-  const readback = await runOnPage(client, operation.readback(params), page, { ...options, effect: "read" });
-  const problems = operation.verify({ inspect, apply, readback });
-  return { operation: operation.name, phase: "applied", inspect, apply, readback, problems, verified: problems.length === 0 };
+  let readback: SnippetResult | undefined;
+  let problems: string[];
+  try {
+    readback = await runOnPage(client, operation.readback(params), page, { ...options, effect: "read" });
+    const observations = Object.keys(readback).filter((key) => !["ok", "readOnly", "execution", "problems"].includes(key));
+    if (Array.isArray(readback.problems) && readback.problems.length > 0 && readback.problems.every((problem) => typeof problem === "string")) problems = readback.problems as string[];
+    else if (readback.ok !== true || observations.length === 0) problems = ["Readback did not provide explicit observations of the resulting state"];
+    else {
+      const result = operation.verify({ inspect, apply, readback });
+      problems = Array.isArray(result) && result.every((problem) => typeof problem === "string") ? result : ["Verifier must return a list of problems"];
+    }
+  } catch (error) {
+    problems = [`Independent verification failed: ${error instanceof Error ? error.message : String(error)}`];
+  }
+  return { operation: operation.name, phase: "applied", outcome: problems.length === 0 ? "verified" : "failed", inspect, apply, readback, problems, verified: problems.length === 0 };
 }
 
 /** Nests the frames that are not part of the live work into one archive board. Frames keep their names, ids and component links. */
@@ -83,6 +100,8 @@ export const archiveOperation: Operation<ArchiveParams> = {
   readback: archiveReadback,
   verify({ inspect, apply, readback }) {
     const problems: string[] = [];
+    if (!Number.isInteger(inspect.willMove) || Number(inspect.willMove) < 0 || !Number.isInteger(apply.moved) || !Array.isArray(readback.loose))
+      return ["Archive verification is missing movement counts or the independent loose-frame listing"];
     const expected = Number(inspect.willMove ?? 0);
     const archive = readback.archive as { children: number } | null | undefined;
     if (expected > 0 && Number(apply.moved ?? 0) !== expected) problems.push(`moved ${apply.moved} frames, expected ${expected}`);

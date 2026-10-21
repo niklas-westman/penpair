@@ -1,4 +1,5 @@
 import { runOperation, runOnPage, type Operation, type OperationOptions } from "./operation.js";
+import { isDeepStrictEqual } from "node:util";
 import type { PenpotToolClient } from "./client.js";
 import { compiles, requirePage, snippet, type Snippet, type SnippetResult } from "./snippet.js";
 import { archiveOperation } from "./operation.js";
@@ -35,7 +36,7 @@ export interface ReadDefinition extends DefinitionBase {
 /**
  * A change done the safe way. `inspect` only looks and says what would change; `apply` changes once and must be safe to repeat;
  * `readback` looks again from scratch. `verify` compares them and returns the problems; by default the readback's
- * `problems` array is used (an empty or missing array means nothing is wrong).
+ * `verification.expected` and `verification.actual` must contain matching nonempty observation objects.
  */
 export interface WriteDefinition extends DefinitionBase {
   kind: "write";
@@ -133,7 +134,7 @@ export function normalize(def: SnippetDefinition, source: "built-in" | "project"
         readback: phaseSnippet("readback"),
         verify:
           def.verify ??
-          (({ readback }) => (Array.isArray(readback.problems) ? (readback.problems as unknown[]).map(String) : [])),
+          (({ readback }) => verifyEvidence(readback)),
       },
     };
   }
@@ -196,6 +197,18 @@ export function coerceParams(specs: ParamSpec[], raw: Record<string, string | st
     }
   }
   return out;
+}
+
+/** An absent error list is not evidence that the intended state exists. */
+function verifyEvidence(readback: SnippetResult): string[] {
+  if (readback.problems !== undefined && (!Array.isArray(readback.problems) || readback.problems.some((problem) => typeof problem !== "string")))
+    return ["Readback problems must be a list of strings"];
+  if (Array.isArray(readback.problems) && readback.problems.length > 0) return readback.problems as string[];
+  const evidence = readback.verification as { expected?: unknown; actual?: unknown } | undefined;
+  const observation = (value: unknown): boolean => typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length > 0;
+  if (!evidence || !observation(evidence.expected) || !observation(evidence.actual))
+    return ["Readback needs nonempty verification.expected and verification.actual observations, or an explicit verifier"];
+  return isDeepStrictEqual(evidence.expected, evidence.actual) ? [] : ["Readback observations do not match the expected state"];
 }
 
 export class SnippetRegistry {

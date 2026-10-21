@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Verified writes require observations.** Empty/missing/primitive readbacks and an empty error list no longer count as success. Registered writes need an explicit verifier or matching expected/actual observation objects. Failed readback/verifier results retain the applied evidence, and adapter token/structure reads reject missing evidence.
+
 - **Ambiguous writes are never retried automatically.** Only classified reads retry suspended requests; write/unknown failures report `write-uncertain` and a run ID. Operations, adapter mutations and deep probes use the same conservative policy; received snippet results include execution metadata separately from verification.
 
 - **File identity guards**: optional `file.id` pin, offered by setup/connect (`--pin-file`), checked inside every delivered execution including adapter batches and deep probes. Basic reads warn; writes/artifacts refuse another file. Doctor reports expected/actual IDs; `--any-file` is an explicit override.

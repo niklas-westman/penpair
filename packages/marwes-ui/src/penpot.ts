@@ -316,6 +316,8 @@ export const describePlan = (actions: Action[]): string[] => actions.map((a) => 
 
 export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
   const record = await runSnippet(client, readTokens(), { effect: "read" });
+  if (record.ok !== true || !Array.isArray(record.sets) || !Array.isArray(record.themes))
+    throw new Error("Token readback did not provide explicit sets and themes; synchronization is not verified");
   return { sets: record.sets as LiveTokens["sets"], themes: record.themes as LiveTokens["themes"] };
 }
 
@@ -326,6 +328,8 @@ export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
 export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void): Promise<ApplyReport> {
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
     const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
+    if (r.ok !== true || !Number.isInteger(r.count) || Number(r.count) < 0 || typeof r.hash !== "string" || !r.hash)
+      throw new Error("Structure readback did not provide a count and hash; nothing can be verified");
     return { count: Number(r.count), hash: String(r.hash) };
   };
   const structureBefore = await fingerprint();

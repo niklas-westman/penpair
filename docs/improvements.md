@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **3 / 40**. In progress: **none**. Blocked: **none recorded**.
+Last updated: **2026-10-21**. Completed: **4 / 40**. In progress: **none**. Blocked: **none recorded**.
 
-**Now: I2 — require positive verification evidence** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: G1 — transport fault tests and scratch smoke harness** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -557,7 +557,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **I1 · P0 · S** — Fail closed on invalid project config. Completed 2026-10-21; [resolution report](#i1-completion-2026-10-21).
 - [x] **A1 · P0 · M** — Pin file identity and recheck it inside each mutating execution, including adapters and deep probes. Completed 2026-10-21; [resolution report](#a1-completion-2026-10-21).
 - [x] **A2 · P0 · L** — Stop ambiguous write retries; classify idempotency and expose uncertain outcomes. Completed 2026-10-21; [resolution report](#a2-completion-2026-10-21).
-- [ ] **I2 · P0 · M** — Require positive readback evidence before reporting verified success.
+- [x] **I2 · P0 · M** — Require positive readback evidence before reporting verified success. Completed 2026-10-21; [resolution report](#i2-completion-2026-10-21).
 
 ### Gate 2 — establish recovery and a dependable daily loop
 
@@ -708,6 +708,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live suspended-tab test. A read declaration is trusted project code, not a sandbox. Diagnostic run IDs are not a durable journal or replay token; recovery/resume remains I3. Existing callers of executeCode must explicitly classify genuine reads to retain automatic retries.
 - **Next:** I2 — require positive verification evidence
 
+
+<a id="i2-completion-2026-10-21"></a>
+### 2026-10-21 — I2: Require positive verification evidence
+
+- **Resolved:** Empty, missing or primitive readbacks and an empty error list no longer produce verified success. A received acknowledgment is distinct from verified postconditions; malformed or throwing verifiers fail while preserving inspect/apply/readback evidence.
+- **Changed:** Registered writes require either an explicit verifier or matching nonempty verification.expected/actual objects. Inspect/apply require explicit acknowledgments; missing apply results report uncertain. Operation outcomes distinguish inspected, verified and failed. Archive and adapter token/structure verification reject missing observations. Updated example fixtures, guide and write protocol.
+- **Validated:** pnpm check passed: build, typecheck, 304 tests (226 core, 50 adapter, 28 Docker), neutrality/boundary/version guards. Sixteen verification regression cases and two adapter evidence tests cover empty/primitive/malformed observations, matching actual state, verifier errors, missing acknowledgments and failed structure reads. pnpm smoke:package and git diff --check passed.
+- **Risks:** No live Penpot writes. Verifiers and readback scripts are trusted project code; structural comparison cannot prove that a script measured its actual values honestly. Existing custom snippets that relied only on problems: [] must provide observations or an explicit verifier. Visual review and owner approval remain separate. Durable recovery remains I3.
+- **Next:** G1 — transport fault tests and scratch smoke harness
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -718,3 +728,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — A1 completed:** Guard the connected file. Progress 2/40; next A2 — stop ambiguous write retries.
 
 - **2026-10-21 — A2 completed:** Stop ambiguous write retries. Progress 3/40; next I2 — require positive verification evidence.
+
+- **2026-10-21 — I2 completed:** Require positive verification evidence. Progress 4/40; next G1 — transport fault tests and scratch smoke harness.

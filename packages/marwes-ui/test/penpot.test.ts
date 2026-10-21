@@ -5,6 +5,16 @@ import { buildSnapshot, type PenpotToken } from "../src/tokens.js";
 import { loadInstalledMarwes } from "../src/marwes.js";
 import { fakePenpot, fixture, acmeThemes } from "./helpers.js";
 
+describe("independent token verification evidence", () => {
+  const missing = { callTool: async () => ({ text: JSON.stringify({ result: { ok: true }, log: "" }), isError: false }), close: async () => undefined };
+  it("rejects an empty token readback", async () => {
+    await expect(readLive(missing)).rejects.toThrow(/not verified/);
+  });
+  it("rejects a missing structure fingerprint before any planned write", async () => {
+    await expect(applyPlan(missing, await expected(), [])).rejects.toThrow(/count and hash/);
+  });
+});
+
 async function expected(themes = acmeThemes) {
   const f = await fixture();
   const installed = await loadInstalledMarwes(path.join(f.root, "packages/app"));

@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **I2 — require positive verification evidence** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **G1 — transport fault tests and scratch smoke harness** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **I2 — Require positive verification evidence** (2026-10-21). Empty, missing or primitive readbacks and an empty error list no longer produce verified success. A received acknowledgment is distinct from verified postconditions; malformed or throwing verifiers fail while preserving inspect/apply/readback evidence. Validation and limits: [delivery report](docs/improvements.md#i2-completion-2026-10-21).
 - [x] **A2 — Stop ambiguous write retries** (2026-10-21). Suspension or a lost transport response can no longer silently replay a write. Even an explicit retry count cannot enable retries for write or unclassified code; only declared reads retry. Validation and limits: [delivery report](docs/improvements.md#a2-completion-2026-10-21).
 - [x] **A1 — Guard the connected file** (2026-10-21). Every delivered execution now checks the pinned file ID; a file switch between inspection and a later mutation cannot silently redirect a write. Basic reads warn; writes, exports, baselines, deep probes and adapter operations refuse mismatches. Validation and limits: [delivery report](docs/improvements.md#a1-completion-2026-10-21).
 - [x] **I1 — invalid configuration stops guarded commands** (2026-10-21): shared validated readers distinguish missing, unreadable, malformed and invalid config; errors stop endpoint discovery and extension imports. Offline `config check [--json]`, editor schema, and explicit config-free inspection with `--standalone`. Verified with 31 new regression tests, `pnpm check` (273 tests total), and `pnpm smoke:package`.
@@ -87,6 +88,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed I2: Require positive verification evidence; report in `docs/improvements.md`.
 - 2026-10-21: completed A2: Stop ambiguous write retries; report in `docs/improvements.md`.
 - 2026-10-21: completed A1: Guard the connected file; report in `docs/improvements.md`.
 - 2026-10-21: completed improvement I1. Invalid/unreadable project config can no longer silently disable the instance guard; setup/init only create genuinely absent config. Added offline config validation/schema and explicit standalone inspection; docs and shipped design skill updated. `pnpm check` and `pnpm smoke:package` pass. Next: A1, connected-file identity.

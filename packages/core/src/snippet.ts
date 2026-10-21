@@ -48,7 +48,7 @@ export interface SnippetResult {
 /** Runs a snippet and returns its result record. A snippet that reports `ok: false` throws, except a wrong page, which the caller handles. */
 export async function runSnippet(client: PenpotToolClient, s: Snippet, options?: ExecuteOptions): Promise<SnippetResult> {
   const { result, runId } = await executeCode(client, s.code, { effect: s.effect, ...options });
-  const record: SnippetResult = typeof result === "object" && result !== null ? (result as SnippetResult) : { ok: true, value: result };
+  const record: SnippetResult = typeof result === "object" && result !== null && !Array.isArray(result) ? (result as SnippetResult) : { value: result };
   if (record.ok === false && !record.wrongPage) {
     if ((options?.effect ?? s.effect) !== "read") throw new UncertainExecutionError(runId, `${s.name}: ${record.message ?? "failed"}`);
     throw new PenpairError("tool-failed", `${s.name}: ${record.message ?? "failed"}`);
