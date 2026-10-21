@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Ambiguous writes are never retried automatically.** Only classified reads retry suspended requests; write/unknown failures report `write-uncertain` and a run ID. Operations, adapter mutations and deep probes use the same conservative policy; received snippet results include execution metadata separately from verification.
+
 - **File identity guards**: optional `file.id` pin, offered by setup/connect (`--pin-file`), checked inside every delivered execution including adapter batches and deep probes. Basic reads warn; writes/artifacts refuse another file. Doctor reports expected/actual IDs; `--any-file` is an explicit override.
 
 - **Invalid project configuration stops commands before connecting or loading extensions.** Missing files are distinguished from unreadable files, malformed JSON and invalid settings. `penpair config check [--json]` validates core settings offline, and `penpair config schema` prints editor hints. Config-free built-in inspection now requires `--standalone`; it cannot bypass a configured project or run document writes/snippets. Setup/init only create a config when the file is genuinely absent.

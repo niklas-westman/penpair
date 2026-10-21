@@ -63,13 +63,13 @@ export async function runOperation<P>(
   const { settleMs = 10_000, sleep = defaultSleep, onStep } = options;
   const page = operation.page(params);
   onStep?.(`${operation.name}: inspecting`);
-  const inspect = await runOnPage(client, operation.inspect(params), page, options);
+  const inspect = await runOnPage(client, operation.inspect(params), page, { ...options, effect: "read" });
   if (!options.apply) return { operation: operation.name, phase: "inspected", inspect, problems: [], verified: false };
   onStep?.(`${operation.name}: writing once`);
-  const apply = await runOnPage(client, operation.apply(params), page, options);
+  const apply = await runOnPage(client, operation.apply(params), page, { ...options, effect: "write" });
   onStep?.(`${operation.name}: waiting ${Math.round(settleMs / 1000)} s before reading back`);
   await sleep(settleMs);
-  const readback = await runOnPage(client, operation.readback(params), page, options);
+  const readback = await runOnPage(client, operation.readback(params), page, { ...options, effect: "read" });
   const problems = operation.verify({ inspect, apply, readback });
   return { operation: operation.name, phase: "applied", inspect, apply, readback, problems, verified: problems.length === 0 };
 }

@@ -1,7 +1,9 @@
 import { requirePage, snippet, type Snippet } from "../snippet.js";
 
+const readSnippet = (name: string, body: string, params: unknown = {}): Snippet => snippet(name, body, params, "read");
+
 export function pages(): Snippet {
-  return snippet(
+  return readSnippet(
     "pages",
     `return { ok: true, readOnly: true, file: penpot.currentFile.name, revn: penpot.currentFile.revn, current: penpot.currentPage.name,
   pages: penpot.currentFile.pages.map((p) => ({ id: p.id, name: p.name, count: p.root.children.length })) };`,
@@ -27,7 +29,7 @@ export interface FramesParams {
 
 /** The top-level frames of a page: id, name and size, so they can be found by name and exported. */
 export function frames(params: FramesParams): Snippet {
-  return snippet(
+  return readSnippet(
     "frames",
     `${requirePage}
 return { ok: true, readOnly: true, file: penpot.currentFile.name, revn: penpot.currentFile.revn, page: penpot.currentPage.name,
@@ -47,7 +49,7 @@ export interface TreeParams {
 
 /** One line per shape: type, name, size, position on the page, layout and sizing, the text it carries. */
 export function tree(params: TreeParams): Snippet {
-  return snippet(
+  return readSnippet(
     "tree",
     `${requirePage}
 const depth = CFG.depth === undefined ? 3 : CFG.depth, limit = CFG.limit || 400, lines = [];
@@ -76,7 +78,7 @@ export interface AuditParams {
 
 /** Blank text, colours and strokes not bound to a token, children sticking out of their parent, gaps off the allowed steps. */
 export function audit(params: AuditParams): Snippet {
-  return snippet(
+  return readSnippet(
     "audit",
     `${requirePage}
 const frames = penpot.currentPage.root.children.filter((c) => c.name.startsWith(CFG.framePrefix));
@@ -106,7 +108,7 @@ return { ok: true, readOnly: true, frames: out };`,
 
 /** Token sets (in order, with whether each is active) and themes. Object-valued tokens print as [object Object]; compare names for those. */
 export function tokensDump(): Snippet {
-  return snippet(
+  return readSnippet(
     "tokens-dump",
     `const tokens = penpot.library.local.tokens;
 return { ok: true, readOnly: true,

@@ -315,7 +315,7 @@ const describeAction = (action: Action, count?: number): string => {
 export const describePlan = (actions: Action[]): string[] => actions.map((a) => describeAction(a));
 
 export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
-  const record = await runSnippet(client, readTokens());
+  const record = await runSnippet(client, readTokens(), { effect: "read" });
   return { sets: record.sets as LiveTokens["sets"], themes: record.themes as LiveTokens["themes"] };
 }
 
@@ -325,7 +325,7 @@ export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
  */
 export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void): Promise<ApplyReport> {
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
-    const r = await runSnippet(client, structureFingerprint());
+    const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
     return { count: Number(r.count), hash: String(r.hash) };
   };
   const structureBefore = await fingerprint();
@@ -335,7 +335,7 @@ export async function applyPlan(client: PenpotToolClient, expected: TokenSnapsho
     for (const batch of work) {
       const message = describeAction(action, batch?.length);
       onStep?.(message);
-      const result = await runSnippet(client, actionSnippet(action, batch));
+      const result = await runSnippet(client, actionSnippet(action, batch), { effect: "write" });
       const failed = (result.failed as string[] | undefined) ?? [];
       if (failed.length > 0) throw new Error(`${message}: ${failed.join(" | ")}. Nothing after this was written.`);
       steps.push(message);
@@ -348,7 +348,7 @@ export async function applyPlan(client: PenpotToolClient, expected: TokenSnapsho
 
 /** The use count of every token a drift would change, so a bump can be judged by what it reaches. */
 export async function impactOf(client: PenpotToolClient): Promise<Record<string, number>> {
-  const record = await runSnippet(client, bindingCounts());
+  const record = await runSnippet(client, bindingCounts(), { effect: "read" });
   return record.counts as Record<string, number>;
 }
 

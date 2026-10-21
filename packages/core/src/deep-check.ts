@@ -95,10 +95,10 @@ export interface DeepOptions extends ExecuteOptions {
 
 export async function runDeepCheck(client: PenpotToolClient, options: DeepOptions = {}): Promise<DeepReport> {
   const tag = `penpair-deep-${randomBytes(3).toString("hex")}`;
-  const first = (await executeCode(client, wrap(deepCheckBody, { tag }), options)).result as { ok?: boolean; message?: string; steps?: DeepStep[]; cleanup?: string[]; penpotVersion?: string };
+  const first = (await executeCode(client, wrap(deepCheckBody, { tag }), { ...options, effect: "write" })).result as { ok?: boolean; message?: string; steps?: DeepStep[]; cleanup?: string[]; penpotVersion?: string };
   if (first.ok === false) throw new Error(`the deep check could not run: ${first.message ?? "unknown error"}`);
   await new Promise((resolve) => setTimeout(resolve, options.settleMs ?? 3_000));
-  const second = (await executeCode(client, wrap(deepLeftoversBody, { tag }), options)).result as { left?: string[] };
+  const second = (await executeCode(client, wrap(deepLeftoversBody, { tag }), { ...options, effect: "read" })).result as { left?: string[] };
   const steps = first.steps ?? [];
   const leftovers = second.left ?? [];
   return {

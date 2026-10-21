@@ -17,3 +17,7 @@ The Penpot design, then the component library, then the code. When a value looks
 ## Writing a snippet the protocol accepts
 
 A write snippet has three parts: `inspect` (looks, returns what would change), `apply` (changes once, idempotent), `readback` (looks again from scratch and returns `problems: []`; any entry means the change is not confirmed). Name everything the snippet makes so a leftover can be found and removed by hand. See `penpair snippets` and `defineSnippet`.
+
+## Suspended tabs and lost responses
+
+Only declared reads may retry automatically. Writes and unclassified plugin code run once. If a write reports `write-uncertain`, keep its run ID, independently inspect the pinned file, and reconcile what already exists before explicitly resuming. A run ID is a diagnostic reference, not an exactly-once guarantee. Successful execution (`ran`) still needs independent verification.

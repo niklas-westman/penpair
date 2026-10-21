@@ -1,4 +1,5 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { randomUUID } from "node:crypto";
 import { StreamableHTTPClientTransport, StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { redactEndpoint, type Endpoint } from "./endpoint.js";
 import { PenpairError, type PenpairErrorCode } from "./errors.js";
@@ -78,6 +79,8 @@ export function classifyFailure(text: string): PenpairErrorCode {
 }
 
 export interface ExecuteOptions {
+  /** Only known read-only executions may be retried. Unclassified source is treated as a possible write. */
+  effect?: "read" | "write" | "unknown";
   /** How many times to wait and retry a suspended tab. */
   retries?: number;
   sleep?: (milliseconds: number) => Promise<void>;
@@ -87,6 +90,8 @@ export interface ExecuteOptions {
 }
 
 export interface ExecuteResult {
+  runId: string;
+  outcome: "ran";
   /** What the snippet returned, parsed when it was JSON. */
   result: unknown;
   /** What the snippet printed. */
@@ -95,7 +100,7 @@ export interface ExecuteResult {
 
 const defaultSleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-function unpack(text: string): ExecuteResult | undefined {
+function unpack(text: string): Pick<ExecuteResult, "result" | "log"> | undefined {
   let envelope: unknown;
   try {
     envelope = JSON.parse(text);
@@ -114,16 +119,18 @@ function unpack(text: string): ExecuteResult | undefined {
 }
 
 /**
- * Runs a snippet inside the connected Penpot editor. A suspended tab is waited out and retried, because the snippet may
- * already have run; the caller reads the page before repeating a write.
+ * Retries only declared reads. A lost response to any possible write leaves an uncertain outcome requiring independent inspection.
  */
 export async function executeCode(
   client: PenpotToolClient,
   code: string,
-  { retries = 6, sleep = defaultSleep, onWait, redact = (text) => text }: ExecuteOptions = {},
+  { effect = "unknown", retries: requestedRetries = 6, sleep = defaultSleep, onWait, redact = (text) => text }: ExecuteOptions = {},
 ): Promise<ExecuteResult> {
   if (Buffer.byteLength(code, "utf8") > maxSnippetBytes)
     throw new PenpairError("snippet-too-large", `The snippet is ${Buffer.byteLength(code, "utf8")} bytes`);
+  const retries = effect === "read" ? requestedRetries : 0;
+  const runId = randomUUID();
+  const uncertain = (message: string): PenpairError => new UncertainExecutionError(runId, redact(message));
   for (let attempt = 0; ; attempt++) {
     let outcome: ToolOutcome;
     try {
@@ -134,17 +141,27 @@ export async function executeCode(
         await sleep(5_000 * (attempt + 1));
         continue;
       }
+      if (effect !== "read" && (!(error instanceof PenpairError) || !["file-mismatch", "snippet-too-large", "auth-rejected"].includes(error.code)))
+        throw uncertain(error instanceof Error ? error.message : String(error));
       throw error;
     }
     const unpacked = unpack(outcome.text);
     const failed = outcome.isError || (!unpacked && /^Tool execution failed:/i.test(outcome.text.trim()));
-    if (!failed && unpacked) return unpacked;
+    if (!failed && unpacked) return { ...unpacked, runId, outcome: "ran" };
     const code_ = classifyFailure(outcome.text);
     if (code_ === "plugin-suspended" && attempt < retries) {
       onWait?.(`Penpot tab is suspended; bring it to the foreground (retry ${attempt + 1}/${retries})`);
       await sleep(5_000 * (attempt + 1));
       continue;
     }
+    if (effect !== "read" && code_ !== "auth-rejected") throw uncertain(outcome.text.slice(0, 500));
     throw new PenpairError(code_, redact(outcome.text).slice(0, 500));
+  }
+}
+
+export class UncertainExecutionError extends PenpairError {
+  readonly outcome = "uncertain";
+  constructor(readonly runId: string, message: string) {
+    super("write-uncertain", `Run ${runId} has an uncertain outcome: ${message}`);
   }
 }

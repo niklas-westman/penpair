@@ -222,7 +222,7 @@ export class SnippetRegistry {
   async run(client: PenpotToolClient, name: string, params: Params, options: OperationOptions = {}): Promise<unknown> {
     const entry = this.get(name);
     if (entry.kind === "write") return runOperation(client, entry.operation, params, options);
-    const record: SnippetResult = await runOnPage(client, entry.build(params), entry.page?.(params), options);
+    const record: SnippetResult = await runOnPage(client, entry.build(params), entry.page?.(params), { ...options, effect: "read" });
     return record;
   }
 }

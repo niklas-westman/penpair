@@ -32,6 +32,7 @@ const bytes = await s.export({ type: "png", scale: CFG.scale });
 let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
 return { ok: true, base64: btoa(bin), length: bytes.length };`,
     { id: shapeId, scale, page },
+    "read",
   );
 
 const defaultSleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));

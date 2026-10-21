@@ -172,7 +172,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         connect: async () => {
           const client = await connect(endpoint);
           try {
-            const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id };", { retries: 0 });
+            const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id };", { retries: 0, effect: "read" });
             const actual = result as { file?: string; fileId?: string };
             return { file: String(actual.file ?? "?"), fileId: actual.fileId };
           } finally {
@@ -202,7 +202,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       try {
         const client = await connect(endpoint);
         try {
-          const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id, pages: penpot.currentFile.pages.map((p) => p.name) };", { retries: 0 });
+          const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id, pages: penpot.currentFile.pages.map((p) => p.name) };", { retries: 0, effect: "read" });
           const read = result as { file?: string; fileId?: string; pages?: string[] };
           return { file: String(read.file ?? "?"), fileId: read.fileId, pages: read.pages ?? [] };
         } finally {

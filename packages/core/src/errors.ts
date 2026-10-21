@@ -1,4 +1,5 @@
 export type PenpairErrorCode =
+  | "write-uncertain"
   | "file-mismatch"
   | "endpoint-unconfigured"
   | "endpoint-invalid"
@@ -11,6 +12,7 @@ export type PenpairErrorCode =
 
 // Every failure tells the person running the command what to do next. Remedies never contain credentials.
 const remedies: Record<PenpairErrorCode, string> = {
+  "write-uncertain": "Do not replay this write blindly. Inspect the intended file independently and reconcile what already changed before explicitly resuming.",
   "file-mismatch": "Open the project's pinned design file and reconnect its MCP plugin. Use --any-file only when you intend to act on another file.",
   "endpoint-unconfigured":
     "Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Account, Integrations, MCP Server; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code.",

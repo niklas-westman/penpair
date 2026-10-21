@@ -45,7 +45,7 @@ export async function probe(
         const outcome = await client.callTool("execute_code", { code });
         return { ok: !outcome.isError };
       }
-      const { result } = await executeCode(client, code, { redact, retries: 0 });
+      const { result } = await executeCode(client, code, { redact, retries: 0, effect: "read" });
       return { ok: true, value: result };
     } catch (error) {
       return { ok: false, error: redact(String((error as Error)?.message ?? error)).slice(0, 90) };

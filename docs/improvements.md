@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **2 / 40**. In progress: **none**. Blocked: **none recorded**.
+Last updated: **2026-10-21**. Completed: **3 / 40**. In progress: **none**. Blocked: **none recorded**.
 
-**Now: A2 — stop ambiguous write retries** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I2 — require positive verification evidence** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -556,7 +556,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 
 - [x] **I1 · P0 · S** — Fail closed on invalid project config. Completed 2026-10-21; [resolution report](#i1-completion-2026-10-21).
 - [x] **A1 · P0 · M** — Pin file identity and recheck it inside each mutating execution, including adapters and deep probes. Completed 2026-10-21; [resolution report](#a1-completion-2026-10-21).
-- [ ] **A2 · P0 · L** — Stop ambiguous write retries; classify idempotency and expose uncertain outcomes.
+- [x] **A2 · P0 · L** — Stop ambiguous write retries; classify idempotency and expose uncertain outcomes. Completed 2026-10-21; [resolution report](#a2-completion-2026-10-21).
 - [ ] **I2 · P0 · M** — Require positive readback evidence before reporting verified success.
 
 ### Gate 2 — establish recovery and a dependable daily loop
@@ -698,6 +698,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** No live Penpot writes or terminal onboarding trial performed. Old configurations remain unpinned with a warning until a file is chosen. File checks run at the beginning of each delivered execution; arbitrary trusted plugin code must still target the intended objects and avoid asynchronous target changes. Does not fix ambiguous retries (A2).
 - **Next:** A2 — stop ambiguous write retries
 
+
+<a id="a2-completion-2026-10-21"></a>
+### 2026-10-21 — A2: Stop ambiguous write retries
+
+- **Resolved:** Suspension or a lost transport response can no longer silently replay a write. Even an explicit retry count cannot enable retries for write or unclassified code; only declared reads retry.
+- **Changed:** Added read/write/unknown execution classification, unique run IDs and ran/uncertain outcomes, write-uncertain errors with inspect-before-resume guidance, snippet execution metadata and explicit operation/adapter/deep-probe phase classification. Updated the guide and write protocol. No final-marker deduplication or exactly-once guarantee is claimed.
+- **Validated:** pnpm check passed: build, typecheck, 286 tests (210 core, 48 adapter, 28 Docker), neutrality/boundary/version guards. Fault tests simulate mutation followed by a suspended result, lost transport acknowledgment, explicit requested retries and retryable reads; possible writes execute once. git diff --check passed. Package smoke most recently passed for A1; no package layout changed in this item.
+- **Risks:** No live suspended-tab test. A read declaration is trusted project code, not a sandbox. Diagnostic run IDs are not a durable journal or replay token; recovery/resume remains I3. Existing callers of executeCode must explicitly classify genuine reads to retain automatic retries.
+- **Next:** I2 — require positive verification evidence
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -706,3 +716,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I1 completed:** Marked I1 verified, linked its resolution report, updated progress to 1/40 and queued A1. Repository PLAN.md, docs, skill and changelog updated alongside implementation.
 
 - **2026-10-21 — A1 completed:** Guard the connected file. Progress 2/40; next A2 — stop ambiguous write retries.
+
+- **2026-10-21 — A2 completed:** Stop ambiguous write retries. Progress 3/40; next I2 — require positive verification evidence.

@@ -61,6 +61,12 @@ Things to know:
 - `doctor` compares the MCP key's port with the instance's, because a key for another instance silently drives the wrong file.
 - Penpot's accounts come from the first registration in the browser; the MCP key is made in Account, Integrations, MCP Server and goes in `.env.local` as `PENPAIR_MCP_URL`.
 
+## Retry safety and uncertain writes
+
+Penpair retries suspended executions only when explicitly classified as reads. Writes and unclassified scripts are delivered once, even if a caller requests retries. A lost response, timeout, suspended-tab failure or failed mutating snippet reports `write-uncertain` with a run ID. Inspect the intended file independently and reconcile existing objects before explicitly running another write. Run IDs identify executions; they do not provide transactions, deduplication or rollback.
+
+Library callers pass `effect: "read"` only for code they trust to be read-only. Registered read snippets and built-in reads carry that classification. Operation inspect/readback phases are reads and apply is a write; adapter mutations and deep probes use the same policy. Successful snippet reports include `execution.runId` and `outcome: "ran"`; this means a result was received, while operation verification remains a separate step.
+
 ## Baselines for a check
 
 `penpair baselines` hands a page's design to a check that compares the implementation against images. It reads the `baselines` block of `penpair.config.json`:
