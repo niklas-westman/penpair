@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Artifact provenance and safe publication:** schema-2 baseline manifests separate capture and approval identity/revision/hash. Complete coherent runs publish immutable capture generations before atomically publishing the manifest; missing/unstable captures preserve previous output. Generated Reflection cases follow approved paths. PNG/archive outputs stage complete bytes; archives retain exclusive no-replacement behavior.
+
 - **Team safeguards:** offline `onboard [--json]`, local checkout writer locks and capability-driven shared advisory markers for journaled writes. Explicit abandoned-lock override, lease expiry and independent ownership checks; same-execution revision, archive-source and token-source guards stop stale mutations. Cross-machine markers are explicitly non-atomic.
 
 - **Recoverable writes:** local redacted journals persist original plans and started/completed phases for CLI writes and adapter token batches. Explicit `--resume` reconciles actual state, skips verified work and refuses conflicting inputs or edits. `runs` inspects evidence offline; optional `--checkpoint` requires verified native version support. No transaction or automatic rollback.

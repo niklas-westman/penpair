@@ -26,7 +26,7 @@ const png = (width: number, height: number, tag = ""): Buffer => {
   return Buffer.concat([head, Buffer.from(tag)]);
 };
 
-interface Fake { frames: { id: string; name: string; width: number; height: number }[]; images: Record<string, Buffer[]> }
+interface Fake { revision?: number; fileId?: string; onExport?(): void; frames: { id: string; name: string; width: number; height: number }[]; images: Record<string, Buffer[]> }
 function penpot(fake: Fake): PenpotToolClient {
   const exportsDone: Record<string, number> = {};
   return {
@@ -34,12 +34,13 @@ function penpot(fake: Fake): PenpotToolClient {
       const code = String((args as { code: string }).code);
       const id = /"id":"([^"]+)"/.exec(code)?.[1];
       if (id && code.includes("export({")) {
+        fake.onExport?.();
         const sequence = fake.images[id]!;
         const n = (exportsDone[id] = (exportsDone[id] ?? 0) + 1);
         const image = sequence[Math.min(n - 1, sequence.length - 1)]!;
-        return reply({ ok: true, base64: image.toString("base64"), length: image.length });
+        return reply({ ok: true, base64: image.toString("base64"), length: image.length, capture: { fileId:fake.fileId ?? "file", pageId:"page", frameId:id, revision:fake.revision ?? 7, scale:1, penpotApiVersion:"test", renderEnvironment:null, activeThemes:[] } });
       }
-      return reply({ ok: true, file: "Brand", revn: 7, page: "Candidate", frames: fake.frames });
+      return reply({ ok: true, file: "Brand", fileId:fake.fileId ?? "file", pageId:"page", revn:fake.revision ?? 7, page: "Candidate", frames: fake.frames });
     },
     async close() {},
   };
@@ -53,6 +54,11 @@ const frames = [
 const settled = (w: number, h: number, tag: string): Buffer[] => [png(w, h, tag), png(w, h, tag)];
 const images = { a1: settled(1512, 982, "a"), b2: settled(834, 1194, "b"), c3: settled(1512, 982, "c") };
 const project = (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-baselines-"));
+
+async function approvedPath(root: string, id: string): Promise<string> {
+  const manifest = JSON.parse(await readFile(path.join(root, config.root, "penpair-baselines.json"), "utf8"));
+  return path.join(root, config.root, manifest.frames.find((entry: { id: string }) => entry.id === id).file);
+}
 
 describe("the baselines configuration", () => {
   it("is validated inside penpair.config.json", () => {
@@ -78,15 +84,15 @@ describe("exporting baselines", () => {
   it("writes new images, a manifest and Reflection cases that match the image sizes", async () => {
     const root = await project();
     const report = await exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true });
-    expect(report.wrote).toEqual(expect.arrayContaining(["tests/baselines/candidates-desktop.png", "tests/baselines/penpair-baselines.json", "tests/baselines/reflection-cases.json"]));
-    expect(pngSize(await readFile(path.join(root, "tests/baselines/candidates-tablet.png")))).toEqual({ width: 834, height: 1194 });
+    expect(report.wrote).toEqual(expect.arrayContaining(["tests/baselines/penpair-baselines.json", "tests/baselines/reflection-cases.json"]));
+    expect(pngSize(await readFile(await approvedPath(root, "candidates-tablet")))).toEqual({ width: 834, height: 1194 });
     const manifest = JSON.parse(await readFile(path.join(root, "tests/baselines/penpair-baselines.json"), "utf8"));
-    expect(manifest).toMatchObject({ penpotFile: "Brand", page: "Candidate", revn: 7 });
+    expect(manifest).toMatchObject({ penpotFile: "Brand", page: "Candidate", capturedRevision: 7 });
     expect(manifest.frames).toHaveLength(3);
     const cases = JSON.parse(await readFile(path.join(root, "tests/baselines/reflection-cases.json"), "utf8"));
     expect(cases.routes.candidates.viewports).toEqual([{ name: "design-1512x982", width: 1512, height: 982 }, { name: "design-834x1194", width: 834, height: 1194 }]);
     expect(cases.visualSmoke).toHaveLength(2);
-    expect(cases.visualSmoke[0]).toMatchObject({ id: "candidates-desktop", route: "candidates", viewport: "design-1512x982", baselineRoot: "tests/baselines", baseline: "candidates-desktop.png", strict: false, ref: "penpair:candidates-desktop", threshold: { maxDiffPixelRatio: 0.05 } });
+    expect(cases.visualSmoke[0]).toMatchObject({ id: "candidates-desktop", route: "candidates", viewport: "design-1512x982", baselineRoot: "tests/baselines", baseline: expect.stringMatching(/^captures\//), strict: false, ref: "penpair:candidates-desktop", threshold: { maxDiffPixelRatio: 0.05 } });
   });
 
   it("does not turn a changed design into the new reference unless asked", async () => {
@@ -96,11 +102,11 @@ describe("exporting baselines", () => {
     const again = await exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true });
     expect(again.results.find((r) => r.id === "candidates-desktop")).toMatchObject({ status: "changed", written: false });
     expect(again.results.find((r) => r.id === "candidates-tablet")).toMatchObject({ status: "same" });
-    expect((await readFile(path.join(root, "tests/baselines/candidates-desktop.png"))).toString("latin1")).toContain("a");
-    expect((await readFile(path.join(root, "tests/baselines/candidates-desktop.png"))).toString("latin1")).not.toContain("edited");
+    expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).toContain("a");
+    expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).not.toContain("edited");
     const approved = await exportBaselines(penpot({ frames, images: changed }), root, config, { ...fast, apply: true, update: true });
     expect(approved.results.find((r) => r.id === "candidates-desktop")).toMatchObject({ status: "changed", written: true });
-    expect((await readFile(path.join(root, "tests/baselines/candidates-desktop.png"))).toString("latin1")).toContain("edited");
+    expect((await readFile(await approvedPath(root, "candidates-desktop"))).toString("latin1")).toContain("edited");
   });
 
   it("describes the image on disk, not the new design, when a changed design was not approved", async () => {
@@ -117,7 +123,50 @@ describe("exporting baselines", () => {
     const unstable = { ...images, c3: [png(1, 1, "1"), png(1, 1, "2"), png(1, 1, "3"), png(1, 1, "4"), png(1, 1, "5")] };
     const report = await exportBaselines(penpot({ frames: frames.filter((f) => f.id !== "b2"), images: unstable }), root, config, { ...fast, apply: true });
     expect(report.results.map((r) => [r.id, r.status])).toEqual([["candidates-desktop", "new"], ["candidates-tablet", "missing"], ["my-work", "unstable"]]);
-    expect(await readdir(path.join(root, "tests/baselines"))).not.toContain("my-work.png");
+    expect(report.complete).toBe(false);
+    expect(report.wrote).toEqual([]);
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it("keeps original approval provenance when a new capture is not approved", async () => {
+    const root = await project();
+    await exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true });
+    const manifestPath = path.join(root, config.root, "penpair-baselines.json");
+    const original = JSON.parse(await readFile(manifestPath, "utf8"));
+    await exportBaselines(penpot({ frames, revision: 8, images: { ...images, a1: settled(1512, 982, "edited") } }), root, config, { ...fast, apply: true });
+    const updated = JSON.parse(await readFile(manifestPath, "utf8"));
+    expect(updated.frames[0].approved).toEqual(original.frames[0].approved);
+    expect(updated.frames[0].approved.revision).toBe(7);
+    expect(updated.frames[0].captured.revision).toBe(8);
+    expect(updated.frames[0].captured.sha256).not.toBe(updated.frames[0].approved.sha256);
+    expect(updated.frames[1].approved).toEqual(original.frames[1].approved);
+    expect(updated.capturedRevision).toBe(8);
+  });
+
+  it.each(["revision", "file"])("preserves the prior manifest after a mid-capture %s change", async (change) => {
+    const root = await project();
+    await exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true });
+    const manifestPath = path.join(root, config.root, "penpair-baselines.json");
+    const original = await readFile(manifestPath);
+    const fake: Fake = { frames, images, onExport: () => { if (change === "revision") fake.revision = 8; else fake.fileId = "other"; } };
+    await expect(exportBaselines(penpot(fake), root, config, { ...fast, apply: true })).rejects.toThrow(/source changed/);
+    expect(await readFile(manifestPath)).toEqual(original);
+  });
+
+  it("preserves a complete prior manifest after missing output, export failure or cancellation", async () => {
+    const root = await project();
+    await exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true });
+    const manifestPath = path.join(root, config.root, "penpair-baselines.json");
+    const original = await readFile(manifestPath);
+    const missing = await exportBaselines(penpot({ frames: frames.slice(0, 2), images }), root, config, { ...fast, apply: true });
+    expect(missing).toMatchObject({ complete: false, wrote: [] });
+    const client = penpot({ frames, images });
+    const call = client.callTool.bind(client);
+    client.callTool = async (name, args) => { if (String(args.code).includes('"id":"b2"')) throw new Error("render failed"); return call(name, args); };
+    await expect(exportBaselines(client, root, config, { ...fast, apply: true, attempts: 1 })).rejects.toThrow(/render failed/);
+    const controller = new AbortController();
+    await expect(exportBaselines(penpot({ frames, images }), root, config, { ...fast, apply: true, signal: controller.signal, onStep: (message) => { if (message.startsWith("staging")) controller.abort(); } })).rejects.toThrow();
+    expect(await readFile(manifestPath)).toEqual(original);
   });
 
   it("refuses an ambiguous frame name", async () => {

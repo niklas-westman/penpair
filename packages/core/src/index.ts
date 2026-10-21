@@ -36,3 +36,5 @@ export * from "./instance/runner.js";
 export { writeCoordinator, guardRevision, type WriteLease, type CoordinationOptions } from "./coordination.js";
 
 export { onboardingChecklist } from "./onboard.js";
+
+export { atomicWriteFile } from "./atomic-output.js";

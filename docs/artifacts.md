@@ -1,0 +1,13 @@
+# Capture and approval provenance
+
+Baseline manifests use schema 2. `capturedRevision` identifies the coherent capture run, while each frame has separate `captured` and `approved` records. Those records identify the file, page and frame by immutable ID, revision, PNG hash, scale, active theme names, capture time, penpair version, reported Penpot API version and browser user agent when available. A missing environment value is recorded as unknown; the record does not establish that fonts loaded correctly or identify every rendering dependency.
+
+An unchanged reference retains its original approval record. A changed image recaptured without `--update` retains its approved bytes, path, revision and hash, while `captured` describes the new candidate. Legacy images without trustworthy provenance are marked `legacy`; a current revision is never invented for them. Changing a baseline still requires the owner's `--apply --update`. Schema 2 does not claim a separate human review record; that is tracked in D2.
+
+All configured frames must be present and stable. File/page/revision evidence is checked inside exports and across consecutive exports; the complete frame listing is checked again after capture. Intervening changes, failures or cancellation do not publish a new complete manifest. There is no partial-publication mode.
+
+PNG captures live in immutable `captures/<capture-id>/<baseline-id>.png` generations instead of replacing `<baseline-id>.png`. Read approved image paths from manifest frame `file` fields. Generated Reflection cases already use those paths. `penpair-baselines.json` is the authoritative commit point and is published last with a same-directory atomic rename. Its `casesFile` points to the exact immutable case file for that generation. The root `reflection-cases.json` remains a convenience for existing config imports; when reading it together with a manifest, require matching `captureId`, or follow `casesFile` from the manifest. Independent root files cannot be replaced as one filesystem transaction.
+
+A process interrupted during output may leave an unreferenced capture generation. Previous manifest references remain usable; inspect before cleaning generations. Staging directories are removed on handled errors. This is filesystem publication safety, not a power-loss-proof multi-file transaction or a remote backup.
+
+Standalone PNG export and full-file archive candidates also stage complete bytes before publication. Archives use exclusive creation and never replace an existing file. PNG exports atomically replace the requested output only after a stable result. The export report includes target provenance. Archive restore verification remains a separate scratch import/readback task.

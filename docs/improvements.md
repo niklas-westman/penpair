@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **8 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **9 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I5 — artifact provenance, consistent capture and atomic publication** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: I7 — stable command results, structured MCP envelopes and incomplete-output contracts** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -569,7 +569,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
   - [ ] Link structural review snapshots after D3; they do not replace archives.
 - [x] **I3 · P1 · L** — Add operation journal, safe resume and optional recovery checkpoints. Completed 2026-10-21; [resolution report](#i3-completion-2026-10-21).
 - [x] **A3 · P1 · L** — Deliver team onboarding and stale-plan detection; investigate advisory coordination without promising atomic exclusion. Completed 2026-10-21; [resolution report](#a3-completion-2026-10-21).
-- [ ] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely.
+- [x] **I5 · P1 · M** — Preserve artifact provenance and publish consistent capture results safely. Completed 2026-10-21; [resolution report](#i5-completion-2026-10-21).
 - [ ] **I7 · P1 · M** — Standardize result/error/exit contracts and incomplete-output reporting.
 - [ ] **I11 · P1 · M** — Make executable extension trust explicit and avoid unnecessary imports.
 - [ ] **B5 · P1 · S** — Publish dated, version-scoped gotchas from the real run.
@@ -770,6 +770,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Shared plugin data has no atomic compare-and-swap: concurrent machines and forced takeovers are advisory, never distributed exclusion. Local locks protect one checkout; human editing remains possible. Unsupported shared methods warn and retain local exclusion only. Direct unjournaled library helpers and scratch probes require manual coordination. No live two-editor trial; direct file links may need the owner's full team-context URL.
 - **Next:** I5 — artifact provenance, consistent capture and atomic publication
 
+
+<a id="i5-completion-2026-10-21"></a>
+### 2026-10-21 — I5: Artifact provenance and consistent atomic publication
+
+- **Resolved:** A new capture can no longer relabel an old approved image with the current revision, and incomplete captures cannot publish a misleading complete manifest.
+- **Changed:** Schema-2 manifests separate capture/approval IDs, revisions, hashes, scale, themes, tool/API version and available render environment. Immutable capture generations retain earlier approved paths. Exports validate byte evidence and identity/revision across captures; baselines recheck the full listing. Staged generations precede atomic manifest-last publication. Raw PNG outputs stage complete stable bytes; archive publication is exclusive and atomic.
+- **Validated:** pnpm check passes: 371 tests (286 core, 57 adapter, 28 Docker). Regression cases cover retained approval provenance, file/revision changes, missing/unstable frames, failed export, cancellation during staging, malformed byte evidence, concurrent exclusive output and preserved old output. pnpm smoke:package and git diff --check pass.
+- **Risks:** No live export trial. Unknown font/render dependencies remain explicit; browser/API metadata does not prove font correctness. Atomicity applies to each local publication, not a power-loss-proof multi-file transaction. Root Reflection cases are a convenience: pair by captureId or follow the manifest's immutable casesFile. Interrupted output can leave unreferenced generations. Existing integrations that hard-code id.png must follow generated paths. Legacy approvals keep unknown provenance instead of inventing a revision.
+- **Next:** I7 — stable command results, structured MCP envelopes and incomplete-output contracts
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -792,3 +802,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I3 completed:** Recoverable operations and checkpoints. Progress 7/40; next A3 — team onboarding, advisory coordination and stale-source checks.
 
 - **2026-10-21 — A3 completed:** Team onboarding and advisory write coordination. Progress 8/40; next I5 — artifact provenance, consistent capture and atomic publication.
+
+- **2026-10-21 — I5 completed:** Artifact provenance and consistent atomic publication. Progress 9/40; next I7 — stable command results, structured MCP envelopes and incomplete-output contracts.

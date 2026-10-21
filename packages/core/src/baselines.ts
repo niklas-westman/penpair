@@ -1,9 +1,12 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import type { PenpotToolClient } from "./client.js";
 import type { BaselinesConfig } from "./baselines-config.js";
-import { exportShapePng, type ExportOptions } from "./export.js";
+import { version } from "./version.js";
+import { atomicWriteFile } from "./atomic-output.js";
+import { observationHash } from "./journal.js";
+import { exportShapePng, type CaptureIdentity, type ExportOptions } from "./export.js";
 import { runOnPage } from "./operation.js";
 import { frames } from "./snippets/read.js";
 
@@ -21,7 +24,10 @@ export type BaselineStatus =
   /** The page has no top-level frame with that name. */
   | "missing";
 
+export interface ArtifactProvenance extends CaptureIdentity { sha256: string; capturedAt: string; toolVersion: string; file: string }
 export interface BaselineResult {
+  captured?: ArtifactProvenance;
+  approved?: ArtifactProvenance | { legacy: true; sha256: string };
   id: string;
   frame: string;
   frameId?: string;
@@ -39,6 +45,9 @@ export interface BaselineResult {
 }
 
 export interface BaselinesReport {
+  complete: boolean;
+  fileId: string;
+  pageId: string;
   page: string;
   penpotFile: string;
   revn: number;
@@ -48,6 +57,7 @@ export interface BaselinesReport {
 }
 
 export interface BaselinesOptions extends ExportOptions {
+  signal?: AbortSignal;
   /** Write images that are new. Without it nothing is written, whatever is found. */
   apply?: boolean;
   /** Also replace images whose design has changed. This is the act of approving the new design as the reference; it is the owner's call. */
@@ -66,8 +76,9 @@ export function pngSize(buffer: Buffer): { width: number; height: number } | und
 async function readIfExists(file: string): Promise<Buffer | undefined> {
   try {
     return await readFile(file);
-  } catch {
-    return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
   }
 }
 
@@ -78,64 +89,76 @@ async function readIfExists(file: string): Promise<Buffer | undefined> {
  */
 export async function exportBaselines(client: PenpotToolClient, projectRoot: string, config: BaselinesConfig, options: BaselinesOptions = {}): Promise<BaselinesReport> {
   const listing = await runOnPage(client, frames({ page: config.page }), config.page, options);
-  const found = (listing.frames as { id: string; name: string; width: number; height: number }[]) ?? [];
+  if (listing.ok !== true || typeof listing.fileId !== "string" || !listing.fileId || typeof listing.pageId !== "string" || !listing.pageId || !Number.isInteger(listing.revn) || !Array.isArray(listing.frames)) throw new Error("Baseline listing lacks file/page/revision evidence");
+  const found = listing.frames as { id: string; name: string; width: number; height: number }[];
   const results: BaselineResult[] = [];
   const wrote: string[] = [];
   const folder = path.join(projectRoot, config.root);
+  const previousBytes = await readIfExists(path.join(folder, "penpair-baselines.json"));
+  const previous = previousBytes ? JSON.parse(previousBytes.toString("utf8")) as { schemaVersion?: number; frames?: BaselineResult[] } : undefined;
+  if (previous && (previous.schemaVersion !== undefined && previous.schemaVersion !== 2 || !Array.isArray(previous.frames))) throw new Error("Existing baseline manifest is invalid; preserve and inspect it");
+  const runId = randomUUID();
+  const generation = `captures/${runId}`;
+  const captures = new Map<string, Buffer>();
   for (const wanted of config.frames) {
-    const file = `${wanted.id}.png`;
+    options.signal?.throwIfAborted();
+    const old = previous?.frames?.find((entry) => entry.id === wanted.id);
+    const file = old?.file ?? `${wanted.id}.png`;
+    if (path.isAbsolute(file) || file.split(/[\\/]/).includes("..")) throw new Error("Existing baseline path leaves its folder");
     const matches = found.filter((f) => f.name === wanted.frame);
-    if (matches.length === 0) {
-      results.push({ id: wanted.id, frame: wanted.frame, file, status: "missing", written: false });
-      continue;
-    }
+    if (!matches.length) { results.push({ id: wanted.id, frame: wanted.frame, file, status: "missing", written: false }); continue; }
     if (matches.length > 1) throw new Error(`more than one top-level frame on ${config.page} is named ${JSON.stringify(wanted.frame)}; rename one so the design reference is unambiguous`);
     const frame = matches[0]!;
     options.onStep?.(`exporting ${wanted.frame}`);
     const exported = await exportShapePng(client, frame.id, { ...options, page: config.page, stable: true });
     const base = { id: wanted.id, frame: wanted.frame, frameId: frame.id, width: frame.width, height: frame.height, file };
-    if (!exported.stable) {
-      results.push({ ...base, status: "unstable", written: false });
-      continue;
-    }
-    const target = path.join(folder, file);
-    const existing = await readIfExists(target);
-    const status: BaselineStatus = existing === undefined ? "new" : sha(existing) === sha(exported.png) ? "same" : "changed";
-    let written = false;
-    if (options.apply && (status === "new" || (status === "changed" && options.update))) {
-      await mkdir(folder, { recursive: true });
-      await writeFile(target, exported.png);
-      written = true;
-      wrote.push(path.join(config.root, file));
-    }
-    // A new image that was not written (a look, without --apply) is described by the export; a changed one that was not updated by what is on disk.
-    const onDisk = written || status === "same" || status === "new" ? exported.png : (existing as Buffer);
-    const size = pngSize(onDisk);
-    results.push({ ...base, status, written, sha256: sha(onDisk), bytes: onDisk.length, imageWidth: size?.width, imageHeight: size?.height });
+    if (exported.capture.fileId !== listing.fileId || exported.capture.pageId !== listing.pageId || exported.capture.revision !== listing.revn) throw new Error("Baseline source changed during capture; nothing was published");
+    if (!exported.stable) { results.push({ ...base, status: "unstable", written: false }); continue; }
+    if (!pngSize(exported.png)) throw new Error("Baseline export is not a PNG with dimensions");
+    const existing = await readIfExists(path.join(folder, file));
+    if (old && (!existing || old.sha256 !== sha(existing) || old.approved && old.approved.sha256 !== old.sha256)) throw new Error("Approved baseline bytes no longer match their manifest; inspect before replacing");
+    const captured: ArtifactProvenance = { ...exported.capture, sha256: sha(exported.png), capturedAt: new Date().toISOString(), toolVersion: version, file: `${generation}/${wanted.id}.png` };
+    const status: BaselineStatus = !existing ? "new" : sha(existing) === captured.sha256 ? "same" : "changed";
+    const approve = status === "new" || status === "changed" && options.update === true;
+    const approved = approve ? captured : old?.approved ?? { legacy: true as const, sha256: sha(existing!) };
+    const image = approve ? exported.png : existing!;
+    const size = pngSize(image);
+    results.push({ ...base, file: approve && options.apply ? captured.file : file, status, written: false, captured,
+      approved: options.apply || !approve ? approved : undefined, sha256: sha(image), bytes: image.length, imageWidth: size?.width, imageHeight: size?.height });
+    captures.set(wanted.id, exported.png);
   }
-  if (options.apply) {
-    const onDisk = results.filter((r) => r.status !== "missing" && r.status !== "unstable" && (r.written || r.status === "same" || r.status === "changed"));
-    if (onDisk.length > 0) {
-      await mkdir(folder, { recursive: true });
-      const manifest = path.join(folder, "penpair-baselines.json");
-      await writeFile(manifest, `${JSON.stringify(manifestOf(config, listing, onDisk), null, 2)}\n`);
-      wrote.push(path.join(config.root, "penpair-baselines.json"));
-      const cases = path.join(folder, "reflection-cases.json");
-      await writeFile(cases, `${JSON.stringify(reflectionCases(config, onDisk), null, 2)}\n`);
-      wrote.push(path.join(config.root, "reflection-cases.json"));
-    }
+  const after = await runOnPage(client, frames({ page: config.page }), config.page, options);
+  const source = (value: Record<string, unknown>) => ({ fileId: value.fileId, pageId: value.pageId, revision: value.revn, frames: value.frames });
+  if (observationHash(source(listing)) !== observationHash(source(after))) throw new Error("Baseline source changed before publication; previous artifacts were preserved");
+  const complete = results.length === config.frames.length && results.every((result) => result.status !== "missing" && result.status !== "unstable");
+  if (options.apply && complete) {
+    options.signal?.throwIfAborted();
+    options.onStep?.("publishing complete capture");
+    options.signal?.throwIfAborted();
+    await mkdir(path.join(folder, "captures"), { recursive: true });
+    const staged = path.join(folder, `.stage-${runId}`);
+    await mkdir(staged);
+    try {
+      for (const [id, bytes] of captures) { options.signal?.throwIfAborted(); await atomicWriteFile(path.join(staged, `${id}.png`), bytes); options.onStep?.(`staging ${id}`); }
+      const cases = reflectionCases(config, results);
+      await writeFile(path.join(staged, "reflection-cases.json"), `${JSON.stringify({ ...cases, captureId: runId }, null, 2)}\n`, { flag: "wx" });
+      options.signal?.throwIfAborted();
+      await rename(staged, path.join(folder, generation));
+      // Immutable generation first. The canonical manifest is the commit point and is published last.
+      await atomicWriteFile(path.join(folder, "reflection-cases.json"), `${JSON.stringify({ ...cases, captureId: runId }, null, 2)}\n`, { replace: true });
+      options.signal?.throwIfAborted();
+      for (const result of results) result.written = result.status === "new" || result.status === "changed" && options.update === true;
+      const manifest = { schemaVersion: 2, complete: true, captureId: runId, penpotFile: listing.file, fileId: listing.fileId, page: config.page, pageId: listing.pageId,
+        capturedRevision: listing.revn, casesFile: `${generation}/reflection-cases.json`, note: "Capture provenance and approved provenance are separate. Only --apply --update approves a changed hash.", frames: results };
+      await atomicWriteFile(path.join(folder, "penpair-baselines.json"), `${JSON.stringify(manifest, null, 2)}\n`, { replace: true });
+      for (const result of results) {
+        result.written = result.status === "new" || result.status === "changed" && options.update === true;
+        if (result.written) wrote.push(path.join(config.root, result.file));
+      }
+      wrote.push(path.join(config.root, "reflection-cases.json"), path.join(config.root, "penpair-baselines.json"));
+    } finally { await rm(staged, { recursive: true, force: true }); }
   }
-  return { page: config.page, penpotFile: String(listing.file ?? ""), revn: Number(listing.revn ?? 0), results, wrote };
-}
-
-function manifestOf(config: BaselinesConfig, listing: Record<string, unknown>, results: BaselineResult[]): unknown {
-  return {
-    note: "Written by `penpair baselines`. The images are the approved design for each frame; change one only on purpose (`penpair baselines --apply --update`).",
-    penpotFile: listing.file,
-    page: config.page,
-    revn: listing.revn,
-    frames: results.map((r) => ({ id: r.id, frame: r.frame, frameId: r.frameId, width: r.imageWidth, height: r.imageHeight, file: r.file, sha256: r.sha256, bytes: r.bytes })),
-  };
+  return { complete, fileId: listing.fileId, pageId: listing.pageId, page: config.page, penpotFile: String(listing.file), revn: Number(listing.revn), results, wrote };
 }
 
 /**
@@ -157,7 +180,7 @@ export function reflectionCases(config: BaselinesConfig, results: BaselineResult
       route: wanted.route,
       viewport: viewport.name,
       baselineRoot: config.root,
-      baseline: `${wanted.id}.png`,
+      baseline: result.file,
       threshold: { maxDiffPixelRatio: config.threshold ?? 0.05 },
       strict: false,
       ref: `penpair:${wanted.id}`,

@@ -1,4 +1,4 @@
-import { writeFile, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { connect, executeCode } from "./client.js";
@@ -27,6 +27,7 @@ import { assertEndpointIsInstance, doctorExternal, LifecycleError, type DoctorCh
 import { nodeRunner } from "./instance/runner.js";
 import { version } from "./version.js";
 import { guardFile } from "./file-guard.js";
+import { atomicWriteFile } from "./atomic-output.js";
 import { onboardingChecklist } from "./onboard.js";
 import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
@@ -409,7 +410,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (!out || !out.endsWith(".penpot")) throw new Error("usage: penpair backup file <new.penpot>");
       const archive = await exportFileArchive(client);
       if (archive.status !== "exported") { console.error(redactEndpoint(archive.message, endpoint)); return 1; }
-      await writeFile(out, archive.bytes, { flag: "wx" });
+      await atomicWriteFile(out, archive.bytes);
       console.log(JSON.stringify({ file: out, fileId: archive.fileId, revn: archive.revn, bytes: archive.bytes.length, sha256: archive.sha256, restoreVerified: false }, null, 2));
       console.error("Archive bytes saved. Restore is not verified: import into a scratch project and compare content and renders.");
       return 0;
@@ -464,8 +465,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       const [shapeId, out] = rest;
       if (!shapeId || !out) throw new Error("usage: penpair export <shapeId> <out.png> [--page <name>] [--scale 1]");
       const result = await exportShapePng(client, shapeId, { ...options, page: values.page, scale: values.scale ? Number(values.scale) : 1 });
-      await writeFile(out, result.png);
-      console.log(`saved ${out} (${result.png.length} bytes, ${result.stable ? "stable" : "not confirmed stable"} after ${result.exports} exports)`);
+      if (!result.stable) throw new Error("Export did not stabilize; previous output was preserved");
+      await atomicWriteFile(out, result.png, { replace: true });
+      console.log(JSON.stringify({ file: out, bytes: result.png.length, stable: result.stable, exports: result.exports, capture: result.capture }, null, 2));
     } else if (command === "archive") {
       if (!values.page || !values.name) throw new Error("--page and --name are required");
       const report = await runOperation(

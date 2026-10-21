@@ -32,7 +32,7 @@ export function frames(params: FramesParams): Snippet {
   return readSnippet(
     "frames",
     `${requirePage}
-return { ok: true, readOnly: true, file: penpot.currentFile.name, revn: penpot.currentFile.revn, page: penpot.currentPage.name,
+return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
   frames: penpot.currentPage.root.children.filter((c) => c.type === "board").map((c) => ({ id: c.id, name: c.name, width: Math.round(c.width), height: Math.round(c.height) })) };`,
     params,
   );

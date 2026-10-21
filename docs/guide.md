@@ -123,3 +123,5 @@ export default defineReflection({
 The percentage a comparison reports is not a verdict: a correct implementation differs from a Penpot render by about 1 to 2% on text alone, so read the diff image.
 
 Interrupted write recovery, run inspection and optional checkpoints: [recovery guide](recovery.md).
+
+Baseline schema 2 keeps current capture and original approval provenance separate, publishes immutable image generations, and requires a complete capture. See [artifact publication](artifacts.md) for paths, migration and interruption behavior.

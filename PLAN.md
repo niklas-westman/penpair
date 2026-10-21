@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **I5 — artifact provenance, consistent capture and atomic publication** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **I7 — stable command results, structured MCP envelopes and incomplete-output contracts** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **I5 — Artifact provenance and consistent atomic publication** (2026-10-21). A new capture can no longer relabel an old approved image with the current revision, and incomplete captures cannot publish a misleading complete manifest. Validation and limits: [delivery report](docs/improvements.md#i5-completion-2026-10-21).
 - [x] **A3 — Team onboarding and advisory write coordination** (2026-10-21). Colleagues get a project-specific onboarding checklist, and journaled writers detect ordinary contention and stale revisions/sources before mutation. Validation and limits: [delivery report](docs/improvements.md#a3-completion-2026-10-21).
 - [x] **I3 — Recoverable operations and checkpoints** (2026-10-21). Interrupted multi-step writes can now be inspected and explicitly resumed against actual state without blindly replaying completed mutations. Validation and limits: [delivery report](docs/improvements.md#i3-completion-2026-10-21).
 - [x] **I4 — Capability-driven native API support** (2026-10-21). Native APIs are detected instead of assumed, and unsupported/throwing methods cannot silently establish layout or file integrity. Optional named checkpoints use explicit apply and independent readback. Validation and limits: [delivery report](docs/improvements.md#i4-completion-2026-10-21).
@@ -92,6 +93,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed I5: Artifact provenance and consistent atomic publication; report in `docs/improvements.md`.
 - 2026-10-21: completed A3: Team onboarding and advisory write coordination; report in `docs/improvements.md`.
 - 2026-10-21: completed I3: Recoverable operations and checkpoints; report in `docs/improvements.md`.
 - 2026-10-21: G3 partial: bounded archive candidates, backup-note reminders and manual restore guide; 340 tests and package smoke pass. Full hosted round trip and D3 remain pending; proceed with independent I3.

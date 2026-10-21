@@ -12,7 +12,7 @@ function exporting(sequence: (string | Error)[]): PenpotToolClient & { calls: nu
     async callTool() {
       const next = sequence[Math.min(calls++, sequence.length - 1)]!;
       if (next instanceof Error) return { text: `Tool execution failed: ${next.message}`, isError: true };
-      return reply({ ok: true, base64: png(next), length: next.length });
+      return reply({ ok: true, base64: png(next), length: next.length, capture: { fileId:"file", pageId:"page", frameId:"id", revision:1, scale:1, penpotApiVersion:"test", renderEnvironment:null, activeThemes:[] } });
     },
     async close() {},
   };
@@ -38,6 +38,29 @@ describe("exporting a shape", () => {
     const client = exporting(["a", "b", "c", "d", "e"]);
     const result = await exportShapePng(client, "id", { ...fast, maxExports: 3 });
     expect(result).toMatchObject({ stable: false, exports: 3 });
+  });
+
+  it("refuses identity changes across otherwise identical rendered bytes", async () => {
+    const client = exporting(["same", "same"]);
+    const call = client.callTool.bind(client);
+    let count = 0;
+    client.callTool = async (name, args) => {
+      const response = await call(name, args);
+      const envelope = JSON.parse(response.text);
+      envelope.result.capture.fileId = ++count === 1 ? "first" : "second";
+      return { ...response, text: JSON.stringify(envelope) };
+    };
+    await expect(exportShapePng(client, "id", fast)).rejects.toThrow(/identity/);
+  });
+
+  it("refuses malformed byte evidence", async () => {
+    const client = exporting(["same"]);
+    const call = client.callTool.bind(client);
+    client.callTool = async (name, args) => {
+      const response = await call(name, args); const envelope = JSON.parse(response.text);
+      envelope.result.length = 999; return { ...response, text: JSON.stringify(envelope) };
+    };
+    await expect(exportShapePng(client, "id", { ...fast, attempts: 1 })).rejects.toThrow(/length/);
   });
 
   it("can skip the stability check", async () => {
