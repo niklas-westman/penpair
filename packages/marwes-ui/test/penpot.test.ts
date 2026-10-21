@@ -82,8 +82,8 @@ describe("comparing the file with the expectation", () => {
     live.themes.find((t) => t.name === "Light")!.sets = ["Marwes · Core", "My brand"];
     live.sets.push({ order: 9, name: "Marwes · Old", active: false, tokens: [] }, { order: 10, name: "My brand", active: false, tokens: [] });
     const drift = compareToPenpot(snapshot, live);
-    expect(drift.themes).toEqual(expect.arrayContaining([expect.objectContaining({ theme: "Mode/Dark", missing: true }), { theme: "Mode/Light", missingSets: ["Acme · Light"], extraSets: ["My brand"] }]));
-    expect(drift.unexpectedSets).toEqual(["Marwes · Old"]);
+    expect(drift.themes).toEqual(expect.arrayContaining([expect.objectContaining({ theme: "Mode/Dark", missing: true }), { theme: "Mode/Light", missingSets: ["Acme · Light"], extraSets: [] }]));
+    expect(drift.unexpectedSets).toEqual([]); // Names never establish ownership.
   });
 });
 
@@ -116,13 +116,13 @@ describe("the plan", () => {
     ]);
   });
 
-  it("removes what was added by hand only when asked, and never touches a set it does not manage", async () => {
+  it("preserves unowned hand additions even with prune, and never touches an unmanaged set", async () => {
     const snapshot = await expected();
     const live = liveFrom(snapshot);
     live.sets.find((s) => s.name === "Marwes · Core")!.tokens.push({ name: "my-own", type: "color", value: "#123456", description: "" });
     live.sets.push({ order: 9, name: "My brand", active: false, tokens: [{ name: "x", type: "color", value: "#000000", description: "" }] });
     expect(planPush(snapshot, live)).toEqual([]);
-    expect(planPush(snapshot, live, { prune: true })).toEqual([{ kind: "removeTokens", set: "Marwes · Core", names: ["my-own"] }]);
+    expect(planPush(snapshot, live, { prune: true })).toEqual([]);
   });
 
   it("splits long token lists into batches that stay under the request limit", () => {
@@ -169,7 +169,7 @@ describe("pushing to a Penpot", () => {
     expect(core.tokens.find((t) => t.name === "mw-typography-h1")!.value).toMatchObject({ fontFamily: ["Instrument Sans"], fontSize: "44" });
   });
 
-  it("keeps what was added by hand unless pruned, and removes it when asked", async () => {
+  it("keeps what was added by hand even when pruning without ownership history", async () => {
     const snapshot = await expected();
     const penpot = fakePenpot();
     await applyPlan(penpot.client, snapshot, planPush(snapshot, await readLive(penpot.client)));
@@ -177,7 +177,7 @@ describe("pushing to a Penpot", () => {
     expect(planPush(snapshot, await readLive(penpot.client))).toEqual([]);
     const live = await readLive(penpot.client);
     expect((await applyPlan(penpot.client, snapshot, planPush(snapshot, live, { prune: true }))).verified).toBe(true);
-    expect(penpot.sets[0]!.tokens.some((t) => t.name === "my-own")).toBe(false);
+    expect(penpot.sets[0]!.tokens.some((t) => t.name === "my-own")).toBe(true);
   });
 
   it("stops at a token Penpot rejects and says which, instead of carrying on", async () => {

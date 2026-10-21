@@ -52,3 +52,5 @@ export { findShapesByName, exportShapeByName, captureShots, type ShapeLookup, ty
 export * from "./inspection.js";
 
 export { tokenTypes, validateEditableToken, validateTokenEdit, planTokenEdit, tokenEditOperation, type EditableToken, type TokenEdit, type TokenEditState, type TokenEditPlan } from "./token-edit.js";
+
+export { ensureGitignoreEntry } from "./instance/gitignore.js";

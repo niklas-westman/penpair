@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Ownership reconciliation:** token pushes compare desired/live properties against a private, file-bound verified ancestor. Designer/conflicting/untracked values require an explicit overwrite decision or local adoption proposal. Prune preserves tokens without ownership evidence and unmanaged theme membership. Cross-set references and bound type replacements refuse before and inside destructive mutations; concurrent ancestor publication preserves newer evidence.
+
 - **Project token sets and CRUD:** neutral inspect/apply/readback commands for inactive set creation, same-type token upsert, reference-aware removal and conflict-free promotion copies. Source rechecks, journals and independent complete readback share the write protocol. The token adapter includes declared project extras in both modes; schema-2 snapshots record ownership and retain version-1 review support.
 
 - **Structured inspection:** selected-frame full text, hierarchy, layout, bindings and provenance with explicit unknowns; bounded Unicode-safe transfers, stale-cursor rejection and measured request/response budgets. Typed token dumps preserve composites; tree/audit previews expose truncation and totals. Incomplete or credential-redacted captures refuse artifact publication. See `docs/inspection.md` for versioned formats and legacy token migration.

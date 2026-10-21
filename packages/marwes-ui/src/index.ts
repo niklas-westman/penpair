@@ -11,3 +11,5 @@ export * from "./penpot.js";
 export * from "./snapshot-file.js";
 export * from "./theme-input.js";
 export * from "./tokens.js";
+
+export * from "./ownership.js";

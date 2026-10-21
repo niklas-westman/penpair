@@ -1,7 +1,9 @@
+import { ownershipReport, readSyncAncestor, saveSyncAncestor } from "./ownership.js";
+import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { parseCommandArgs, resolveProjectInput, createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
+import { parseCommandArgs, atomicWriteFile, resolveProjectOutput, readJournalTarget, guardFile, resolveProjectInput, createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
 import { readMarwesSettings, type MarwesSettings } from "./config.js";
 import { familyProblems, loadInstalledMarwes, type InstalledMarwes } from "./marwes.js";
 import { applyPlan, compareToPenpot, describePlan, formatDrift, impactOf, planPush, readLive, type Drift } from "./penpot.js";
@@ -70,7 +72,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseCommandArgs({ args, allowPositionals: true, options: { write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
+  parseCommandArgs({ args, allowPositionals: true, options: { overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -120,11 +122,16 @@ async function checkCommand(context: AdapterContext, args: string[]): Promise<nu
   return check.expectation.problems.length > 0 ? 1 : 2;
 }
 
-async function readPenpot(context: AdapterContext, committed: TokenSnapshot, wantImpact: boolean): Promise<{ drift: Drift; impact?: Record<string, number>; live: Awaited<ReturnType<typeof readLive>> }> {
+async function readPenpot(context: AdapterContext, committed: TokenSnapshot, wantImpact: boolean): Promise<{ drift: Drift; impact?: Record<string, number>; live: Awaited<ReturnType<typeof readLive>>; target: Awaited<ReturnType<typeof readJournalTarget>> }> {
   return context.withPenpot(async (client: PenpotToolClient) => {
-    const live = await readLive(client);
-    const drift = compareToPenpot(committed, live);
-    return { live, drift, ...(wantImpact && !drift.inSync ? { impact: await impactOf(client).catch(() => undefined) } : {}) };
+    const target = await readJournalTarget(client);
+    const pinned = guardFile(client, { id: target.fileId });
+    const live = await readLive(pinned);
+    const after = await readJournalTarget(pinned);
+    if (after.fileId !== target.fileId || after.revision !== target.revision) throw new Error("File changed during token inspection; inspect again");
+    const ancestor = await readSyncAncestor(context.root, target.fileId);
+    const drift = compareToPenpot(committed, live, { ancestor });
+    return { target, live, drift, ...(wantImpact && !drift.inSync ? { impact: await impactOf(pinned).catch(() => undefined) } : {}) };
   });
 }
 
@@ -142,12 +149,13 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
   }
   if (!check.current) print(context, `note: the committed snapshot is stale against the installed Marwes (${staleAdvice}); the comparison below is against the committed one.`);
   if (drift.inSync) {
+    for (const line of formatDrift(drift, impact)) print(context, `note preserved: ${line}`);
     print(context, `ok   Penpot matches ${summary(check.committed)}`);
     return 0;
   }
   print(context, values.resume ? `Resuming run ${values.resume}; current snapshot: ${summary(check.committed)}` : `Penpot differs from ${summary(check.committed)}:`);
   for (const line of formatDrift(drift, impact)) print(context, `  ${line}`);
-  print(context, "`penpair marwes tokens push --apply` brings Penpot to the snapshot (Marwes is authoritative: a value changed by hand in Penpot is put back).");
+  print(context, "`penpair marwes tokens push --apply` brings Penpot to the snapshot (designer edits require explicit adoption or overwrite).");
   return 2;
 }
 
@@ -164,10 +172,28 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
     diagnostic(context, `STOP the committed snapshot is stale against the installed Marwes or the theme, and the repository's record must lead. ${staleAdvice} Then push.`);
     return 2;
   }
-  const { drift, impact, live } = await readPenpot(context, check.committed, true);
-  const plan = planPush(check.committed, live, { prune: values.prune === true });
+  const { drift, impact, live, target } = await readPenpot(context, check.committed, true);
+  if (values.adopt && (values.apply || values.overwrite || values.resume)) throw new Error("--adopt writes a local review proposal and cannot be combined with apply/overwrite/resume");
+  const ancestor = await readSyncAncestor(context.root, target.fileId);
+  const ownership = ownershipReport(check.committed, live, ancestor);
+  if (values.adopt) {
+    const proposal = JSON.stringify({ schemaVersion: 1, kind: "token-adoption-proposal", fileId: target.fileId, snapshotHash: check.committed.hash, ownership, live, instructions: "Review live values and declare intentional changes in project themes/extras; regenerate the snapshot. This proposal changes no design or ownership ancestor." }, null, 2) + "\n";
+    if (context.redact && context.redact(proposal) !== proposal) throw new Error("Adoption evidence requires credential redaction; no proposal was published");
+    const out = await resolveProjectOutput(context.root, values.adopt); await mkdir(path.dirname(out), { recursive: true }); await atomicWriteFile(out, proposal);
+    context.output?.result({ phase: "adoption-proposed", file: values.adopt, ownership, complete: false });
+    print(context, "Saved adoption proposal. Review declarations and regenerate the snapshot before pushing; no Penpot write or ancestor update occurred.");
+    return 3;
+  }
+  const plan = planPush(check.committed, live, { prune: values.prune === true, ancestor });
+  if (ownership.blockers.length && !values.overwrite && !values.resume) {
+    context.output?.result({ phase: "conflict", ownership, plan, verified: false });
+    diagnostic(context, `STOP ${ownership.blockers.length} designer/conflicting/untracked token properties need a decision. Use --adopt <new-file.json> for a local review proposal, or inspect --overwrite and explicitly apply it.`);
+    return 2;
+  }
   if (drift.inSync && plan.length === 0 && !values.resume) {
-    context.output?.result({ verified: true, unchanged: true, drift });
+    const evidence = JSON.stringify(check.committed); if (context.redact && context.redact(evidence) !== evidence) throw new Error("Sync evidence requires credential redaction");
+    if (values.apply) await saveSyncAncestor(context.root, target.fileId, check.committed, ancestor);
+    context.output?.result({ verified: true, unchanged: true, drift, ownership });
     print(context, `ok   Penpot already matches ${summary(check.committed)}; nothing to write`);
     return 0;
   }
@@ -176,13 +202,13 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
   print(context, "Plan:");
   for (const line of describePlan(plan)) print(context, `  ${line}`);
   if (!values.apply) {
-    context.output?.result({ phase: "inspected", plan, drift, snapshotCurrent: check.current, verified: false });
+    context.output?.result({ phase: "inspected", ownership, plan, drift, snapshotCurrent: check.current, verified: false });
     print(context, "Nothing was written. Run again with --apply to do it.");
-    if (!values.prune && drift.sets.some((s) => s.tokens.some((t) => t.kind === "extra")) ) print(context, "Tokens added by hand are kept unless you add --prune.");
+    if (!values.prune && drift.sets.some((s) => s.tokens.some((t) => t.kind === "extra")) ) print(context, "Tokens without a verified ownership ancestor are preserved, including with --prune.");
     return 0;
   }
   const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message), {
-    prune: values.prune === true, expectedLive: live,
+    prune: values.prune === true, ancestor, expectedFileId: target.fileId, expectedLive: live,
     journal: { root: context.root, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
       ...(values.checkpoint ? { checkpoint: (runId) => createCheckpoint(client, { label: "token push", runId }, { apply: true }) } : {}),
     },
@@ -190,6 +216,8 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
   context.output?.result(report);
   for (const step of report.steps) print(context, `done ${step}`);
   if (report.verified) {
+    const evidence = JSON.stringify(check.committed); if (context.redact && context.redact(evidence) !== evidence) throw new Error("Sync evidence requires credential redaction");
+    await saveSyncAncestor(context.root, target.fileId, check.committed, ancestor);
     print(context, `ok   verified: Penpot now matches the snapshot and no shape moved or was rebound (${report.structureAfter.count} shapes unchanged)`);
     return 0;
   }
@@ -234,7 +262,7 @@ export const marwesCommand: AdapterCommand = {
     "penpair marwes tokens snapshot [--write]       build the expected Penpot tokens from the installed Marwes and your theme; --write saves the snapshot",
     "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)",
     "penpair marwes tokens diff [--json]            Penpot against the snapshot: missing, changed, added by hand, and what each change reaches",
-    "penpair marwes tokens push [--apply] [--prune] bring Penpot to the snapshot (looks first; --apply writes; --prune also removes what is not expected)",
+    "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations",
     "penpair marwes tokens status                   one screen: installed Marwes, snapshot, Penpot",
   ],
   async run(context, args) {
@@ -250,7 +278,7 @@ export const marwesCommand: AdapterCommand = {
       return 1;
     }
     const parsed = flags(rest);
-    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock"] : [])]);
+    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock", "overwrite", "adopt"] : [])]);
     if (parsed.positionals.length) throw new Error("Unexpected positional arguments after the token subcommand");
     for (const key of Object.keys(parsed.values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by tokens ${sub}`);
     return run(context, rest);
