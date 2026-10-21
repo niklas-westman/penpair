@@ -1,3 +1,4 @@
+import { validateCredentialReference, type CredentialReference } from "../credentials.js";
 import { validateAuditRules, type AuditRules } from "../audit-rules.js";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -10,6 +11,7 @@ export interface BackupReminder { noteFile: string; remindAfterDays: number }
 export interface InstanceConfig {
   schemaVersion?: 1;
   audit?: AuditRules;
+  connection?: { credential: CredentialReference };
   file?: ProjectFile;
   backup?: BackupReminder;
   /** Short name; it becomes part of the compose project, so containers and volumes of two instances never collide. */
@@ -33,6 +35,7 @@ export interface InstanceConfig {
 export interface ExternalConfig {
   schemaVersion?: 1;
   audit?: AuditRules;
+  connection?: { credential: CredentialReference };
   file?: ProjectFile;
   backup?: BackupReminder;
   instance: string;
@@ -71,6 +74,10 @@ export function validateConfig(value: unknown): InstanceConfig {
   const v = value as Record<string, unknown>;
   validateFile(v.file);
   validateBackup(v.backup);
+  if (v.connection !== undefined) {
+    if (!v.connection || typeof v.connection !== "object" || Array.isArray(v.connection) || Object.keys(v.connection).some(k => k !== "credential")) throw new ConfigError("connection requires only a credential reference");
+    try { validateCredentialReference((v.connection as {credential?:unknown}).credential); } catch (error) { throw new ConfigError(String((error as Error).message)); }
+  }
   if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance))
     fail("instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)");
@@ -104,6 +111,10 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   const v = value as Record<string, unknown>;
   validateFile(v.file);
   validateBackup(v.backup);
+  if (v.connection !== undefined) {
+    if (!v.connection || typeof v.connection !== "object" || Array.isArray(v.connection) || Object.keys(v.connection).some(k => k !== "credential")) throw new ConfigError("connection requires only a credential reference");
+    try { validateCredentialReference((v.connection as {credential?:unknown}).credential); } catch (error) { throw new ConfigError(String((error as Error).message)); }
+  }
   if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);

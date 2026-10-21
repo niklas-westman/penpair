@@ -131,7 +131,10 @@ async function loadCommandConfig(root: string): Promise<ProjectConfig> {
   return config;
 }
 const projectRoot = () => commandProjects.getStore()?.root ?? process.cwd();
-const projectEndpoint = (root: string) => resolveEndpoint({ envFiles: [path.join(root, ".env.local")], globalConfig: !commandProjects.getStore()?.projectEndpointOnly });
+const projectEndpoint = async (root: string) => {
+  const config = await loadOptionalConfig(root);
+  return resolveEndpoint({ envFiles: [path.join(root, ".env.local")], credentialRoot: root, credential: config?.connection?.credential, globalConfig: !commandProjects.getStore()?.projectEndpointOnly });
+};
 
 export interface CliOptions {
   /** Explicit request-scoped project root; never changes the process working directory. */
@@ -487,7 +490,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
     const backupCheck = await backupNoteCheck(root, await loadCommandConfig(root));
-    const all: DoctorCheck[] = [...checks, ...(keyCheck ? [keyCheck] : []), ...(backupCheck ? [backupCheck] : [])];
+    const all: DoctorCheck[] = [...checks, ...(!mcp ? [{ check: "editor and plugin", ok: false, detail: "No resolved project credential/connection; editor identity was not observed", remedy: "Configure the private credential source, connect the intended editor, then rerun doctor." }] : []), ...(keyCheck ? [keyCheck] : []), ...(backupCheck ? [backupCheck] : [])];
     const ok = all.every((check) => check.ok);
     if (values.json) {
       output.log(JSON.stringify({ ok, mcpConfigured: Boolean(mcp), file: all.find((check) => check.file)?.file, checks: all }, null, 2));

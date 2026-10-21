@@ -10,9 +10,9 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 ## Delivery status
 
-Last updated: **2026-10-21**. Completed: **34 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
+Last updated: **2026-10-21**. Completed: **35 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: A4 — private credential files and OS credential references** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: G2 — owner-gated trusted publishing and release confirmation** Queued. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -606,7 +606,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **F2 · P2 · S** — Add web status/open using the shared identity and capability report. Completed 2026-10-21; [resolution report](#f2-completion-2026-10-21).
 - [x] **F3 · P2 · M** — Add configurable audits with explicit assumptions, severity and unknowns. Completed 2026-10-21; [resolution report](#f3-completion-2026-10-21).
 - [x] **C4 · P2 · S** — Add advisory theme-family lint with suppressions for intentional brand choices. Completed 2026-10-21; [resolution report](#c4-completion-2026-10-21).
-- [ ] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified.
+- [x] **A4 · P2 · M** — Add credential-file/OS integration; defer command providers until justified. Completed 2026-10-21; [resolution report](#a4-completion-2026-10-21).
 - [ ] **G2 · P2 · M** — Prepare owner-approved trusted publishing/provenance while keeping lockstep release guards.
 - [ ] **H2 · P2 · S** — Present measured upstream Marwes requests; let the owner decide what to send.
 
@@ -1033,6 +1033,16 @@ Append reports here in completion order; each checked item links to its report.
 - **Risks:** Hue is a limited heuristic rather than a brand/accessibility rule. Only declared literal opaque family colors are compared; actual Penpot resolution and browser appearance are separate evidence.
 - **Next:** A4 — private credential files and OS credential references
 
+
+<a id="a4-completion-2026-10-21"></a>
+### 2026-10-21 — A4: Private file and OS credential references
+
+- **Resolved:** Projects can resolve personal MCP credentials from private storage without copying them into repository connection files or exposing provider output.
+- **Changed:** Added explicit private file/environment references and bounded fixed-argv macOS Keychain reads; no-cache connection resolution, fail-closed provider handling and known-key redaction. Connect reuses references without duplicating URLs. Doctor checks file permissions/history metadata and now fails readiness when no editor connection was observed. Added rotation guidance; arbitrary command providers remain explicitly deferred.
+- **Validated:** pnpm check passes (559 tests) and six-package smoke passes. Tests cover rotation, permissions/symlink/size refusal, reference precedence, bounded Keychain argv, error secrecy, history metadata and non-green missing credentials. All credentials and OS reads were test doubles or temporary fake files.
+- **Risks:** No personal store/key was accessed or changed. macOS access dialogs and actual provider compatibility remain untested; other platforms use private files and Windows ACL privacy requires owner management. History remediation/revocation remain owner actions.
+- **Next:** G2 — owner-gated trusted publishing and release confirmation
+
 ## Tracker history
 
 - **2026-10-21 — Research baseline:** Claude's 28 proposals retained, 12 Codex additions included, and 40 items ordered into four delivery gates. Research validation is recorded in section 8.
@@ -1123,3 +1133,5 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — F3 completed:** Configured advisory audits and explicit unknown evidence. Progress 33/40; next C4 — advisory theme-family lint with reasoned suppressions.
 
 - **2026-10-21 — C4 completed:** Advisory theme-family hue gaps. Progress 34/40; next A4 — private credential files and OS credential references.
+
+- **2026-10-21 — A4 completed:** Private file and OS credential references. Progress 35/40; next G2 — owner-gated trusted publishing and release confirmation.

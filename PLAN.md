@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **A4 — private credential files and OS credential references** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **G2 — owner-gated trusted publishing and release confirmation** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **A4 — Private file and OS credential references** (2026-10-21). Projects can resolve personal MCP credentials from private storage without copying them into repository connection files or exposing provider output. Validation and limits: [delivery report](docs/improvements.md#a4-completion-2026-10-21).
 - [x] **C4 — Advisory theme-family hue gaps** (2026-10-21). Projects can spot unchanged brand-family defaults after a primary-color change while retaining intentional contrasting brand choices. Validation and limits: [delivery report](docs/improvements.md#c4-completion-2026-10-21).
 - [x] **F3 — Configured advisory audits and explicit unknown evidence** (2026-10-21). Design review can now surface contrast, composition, target-size, naming and text signals without presenting inferred semantics or missing observations as compliance. Validation and limits: [delivery report](docs/improvements.md#f3-completion-2026-10-21).
 - [x] **F2 — Observed project health and pinned public file opening** (2026-10-21). Web and local projects now have a shared status view that separates connected facts from missing evidence, plus an explicit public file-opening command. Validation and limits: [delivery report](docs/improvements.md#f2-completion-2026-10-21).
@@ -118,6 +119,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed A4: Private file and OS credential references; report in `docs/improvements.md`.
 - 2026-10-21: completed C4: Advisory theme-family hue gaps; report in `docs/improvements.md`.
 - 2026-10-21: completed F3: Configured advisory audits and explicit unknown evidence; report in `docs/improvements.md`.
 - 2026-10-21: completed F2: Observed project health and pinned public file opening; report in `docs/improvements.md`.

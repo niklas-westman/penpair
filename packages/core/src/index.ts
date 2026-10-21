@@ -77,3 +77,5 @@ export * from "./formats.js";
 export * from "./project-status.js";
 
 export * from "./audit-rules.js";
+
+export * from "./credentials.js";

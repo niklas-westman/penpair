@@ -51,3 +51,7 @@ A project has one profile. To switch, keep the old `penpair.config.json` aside, 
 - Never run `penpair probe --deep --write` on a file the person has not called a scratch file; it creates and removes a temporary board.
 - Read `penpair --help` for the current commands; this skill names only the setup ones.
 - Report each check you did not run.
+
+## Private references and rotation
+
+A person can configure `PENPAIR_MCP_URL_FILE` or a `connection.credential` file/macOS Keychain reference. Resolve it only at connection time and keep returned values out of messages. Connect reuses the reference without copying its URL into `.env.local`. Rotate that value in private storage, reconnect the intended visible editor and confirm the same public file pin with doctor. The legacy hidden `connect --replace` flow handles pasted URLs. Treat permission/history warnings as owner review tasks; retain historical metadata without printing old keys or rewriting history automatically.

@@ -103,3 +103,7 @@ Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to 
 ## Still to make easier (see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md))
 - A short illustrated version with a screenshot of each browser step.
 - A shared Penpot for a team, so designers need no setup.
+
+## Rotate or move a personal key
+
+Follow [private credential storage and rotation](credentials.md). Use the provider UI and a private file/Keychain update, or the legacy hidden `connect --replace` prompt. Reconnect the intended editor and confirm the public file pin with doctor. The assistant should never receive either key value.

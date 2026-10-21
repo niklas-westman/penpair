@@ -91,7 +91,7 @@ describe("the key file", () => {
     const root = await folder();
     const runner = (code: number): Runner => ({ run: async () => ({ code, stdout: "", stderr: "" }) });
     expect(await keyFileCheck(root, runner(0))).toBeUndefined();
-    await writeFile(path.join(root, ".env.local"), "x\n");
+    await writeFile(path.join(root, ".env.local"), "x\n", { mode: 0o600 });
     expect(await keyFileCheck(root, runner(0))).toMatchObject({ ok: true });
     expect(await keyFileCheck(root, runner(1))).toMatchObject({ ok: false, remedy: expect.stringContaining(".gitignore") });
     expect(await keyFileCheck(root, runner(128))).toMatchObject({ ok: true, detail: expect.stringContaining("not a git repository") });
@@ -126,6 +126,15 @@ describe("connecting a project", () => {
     expect(asked).toHaveLength(1);
     expect(await readFile(path.join(root, ".env.local"), "utf8")).toContain(KEY);
     expect(said.join("\n")).not.toContain(KEY);
+  });
+
+  it("uses a private reference without duplicating it into the legacy env file", async () => {
+    const root = await folder(); await writeFile(path.join(root, "credential"), hostedUrl, { mode: 0o600 });
+    const configured = validateProjectConfig({ ...hosted, connection: { credential: { type: "file", path: "credential" } } });
+    const { io, asked, said } = fakeIo(editor);
+    expect(await connectProject(root, configured, io, { environment: {} })).toMatchObject({ keyWritten: false, file: "Brand" });
+    expect(asked).toEqual([]); expect(said.join(" ")).not.toContain(KEY);
+    await expect(readFile(path.join(root, ".env.local"))).rejects.toThrow();
   });
 
   it("refuses a key for another Penpot and writes nothing", async () => {

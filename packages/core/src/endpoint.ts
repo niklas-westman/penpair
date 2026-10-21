@@ -1,9 +1,10 @@
+import { readCredential, type CredentialReference } from "./credentials.js";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PenpairError } from "./errors.js";
 
-export type EndpointSource = "env" | "env-file" | "codex-config" | "claude-config";
+export type EndpointSource = "credential-file" | "keychain" | "env" | "env-file" | "codex-config" | "claude-config";
 
 // What a report may say about the connection. The URL itself carries the user's MCP key and is never persisted.
 export interface EndpointDescription {
@@ -31,6 +32,8 @@ export interface ResolveOptions {
   serverName?: string;
   /** Long-lived project tools may disable unrelated global client configuration fallback. */
   globalConfig?: boolean;
+  credential?: CredentialReference;
+  credentialRoot?: string;
 }
 
 function describe(url: string, source: EndpointSource): Endpoint {
@@ -45,10 +48,11 @@ function describe(url: string, source: EndpointSource): Endpoint {
   return { url, description: { source, origin: parsed.origin, pathname: parsed.pathname } };
 }
 
-async function readOptional(file: string): Promise<string | undefined> {
+async function readOptional(file: string, strict = false): Promise<string | undefined> {
   try {
     return await readFile(file, "utf8");
-  } catch {
+  } catch (error) {
+    if (strict && (error as NodeJS.ErrnoException).code !== "ENOENT") throw new PenpairError("endpoint-unconfigured", "Project connection source cannot be read; repair its storage before resolving credentials");
     // An unreadable file is treated as absent; the error would otherwise expose a local path layout.
     return undefined;
   }
@@ -118,12 +122,23 @@ export async function resolveEndpoint(options: ResolveOptions = {}): Promise<End
   const envFiles = options.envFiles ?? (environment === process.env ? [path.join(process.cwd(), ".env.local")] : []);
   const serverName = options.serverName ?? "penpot";
 
+  if (options.credential) return describe(await readCredential(options.credential, { root: options.credentialRoot ?? process.cwd() }), options.credential.type === "file" ? "credential-file" : "keychain");
+  const providerFile = environment.PENPAIR_MCP_URL_FILE?.trim();
+  if (providerFile) return describe(await readCredential({ type: "file", path: providerFile }, { root: options.credentialRoot ?? process.cwd() }), "credential-file");
+  if (environment.PENPAIR_MCP_URL_COMMAND?.trim()) throw new PenpairError("endpoint-invalid", "Arbitrary credential commands are not enabled; use a private file or OS credential reference");
+  // Explicit file references outrank legacy URL/global sources and fail closed when unreadable.
+  for (const file of envFiles) {
+    const text = await readOptional(file, true); if (text === undefined) continue;
+    const provider = parseEnvFileValue(text, "PENPAIR_MCP_URL_FILE");
+    if (provider) return describe(await readCredential({ type: "file", path: provider }, { root: path.dirname(file) }), "credential-file");
+    if (parseEnvFileValue(text, "PENPAIR_MCP_URL_COMMAND")) throw new PenpairError("endpoint-invalid", "Arbitrary credential commands are not enabled; use a private file or OS credential reference");
+  }
   for (const name of names) {
     const explicit = environment[name]?.trim();
     if (explicit) return describe(explicit, "env");
   }
   for (const file of envFiles) {
-    const text = await readOptional(file);
+    const text = await readOptional(file, true);
     if (text === undefined) continue;
     for (const name of names) {
       const fromFile = parseEnvFileValue(text, name);

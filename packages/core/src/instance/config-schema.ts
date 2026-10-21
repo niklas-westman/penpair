@@ -11,6 +11,10 @@ export const projectConfigSchema = {
   required: ["instance"],
   properties: {
     schemaVersion: { const: 1 },
+    connection: { type: "object", additionalProperties: false, required: ["credential"], properties: { credential: { oneOf: [
+      { type: "object", additionalProperties: false, required: ["type", "path"], properties: { type: { const: "file" }, path: { type: "string", minLength: 1 } } },
+      { type: "object", additionalProperties: false, required: ["type", "service", "account"], properties: { type: { const: "keychain" }, service: { type: "string", minLength: 1 }, account: { type: "string", minLength: 1 } } },
+    ] } } },
     audit: { type: "object", additionalProperties: false, properties: {
       contrast: { type: "boolean" }, library: { type: "boolean" }, touchTargets: { type: "boolean" }, names: { type: "boolean" }, blankText: { type: "boolean" },
       interactiveIds: { type: "array", maxItems: 1000, items: { type: "string" } }, allowBlank: { type: "array", maxItems: 1000, items: { type: "string" } }, nameSegments: { type: "integer", minimum: 1, maximum: 10 },
