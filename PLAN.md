@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Phase 1: the core Tradient needs to start.** Next: a registry projects add their own snippets to, the token-set write operations, and the `.penpot` round trip; then Phase 2, Tradient adopts it.
+- [ ] **Phase 1 safety: A1 — guard the connected file.** I1 (invalid configuration stops guarded commands) is built and verified. Next: pin the project's file ID and check it before mutations; then continue the prioritized improvement checklist.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **I1 — invalid configuration stops guarded commands** (2026-10-21): shared validated readers distinguish missing, unreadable, malformed and invalid config; errors stop endpoint discovery and extension imports. Offline `config check [--json]`, editor schema, and explicit config-free inspection with `--standalone`. Verified with 31 new regression tests, `pnpm check` (273 tests total), and `pnpm smoke:package`.
 - [x] Neutrality test (in place from the first commit)
 - [x] Connection and endpoint resolution (shell, env file, agent configuration), with redaction
 - [x] `probe` (CLI `penpair probe`; checked live against the local Penpot, same result as Sourcer's baseline)
@@ -84,6 +85,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-21: completed improvement I1. Invalid/unreadable project config can no longer silently disable the instance guard; setup/init only create genuinely absent config. Added offline config validation/schema and explicit standalone inspection; docs and shipped design skill updated. `pnpm check` and `pnpm smoke:package` pass. Next: A1, connected-file identity.
 - 2026-10-20: `penpair-setup-guide` skill in `skills/` for Claude Code, Codex and Copilot; the README starts with it, folds "Add to your repo" into the quick start, and drops stale version numbers.
 - 2026-10-20: 0.1.2 prepared with all five packages (including `@penpair/marwes-ui`); published by the owner with `pnpm release --publish --except penpair`.
 - 2026-10-20: first live push of the Marwes tokens (271 tokens, hosted Penpot 2.18.4) into a Tradient file worked; the read-back check wrongly flagged font families (Penpot stores them as lists). Fixed with the skills-folder fix in 0.1.3.

@@ -15,7 +15,8 @@ import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } fr
 import { runSnippet } from "./snippet.js";
 import { audit, pages, tokensDump, tree } from "./snippets/read.js";
 import { diffEffective, effectiveValues, type TokenDump } from "./tokens-diff.js";
-import { ConfigError, isExternal, loadConfig, requireLocal } from "./instance/config.js";
+import { ConfigError, isExternal, loadConfig, loadOptionalConfig, requireLocal } from "./instance/config.js";
+import { projectConfigSchema } from "./instance/config-schema.js";
 import { init } from "./instance/init.js";
 import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
 import { hostedOrigin, setup, type SetupWhere } from "./instance/setup.js";
@@ -33,6 +34,9 @@ Start here (guided, plain language; safe to run again):
 @@SETUP@@  penpair connect [--replace]                          only the connection: takes your personal key without showing it, waits for the editor
                                                        (a pipe works too: pbpaste | penpair connect)
 Read-only:
+  penpair config check [--json]                        validate project configuration offline, without loading extensions
+  penpair config schema                               print its JSON Schema (also works while fixing invalid config)
+  (without a project config, built-in inspection requires --standalone; writes require a project)
   penpair probe                                        what the connected Penpot and its MCP offer, and the limits
   penpair probe --deep --write                         also tries layout, tokens, components, swap, clone and export on a temporary
                                                        board it removes again (it touches the open file, so --write is required)
@@ -111,6 +115,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       gitignore: { type: "boolean" },
       yes: { type: "boolean" },
       "any-instance": { type: "boolean" },
+      standalone: { type: "boolean" },
       web: { type: "boolean" },
       docker: { type: "boolean" },
       replace: { type: "boolean" },
@@ -147,6 +152,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
   const root = process.cwd();
   const log = (message: string): void => console.error(`… ${message}`);
+  if (values.standalone) {
+    const inspection = ["pages", "tree", "audit", "export"].includes(command!) || (command === "probe" && !values.deep) || (command === "tokens" && rest[0] === "dump");
+    if (await loadOptionalConfig(root) || !inspection || values.apply || values.write)
+      throw new ConfigError("--standalone is only for built-in inspection commands in a folder without penpair.config.json. It cannot bypass a project or run writes/snippets.");
+  }
 
   /** What `doctor` needs to look for the editor and plugin, or nothing when no endpoint is set yet. */
   async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string }> } | undefined> {
@@ -171,12 +181,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
 
   async function registryFor(): Promise<{ registry: SnippetRegistry; problems: string[]; files: string[] }> {
     const registry = builtInRegistry();
-    let snippets: string[] | undefined;
-    try {
-      snippets = (await loadConfig(root)).snippets;
-    } catch {
-      // not a penpair project: only the built-in snippets
-    }
+    const snippets = (await loadOptionalConfig(root))?.snippets;
     const report = await loadProjectSnippets(root, snippets, registry);
     return { registry, problems: report.problems, files: report.files };
   }
@@ -340,17 +345,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
   }
 
+  const projectConfig = values.standalone ? await loadOptionalConfig(root) : await loadConfig(root);
+  if (values.standalone && projectConfig) throw new ConfigError("--standalone cannot bypass a project configuration.");
   const endpoint = await resolveEndpoint();
-  // In a project with an instance, act only on that instance unless told otherwise.
-  if (!values["any-instance"]) {
-    let projectConfig;
-    try {
-      projectConfig = await loadConfig(root);
-    } catch {
-      // not a penpair project: any endpoint will do
-    }
-    if (projectConfig) assertEndpointIsInstance(endpoint.description, projectConfig);
-  }
+  if (projectConfig && !values["any-instance"]) assertEndpointIsInstance(endpoint.description, projectConfig);
   if (command === "probe") {
     if (values.deep && !values.write) throw new Error("probe --deep creates a temporary board, a token set and two components in the open file and removes them again. Run it on a scratch file, with --write to confirm.");
     console.log(JSON.stringify(await probe(endpoint, () => connect(endpoint)), null, 2));
@@ -468,6 +466,23 @@ async function runAdapterCommand(command: Adapter["commands"][number], root: str
 export async function runCli(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = process.cwd();
+    if (argv[0] === "config") {
+      if (argv[1] === "schema" && argv.length === 2) {
+        console.log(JSON.stringify(projectConfigSchema, null, 2));
+        return 0;
+      }
+      if (argv[1] !== "check" || argv.slice(2).some((arg) => arg !== "--json"))
+        throw new ConfigError("usage: penpair config check [--json] | penpair config schema");
+      try {
+        await loadConfig(root);
+      } catch (error) {
+        if (!argv.includes("--json") || !(error instanceof ConfigError)) throw error;
+        console.log(JSON.stringify({ valid: false, file: "penpair.config.json", error: { code: error.code, message: error.message } }));
+        return 1;
+      }
+      console.log(argv.includes("--json") ? JSON.stringify({ valid: true, file: "penpair.config.json" }) : "ok   penpair.config.json is valid (extension settings are validated by their adapters)");
+      return 0;
+    }
     const raw = await readRawConfig(root);
     const specifiers = Array.isArray(raw.adapters) ? raw.adapters.filter((entry): entry is string => typeof entry === "string") : [];
     const loaded = options.adapters ? { adapters: options.adapters, problems: [] as string[] } : specifiers.length > 0 ? await loadAdapters(root, specifiers) : { adapters: [] as Adapter[], problems: [] as string[] };

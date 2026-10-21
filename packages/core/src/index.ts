@@ -19,6 +19,7 @@ export * from "./snippets/archive.js";
 export * from "./snippets/read.js";
 export * from "./tokens-diff.js";
 export * from "./instance/config.js";
+export { projectConfigSchema } from "./instance/config-schema.js";
 export * from "./instance/connection.js";
 export * from "./instance/gitignore.js";
 export { defaultInstanceName, init } from "./instance/init.js";

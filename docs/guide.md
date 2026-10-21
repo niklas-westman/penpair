@@ -19,6 +19,16 @@ The contract an adopting project works through. It grows with the code; each sec
 - Writing a library adapter
 - What breaks when Penpot is upgraded
 
+## Configuration checks and standalone inspection
+
+`penpair config check` validates `penpair.config.json` offline before loading any adapter or project snippet. `--json` returns `{ "valid": true, "file": "penpair.config.json" }`, or `valid: false` with an error code and message (exit 1). Missing, unreadable, malformed JSON and invalid core settings are reported separately. Adapter-owned blocks are preserved; each adapter validates its own settings when used.
+
+Print the editor schema with `penpair config schema > penpair.schema.json`, then add `"$schema": "./penpair.schema.json"` to your config. The schema command works even while the project config is broken and executes no project extensions. It is also exported as `projectConfigSchema` from the library. `config check` additionally checks semantic constraints such as distinct ports and unique baseline IDs.
+
+An existing invalid config stops project commands before endpoint discovery or extension imports. Fix the named field or file permissions and rerun `config check`; `--any-instance` cannot bypass invalid configuration. Setup and init create a config only when it is genuinely absent, never when an existing file is unreadable or invalid.
+
+For inspection from a folder with **no** config, explicitly use `--standalone`, for example `penpair pages --standalone`. Supported commands: `pages`, `tree`, `audit`, `tokens dump`, `export`, and the ordinary read-only `probe`. Endpoint resolution then uses the usual environment, `.env.local`, or agent configuration, so check the endpoint source in the probe. Export may save a local image, and page-scoped reads may switch the editor page. Standalone mode cannot bypass an existing config, run registered snippets, or perform document writes (including `probe --deep --write`). Write commands require a project configured with `penpair setup` or `penpair init`.
+
 ## Instances
 One Penpot per project, configured in `penpair.config.json` (no secrets, commit it):
 

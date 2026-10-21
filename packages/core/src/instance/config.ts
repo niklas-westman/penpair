@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { validateBaselines, type BaselinesConfig } from "../baselines-config.js";
 
@@ -37,7 +37,11 @@ export const isExternal = (config: ProjectConfig): config is ExternalConfig => "
 export const configFileName = "penpair.config.json";
 export const testedPenpotVersion = "2.18.3";
 
-export class ConfigError extends Error {}
+export class ConfigError extends Error {
+  constructor(message: string, readonly code: "missing" | "unreadable" | "invalid-json" | "invalid-config" = "invalid-config") {
+    super(message);
+  }
+}
 
 export function composeProjectOf(config: InstanceConfig): string {
   return config.composeProject ?? `penpair-${config.instance}`;
@@ -47,7 +51,7 @@ export function validateConfig(value: unknown): InstanceConfig {
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };
-  if (typeof value !== "object" || value === null) return fail("must be a JSON object");
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return fail("must be a JSON object");
   const v = value as Record<string, unknown>;
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance))
     fail("instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)");
@@ -74,7 +78,9 @@ const instanceNamePattern = /^[a-z][a-z0-9-]{0,30}$/;
 /** Accepts either kind of project config: a local Docker instance or an external Penpot. */
 export function validateProjectConfig(value: unknown): ProjectConfig {
   const profile = typeof value === "object" && value !== null ? (value as { profile?: { type?: unknown } }).profile : undefined;
-  if (profile?.type !== "external") return validateConfig(value);
+  if (profile === undefined) return validateConfig(value);
+  if (typeof profile !== "object" || profile === null || Array.isArray(profile) || profile.type !== "external")
+    throw new ConfigError(`${configFileName}: profile.type must be external; omit profile for an instance on this computer`);
   const v = value as Record<string, unknown>;
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
@@ -101,19 +107,41 @@ export function requireLocal(config: ProjectConfig): InstanceConfig {
   return config;
 }
 
-export async function loadConfig(root: string): Promise<ProjectConfig> {
+/** Missing is optional; unreadable, malformed or invalid project files always stop the caller. */
+export async function readProjectConfig(root: string): Promise<Record<string, unknown> | undefined> {
   let text: string;
   try {
     text = await readFile(path.join(root, configFileName), "utf8");
-  } catch {
-    throw new ConfigError(`No ${configFileName} here. Run \`penpair init\` first.`);
-  }
-  try {
-    return validateProjectConfig(JSON.parse(text));
   } catch (error) {
-    if (error instanceof ConfigError) throw error;
-    throw new ConfigError(`${configFileName} is not valid JSON`);
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      try {
+        await lstat(path.join(root, configFileName));
+      } catch (statError) {
+        if ((statError as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      }
+    }
+    throw new ConfigError(`Cannot read ${configFileName}${code ? ` (${code})` : ""}. Check that it is a readable file and fix its permissions.`, "unreadable");
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new ConfigError(`${configFileName} is not valid JSON. Fix its JSON syntax, then run \`penpair config check\`.`, "invalid-json");
+  }
+  validateProjectConfig(parsed);
+  return parsed as Record<string, unknown>;
+}
+
+export async function loadOptionalConfig(root: string): Promise<ProjectConfig | undefined> {
+  const raw = await readProjectConfig(root);
+  return raw === undefined ? undefined : validateProjectConfig(raw);
+}
+
+export async function loadConfig(root: string): Promise<ProjectConfig> {
+  const config = await loadOptionalConfig(root);
+  if (config === undefined) throw new ConfigError(`No ${configFileName} here. Run \`penpair init\` first. For config-free inspection, use a read command with --standalone.`, "missing");
+  return config;
 }
 
 export const instancePaths = (root: string, config: InstanceConfig) => {

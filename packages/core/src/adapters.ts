@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { PenpotToolClient } from "./client.js";
-import { configFileName, type ProjectConfig } from "./instance/config.js";
+import { readProjectConfig, type ProjectConfig } from "./instance/config.js";
 
 /**
  * An adapter is a package that teaches penpair about one library or tool (a component library's tokens, a checker) by adding
@@ -47,7 +46,7 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
   "probe", "pages", "tree", "audit", "tokens", "export", "archive", "snippets", "run", "skills", "init", "setup", "connect",
-  "up", "down", "status", "doctor", "backup", "restore", "baselines",
+  "up", "down", "status", "doctor", "backup", "restore", "baselines", "config",
 ] as const;
 
 export interface LoadedAdapters {
@@ -106,12 +105,7 @@ export async function loadAdapters(root: string, specifiers: string[] | undefine
 
 /** The whole penpair.config.json as written (an adapter's own settings live in it). Empty when there is no file. */
 export async function readRawConfig(root: string): Promise<Record<string, unknown>> {
-  try {
-    const parsed: unknown = JSON.parse(await readFile(path.join(root, configFileName), "utf8"));
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
+  return await readProjectConfig(root) ?? {};
 }
 
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Invalid project configuration stops commands before connecting or loading extensions.** Missing files are distinguished from unreadable files, malformed JSON and invalid settings. `penpair config check [--json]` validates core settings offline, and `penpair config schema` prints editor hints. Config-free built-in inspection now requires `--standalone`; it cannot bypass a configured project or run document writes/snippets. Setup/init only create a config when the file is genuinely absent.
 - **`penpair-setup-guide`**, a skill for Claude Code, Codex and GitHub Copilot that walks a person from nothing to a first design: Node check, web or Docker, a Penpot account, where the MCP link goes (never through the chat), the plugin, `doctor`, the optional Marwes adapter, the agent rules and a test POC on its own page. It lives in `skills/` in the repository; an assistant can read it by URL or it can be copied into a project. The README now starts with it. It works from the file alone (package map, commands, raw links), and `references/poc-snippet.mjs` is a starting snippet for the first POC.
 - **`penpair init --external` now names the browser steps before `connect`**, since `connect` waits for the plugin; it used to say only `next: penpair connect`.
 

@@ -24,6 +24,7 @@ Penpot is the authority for the design; the code adapts to the frames. The proje
 
 | What | How |
 | --- | --- |
+| Validate project settings offline | `penpair config check [--json]`; `penpair config schema` prints editor hints without loading project extensions |
 | Is everything up | `penpair doctor` |
 | What can this Penpot do | `penpair probe`; `penpair probe --deep --write` on a scratch file |
 | Read | `penpair pages`, `tree --page <name>`, `audit --page <name> --prefix <frames>`, `tokens dump` |
@@ -43,6 +44,8 @@ Penpot is the authority for the design; the code adapts to the frames. The proje
 6. **Approval**: show the owner the changed frames. Record an approval only on the owner's explicit words, with those words kept.
 
 ## Rules that decide most cases
+
+- Fix invalid project configuration before connecting: commands refuse unreadable, malformed or invalid config, including with `--any-instance`. Config-free built-in inspection requires `--standalone` in a folder without a config; writes and registered snippets require a project.
 
 - Every gap and padding is a spacing token; the layout stack carries the spacing, items carry none.
 - One primary action per screen; a banner action is the secondary button.
