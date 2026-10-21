@@ -12,7 +12,7 @@ Repository: this checkout (GitHub `niklas-westman/penpair`, branch `main`, MIT).
 
 Last updated: **2026-10-21**. Completed: **23 / 40**. In progress: **none**. Blocked: **G3 live restore proof and D3 snapshot dependency**.
 
-**Now: I12 — prepare and run measured human onboarding/collaboration trials** Queued. Work remains on `codex/penpair-improvements` for review before merging.
+**Now: C1 — prepare measured component pilot and drift checks** In progress. I12 human/live trials remain pending by owner instruction. Work remains on `codex/penpair-improvements` for review before merging.
 
 Use [the prioritized checkboxes](#3-prioritized-delivery-checklist--codex-revision) to track delivery. The proposal sections hold scope and acceptance criteria; [section 6](#6-assessment-of-claudes-brief-and-corrections-to-its-proposals) corrects the original proposals. Record finished work under [Completion reports](#completion-reports).
 
@@ -587,6 +587,7 @@ This replaces the original "order for the day". Order is by risk, dependencies a
 - [x] **B2 · P1 · L** — Ship a small neutral helper slice, then expand from demonstrated recipes. Completed 2026-10-21; [resolution report](#b2-completion-2026-10-21).
 - [x] **I9 · P1 · M** — Cover explicit responsive/theme/state cases with deterministic captures. Completed 2026-10-21; [resolution report](#i9-completion-2026-10-21).
 - [x] **H1 · P1 · S** — Present the scoped consumer follow-ups for owner authorization; perform no cross-repo edits here. Completed 2026-10-21; [resolution report](#h1-completion-2026-10-21).
+- [x] I12 preparation: controlled examples, offline recovery/contention fixtures and `docs/trials.md`; actual human trials remain unchecked below.
 - [ ] **I12 · P1 · M** — Complete measured human onboarding and collaboration trials; publish findings.
 
 ### Gate 4 — expand only where the pilot demonstrates value
@@ -972,3 +973,11 @@ Append reports here in completion order; each checked item links to its report.
 - **2026-10-21 — I9 completed:** Explicit state, theme and responsive coverage. Progress 22/40; next H1 — scoped consumer follow-up proposal without cross-repository edits.
 
 - **2026-10-21 — H1 completed:** Scoped Tradient follow-up proposal. Progress 23/40; next I12 — prepare and run measured human onboarding/collaboration trials.
+
+### I12 preparation — 2026-10-21 (human acceptance pending)
+
+- **Resolved:** Trial execution now has a repeatable runbook and explicit evidence template.
+- **Changed:** Added benign wrong-file, controlled writer-contention and post-write recovery examples; unique ownership markers refuse unexplained existing objects.
+- **Validated:** Offline actual-snippet tests cover contention and explicit recovery without duplicate objects; `pnpm check` passes (516 tests).
+- **Risks:** No human results, live server exclusion, visual review or route adoption observed. Owner requested finishing branch code with live trials pending. I12 remains unchecked; progress stays 23/40.
+- **Next:** C1 local component pilot tooling; native override proof and human adoption remain acceptance gates.
