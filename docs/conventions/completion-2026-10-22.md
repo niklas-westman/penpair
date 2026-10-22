@@ -56,3 +56,18 @@ and captured fixtures retain the handling described in the [conventions index](R
 This update does not constitute new live Penpot or browser acceptance. The
 [existing pending acceptance](../plans/tradient-feedback-review.md#remaining-acceptance)
 stays open.
+
+## Vertical spacing correction
+
+- [x] Separate declarations and individual steps in the component pilot module.
+- [x] Clarify that Biome retains author-supplied blank lines but does not insert
+  the separation required by the conventions.
+
+Resolved: `packages/marwes-ui/src/components.ts` passed Biome while remaining
+visually dense. The file now has blank lines between its contracts, functions,
+guards and work steps. The diff contains only added blank lines, and Biome keeps
+them. `pnpm check:style` and all three existing component tests pass. No behavior
+changed; the full suite was not rerun for this whitespace-only follow-up.
+
+Automatic vertical-spacing enforcement remains outside the current Biome checks;
+the conventions and code review require it explicitly.

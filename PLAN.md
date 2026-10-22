@@ -24,6 +24,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Link conventions and a repository coding skill from `AGENTS.md`.
 - [x] Split the comparison adapter by responsibility without changing public imports or approval rules.
 - [x] Verify checks, templates and package installs; record results and remaining limits.
+- [x] Correct missing declaration/step spacing in the component pilot and document what Biome does not enforce.
 
 Resolved: consistent source layout, discoverable naming/placement rules, executable examples and a focused comparison adapter. Verification: 640 package tests + 3 convention tests, all six package smoke installs, public import/declaration checks and strict comparison-test typechecking pass. [Per-update completion report and limits](docs/conventions/completion-2026-10-22.md).
 
@@ -237,3 +238,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: readability baseline pins Biome 2.6.2 and formats supported source/configuration files. An AST comparison found no syntax changes beyond formatting, braces and separate declarations across 199 JavaScript/TypeScript files; full checks pass (630 tests). Convention docs, enforcement and the adapter split are in progress.
 
 - 2026-10-22: completed repository readability: Biome 2.6.2, formatting/path/example checks in CI, checked conventions, AGENTS routing and a local coding skill. Comparison planning, capture/provider validation, PNG I/O and command handling now have focused modules with compatible public imports. Full checks pass (640 package + 3 convention tests), strict comparison-test typing and all six package smoke installs pass; per-update results/limits are in `docs/conventions/completion-2026-10-22.md`. Owner/live acceptance remains Now.
+
+- 2026-10-22: corrected vertical spacing in the component pilot after owner review exposed a gap in the mechanical formatting pass. Biome retains these blank lines but does not create declaration/logical-step separation automatically; conventions now state that explicitly. Style/path checks, all 3 component tests and an added-blank-lines-only diff check pass. See the readability report's vertical-spacing correction.

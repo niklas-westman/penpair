@@ -5,6 +5,13 @@ Separate top-level declarations and distinct steps inside a function with blank
 lines. Use braces for every branch and loop, and declare one variable at a time.
 Prefer early exits that leave the main path easy to follow.
 
+Biome preserves these blank lines but does not insert them between declarations
+or logical steps. Add them while writing/reviewing code, before running the
+formatter. A passing style check alone does not prove that vertical spacing follows
+this convention. Separate each top-level declaration (including interfaces and
+type aliases), and separate input preparation, guard clauses, work and returns
+inside a function. Keep a documentation comment attached to its declaration.
+
 ## Names carry intent
 
 - Files and folders: `capture-validation.ts`, `page-session/`. Keep conventional

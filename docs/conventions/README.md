@@ -36,6 +36,10 @@ files. Both run in CI through `pnpm check`. Human/agent review still checks whet
 names describe intent and whether responsibilities should be split. A formatter
 cannot judge those decisions.
 
+Vertical spacing is also an author/review responsibility: Biome keeps intentional
+blank lines, but does not add separation between declarations or logical steps.
+Follow [TypeScript spacing guidance](typescript.md) even when `check:style` passes.
+
 The [repository skill](../../.agents/skills/penpair-code-conventions/SKILL.md)
 applies this workflow to implementation and refactoring work. It develops Penpair
 itself; the separately shipped `packages/core/skills/` teach consumers how to use

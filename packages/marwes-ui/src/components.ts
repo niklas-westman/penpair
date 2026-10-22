@@ -32,6 +32,7 @@ export const componentProperties = [
   "lineHeight",
   "boxShadow",
 ] as const;
+
 export interface ComponentCase {
   id: string;
   component: "Button" | "Card" | "StatTile";
@@ -43,6 +44,7 @@ export interface ComponentCase {
   };
   selector: string;
 }
+
 export interface ComponentPilot {
   schemaVersion: 1;
   renderer: string;
@@ -50,6 +52,7 @@ export interface ComponentPilot {
   snapshot: string;
   cases: ComponentCase[];
 }
+
 export interface ComponentMeasurement {
   id: string;
   /** All declared anatomy selectors must be observed; null properties are explicit unknowns. */
@@ -59,6 +62,7 @@ export interface ComponentMeasurement {
     fontsReady: boolean;
   };
 }
+
 export interface ComponentSnapshot {
   schemaVersion: 1;
   kind: "component-pilot";
@@ -73,14 +77,19 @@ export interface ComponentSnapshot {
   >;
   nativeLibrary: "gated-on-instance-override-proof";
 }
+
 export type ComponentRenderer = (cases: ComponentCase[]) => Promise<unknown>;
+
 const digest = (v: unknown): string => createHash("sha256").update(canonical(v)).digest("hex");
+
 const text = (v: unknown, label: string, max = 500): string => {
   if (typeof v !== "string" || !v.trim() || v.length > max || /[\x00-\x1f]/.test(v)) {
     throw new Error(`Invalid component ${label}`);
   }
+
   return v;
 };
+
 export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot {
   const value = (
     raw.marwes as
@@ -89,12 +98,15 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
         }
       | undefined
   )?.components;
+
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(
       "Configure marwes.components with a trusted renderer, sources and explicit pilot cases",
     );
   }
+
   const v = value as ComponentPilot;
+
   if (
     v.schemaVersion !== 1 ||
     !Array.isArray(v.sources) ||
@@ -106,7 +118,9 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
   ) {
     throw new Error("Invalid schema-1 component pilot (max 100 sources, 60 cases)");
   }
+
   const ids = new Set<string>();
+
   const cases = v.cases.map((c) => {
     if (
       !c ||
@@ -122,11 +136,15 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
     ) {
       throw new Error("Pilot supports Button/Card/StatTile and explicit light/dark themes");
     }
+
     const id = text(c.id, "case id");
+
     if (ids.has(id)) {
       throw new Error("Duplicate component case id");
     }
+
     ids.add(id);
+
     if (
       ![
         c.viewport?.width,
@@ -135,6 +153,7 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
     ) {
       throw new Error("Invalid component viewport");
     }
+
     return {
       id,
       component: c.component,
@@ -146,6 +165,7 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
       selector: text(c.selector, "selector"),
     };
   });
+
   for (const component of [
     "Button",
     "Card",
@@ -160,6 +180,7 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
       }
     }
   }
+
   return {
     schemaVersion: 1,
     renderer: text(v.renderer, "renderer"),
@@ -168,13 +189,17 @@ export function readComponentPilot(raw: Record<string, unknown>): ComponentPilot
     cases,
   };
 }
+
 async function boundedRead(root: string, relative: string): Promise<string> {
   const file = await resolveProjectInput(root, relative);
+
   if ((await stat(file)).size > 4 * 1024 * 1024) {
     throw new Error("Component input exceeds 4 MiB");
   }
+
   return readFile(file, "utf8");
 }
+
 /** Hash declared source bytes as well as effective tokens: comments and non-token anatomy changes invalidate cheap CI checks. */
 export async function componentSourceHash(
   root: string,
@@ -187,12 +212,14 @@ export async function componentSourceHash(
       ...pilot.sources,
     ]),
   ].sort();
+
   const sources = await Promise.all(
     files.map(async (file) => [
       file,
       digest(await boundedRead(root, file)),
     ]),
   );
+
   return digest({
     pilot,
     sources,
@@ -200,8 +227,10 @@ export async function componentSourceHash(
     version: tokens.marwesVersion,
   });
 }
+
 function validateMeasurement(raw: unknown, id: string): ComponentMeasurement {
   const v = raw as ComponentMeasurement;
+
   if (
     !v ||
     v.id !== id ||
@@ -215,9 +244,12 @@ function validateMeasurement(raw: unknown, id: string): ComponentMeasurement {
   ) {
     throw new Error(`Incomplete component measurement: ${id}`);
   }
+
   const parts: ComponentMeasurement["parts"] = Object.create(null);
+
   for (const [name, fields] of Object.entries(v.parts)) {
     text(name, "part", 100);
+
     if (
       !fields ||
       typeof fields !== "object" ||
@@ -228,12 +260,15 @@ function validateMeasurement(raw: unknown, id: string): ComponentMeasurement {
     ) {
       throw new Error("Invalid measured anatomy properties");
     }
+
     parts[name] = Object.fromEntries(
       componentProperties.map((key) => {
         const value = fields[key];
+
         if (value !== null && (typeof value !== "string" || value.length > 2000)) {
           throw new Error(`Missing/invalid ${id}/${name}/${key}; use null for unknown`);
         }
+
         return [
           key,
           value,
@@ -241,6 +276,7 @@ function validateMeasurement(raw: unknown, id: string): ComponentMeasurement {
       }),
     );
   }
+
   return {
     id,
     parts,
@@ -250,6 +286,7 @@ function validateMeasurement(raw: unknown, id: string): ComponentMeasurement {
     },
   };
 }
+
 /** Exact value candidates are evidence of equality only. Even one candidate is not a semantic binding. */
 export function componentTokenCandidates(
   fields: Record<string, string | null>,
@@ -257,9 +294,11 @@ export function componentTokenCandidates(
   mode: "light" | "dark",
 ): Record<string, string[]> {
   const selected = tokens.themes.find((t) => t.group === "Mode" && t.name.toLowerCase() === mode);
+
   if (!selected) {
     return {};
   }
+
   const effective = new Map<
     string,
     {
@@ -268,6 +307,7 @@ export function componentTokenCandidates(
       type: string;
     }
   >();
+
   for (const setName of selected.sets) {
     for (const token of tokens.sets.find((s) => s.name === setName)?.tokens ?? []) {
       effective.set(token.name, {
@@ -277,17 +317,22 @@ export function componentTokenCandidates(
       });
     }
   }
+
   const result: Record<string, string[]> = Object.create(null);
+
   for (const [property, raw] of Object.entries(fields)) {
     if (raw === null) {
       result[property] = [];
+
       continue;
     }
+
     const color = [
       "color",
       "borderColor",
       "backgroundColor",
     ].includes(property);
+
     const types = color
       ? [
           "color",
@@ -311,6 +356,7 @@ export function componentTokenCandidates(
                 "dimension",
               ]
             : [];
+
     const normalize = (value: string): string => {
       try {
         return color ? toHexColor(value).toLowerCase() : value.replace(/^(-?[\d.]+)px$/, "$1");
@@ -318,6 +364,7 @@ export function componentTokenCandidates(
         return value;
       }
     };
+
     result[property] = [
       ...effective,
     ]
@@ -330,8 +377,10 @@ export function componentTokenCandidates(
       .map(([name, t]) => `${t.set}/${name}`)
       .sort();
   }
+
   return result;
 }
+
 export async function measureComponentPilot(
   pilot: ComponentPilot,
   tokens: TokenSnapshot,
@@ -339,6 +388,7 @@ export async function measureComponentPilot(
   renderer: ComponentRenderer,
 ): Promise<ComponentSnapshot> {
   const raw = await renderer(structuredClone(pilot.cases));
+
   if (
     !Array.isArray(raw) ||
     raw.length !== pilot.cases.length ||
@@ -346,17 +396,21 @@ export async function measureComponentPilot(
   ) {
     throw new Error("Renderer must return exactly one bounded observation per case");
   }
+
   const byId = new Map(
     raw.map((v) => [
       v?.id,
       v,
     ]),
   );
+
   if (byId.size !== raw.length) {
     throw new Error("Duplicate renderer case");
   }
+
   const cases = pilot.cases.map((c) => {
     const measurement = validateMeasurement(byId.get(c.id), c.id);
+
     return {
       ...c,
       measurement,
@@ -368,6 +422,7 @@ export async function measureComponentPilot(
       ),
     };
   });
+
   const body = {
     schemaVersion: 1 as const,
     kind: "component-pilot" as const,
@@ -376,13 +431,16 @@ export async function measureComponentPilot(
     cases,
     nativeLibrary: "gated-on-instance-override-proof" as const,
   };
+
   return {
     ...body,
     hash: digest(body),
   };
 }
+
 export function validateComponentSnapshot(raw: unknown): ComponentSnapshot {
   const v = raw as ComponentSnapshot;
+
   if (
     !v ||
     v.schemaVersion !== 1 ||
@@ -394,10 +452,13 @@ export function validateComponentSnapshot(raw: unknown): ComponentSnapshot {
   ) {
     throw new Error("Unsupported component snapshot");
   }
+
   const { hash, ...body } = v;
+
   if (hash !== digest(body)) {
     throw new Error("Component snapshot hash mismatch");
   }
+
   const pilot = readComponentPilot({
     marwes: {
       components: {
@@ -411,26 +472,33 @@ export function validateComponentSnapshot(raw: unknown): ComponentSnapshot {
       },
     },
   });
+
   for (const c of pilot.cases) {
     validateMeasurement(v.cases.find((m) => m.id === c.id)?.measurement, c.id);
   }
+
   return v;
 }
+
 export function diffComponentSnapshots(before: ComponentSnapshot, after: ComponentSnapshot) {
   const changes: Array<{
     id: string;
     before: unknown;
     after: unknown;
   }> = [];
+
   const ids = new Set(
     [
       ...before.cases,
       ...after.cases,
     ].map((c) => c.id),
   );
+
   for (const id of ids) {
     const a = before.cases.find((c) => c.id === id);
+
     const b = after.cases.find((c) => c.id === id);
+
     if (canonical(a ?? null) !== canonical(b ?? null)) {
       changes.push({
         id,
@@ -439,6 +507,7 @@ export function diffComponentSnapshots(before: ComponentSnapshot, after: Compone
       });
     }
   }
+
   return {
     schemaVersion: 1,
     identical: before.hash === after.hash,
@@ -448,8 +517,10 @@ export function diffComponentSnapshots(before: ComponentSnapshot, after: Compone
     instanceOverrides: "not-tested",
   };
 }
+
 export async function componentsCommand(context: AdapterContext, args: string[]): Promise<number> {
   const [sub, ...rest] = args;
+
   const { values, positionals } = parseCommandArgs({
     args: rest,
     allowPositionals: true,
@@ -465,14 +536,19 @@ export async function componentsCommand(context: AdapterContext, args: string[])
       },
     },
   });
+
   if (sub === "schema") {
     if (positionals.length || Object.keys(values).some((k) => k !== "json")) {
       throw new Error("components schema accepts only --json");
     }
+
     context.output?.result(componentSnapshotSchema);
+
     (context.output?.log ?? console.log)(JSON.stringify(componentSnapshotSchema));
+
     return 0;
   }
+
   if (
     ![
       "snapshot",
@@ -488,22 +564,29 @@ export async function componentsCommand(context: AdapterContext, args: string[])
       "Usage: marwes components snapshot [--write] | check [--measure] | diff | build",
     );
   }
+
   if (sub === "build") {
     throw new Error(
       "Native library generation is gated: first prove preserved text/style instance overrides with the pinned Penpot API in an owner-authorized scratch file. No library was generated.",
     );
   }
+
   const pilot = readComponentPilot(context.rawConfig);
+
   const expectation = await computeExpectation(
     context.root,
     context.rawConfig,
     context.config.instance,
   );
+
   if (expectation.problems.length) {
     throw new Error(expectation.problems.join("; "));
   }
+
   const sourceHash = await componentSourceHash(context.root, pilot, expectation.fresh);
+
   let prior: ComponentSnapshot | undefined;
+
   try {
     prior = validateComponentSnapshot(JSON.parse(await boundedRead(context.root, pilot.snapshot)));
   } catch (error) {
@@ -511,8 +594,10 @@ export async function componentsCommand(context: AdapterContext, args: string[])
       throw error;
     }
   }
+
   if (sub === "check" && !values.measure) {
     const current = prior?.sourceHash === sourceHash;
+
     const report = {
       schemaVersion: 1,
       current,
@@ -520,12 +605,17 @@ export async function componentsCommand(context: AdapterContext, args: string[])
       anatomyMeasured: false,
       nativeLibrary: "gated-on-instance-override-proof",
     };
+
     context.output?.result(report);
+
     (context.output?.log ?? console.log)(JSON.stringify(report));
+
     return current ? 0 : 2;
   }
+
   // Explicit component commands alone execute the project renderer. Like theme modules, this is trusted local code, not a sandbox.
   const file = await resolveProjectInput(context.root, pilot.renderer);
+
   const module = (await createJiti(file, {
     interopDefault: true,
     moduleCache: false,
@@ -537,12 +627,15 @@ export async function componentsCommand(context: AdapterContext, args: string[])
   })) as {
     measure?: ComponentRenderer;
   };
+
   if (typeof module.measure !== "function") {
     throw new Error(
       "Component renderer must export async measure(cases); install its optional browser dependency in the project",
     );
   }
+
   const fresh = await measureComponentPilot(pilot, expectation.fresh, sourceHash, module.measure);
+
   if (
     (await componentSourceHash(
       context.root,
@@ -554,6 +647,7 @@ export async function componentsCommand(context: AdapterContext, args: string[])
   ) {
     throw new Error("Component source changed during measurement");
   }
+
   const complete = fresh.cases.every(
     (c) =>
       c.measurement.environment.fontsReady &&
@@ -561,6 +655,7 @@ export async function componentsCommand(context: AdapterContext, args: string[])
         Object.values(fields).every((v) => v !== null),
       ),
   );
+
   const report = {
     schemaVersion: 1,
     complete,
@@ -569,25 +664,35 @@ export async function componentsCommand(context: AdapterContext, args: string[])
     snapshot: fresh,
     written: false,
   };
+
   if (sub === "snapshot" && values.write) {
     if (!complete) {
       throw new Error("Incomplete measurements/fonts: previous component snapshot preserved");
     }
+
     const data = JSON.stringify(fresh, null, 2) + "\n";
+
     if (context.redact && context.redact(data) !== data) {
       throw new Error("Component evidence requires redaction; snapshot not published");
     }
+
     const target = await resolveProjectOutput(context.root, pilot.snapshot);
+
     await mkdir(path.dirname(target), {
       recursive: true,
     });
+
     await atomicWriteFile(target, data, {
       replace: true,
     });
+
     report.written = true;
   }
+
   context.output?.result(report);
+
   (context.output?.log ?? console.log)(JSON.stringify(report, null, 2));
+
   return !complete ? 3 : report.written || report.current ? 0 : 2;
 }
 
