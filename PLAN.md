@@ -15,7 +15,19 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Branch review — locally eligible work complete; live and owner gates pending** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **Tradient feedback — phase 0: baseline and reproducers** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, beginning with controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
+
+## Tradient 0.2.0 feedback follow-up
+
+- [x] Read the adoption report, cross-check the findings against current code and prepare the [phased living execution guide](docs/plans/tradient-feedback-0.2.0.md) (2026-10-22). Defaults: all eight findings, reliability first, dedicated scratch-copy verification; no code implementation or live mutation yet.
+- [ ] Phase 0: capture baseline and minimal failure reproductions.
+- [ ] Phase 1 / PP-01: shared bounded layout fallback across CLI, SDK and kit.
+- [ ] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded execution readiness.
+- [ ] Phase 3 / PP-07–08: trace coordination revisions and make multi-page capture reliable; unresolved causal claims stay explicitly open.
+- [ ] Phase 4 / PP-06: installed workflow discovery and composition guidance.
+- [ ] Phase 5 / PP-05: real-browser comparison starter with independent state/capture evidence.
+- [ ] Phase 6 / PP-04: isolated projected theme previews with explicit native-capability limits.
+- [ ] Final: eight-case scratch re-trial, package validation, owner branch/release review.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -124,6 +136,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-22: prepared the Tradient 0.2.0 feedback execution guide and refreshed Now after the original improvement branch merged and 0.2.0 was published. All eight findings have phased tasks, tests, exit criteria and separate live gates; no implementation started.
 - 2026-10-22: R3 fixed the GitHub Changesets CI failure and consumed-note release-PR validation, added a main-only manual version-PR trigger and regression coverage; prepared for push to PR #1.
 - 2026-10-22: R2: added the owner-requested temporary `penpair` publishing exclusion, visible reporting and strict five-package verification; actual activation and publishing remain owner actions.
 - 2026-10-21: R1 release follow-up: added Changesets version PRs and API-gated whole-family OIDC publishing, retained recovery guards and prepared the branch PR draft. All automation stays disabled pending owner setup.
