@@ -933,7 +933,7 @@ async function runCliBound(argv: string[], options: CliOptions = {}): Promise<nu
   process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   try {
     if (invalidTimeout) {
-      const result = await collectCommand(args[0] ?? "help", async () => { throw new Error("--timeout-ms must be one integer from 1 to 1800000"); });
+      const result = await collectCommand(args[0] ?? "help", async () => { throw new Error(args[0] === "doctor" ? "doctor --timeout-ms must be one integer from 1000 to 30000" : "--timeout-ms must be one integer from 1 to 1800000"); });
       if (json) console.log(JSON.stringify(result, null, 2)); else console.error(result.errors[0]?.message);
       return result.exitCode;
     }

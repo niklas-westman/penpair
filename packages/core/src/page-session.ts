@@ -31,7 +31,12 @@ export async function withPageSession<T>(client: PenpotToolClient, work: () => P
   });
   signal?.throwIfAborted(); return await active.run({ client }, work);
  }
- finally { if (onAbort) signal?.removeEventListener("abort", onAbort); release(); if (queues.get(client) === tail) queues.delete(client); }
+ finally {
+  if (onAbort) signal?.removeEventListener("abort", onAbort);
+  release();
+  // A cancelled waiter still follows its predecessor; removing it early would open a parallel queue.
+  void tail.then(() => { if (queues.get(client) === tail) queues.delete(client); });
+ }
 }
 export function rememberPage(client: PenpotToolClient, identity: PageIdentity): void {
  const session = active.getStore();

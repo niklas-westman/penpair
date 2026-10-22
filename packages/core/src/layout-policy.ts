@@ -5,7 +5,7 @@ const observeLayout = async (penpot, root, options) => {
  const fileId = penpot.currentFile.id, pageId = penpot.currentPage.id;
  const validTarget = () => {
   if (penpot.currentFile.id !== fileId || penpot.currentPage.id !== pageId) throw new Error("Layout target changed while waiting");
-  if (root !== penpot.currentPage.root && typeof penpot.currentPage.getShapeById === "function" && !penpot.currentPage.getShapeById(root.id)) throw new Error("Layout target no longer exists");
+  if (root.id !== penpot.currentPage.root.id && typeof penpot.currentPage.getShapeById === "function" && !penpot.currentPage.getShapeById(root.id)) throw new Error("Layout target no longer exists");
  };
  if (!root) throw new Error("layout target does not exist");
  let nativeOutcome = "skipped", nativeError;
@@ -32,6 +32,7 @@ const observeLayout = async (penpot, root, options) => {
   geometry.push([shape.id, shape.x, shape.y, shape.width, shape.height, parent, index]);
   const children = shape.children || [];
   if (!Array.isArray(children)) throw new Error("Malformed layout hierarchy");
+  if (geometry.length + stack.length + children.length > (options.maxNodes || 10000)) throw new Error("Layout sample exceeded node budget");
   for (let index = children.length - 1; index >= 0; index--) stack.push([children[index], shape.id, index]);
  }
  validTarget();
@@ -45,18 +46,25 @@ const settleLayout = async (observe, options) => {
  const result = (stable, method, reason) => ({ stable, method, samples, strategy, nativeOutcome, ...(fallbackReason ? { fallbackReason } : {}), elapsedMs: Date.now() - started, ...(reason ? { reason } : {}) });
  for (let count = 0; count < Math.ceil(timeoutMs / intervalMs) + 1; count++) {
   const remaining = deadline - Date.now();
-  if (remaining <= 0) return result(false, "geometry", "Layout observation exceeded its deadline");
+  if (remaining <= 0) return result(false, strategy === "native" ? "native" : "geometry", "Layout observation exceeded its deadline");
   const nativeMs = count === 0 && strategy !== "geometry" ? strategy === "native" ? remaining : Math.max(1, Math.min(500, Math.floor(remaining / 4))) : 0;
   const state = await observe(nativeMs, remaining);
   samples++;
-  if (!state || state.ok !== true || !state.fileId || !state.pageId) throw new Error("Layout returned no target identity evidence");
-  const nextIdentity = JSON.stringify([state.fileId, state.pageId]);
+  if (!state || state.ok !== true || typeof state.fileId !== "string" || !state.fileId || typeof state.pageId !== "string" || !state.pageId) throw new Error("Layout returned no target identity evidence");
+  if (typeof state.native !== "boolean" || typeof state.truncated !== "boolean" || state.nativeOutcome !== undefined && !["skipped", "unsupported", "completed", "failed"].includes(state.nativeOutcome)) throw new Error("Malformed layout attempt evidence");
+  const nextIdentity = JSON.stringify([state.fileId, state.pageId, state.geometry?.[0]?.[0]]);
   if (identity && identity !== nextIdentity) throw new Error("Layout target changed between samples");
   identity = nextIdentity;
-  if (state.truncated || !Array.isArray(state.geometry) || !state.geometry.length) throw new Error("Incomplete layout geometry evidence");
-  const ids = new Set();
+  if (state.truncated || !Array.isArray(state.geometry) || !state.geometry.length || state.geometry.length > 10000) throw new Error("Incomplete layout geometry evidence");
+  const ids = new Set(), childIndices = new Map();
   for (const row of state.geometry) {
    if (!Array.isArray(row) || row.length !== 7 || typeof row[0] !== "string" || !row[0] || ids.has(row[0]) || !row.slice(1,5).every(value => typeof value === "number" && Number.isFinite(value)) ||  ((row[5] !== null && !ids.has(row[5])) || !Number.isInteger(row[6]) || row[6] < 0)) throw new Error("Layout API returned no geometry evidence or malformed hierarchy");
+   if (!ids.size ? row[5] !== null || row[6] !== 0 : row[5] === null || typeof row[5] !== "string") throw new Error("Malformed layout root hierarchy");
+   if (row[5] !== null) {
+    const expectedIndex = childIndices.get(row[5]) || 0;
+    if (row[6] !== expectedIndex) throw new Error("Malformed layout sibling order");
+    childIndices.set(row[5], expectedIndex + 1);
+   }
    ids.add(row[0]);
   }
   if (count === 0) {

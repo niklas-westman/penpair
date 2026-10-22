@@ -62,3 +62,17 @@ it("a derived file guard shares the client's session and cannot silently repair 
   await expect(runOnPage(guarded, read, "A")).rejects.toThrow(/Unexpected external navigation/);
  });
 });
+
+it("a cancelled queued collector cannot let another caller bypass the active session", async () => {
+ const { withCommandSignal } = await import("../src/command-result.js");
+ const f = fixture(), order: string[] = []; let release!: () => void, started!: () => void;
+ const active = new Promise<void>(resolve => { started = resolve; });
+ const first = withPageSession(f.client, async () => { order.push("first"); started(); await new Promise<void>(resolve => { release = resolve; }); order.push("first-done"); });
+ await active;
+ const controller = new AbortController();
+ const second = withCommandSignal(controller.signal, () => withPageSession(f.client, async () => { order.push("cancelled-must-not-run"); }));
+ controller.abort(new Error("cancelled queued work")); await expect(second).rejects.toThrow(/cancelled/);
+ const third = withPageSession(f.client, async () => { order.push("third"); });
+ await Promise.resolve(); await Promise.resolve(); expect(order).toEqual(["first"]);
+ release(); await Promise.all([first, third]); expect(order).toEqual(["first", "first-done", "third"]);
+});

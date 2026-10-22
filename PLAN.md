@@ -217,3 +217,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: feedback phase 5 ships real browser capture/provider examples and metadata; 616 tests, package smoke and eight real local Chromium cases pass. Visual inspection caught and corrected sticky-shell occlusion; approved Penpot trials remain pending.
 
 - 2026-10-22: feedback phase 6 adds bounded offline projected-theme artifacts, shared neutral resolution and owned-root examples with preservation tests; 622 tests and package smoke pass. Native per-frame selection and live preservation remain unproved.
+
+- 2026-10-22: final branch review reproduced and fixed cancellation opening a parallel page queue, tightened malformed layout/readiness refusal and bounded browser frame waits. Full checks pass (630 tests), all six package smoke installs and eight real browser cases plus six rejection cases pass.

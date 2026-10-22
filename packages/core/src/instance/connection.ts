@@ -72,18 +72,19 @@ export async function doctorEditor(config: ProjectConfig, options: DoctorOptions
  if (!options.mcp) return [];
  const started = Date.now(), out: DoctorCheck[] = [], challenge = randomUUID();
  const timeoutMs = options.timeoutMs ?? 5000;
- let connected = false;
- const transport = (): void => { if (!connected) { connected = true; out.push({ check: "MCP transport", layer: "transport", ok: true, detail: "Connected to MCP transport", observedAt: new Date().toISOString(), durationMs: Date.now() - started }); } };
+ let connected = false, finished = false;
+ const transport = (): void => { if (!finished && !connected) { connected = true; out.push({ check: "MCP transport", layer: "transport", ok: true, detail: "Connected to MCP transport", observedAt: new Date().toISOString(), durationMs: Date.now() - started }); } };
  try {
   const actual = await doctorDeadline(timeoutMs, signal => options.mcp!.connect({ challenge, signal, timeoutMs, onTransport: transport }));
   if (!connected) throw new Error("MCP transport readiness was not independently observed");
-  if (actual.challenge !== challenge || !actual.fileId || !actual.pageId || !actual.file || actual.file === "?") throw new Error("Fresh execution challenge or file/page identity did not match; editor readiness is unproven");
-  out.push({ check: "editor and plugin", layer: "execution", ok: true, detail: `Fresh read from file "${actual.file}"`, observedAt: new Date().toISOString(), durationMs: Date.now() - started, evidence: { challenge, pageId: actual.pageId, ...(actual.apiVersion ? { apiVersion: actual.apiVersion } : {}), heartbeat: "unknown" } });
+  if (actual.challenge !== challenge || typeof actual.fileId !== "string" || !actual.fileId || typeof actual.pageId !== "string" || !actual.pageId || typeof actual.file !== "string" || !actual.file || actual.file === "?") throw new Error("Fresh execution challenge or file/page identity did not match; editor readiness is unproven");
+  out.push({ check: "editor and plugin", layer: "execution", ok: true, detail: `Fresh read from file "${actual.file}"`, observedAt: new Date().toISOString(), durationMs: Date.now() - started, evidence: { challenge, pageId: actual.pageId, ...(typeof actual.apiVersion === "string" && actual.apiVersion ? { apiVersion: actual.apiVersion } : {}), heartbeat: "unknown" } });
   out.push(fileIdentityCheck(config, actual));
  } catch (error) {
   if (!connected) out.push({ check: "MCP transport", layer: "transport", ok: false, detail: "Transport connection not confirmed", observedAt: new Date().toISOString(), durationMs: Date.now() - started });
   out.push({ check: "editor and plugin", layer: "execution", ok: false, detail: redactEndpoint(error instanceof Error ? error.message : String(error)), observedAt: new Date().toISOString(), durationMs: Date.now() - started, remedy: "Open the intended file, connect the MCP plugin and keep the editor responsive; rerun doctor for a fresh read." });
  }
+ finished = true;
  return out;
 }
 
@@ -92,13 +93,14 @@ async function doctorDeadline<T>(timeoutMs: number, work: (signal: AbortSignal) 
  const controller = new AbortController();
  const signal = AbortSignal.any([controller.signal, ...(commandSignal() ? [commandSignal()!] : [])]);
  let timer: ReturnType<typeof setTimeout> | undefined;
+ let abort: () => void = () => undefined;
  const interrupted = new Promise<never>((_resolve, reject) => {
-  const abort = () => reject(signal.reason);
+  abort = () => reject(signal.reason);
   signal.addEventListener("abort", abort, { once: true });
   timer = setTimeout(() => controller.abort(new Error("Doctor deadline exceeded; no fresh editor execution was confirmed")), timeoutMs);
  });
  try { signal.throwIfAborted(); return await withCommandSignal(signal, () => Promise.race([work(signal), interrupted])); }
- finally { if (timer) clearTimeout(timer); }
+ finally { if (timer) clearTimeout(timer); signal.removeEventListener("abort", abort); }
 }
 
 /** Whether a configured MCP origin is this instance's frontend. */

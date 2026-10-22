@@ -35,3 +35,10 @@ it("redacts secret-bearing probe errors", async () => {
 it.each(["999", "30001", "NaN", "1000.5"])("rejects invalid doctor timeout %s without connecting", async timeout => {
  expect((await runCommand(["doctor", "--timeout-ms", timeout])).exitCode).toBe(1);
 });
+
+it("malformed file/page observations cannot establish fresh execution readiness", async () => {
+ const result = await doctorExternal(config, { fetch: answering, mcp: { origin: config.profile.origin, connect: async request => {
+  request!.onTransport(); return { file: "Fixture", fileId: 123 as unknown as string, pageId: "page", challenge: request!.challenge };
+ } } });
+ expect(result.find(row => row.layer === "execution")?.ok).toBe(false);
+});

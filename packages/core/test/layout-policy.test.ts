@@ -38,7 +38,7 @@ it("refuses cycles, duplicates, malformed hierarchy and node overflow", async ()
   await expect(waitForStableLayout(f.client)).rejects.toThrow(/geometry|budget/);
  }
 });
-it("lost transport and cancellation never become fallback evidence", async () => {
+it("lost transport never becomes fallback evidence", async () => {
  const f = fixture("fail");
  f.client.callTool = async () => { throw new Error("disconnected"); };
  await expect(waitForStableLayout(f.client)).rejects.toThrow();
@@ -48,4 +48,21 @@ it.each(["run-file", "export", "shots"])("rejects invalid %s layout before conne
  const args = command === "export" ? [command, "id", "out.png"] : command === "shots" ? [command, "--page", "P"] : [command, "build.js"];
  const result = await runCommand([...args, "--layout", "off"]);
  expect(result.exitCode).toBe(1); expect(JSON.stringify(result)).toContain("auto, native or geometry");
+});
+
+it.each([
+ { native: undefined }, { truncated: undefined }, { nativeOutcome: "invented" },
+ { geometry: [["root",0,0,10,10,null,0],["child",0,0,1,1,null,0]] },
+ { geometry: [["root",0,0,10,10,null,0],["child",0,0,1,1,"root",2]] },
+])("malformed observation cannot become a successful fallback: %j", async alteration => {
+ const client: PenpotToolClient = { async callTool() { return { text: JSON.stringify({ result: { ok: true, fileId: "file", pageId: "page", native: false, nativeOutcome: "unsupported", truncated: false, geometry: [["root",0,0,10,10,null,0]], ...alteration }, log: "" }), isError: false }; }, async close() {} };
+ await expect(waitForStableLayout(client, { sleep: async () => undefined })).rejects.toThrow(/Malformed|hierarchy/);
+});
+
+it("cancellation after a delivered layout read stops without another observation", async () => {
+ const { withCommandSignal, CommandInterruptedError } = await import("../src/command-result.js");
+ const controller = new AbortController(), f = fixture("fail"), call = f.client.callTool.bind(f.client);
+ f.client.callTool = async (...args) => { const result = await call(...args); controller.abort(new CommandInterruptedError("cancelled")); return result; };
+ await expect(withCommandSignal(controller.signal, () => waitForStableLayout(f.client))).rejects.toMatchObject({ code: "cancelled" });
+ expect(f.calls()).toBe(1);
 });

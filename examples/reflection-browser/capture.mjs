@@ -19,16 +19,19 @@ export async function captureCase(page, test, hooks, { timeoutMs = 10000 } = {})
  await root.scrollIntoViewIfNeeded();
  if (hooks.prepareCapture) await hooks.prepareCapture(page, test, root);
  // Observe three complete stable boxes across animation frames, after scroll/sticky layout.
- const rootBox = await root.evaluate(async element => {
-  let previous, equal = 0;
+ const rootBox = await root.evaluate(async (element, timeout) => {
+  let previous, equal = 0; const deadline = performance.now() + timeout;
   for (let count = 0; count < 120; count++) {
-   await new Promise(resolve => requestAnimationFrame(resolve));
+   await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Capture layout deadline exceeded")), Math.max(1, deadline-performance.now()));
+    requestAnimationFrame(() => { clearTimeout(timer); resolve(); });
+   });
    const rect = element.getBoundingClientRect(), box = { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
    const current = JSON.stringify(box); equal = current === previous ? equal + 1 : 1;
    if (equal === 3) return box; previous = current;
   }
   throw new Error("Capture root did not settle");
- });
+ }, timeoutMs);
  const clip = outwardClip(rootBox);
  const occlusion = await root.evaluate(element => {
   const r = element.getBoundingClientRect(), left = Math.max(0, r.left), top = Math.max(0, r.top), right = Math.min(innerWidth, r.right), bottom = Math.min(innerHeight, r.bottom);
