@@ -5,6 +5,7 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { confirmReleaseVersion, trustedPublishingContext } from "./lib/release-auth.mjs";
 import { releaseTargets } from "./lib/release-exclusions.mjs";
+import { waitForRegistryVisibility } from "./lib/registry-polling.mjs";
 // The only way to publish. All packages of this repository are released together, at one version, in dependency order.
 //   pnpm release                      checks everything and prints the plan; publishes nothing
 //   pnpm release --publish            does it (npm asks for your one-time code; or pass --otp <code>)
@@ -277,16 +278,13 @@ for (const p of todo) {
       2,
     );
   }
-  let seen = false;
-  for (let attempt = 0; attempt < 12 && !seen; attempt++) {
-    seen = await isPublished(p.name, version);
-    if (!seen) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-  }
-  if (!seen) {
+  const visible = await waitForRegistryVisibility(p.name, version, {
+    log: say,
+  });
+
+  if (!visible) {
     stop(
-      `${p.name}@${version} was published but npm does not show it yet. Wait a minute and run \`pnpm release --publish --continue\`.`,
+      `${p.name}@${version} was published but npm did not expose it within 10 minutes. Inspect the registry before explicitly continuing this release with \`pnpm release --publish --continue\`.`,
       2,
     );
   }

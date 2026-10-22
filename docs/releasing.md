@@ -141,6 +141,14 @@ still passes through the protected environment and all unchanged release guards.
 
 ## If a release stops half way
 
+After a successful upload, npm may still be processing the version. The release
+checks registry visibility immediately and then once per minute within a
+ten-minute deadline **for each uploaded package**, printing progress while it
+waits. Each metadata query has a 30-second maximum (or the remaining deadline,
+whichever is smaller), with npm's internal retries disabled. Query time counts
+toward the deadline. A registry error still stops the release; only an actual
+not-found result waits for propagation. The visibility wait never republishes.
+
 A publish can fail after some packages are out (a network error, a wrong one-time code, a name npm refuses). The version is then on npm for some packages and not for others, which must not stay that way. Fix the cause and run:
 
 ```bash
@@ -148,6 +156,18 @@ pnpm release --publish --continue    # publishes only what is missing at this ve
 ```
 
 Without `--continue`, `pnpm release` refuses to run while only some packages are at the version, so a partial release cannot be forgotten.
+
+For GitHub recovery, run **Publish reviewed Penpair release** on `main`, enter
+the exact interrupted version and set `continue_release=true`. Approve
+`npm-release` when requested. This checks the registry again, skips versions
+already present and publishes only missing required packages. Inspect the final
+package/provenance verification before counting the release complete.
+
+Finish an interrupted release before merging unrelated changes or a tooling fix
+with new pending Changesets. The manual release gate requires a reviewed version
+with no pending notes; merging another feature can prevent continuation until
+that release state is reconciled. Do not remove notes or weaken guards to force
+recovery through.
 
 ## A package npm will not accept yet
 

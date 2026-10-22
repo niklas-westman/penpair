@@ -167,17 +167,36 @@ export function publishOrder(packages) {
   return ordered;
 }
 
-/** Whether `name@version` is on the npm registry. Anything other than a plain "not found" is an error, never a guess. */
-export async function isPublished(name, version) {
+/**
+ * Whether `name@version` is on npm. Only a plain "not found" means absent.
+ * @param {string} name
+ * @param {string} version
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<boolean>}
+ */
+export async function isPublished(name, version, { timeoutMs = 30_000 } = {}) {
   try {
-    const { stdout } = await execFileAsync("npm", [
-      "view",
-      `${name}@${version}`,
-      "version",
-      "--json",
-    ]);
+    const { stdout } = await execFileAsync(
+      "npm",
+      [
+        "view",
+        `${name}@${version}`,
+        "version",
+        "--json",
+        "--fetch-retries=0",
+        `--fetch-timeout=${timeoutMs}`,
+      ],
+      {
+        timeout: timeoutMs,
+      },
+    );
+
     return stdout.includes(version);
   } catch (error) {
+    if (error.killed || error.code === "ETIMEDOUT") {
+      throw new Error(`npm lookup for ${name}@${version} timed out after ${timeoutMs}ms`);
+    }
+
     if (
       /E404|404 Not Found|is not in this registry/.test(
         `${error.stdout ?? ""}${error.stderr ?? ""}`,
