@@ -1,5 +1,27 @@
 # @penpair/core
 
+## 0.3.0
+
+### Minor Changes
+
+- c2e52d6: Share bounded auto/native/geometry settling between the SDK and build kit. Expose --layout on run-file, export and shots, with three complete geometry observations after a bounded native fallback.
+- c2e52d6: Explain metadata-only token snapshot staleness and explicit ownership migration. Bound doctor origin/transport/fresh execution checks and report each readiness layer with challenge and file/page evidence.
+- c2e52d6: Observe page IDs instead of sleeping after navigation, serialize same-client collections, restore the starting page after structural snapshots, and provide optional lease/revision journal traces without relaxing revision conflicts.
+- c2e52d6: Add deterministic, bounded offline theme projections with ordered sets, aliases, composite values and explicit unknowns. Share resolution with mode verification and expose tokens preview without changing global selections or claiming native per-frame theme bindings.
+
+### Patch Changes
+
+- c2e52d6: Make companion adapters visible during setup and design-to-frontend handoff.
+  Recommend Reflection Check for frontend verification, document matching-version
+  installation and registration, and distinguish installed adapters from approved
+  references and real browser/provider readiness. Update shipped skills and adapter
+  guidance without adding automatic dependencies or claiming a bundled browser.
+- c2e52d6: Preserve page-session serialization when queued callers cancel, reject malformed layout/readiness evidence, and bound browser animation-frame observations.
+- c2e52d6: Establish consistent readable source formatting and checked contributor examples.
+  Split implementation comparison planning, validation, image I/O and command handling
+  into focused modules while preserving public imports and evidence approval rules.
+- c2e52d6: Group installed help by the complete design-to-implementation workflow, add first-frame composition guidance, and document layout fallback, metadata migration, readiness and snapshot recovery.
+
 ## 0.2.0
 
 ### Minor Changes
