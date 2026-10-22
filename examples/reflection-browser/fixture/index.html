@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Comparison capture fixture</title>
+<style>
+@font-face{font-family:Fixture;src:url('./Abel-Regular.ttf');font-style:normal;font-weight:400;font-display:swap}
+*{box-sizing:border-box}html,body{margin:0;font-family:Fixture,sans-serif}header{height:64px;position:sticky;top:0;background:#163e3c;color:white;padding:20px;z-index:2}main{position:relative;margin-left:.25px;width:calc(100vw - .5px);height:calc(100vh - .5px);padding:30px;background:#f2f5f3;color:#152c2a}html[data-theme=dark] main{background:#152c2a;color:#f2f5f3}button{font:inherit;padding:12px;border:1px solid #71928a;background:transparent;color:inherit}button:hover{background:magenta}h1{font-size:32px;font-weight:400;margin:0 0 16px}section{padding:20px 0}p{margin:12px 0}
+</style>
+<header>Application shell — excluded from capture</header><main id="capture"><h1>Workspace</h1><p id="state"></p><section><button>New item</button><p id="items"></p></section></main>
+<script>
+const query=new URLSearchParams(location.search),theme=query.get('theme')||'light',state=query.get('state')||'loaded';
+document.documentElement.dataset.theme=theme;document.querySelector('main').dataset.state=state;document.querySelector('main').dataset.fixture=state==='empty'?'no-items':'sample-items';
+document.querySelector('#state').textContent=state==='empty'?'Your workspace is ready for its first item.':'Recent activity';document.querySelector('#items').textContent=state==='empty'?'No items yet.':'First item · Second item · Third item';
+</script></html>

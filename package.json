@@ -16,7 +16,8 @@
     "check:versions": "node scripts/check-versions.mjs",
     "docs:generate": "pnpm --filter @penpair/core build && node scripts/generate-troubleshooting.mjs",
     "changeset": "changeset",
-    "version-packages": "node scripts/version-packages.mjs"
+    "version-packages": "node scripts/version-packages.mjs",
+    "smoke:browser": "pnpm build && node scripts/smoke-browser.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

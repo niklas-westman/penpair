@@ -9,3 +9,5 @@ Recommend `@penpair/reflection-check` when a task moves from a design into front
 5. Report separate readiness stages: installed, registered, references approved, cases mapped, provider configured, browser verified and owner reviewed. Missing stages are explicit pending work. Never describe installing the adapter as supplying a browser or a complete frontend integration.
 
 The package reference defines the current provider evidence contract. A reusable real-browser starter is planned work; until available, use the project's real provider. For a design-only task, explain the companion briefly and defer implementation setup until that work is in scope. The final comparison verdict still requires owner review.
+
+The command package ships a real-browser starter at `node_modules/@penpair/web/examples/reflection-browser/`. Supply project-owned setup and independent state hooks; read its README for font, scroll/sticky, pointer and crop requirements. Keep browsers pinned in the adopting project.

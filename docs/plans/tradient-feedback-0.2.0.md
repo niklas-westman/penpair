@@ -111,11 +111,11 @@ Exit: the inspect → spec → snapshot/diff → comparison path is discoverable
 
 ### Phase 5 — real browser comparison starter (PP-05, P2)
 
-- [ ] Add a neutral example provider under `examples/reflection-browser/` for the existing `ImplementationProvider.runCase` contract. Use the adopter's pinned Playwright installation; no browser dependency or application framework enters the core. Ship it with the existing web documentation/examples mechanism and verify the installed path.
-- [ ] Require project hooks for route, fixture, theme, state, capture root and expected fonts. Read actual state and loaded font faces/weights; never echo requested inputs as observed evidence.
-- [ ] Park the pointer outside the capture region and verify no relevant hovered controls. Capture with explicit viewport, device scale **1** by default and a root bounding box after scroll/sticky layout settles. Round the box outward to whole CSS pixels and record the rule; do not resize images to improve a metric.
-- [ ] Preserve the current schema-1 provider fields. Add optional capture metadata for root/clip, scale, browser version, font evidence and pointer checks; old providers remain readable. The example requires its complete metadata and flags missing evidence instead of substituting defaults silently.
-- [ ] Validate paths/hashes and compare through the existing adapter. Retain `owner-review-required`; a pixel score never approves a baseline. Unapproved trial captures may test the capture helper, but the approval gate for `reflection check` stays intact.
+- [x] Add a neutral example provider under `examples/reflection-browser/` for the existing `ImplementationProvider.runCase` contract. Use the adopter's pinned Playwright installation; no browser dependency or application framework enters the core. Ship it with the existing web documentation/examples mechanism and verify the installed path.
+- [x] Require project hooks for route, fixture, theme, state, capture root and expected fonts. Read actual state and loaded font faces/weights; never echo requested inputs as observed evidence.
+- [x] Park the pointer outside the capture region and verify no relevant hovered controls. Capture with explicit viewport, device scale **1** by default and a root bounding box after scroll/sticky layout settles. Round the box outward to whole CSS pixels and record the rule; do not resize images to improve a metric.
+- [x] Preserve the current schema-1 provider fields. Add optional capture metadata for root/clip, scale, browser version, font evidence and pointer checks; old providers remain readable. The example requires its complete metadata and flags missing evidence instead of substituting defaults silently.
+- [x] Validate paths/hashes and compare through the existing adapter. Retain `owner-review-required`; a pixel score never approves a baseline. Unapproved trial captures may test the capture helper, but the approval gate for `reflection check` stays intact.
 
 Tests: adapter `integration.test.ts` plus new provider/capture fixtures for wrong state/theme, delayed/missing fonts, hover contamination, sticky shell, fractional crop boundaries, unchanged baseline bytes and dimension/scale mismatch. Exercise a real local example in the browser at desktop/mobile × light/dark × loaded/empty; unit stubs alone do not complete this phase.
 
@@ -151,7 +151,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | 2 Migration/readiness | Complete offline | 607 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 3 Coordination/snapshots | Offline delivery complete; PP-07 unresolved | 614 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
-| 5 Browser starter | Not started | Pending | Pending | — |
+| 5 Browser starter | Complete | 616 tests; package smoke; 8 real-browser cases + negative cases | Local Chromium trial complete; Penpot pending | 2026-10-22 |
 | 6 Theme previews | Not started | Pending | Pending | — |
 | Final trial/release review | Not started | Pending | Pending | — |
 
@@ -190,3 +190,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Phase 4 report — 2026-10-22
 
 **Resolved:** installed help now exposes the full inspect/spec/snapshot/capture/compare workflow; composition guidance catches under-designed first frames before multiplying variants. **Changed:** task-grouped actual command examples, composition checklist in shipped skills, and migration/layout/doctor/snapshot/recovery docs. Corrected old help wording that implied updating an image alone approves it. **Validated:** help, docs, neutral-core and idempotent skill installation tests; `pnpm check` 615 tests and six-package smoke pass. **Risks:** composition remains a human/agent judgment step; a checklist does not establish visual quality or owner approval. **Next:** real-browser comparison starter. Commit: `docs: expose the complete workflow and first-frame composition checks`.
+
+### Phase 5 report — 2026-10-22
+
+**Resolved:** adopters can reuse real capture plumbing with explicit project hooks rather than rewrite fonts/scroll/hover/cropping logic. **Changed:** shipped browser provider, independent DOM state and loaded font/weight evidence, outward CSS clipping, hover/occlusion checks, optional schema-1 metadata validation and installed-example smoke. **Validated:** `pnpm check` 616 tests and six-package smoke pass; eight real local browser cases plus wrong theme, missing face/weight, delayed font load, scale mismatch, hover and sticky-shell refusal. Actual screenshots were inspected; a sticky header initially obscured the heading and the new guard/scroll hook corrected it. [Portable browser evidence](../fixtures/browser-capture-2026-10-22.json) records Chromium 148.0.7778.96, bundled Playwright 1.62.1, unchanged reference bytes and owner-review-required. MCP could inspect the fixture but could not import modules; the real provider ran with the bundled runtime and cached Chromium. **Risks:** references are explicitly unapproved synthetic browser fixtures, not approved Penpot designs; sampled occlusion still requires image inspection. No consumer provider was registered. **Next:** offline projected themes and pinned native capability evidence. Commit: `feat: ship a verified real-browser comparison starter`.

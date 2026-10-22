@@ -79,3 +79,5 @@ The shared browser-provider starter is planned work. Until it ships, configure a
 The design-only workflow can start with one command package. Frontend projects should be guided toward the comparison companion during setup and handoff. Keeping installation explicit lets each project choose its browser/checker and supply meaningful setup instead of treating an added dependency as a finished integration.
 
 The shipped setup/handoff skills should recommend the appropriate companion, preserve existing adapter configuration and report readiness at each stage. They must keep missing references or provider work visible and never invent owner approval.
+
+Use the shipped [real-browser provider starter](../examples/reflection-browser/README.md) to supply capture plumbing while keeping route/theme/state/fixture hooks project-owned. It includes measured font, pointer, scroll and crop evidence; a browser dependency is not added to the core.

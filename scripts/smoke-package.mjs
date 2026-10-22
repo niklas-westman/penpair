@@ -85,6 +85,9 @@ check(/^name: penpair-setup/m.test(await readFile(join(web, ".skills/penpair-set
 check(/Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")), "the npm page's README is the repository's");
 check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("getting-started.md"), "the docs ship");
 check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("adapters.md"), "the companion adapter setup guide ships with the command package");
+check((await readdir(join(web, "node_modules/@penpair/web/examples/reflection-browser"))).includes("capture.mjs"), "the real browser provider starter ships with the command package");
+const installedClip = await run("node", ["--input-type=module", "-e", 'import { outwardClip } from "./node_modules/@penpair/web/examples/reflection-browser/capture.mjs"; console.log(JSON.stringify(outwardClip({x:.25,y:64,width:389.5,height:843.5})));'], { cwd: web });
+check(JSON.parse(installedClip).height === 844, "installed browser helper preserves outward CSS-pixel clipping");
 // In a fresh project folder (no config yet), run the installed command by its path.
 const bin = join(web, "node_modules/.bin/penpair");
 for (const args of [["init"], ["setup", "--docker"]]) {

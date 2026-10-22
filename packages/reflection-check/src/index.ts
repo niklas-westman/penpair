@@ -7,10 +7,22 @@ import { defineAdapter, observationHash, parseCommandArgs, readDesignJson, resol
 export interface ImplementationMapping { schemaVersion: 1; cases: Array<{ id: string; setup: string }> }
 export interface ImplementationCase { id: string; route: string; intent: BaselineCase; setup: string; baseline: { path: string; sha256: string; scale: number }; threshold: number }
 export interface CasePlan { schemaVersion: 1; kind: "implementation-case-plan"; cases: ImplementationCase[]; pending: Array<{ id: string; reason: string }>; complete: boolean; visualApproval: false }
+export interface BrowserCaptureMetadata {
+ schemaVersion: 1; root: string;
+ rootBox: { x: number; y: number; width: number; height: number };
+ clip: { x: number; y: number; width: number; height: number };
+ rounding: "outward-css-pixels"; deviceScaleFactor: number;
+ browser: { name: string; version: string };
+ fonts: Array<{ family: string; weight: string; style: string; status: "loaded" }>;
+ pointer: { x: number; y: number; outsideRoot: boolean; hoveredControls: number };
+ occlusion?: { samples: number; blocked: number };
+ scroll: { x: number; y: number }; layoutSamples: number;
+}
 export interface ProviderEvidence {
   schemaVersion: 1; id: string; route: string; setup: string;
   observed: Pick<BaselineCase, "viewport" | "theme" | "state" | "fixture">;
   fonts: string[]; fontsReady: boolean; baselineHash: string;
+  capture?: BrowserCaptureMetadata;
   screenshot: string; diffPixelRatio: number; provider: { name: string; version: string };
 }
 export interface ImplementationProvider { runCase(test: ImplementationCase): Promise<ProviderEvidence> }
@@ -49,6 +61,11 @@ export async function runImplementationCases(root: string, plan: CasePlan, provi
       const evidence = await provider.runCase(structuredClone(c));
       const desired = { viewport: c.intent.viewport, theme: c.intent.theme, state: c.intent.state, fixture: c.intent.fixture };
       if (!evidence || evidence.schemaVersion !== 1 || evidence.id !== c.id || evidence.route !== c.route || evidence.setup !== c.setup || observationHash(evidence.observed) !== observationHash(desired) || evidence.baselineHash !== c.baseline.sha256 || evidence.fontsReady !== true || !Array.isArray(evidence.fonts) || (c.intent.fonts ?? []).some(font => !evidence.fonts.includes(font)) || !evidence.provider?.name || !evidence.provider.version || !Number.isFinite(evidence.diffPixelRatio) || evidence.diffPixelRatio < 0 || evidence.diffPixelRatio > 1) throw new Error("Provider did not independently observe the exact requested state, fixture, viewport, fonts and baseline");
+      if (evidence.provider.name === "penpair-browser-starter-rgba-exact" && (!evidence.capture || !evidence.capture.occlusion)) throw new Error("Browser starter requires complete capture metadata");
+      if (evidence.capture) {
+        const m = evidence.capture, box = m.rootBox, clip = m.clip;
+        if (m.schemaVersion !== 1 || !m.root || m.rounding !== "outward-css-pixels" || m.deviceScaleFactor !== c.baseline.scale || !m.browser?.name || !m.browser.version || !box || !clip || ![box.x,box.y,box.width,box.height,clip.x,clip.y,clip.width,clip.height].every(Number.isFinite) || box.x < 0 || box.y < 0 || box.width <= 0 || box.height <= 0 || clip.x !== Math.floor(box.x) || clip.y !== Math.floor(box.y) || clip.width !== Math.ceil(box.x + box.width)-clip.x || clip.height !== Math.ceil(box.y + box.height)-clip.y || clip.width !== c.intent.viewport.width || clip.height !== c.intent.viewport.height || m.pointer?.outsideRoot !== true || m.pointer.hoveredControls !== 0 || !Number.isFinite(m.pointer.x) || !Number.isFinite(m.pointer.y) || !m.scroll || ![m.scroll.x,m.scroll.y].every(Number.isFinite) || (!Number.isInteger(m.layoutSamples) || m.layoutSamples < 3) || m.occlusion && (!Number.isInteger(m.occlusion.samples) || m.occlusion.samples < 1 || m.occlusion.blocked !== 0) || !Array.isArray(m.fonts) || m.fonts.some(font => !font.family || !font.weight || !font.style || font.status !== "loaded") || (c.intent.fonts ?? []).some(font => !m.fonts.some(face => face.family === font))) throw new Error("Invalid browser capture geometry, font or pointer evidence");
+      }
       const shot = await png(root, evidence.screenshot);
       if (await resolveProjectInput(root, evidence.screenshot) === await resolveProjectInput(root, c.baseline.path)) throw new Error("Screenshot must be independently captured, not the baseline path");
       if (shot.width !== Math.round(c.intent.viewport.width * c.baseline.scale) || shot.height !== Math.round(c.intent.viewport.height * c.baseline.scale) || before.width !== shot.width || before.height !== shot.height) throw new Error("Provider PNG scale/viewport differs from the design case");
