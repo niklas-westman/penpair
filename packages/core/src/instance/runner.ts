@@ -24,27 +24,55 @@ export interface Runner {
 
 export const nodeRunner: Runner = {
   async run(command, args, options = {}) {
-    const child = spawn(command, args, { stdio: [options.input !== undefined || options.inFile ? "pipe" : "ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, {
+      stdio: [
+        options.input !== undefined || options.inFile ? "pipe" : "ignore",
+        "pipe",
+        "pipe",
+      ],
+    });
     const { stdout: out, stderr: err } = child;
-    if (!out || !err) throw new Error("the command has no output streams");
+    if (!out || !err) {
+      throw new Error("the command has no output streams");
+    }
     let stdout = "";
     let stderr = "";
     const writing = options.outFile ? createWriteStream(options.outFile) : undefined;
     // Registered at once: the file can finish closing before the child does, and a missed event would hang forever.
-    const written = writing ? new Promise<void>((resolve) => writing.once("close", () => resolve())) : undefined;
-    if (writing) out.pipe(writing);
-    else out.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+    const written = writing
+      ? new Promise<void>((resolve) => writing.once("close", () => resolve()))
+      : undefined;
+    if (writing) {
+      out.pipe(writing);
+    } else {
+      out.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf8")));
+    }
     err.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf8")));
-    if (options.inFile && child.stdin) createReadStream(options.inFile).pipe(child.stdin);
-    else if (options.input !== undefined && child.stdin) child.stdin.end(options.input);
+    if (options.inFile && child.stdin) {
+      createReadStream(options.inFile).pipe(child.stdin);
+    } else if (options.input !== undefined && child.stdin) {
+      child.stdin.end(options.input);
+    }
     try {
-      const [code] = (await once(child, "close")) as [number | null];
-      if (written) await written;
-      return { code: code ?? 1, stdout, stderr };
+      const [code] = (await once(child, "close")) as [
+        number | null,
+      ];
+      if (written) {
+        await written;
+      }
+      return {
+        code: code ?? 1,
+        stdout,
+        stderr,
+      };
     } catch (error) {
       // The command could not start at all (not installed, not executable).
       writing?.destroy();
-      return { code: 127, stdout, stderr: String((error as Error).message) };
+      return {
+        code: 127,
+        stdout,
+        stderr: String((error as Error).message),
+      };
     }
   },
 };

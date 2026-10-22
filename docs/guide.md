@@ -1,6 +1,6 @@
 # Guide
 
-For this unreleased improvement branch, start with the [review guide](branch-review.md). Choose a tested workflow below, then use the extension and command references for the selected work. Live checks are identified separately.
+Choose a workflow below, starting with [companion adapters](adapters.md) when connecting a component library or verifying frontend code. Use the [review guide](branch-review.md) for the original improvement delivery; live checks are identified separately.
 
 ## Documentation map
 
@@ -9,7 +9,7 @@ For this unreleased improvement branch, start with the [review guide](branch-rev
 | First run / shared file | [Getting started](getting-started.md), [team](team.md), [trial runbook](trials.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
-| Integration | [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md), [upstream draft](upstream/marwes-requests.md) |
+| Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md), [upstream draft](upstream/marwes-requests.md) |
 | Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 
 ## Extension points

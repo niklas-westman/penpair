@@ -6,6 +6,8 @@
 4. Present the exact artifact to the owner. [Approval records](approvals.md) retain supplied words and capture hashes; a comparison percentage never supplies approval.
 5. Capture [baselines and case coverage](coverage.md). A changed reference requires matching approval or an explicitly labeled waiver; unsupported cases remain pending.
 6. Generate a [structured handoff](handoff.md) with explicit component mappings. Implement behavior, responsive rules and accessibility from an actual application contract rather than inferred appearance.
-7. Capture the actual implementation case with stable fonts/data. Inspect comparison evidence and images, resolve drift, and report changed behavior, validation and remaining risks.
+7. Use the recommended [Reflection Check companion](adapters.md#check-the-frontend-against-the-design) and a real project browser provider to capture the actual implementation case with stable fonts/data. Inspect comparison evidence and images, resolve drift, and report changed behavior, validation and remaining risks. Missing provider/setup work remains pending.
 
 [Structural snapshots](snapshots.md) make design review diffable. [Archives and restore trials](backup.md) establish recovery independently. The current branch has offline fixtures and repeatable [human trial instructions](trials.md); it has not completed those real trials.
+
+Before expanding variants, choose the primary task and an existing reference, establish hierarchy/context and responsive/focus order, then critique one small first frame. Use `inspect → spec → snapshot/diff → capture/approve → comparison` from installed `penpair --help`. Exact owner words approve only the captured artifact; first-frame critique does not grant approval. Layout strategy and fresh doctor evidence are described in [build kit](build-kit.md) and [recovery](recovery.md).

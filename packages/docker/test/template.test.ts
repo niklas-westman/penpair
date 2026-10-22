@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { validateConfig } from "@penpair/core";
 import { renderCompose } from "../src/template.js";
 
-const good = { instance: "tradient", penpotVersion: "2.18.3", ports: { frontend: 9002, mail: 1082 }, directory: ".penpair" };
+const good = {
+  instance: "tradient",
+  penpotVersion: "2.18.3",
+  ports: {
+    frontend: 9002,
+    mail: 1082,
+  },
+  directory: ".penpair",
+};
 
 describe("compose template", () => {
   const text = renderCompose(validateConfig(good));
@@ -15,7 +23,15 @@ describe("compose template", () => {
   });
 
   it("pins every Penpot image to the configured version and keeps the database and cache off the host", () => {
-    for (const image of ["frontend", "backend", "admin-console", "mcp", "exporter"]) expect(text).toContain(`penpotapp/${image}:\${PENPOT_VERSION:-2.18.3}`);
+    for (const image of [
+      "frontend",
+      "backend",
+      "admin-console",
+      "mcp",
+      "exporter",
+    ]) {
+      expect(text).toContain(`penpotapp/${image}:\${PENPOT_VERSION:-2.18.3}`);
+    }
     expect(text).not.toContain("5432:");
     expect(text).not.toContain("6379:");
   });

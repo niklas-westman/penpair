@@ -9,12 +9,35 @@ afterEach(() => vi.restoreAllMocks());
 
 async function session() {
   const f = await fixture();
-  const penpot = fakePenpot([{ id: "s1", type: "board", name: "Dashboard", x: 0, y: 0, width: 1440, height: 900, tokens: { fill: "mw-color-primary-base" } }]);
-  return { f, penpot, run: runner(f, penpot) };
+  const penpot = fakePenpot([
+    {
+      id: "s1",
+      type: "board",
+      name: "Dashboard",
+      x: 0,
+      y: 0,
+      width: 1440,
+      height: 900,
+      tokens: {
+        fill: "mw-color-primary-base",
+      },
+    },
+  ]);
+  return {
+    f,
+    penpot,
+    run: runner(f, penpot),
+  };
 }
 
 function runner(f: Fixture, penpot: FakePenpot) {
-  return async (...args: string[]): Promise<{ code: number; out: string; err: string }> => {
+  return async (
+    ...args: string[]
+  ): Promise<{
+    code: number;
+    out: string;
+    err: string;
+  }> => {
     const out: string[] = [];
     const err: string[] = [];
     vi.spyOn(console, "log").mockImplementation((...m) => void out.push(m.join(" ")));
@@ -26,16 +49,25 @@ function runner(f: Fixture, penpot: FakePenpot) {
       log: () => undefined,
       withPenpot: (work) => work(penpot.client),
     };
-    const code = await marwesCommand.run(context, ["tokens", ...args]);
+    const code = await marwesCommand.run(context, [
+      "tokens",
+      ...args,
+    ]);
     vi.restoreAllMocks();
-    return { code, out: out.join("\n"), err: err.join("\n") };
+    return {
+      code,
+      out: out.join("\n"),
+      err: err.join("\n"),
+    };
   };
 }
 
 describe("the adapter", () => {
   it("is what penpair loads: a default export with the marwes command", () => {
     expect(adapter.name).toBe("@penpair/marwes-ui");
-    expect(adapter.commands.map((c) => c.name)).toEqual(["marwes"]);
+    expect(adapter.commands.map((c) => c.name)).toEqual([
+      "marwes",
+    ]);
   });
 
   it("refuses what it does not know", async () => {
@@ -51,9 +83,20 @@ describe("the snapshot", () => {
     expect(first.code).toBe(2);
     expect(first.out).toMatch(/There is no snapshot yet/);
     expect((await run("snapshot", "--write")).code).toBe(0);
-    const saved = JSON.parse(await readFile(path.join(f.root, "design/marwes-tokens.snapshot.json"), "utf8"));
-    expect(saved).toMatchObject({ marwesVersion: "1.11.0", project: "Acme", generatedBy: expect.stringMatching(/^@penpair\/marwes-ui@/) });
-    expect(saved.sets.map((s: { name: string }) => s.name)).toEqual(["Marwes · Core", "Marwes · Dark", "Acme · Light", "Acme · Dark"]);
+    const saved = JSON.parse(
+      await readFile(path.join(f.root, "design/marwes-tokens.snapshot.json"), "utf8"),
+    );
+    expect(saved).toMatchObject({
+      marwesVersion: "1.11.0",
+      project: "Acme",
+      generatedBy: expect.stringMatching(/^@penpair\/marwes-ui@/),
+    });
+    expect(saved.sets.map((s: { name: string }) => s.name)).toEqual([
+      "Marwes · Core",
+      "Marwes · Dark",
+      "Acme · Light",
+      "Acme · Dark",
+    ]);
     expect((await run("snapshot")).out).toMatch(/is current/);
   });
 });
@@ -69,13 +112,17 @@ describe("the check, which CI runs without Penpot", () => {
     const bumped = await run("check");
     expect(bumped.code).toBe(2);
     expect(bumped.out).toMatch(/Marwes 1\.11\.0 -> 1\.12\.0/);
-    expect(bumped.out).toMatch(/committed snapshot is stale: it was made from Marwes 1\.11\.0 and the installed Marwes is 1\.12\.0/);
+    expect(bumped.out).toMatch(
+      /committed snapshot is stale: it was made from Marwes 1\.11\.0 and the installed Marwes is 1\.12\.0/,
+    );
     expect(await checkTokenSnapshot(f.root).then((c) => c.current)).toBe(false);
 
     await run("snapshot", "--write");
     expect((await run("check")).code).toBe(0);
 
-    await f.installMarwes("1.12.0", { react: "1.11.0" });
+    await f.installMarwes("1.12.0", {
+      react: "1.11.0",
+    });
     const mixed = await run("check");
     expect(mixed.code).toBe(1);
     expect(mixed.out).toMatch(/different versions/);
@@ -84,17 +131,29 @@ describe("the check, which CI runs without Penpot", () => {
   it("notices a theme edit that was not followed by a new snapshot", async () => {
     const { f, run } = await session();
     await run("snapshot", "--write");
-    await f.writeTheme({ ...acmeThemes.light, color: { primary: "#007744" } });
+    await f.writeTheme({
+      ...acmeThemes.light,
+      color: {
+        primary: "#007744",
+      },
+    });
     const result = await run("check");
     expect(result.code).toBe(2);
     expect(result.out).toMatch(/mw-color-primary-base #006633 -> #007744/);
-    expect(result.out).toMatch(/the installed Marwes or the project's theme has changed since it was made/);
+    expect(result.out).toMatch(
+      /the installed Marwes or the project's theme has changed since it was made/,
+    );
   });
 
   it("can be asked for JSON", async () => {
     const { run } = await session();
     await run("snapshot", "--write");
-    expect(JSON.parse((await run("check", "--json")).out)).toMatchObject({ current: true, installed: { core: "1.11.0" } });
+    expect(JSON.parse((await run("check", "--json")).out)).toMatchObject({
+      current: true,
+      installed: {
+        core: "1.11.0",
+      },
+    });
   });
 });
 
@@ -109,7 +168,9 @@ describe("the drift story, from a first push to a Marwes bump", () => {
 
     const look = await run("push");
     expect(look.code).toBe(0);
-    expect(look.out).toMatch(/Plan:[\s\S]*create set Marwes · Core[\s\S]*create theme Mode\/Light[\s\S]*Nothing was written/);
+    expect(look.out).toMatch(
+      /Plan:[\s\S]*create set Marwes · Core[\s\S]*create theme Mode\/Light[\s\S]*Nothing was written/,
+    );
     expect(penpot.sets).toHaveLength(0);
 
     const pushed = await run("push", "--apply");
@@ -122,13 +183,22 @@ describe("the drift story, from a first push to a Marwes bump", () => {
     penpot.sets[0]!.tokens.find((t) => t.name === "mw-color-primary-base")!.value = "#FF0000";
     const drifted = await run("diff");
     expect(drifted.code).toBe(2);
-    expect(drifted.out).toMatch(/mw-color-primary-base is #FF0000, expected #2F31FC \(used by 1 shape\)/);
+    expect(drifted.out).toMatch(
+      /mw-color-primary-base is #FF0000, expected #2F31FC \(used by 1 shape\)/,
+    );
     expect((await run("push", "--apply")).code).toBe(2);
     expect((await run("push", "--apply", "--overwrite")).code).toBe(0);
-    expect(penpot.sets[0]!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe("#2F31FC");
+    expect(penpot.sets[0]!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe(
+      "#2F31FC",
+    );
 
     // The theme changes: Penpot is behind, and push refuses until the snapshot has been regenerated and committed.
-    await f.writeTheme({ ...acmeThemes.light, color: { primary: "#007744" } });
+    await f.writeTheme({
+      ...acmeThemes.light,
+      color: {
+        primary: "#007744",
+      },
+    });
     const stale = await run("push", "--apply");
     expect(stale.code).toBe(2);
     expect(stale.err).toMatch(/STOP the committed snapshot is stale/);
@@ -136,7 +206,11 @@ describe("the drift story, from a first push to a Marwes bump", () => {
     const update = await run("push", "--apply");
     expect(update.code).toBe(0);
     expect(update.out).toMatch(/update 1 token\(s\) in Acme · Light/);
-    expect(penpot.sets.find((s) => s.name === "Acme · Light")!.tokens.find((t) => t.name === "mw-color-primary-base")!.value).toBe("#007744");
+    expect(
+      penpot.sets
+        .find((s) => s.name === "Acme · Light")!
+        .tokens.find((t) => t.name === "mw-color-primary-base")!.value,
+    ).toBe("#007744");
 
     // Marwes itself is bumped: the version recorded in every description follows.
     await f.installMarwes("1.12.0");
@@ -152,7 +226,11 @@ describe("the drift story, from a first push to a Marwes bump", () => {
     const { penpot, run } = await session();
     await run("snapshot", "--write");
     await run("push", "--apply");
-    penpot.sets[0]!.addToken({ type: "color", name: "my-own", value: "#123456" });
+    penpot.sets[0]!.addToken({
+      type: "color",
+      name: "my-own",
+      value: "#123456",
+    });
     expect((await run("diff")).out).toMatch(/not in the expectation \(added by hand\?\): my-own/);
     expect((await run("push")).out).toMatch(/nothing to write|kept unless you add --prune/);
     expect(penpot.sets[0]!.tokens.some((t) => t.name === "my-own")).toBe(true);
@@ -174,7 +252,9 @@ describe("the status", () => {
     await run("snapshot", "--write");
     const before = await run("status");
     expect(before.code).toBe(2);
-    expect(before.out).toMatch(/Marwes installed: react 1\.11\.0, core 1\.11\.0[\s\S]*ok\s+the snapshot is current[\s\S]*FAIL Penpot differs/);
+    expect(before.out).toMatch(
+      /Marwes installed: react 1\.11\.0, core 1\.11\.0[\s\S]*ok\s+the snapshot is current[\s\S]*FAIL Penpot differs/,
+    );
     await run("push", "--apply");
     const after = await run("status");
     expect(after.code).toBe(0);

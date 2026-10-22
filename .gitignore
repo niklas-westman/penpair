@@ -10,3 +10,6 @@ dist/
 packages/web/README.md
 packages/web/docs/
 *.tgz
+
+# Generated command-package examples
+/packages/web/examples/

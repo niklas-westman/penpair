@@ -1,3 +1,4 @@
+import { withPageSession } from "./page-session.js";
 import { createHash } from "node:crypto";
 import { runOnPage } from "./operation.js";
 import { runSnippet, snippet, requirePage } from "./snippet.js";
@@ -6,8 +7,16 @@ import { maxSnippetBytes, type ExecutionMetrics, type PenpotToolClient } from ".
 import { observationHash } from "./journal.js";
 import { version } from "./version.js";
 
-export const inspectionFields = ["geometry", "text", "layout", "component", "tokens", "style", "metadata"] as const;
-export type InspectionField = typeof inspectionFields[number];
+export const inspectionFields = [
+  "geometry",
+  "text",
+  "layout",
+  "component",
+  "tokens",
+  "style",
+  "metadata",
+] as const;
+export type InspectionField = (typeof inspectionFields)[number];
 export interface InspectionQuery {
   kind?: "shape" | "tokens";
   shapeId?: string;
@@ -20,35 +29,118 @@ export interface InspectionQuery {
   documentBytes?: number;
   cursor?: string;
 }
-interface Cursor { schemaVersion: 1; fileId: string; pageId: string | null; revision: number; queryHash: string; digest: string; offset: number }
+interface Cursor {
+  schemaVersion: 1;
+  fileId: string;
+  pageId: string | null;
+  revision: number;
+  queryHash: string;
+  digest: string;
+  offset: number;
+}
 export interface InspectionChunk {
-  schemaVersion: 1; kind: "inspection-chunk"; fileId: string; pageId: string | null; revision: number;
-  queryHash: string; digest: string; digestAlgorithm: "cyrb53-change-detector"; sourceComplete: boolean;
-  offset: number; nextOffset: number | null; totalCodeUnits: number; chunk: string; nextCursor: string | null; complete: boolean;
-  counts: Record<string, number | null>; observationMs: number; metrics: ExecutionMetrics;
+  schemaVersion: 1;
+  kind: "inspection-chunk";
+  fileId: string;
+  pageId: string | null;
+  revision: number;
+  queryHash: string;
+  digest: string;
+  digestAlgorithm: "cyrb53-change-detector";
+  sourceComplete: boolean;
+  offset: number;
+  nextOffset: number | null;
+  totalCodeUnits: number;
+  chunk: string;
+  nextCursor: string | null;
+  complete: boolean;
+  counts: Record<string, number | null>;
+  observationMs: number;
+  metrics: ExecutionMetrics;
 }
 export interface InspectionDocument {
-  schemaVersion: 1; kind: "shape-inspection" | "token-inspection"; fileId: string; pageId: string | null; revision: number; complete: boolean;
-  counts: Record<string, number | null>; reasons: string[]; producer: { name: string; version: string };
-  nodes?: Record<string, unknown>[]; sets?: Record<string, unknown>[]; themes?: Record<string, unknown>[];
+  schemaVersion: 1;
+  kind: "shape-inspection" | "token-inspection";
+  fileId: string;
+  pageId: string | null;
+  revision: number;
+  complete: boolean;
+  counts: Record<string, number | null>;
+  reasons: string[];
+  producer: {
+    name: string;
+    version: string;
+  };
+  nodes?: Record<string, unknown>[];
+  sets?: Record<string, unknown>[];
+  themes?: Record<string, unknown>[];
   [key: string]: unknown;
 }
-export interface InspectionMetrics { calls: number; requestSnippetBytes: number; responsePayloadBytes: number; maxRequestSnippetBytes: number; maxResponsePayloadBytes: number; assembledBytes: number; durationMs: number }
-export type InspectionCapture = InspectionDocument & { capturedAt: string; sha256: string; metrics: InspectionMetrics };
-export interface PartialInspection { schemaVersion: 1; kind: "inspection-partial"; fileId: string | null; pageId: string | null; complete: false; reason: string; chunks: InspectionChunk[]; nextCursor: string | null; metrics: InspectionMetrics }
-export interface CaptureBudget { maxCalls?: number; maxTotalBytes?: number; timeoutMs?: number }
+export interface InspectionMetrics {
+  calls: number;
+  requestSnippetBytes: number;
+  responsePayloadBytes: number;
+  maxRequestSnippetBytes: number;
+  maxResponsePayloadBytes: number;
+  assembledBytes: number;
+  durationMs: number;
+}
+export type InspectionCapture = InspectionDocument & {
+  capturedAt: string;
+  sha256: string;
+  metrics: InspectionMetrics;
+};
+export interface PartialInspection {
+  schemaVersion: 1;
+  kind: "inspection-partial";
+  fileId: string | null;
+  pageId: string | null;
+  complete: false;
+  reason: string;
+  chunks: InspectionChunk[];
+  nextCursor: string | null;
+  metrics: InspectionMetrics;
+}
+export interface CaptureBudget {
+  maxCalls?: number;
+  maxTotalBytes?: number;
+  timeoutMs?: number;
+}
 
 // A deterministic change detector, not an authentication hash. Final reassembled evidence receives SHA-256 on the host.
 function fingerprint(text: string): string {
-  let a = 0xdeadbeef, b = 0x41c6ce57;
-  for (let i = 0; i < text.length; i++) { const code = text.charCodeAt(i); a = Math.imul(a ^ code, 2654435761); b = Math.imul(b ^ code, 1597334677); }
+  let a = 0xdeadbeef;
+  let b = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 2654435761);
+    b = Math.imul(b ^ code, 1597334677);
+  }
   a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
   b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
   return (4294967296 * (2097151 & b) + (a >>> 0)).toString(16);
 }
 function utf8Bytes(text: string): number {
   let count = 0;
-  for (let i=0;i<text.length;i++) { const code=text.charCodeAt(i); if(code<128)count++;else if(code<2048)count+=2;else if(code>=0xd800&&code<=0xdbff&&i+1<text.length&&text.charCodeAt(i+1)>=0xdc00&&text.charCodeAt(i+1)<=0xdfff){count+=4;i++;}else count+=3; }
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 128) {
+      count++;
+    } else if (code < 2048) {
+      count += 2;
+    } else if (
+      code >= 0xd800 &&
+      code <= 0xdbff &&
+      i + 1 < text.length &&
+      text.charCodeAt(i + 1) >= 0xdc00 &&
+      text.charCodeAt(i + 1) <= 0xdfff
+    ) {
+      count += 4;
+      i++;
+    } else {
+      count += 3;
+    }
+  }
   return count;
 }
 const body = `
@@ -190,115 +282,556 @@ return best;`;
 
 export function validateInspectionQuery(query: InspectionQuery) {
   const kind = query.kind ?? "shape";
-  if (!["shape", "tokens"].includes(kind) || kind === "shape" && (typeof query.shapeId!=="string" || !query.shapeId || query.shapeId.length>200 || typeof query.page!=="string" || !query.page || query.page.length>500)) throw new Error("Shape inspection requires an ID and explicit page");
-  if(kind==="tokens"&&(query.shapeId!==undefined||query.page!==undefined||query.fields!==undefined||query.depth!==undefined))throw new Error("Token inspection is file-scoped and does not accept shape field/depth selectors");
-  const requested=query.fields??inspectionFields;
-  if(!Array.isArray(requested)||requested.some(field=>!inspectionFields.includes(field)))throw new Error("Unknown inspection field group; supported: "+inspectionFields.join(", "));
-  const fields = [...new Set(requested)].sort();
-  const config = { kind, shapeId: query.shapeId, page: query.page, fields, depth: query.depth ?? 64, maxNodes: query.maxNodes ?? 20000, responseBytes: query.responseBytes ?? 65536, timeBudgetMs: query.timeBudgetMs ?? 5000, documentBytes: query.documentBytes ?? 16 * 1024 * 1024 };
-  for (const [key,min,max] of [["depth",0,10000],["maxNodes",1,50000],["responseBytes",4096,262144],["timeBudgetMs",1,30000],["documentBytes",4096,128*1024*1024]] as const) if (!Number.isInteger(config[key]) || config[key]<min || config[key]>max) throw new Error(`${key} must be an integer from ${min} to ${max}`);
-  const queryHash = observationHash({ kind, shapeId: config.shapeId, page: config.page, fields, depth: config.depth, maxNodes: config.maxNodes, documentBytes:config.documentBytes, timeBudgetMs:config.timeBudgetMs });
-  return { ...config, queryHash, producerVersion: version };
+  if (
+    ![
+      "shape",
+      "tokens",
+    ].includes(kind) ||
+    (kind === "shape" &&
+      (typeof query.shapeId !== "string" ||
+        !query.shapeId ||
+        query.shapeId.length > 200 ||
+        typeof query.page !== "string" ||
+        !query.page ||
+        query.page.length > 500))
+  ) {
+    throw new Error("Shape inspection requires an ID and explicit page");
+  }
+  if (
+    kind === "tokens" &&
+    (query.shapeId !== undefined ||
+      query.page !== undefined ||
+      query.fields !== undefined ||
+      query.depth !== undefined)
+  ) {
+    throw new Error(
+      "Token inspection is file-scoped and does not accept shape field/depth selectors",
+    );
+  }
+  const requested = query.fields ?? inspectionFields;
+  if (!Array.isArray(requested) || requested.some((field) => !inspectionFields.includes(field))) {
+    throw new Error("Unknown inspection field group; supported: " + inspectionFields.join(", "));
+  }
+  const fields = [
+    ...new Set(requested),
+  ].sort();
+  const config = {
+    kind,
+    shapeId: query.shapeId,
+    page: query.page,
+    fields,
+    depth: query.depth ?? 64,
+    maxNodes: query.maxNodes ?? 20000,
+    responseBytes: query.responseBytes ?? 65536,
+    timeBudgetMs: query.timeBudgetMs ?? 5000,
+    documentBytes: query.documentBytes ?? 16 * 1024 * 1024,
+  };
+  for (const [key, min, max] of [
+    [
+      "depth",
+      0,
+      10000,
+    ],
+    [
+      "maxNodes",
+      1,
+      50000,
+    ],
+    [
+      "responseBytes",
+      4096,
+      262144,
+    ],
+    [
+      "timeBudgetMs",
+      1,
+      30000,
+    ],
+    [
+      "documentBytes",
+      4096,
+      128 * 1024 * 1024,
+    ],
+  ] as const) {
+    if (!Number.isInteger(config[key]) || config[key] < min || config[key] > max) {
+      throw new Error(`${key} must be an integer from ${min} to ${max}`);
+    }
+  }
+  const queryHash = observationHash({
+    kind,
+    shapeId: config.shapeId,
+    page: config.page,
+    fields,
+    depth: config.depth,
+    maxNodes: config.maxNodes,
+    documentBytes: config.documentBytes,
+    timeBudgetMs: config.timeBudgetMs,
+  });
+  return {
+    ...config,
+    queryHash,
+    producerVersion: version,
+  };
 }
 function decodeCursor(cursor: string): Cursor {
   try {
-    if (cursor.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(cursor)) throw new Error();
-    const value = JSON.parse(Buffer.from(cursor,"base64url").toString("utf8")) as Cursor;
-    if (value.schemaVersion!==1 || typeof value.fileId!=="string" || !value.fileId || value.pageId!==null && typeof value.pageId!=="string" || !Number.isInteger(value.revision) || !/^[a-f0-9]{64}$/.test(value.queryHash) || !/^[a-f0-9]+$/.test(value.digest) || !Number.isInteger(value.offset) || value.offset<0) throw new Error();
+    if (cursor.length > 8192 || !/^[A-Za-z0-9_-]+$/.test(cursor)) {
+      throw new Error();
+    }
+    const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Cursor;
+    if (
+      value.schemaVersion !== 1 ||
+      typeof value.fileId !== "string" ||
+      !value.fileId ||
+      (value.pageId !== null && typeof value.pageId !== "string") ||
+      !Number.isInteger(value.revision) ||
+      !/^[a-f0-9]{64}$/.test(value.queryHash) ||
+      !/^[a-f0-9]+$/.test(value.digest) ||
+      !Number.isInteger(value.offset) ||
+      value.offset < 0
+    ) {
+      throw new Error();
+    }
     return value;
-  } catch { throw new Error("Invalid inspection cursor; start a fresh capture"); }
+  } catch {
+    throw new Error("Invalid inspection cursor; start a fresh capture");
+  }
 }
 function cursorAt(chunk: InspectionChunk, offset: number): string {
-  return Buffer.from(JSON.stringify({schemaVersion:1,fileId:chunk.fileId,pageId:chunk.pageId,revision:chunk.revision,queryHash:chunk.queryHash,digest:chunk.digest,offset} satisfies Cursor)).toString("base64url");
+  return Buffer.from(
+    JSON.stringify({
+      schemaVersion: 1,
+      fileId: chunk.fileId,
+      pageId: chunk.pageId,
+      revision: chunk.revision,
+      queryHash: chunk.queryHash,
+      digest: chunk.digest,
+      offset,
+    } satisfies Cursor),
+  ).toString("base64url");
 }
-export async function inspectChunk(client: PenpotToolClient, query: InspectionQuery, requestTimeoutMs?: number): Promise<InspectionChunk> {
-  const config=validateInspectionQuery(query), expected=query.cursor?decodeCursor(query.cursor):undefined;
-  if (expected && expected.queryHash!==config.queryHash) throw new Error("Inspection query changed; discard the cursor and start fresh");
-  const source=snippet("inspect-chunk",body,{...config,expected},"read");
-  const options={effect:"read" as const,retries:0,timeoutMs:Math.max(1,Math.min(requestTimeoutMs??120000,config.timeBudgetMs+2000))};
-  const record=config.kind==="shape"?await runOnPage(client,source,config.page,options):await runSnippet(client,source,options);
-  if (record.stale===true) throw new PenpairError("stale-inspection","Inspection cursor is stale; start a fresh capture");
-  const value=record as unknown as InspectionChunk;
-  if (record.ok!==true || value.schemaVersion!==1 || value.kind!=="inspection-chunk" || typeof value.fileId!=="string" || value.pageId!==null&&typeof value.pageId!=="string" || !Number.isInteger(value.revision) || value.queryHash!==config.queryHash || typeof value.digest!=="string" || !/^[a-f0-9]{1,16}$/.test(value.digest) || typeof value.sourceComplete!=="boolean" || typeof value.complete!=="boolean" || !Number.isInteger(value.offset) || !Number.isInteger(value.totalCodeUnits) || value.totalCodeUnits<1 || value.digestAlgorithm!=="cyrb53-change-detector" || !value.counts || typeof value.counts!=="object" || Object.values(value.counts).some(count=>count!==null&&(!Number.isInteger(count)||count<0)) || !Number.isFinite(value.observationMs) || value.observationMs<0 || typeof value.chunk!=="string" || !value.chunk.length || value.offset!==(expected?.offset??0) || value.offset+value.chunk.length>value.totalCodeUnits || value.nextOffset!==(value.offset+value.chunk.length<value.totalCodeUnits?value.offset+value.chunk.length:null)) throw new Error("Malformed inspection chunk evidence");
-  if (value.complete!==(value.sourceComplete&&value.offset===0&&value.nextOffset===null) || value.offset>0&&/^[\uDC00-\uDFFF]/.test(value.chunk) || value.nextOffset!==null&&/[\uD800-\uDBFF]$/.test(value.chunk)) throw new Error("Malformed inspection completeness or Unicode boundary");
-  const metrics=(record.execution as {metrics?:ExecutionMetrics}|undefined)?.metrics ?? {requestSnippetBytes:Buffer.byteLength(source.code),responsePayloadBytes:Buffer.byteLength(JSON.stringify(record))};
-  if (!Number.isInteger(metrics.requestSnippetBytes)||metrics.requestSnippetBytes<=0||metrics.requestSnippetBytes>maxSnippetBytes||!Number.isInteger(metrics.responsePayloadBytes)||metrics.responsePayloadBytes<=0) throw new Error("Inspection metrics are missing or invalid");
-  if (metrics.responsePayloadBytes>config.responseBytes) throw new PenpairError("incomplete-output","Inspection response exceeded the configured payload budget");
-  const { execution: _execution, ok: _ok, ...data }=record;
-  const result={...data,metrics,nextCursor:null} as unknown as InspectionChunk;
-  result.nextCursor=result.nextOffset===null?null:cursorAt(result,result.nextOffset);
-  if(result.offset===0&&result.nextOffset===null)reassembleInspection([result]);
+export async function inspectChunk(
+  client: PenpotToolClient,
+  query: InspectionQuery,
+  requestTimeoutMs?: number,
+): Promise<InspectionChunk> {
+  const config = validateInspectionQuery(query);
+  const expected = query.cursor ? decodeCursor(query.cursor) : undefined;
+  if (expected && expected.queryHash !== config.queryHash) {
+    throw new Error("Inspection query changed; discard the cursor and start fresh");
+  }
+  const source = snippet(
+    "inspect-chunk",
+    body,
+    {
+      ...config,
+      expected,
+    },
+    "read",
+  );
+  const options = {
+    effect: "read" as const,
+    retries: 0,
+    timeoutMs: Math.max(1, Math.min(requestTimeoutMs ?? 120000, config.timeBudgetMs + 2000)),
+  };
+  const record =
+    config.kind === "shape"
+      ? await runOnPage(client, source, config.page, options)
+      : await runSnippet(client, source, options);
+  if (record.stale === true) {
+    throw new PenpairError("stale-inspection", "Inspection cursor is stale; start a fresh capture");
+  }
+  const value = record as unknown as InspectionChunk;
+  if (
+    record.ok !== true ||
+    value.schemaVersion !== 1 ||
+    value.kind !== "inspection-chunk" ||
+    typeof value.fileId !== "string" ||
+    (value.pageId !== null && typeof value.pageId !== "string") ||
+    !Number.isInteger(value.revision) ||
+    value.queryHash !== config.queryHash ||
+    typeof value.digest !== "string" ||
+    !/^[a-f0-9]{1,16}$/.test(value.digest) ||
+    typeof value.sourceComplete !== "boolean" ||
+    typeof value.complete !== "boolean" ||
+    !Number.isInteger(value.offset) ||
+    !Number.isInteger(value.totalCodeUnits) ||
+    value.totalCodeUnits < 1 ||
+    value.digestAlgorithm !== "cyrb53-change-detector" ||
+    !value.counts ||
+    typeof value.counts !== "object" ||
+    Object.values(value.counts).some(
+      (count) => count !== null && (!Number.isInteger(count) || count < 0),
+    ) ||
+    !Number.isFinite(value.observationMs) ||
+    value.observationMs < 0 ||
+    typeof value.chunk !== "string" ||
+    !value.chunk.length ||
+    value.offset !== (expected?.offset ?? 0) ||
+    value.offset + value.chunk.length > value.totalCodeUnits ||
+    value.nextOffset !==
+      (value.offset + value.chunk.length < value.totalCodeUnits
+        ? value.offset + value.chunk.length
+        : null)
+  ) {
+    throw new Error("Malformed inspection chunk evidence");
+  }
+  if (
+    value.complete !== (value.sourceComplete && value.offset === 0 && value.nextOffset === null) ||
+    (value.offset > 0 && /^[\uDC00-\uDFFF]/.test(value.chunk)) ||
+    (value.nextOffset !== null && /[\uD800-\uDBFF]$/.test(value.chunk))
+  ) {
+    throw new Error("Malformed inspection completeness or Unicode boundary");
+  }
+  const metrics = (
+    record.execution as
+      | {
+          metrics?: ExecutionMetrics;
+        }
+      | undefined
+  )?.metrics ?? {
+    requestSnippetBytes: Buffer.byteLength(source.code),
+    responsePayloadBytes: Buffer.byteLength(JSON.stringify(record)),
+  };
+  if (
+    !Number.isInteger(metrics.requestSnippetBytes) ||
+    metrics.requestSnippetBytes <= 0 ||
+    metrics.requestSnippetBytes > maxSnippetBytes ||
+    !Number.isInteger(metrics.responsePayloadBytes) ||
+    metrics.responsePayloadBytes <= 0
+  ) {
+    throw new Error("Inspection metrics are missing or invalid");
+  }
+  if (metrics.responsePayloadBytes > config.responseBytes) {
+    throw new PenpairError(
+      "incomplete-output",
+      "Inspection response exceeded the configured payload budget",
+    );
+  }
+  const { execution: _execution, ok: _ok, ...data } = record;
+  const result = {
+    ...data,
+    metrics,
+    nextCursor: null,
+  } as unknown as InspectionChunk;
+  result.nextCursor = result.nextOffset === null ? null : cursorAt(result, result.nextOffset);
+  if (result.offset === 0 && result.nextOffset === null) {
+    reassembleInspection([
+      result,
+    ]);
+  }
   return result;
 }
 /** Validate structural evidence independently of the transport envelope. Unknown API fields remain explicit nulls. */
-export function validateInspectionDocument(input:unknown):InspectionDocument {
-  if(!input||typeof input!=="object")throw new Error("Malformed inspection document");
-  const value=input as InspectionDocument;
-  const counts=value.counts;
-  if(value.schemaVersion!==1||!["shape-inspection","token-inspection"].includes(value.kind)||typeof value.fileId!=="string"||!value.fileId||!Number.isInteger(value.revision)||value.revision<0||typeof value.complete!=="boolean"||!Array.isArray(value.reasons)||value.reasons.some(reason=>typeof reason!=="string")||value.complete&&value.reasons.length>0||!value.complete&&!value.reasons.length||!counts||typeof counts!=="object"||Object.values(counts).some(count=>count!==null&&(!Number.isInteger(count)||count<0))||!Number.isInteger(counts.visited)||!Number.isInteger(counts.returned)||value.producer?.name!=="penpair"||typeof value.producer?.version!=="string")throw new Error("Malformed inspection provenance/counts");
-  if(value.kind==="shape-inspection"){
-    const scope=value.scope as {shapeId?:unknown;fields?:unknown;depth?:unknown}|undefined;
-    if(typeof value.pageId!=="string"||!value.pageId||!scope||typeof scope.shapeId!=="string"||!Array.isArray(scope.fields)||scope.fields.some(field=>!inspectionFields.includes(field))||!Number.isInteger(scope.depth)||!Array.isArray(value.nodes)||counts.returned!==value.nodes.length)throw new Error("Malformed shape inspection scope");
-    const nodes=new Map<string,Record<string,unknown>>();
-    for(const row of value.nodes){
-      if(!row||typeof row.id!=="string"||!row.id||nodes.has(row.id)||row.parentId!==null&&typeof row.parentId!=="string"||!Number.isInteger(row.index)||Number(row.index)<0||!Number.isInteger(row.depth)||Number(row.depth)<0||row.type!==null&&typeof row.type!=="string"||row.name!==null&&typeof row.name!=="string"||!Array.isArray(row.childIds)||row.childIds.some(id=>typeof id!=="string")||!Number.isInteger(row.childrenTotal)||Number(row.childrenTotal)<row.childIds.length||!Array.isArray(row.unknowns)||row.unknowns.some(key=>typeof key!=="string"))throw new Error("Malformed shape node evidence");
-      for(const field of scope.fields)if(!(field in row))throw new Error("Inspection omitted a requested field group");
-      if(row.geometry&&typeof row.geometry==="object")for(const key of ["x","y","width","height","rotation"]){const entry=(row.geometry as Record<string,unknown>)[key];if(entry!==null&&(typeof entry!=="number"||!Number.isFinite(entry)))throw new Error("Malformed shape geometry");}
-      nodes.set(row.id,row);
+export function validateInspectionDocument(input: unknown): InspectionDocument {
+  if (!input || typeof input !== "object") {
+    throw new Error("Malformed inspection document");
+  }
+  const value = input as InspectionDocument;
+  const counts = value.counts;
+  if (
+    value.schemaVersion !== 1 ||
+    ![
+      "shape-inspection",
+      "token-inspection",
+    ].includes(value.kind) ||
+    typeof value.fileId !== "string" ||
+    !value.fileId ||
+    !Number.isInteger(value.revision) ||
+    value.revision < 0 ||
+    typeof value.complete !== "boolean" ||
+    !Array.isArray(value.reasons) ||
+    value.reasons.some((reason) => typeof reason !== "string") ||
+    (value.complete && value.reasons.length > 0) ||
+    (!value.complete && !value.reasons.length) ||
+    !counts ||
+    typeof counts !== "object" ||
+    Object.values(counts).some(
+      (count) => count !== null && (!Number.isInteger(count) || count < 0),
+    ) ||
+    !Number.isInteger(counts.visited) ||
+    !Number.isInteger(counts.returned) ||
+    value.producer?.name !== "penpair" ||
+    typeof value.producer?.version !== "string"
+  ) {
+    throw new Error("Malformed inspection provenance/counts");
+  }
+  if (value.kind === "shape-inspection") {
+    const scope = value.scope as
+      | {
+          shapeId?: unknown;
+          fields?: unknown;
+          depth?: unknown;
+        }
+      | undefined;
+    if (
+      typeof value.pageId !== "string" ||
+      !value.pageId ||
+      !scope ||
+      typeof scope.shapeId !== "string" ||
+      !Array.isArray(scope.fields) ||
+      scope.fields.some((field) => !inspectionFields.includes(field)) ||
+      !Number.isInteger(scope.depth) ||
+      !Array.isArray(value.nodes) ||
+      counts.returned !== value.nodes.length
+    ) {
+      throw new Error("Malformed shape inspection scope");
     }
-    if(value.nodes.length&&value.nodes[0]!.id!==scope.shapeId)throw new Error("Inspection root identity does not match its scope");
-    for(const row of value.nodes){
-      if(row===value.nodes[0]&&(row.parentId!==null||row.depth!==0||row.index!==0)||row!==value.nodes[0]&&row.parentId===null)throw new Error("Inspection has an invalid subtree root");
-      if(row.parentId!==null){const parent=nodes.get(String(row.parentId));if(!parent||(parent.childIds as string[])[Number(row.index)]!==row.id||Number(row.depth)!==Number(parent.depth)+1)throw new Error("Inspection parent/child evidence is inconsistent");}
-      if(value.complete&&((row.childIds as string[]).length!==row.childrenTotal||(row.childIds as string[]).some((id,index)=>!nodes.has(id)||nodes.get(id)!.parentId!==row.id||nodes.get(id)!.index!==index)))throw new Error("Complete inspection is missing a child");
+    const nodes = new Map<string, Record<string, unknown>>();
+    for (const row of value.nodes) {
+      if (
+        !row ||
+        typeof row.id !== "string" ||
+        !row.id ||
+        nodes.has(row.id) ||
+        (row.parentId !== null && typeof row.parentId !== "string") ||
+        !Number.isInteger(row.index) ||
+        Number(row.index) < 0 ||
+        !Number.isInteger(row.depth) ||
+        Number(row.depth) < 0 ||
+        (row.type !== null && typeof row.type !== "string") ||
+        (row.name !== null && typeof row.name !== "string") ||
+        !Array.isArray(row.childIds) ||
+        row.childIds.some((id) => typeof id !== "string") ||
+        !Number.isInteger(row.childrenTotal) ||
+        Number(row.childrenTotal) < row.childIds.length ||
+        !Array.isArray(row.unknowns) ||
+        row.unknowns.some((key) => typeof key !== "string")
+      ) {
+        throw new Error("Malformed shape node evidence");
+      }
+      for (const field of scope.fields) {
+        if (!(field in row)) {
+          throw new Error("Inspection omitted a requested field group");
+        }
+      }
+      if (row.geometry && typeof row.geometry === "object") {
+        for (const key of [
+          "x",
+          "y",
+          "width",
+          "height",
+          "rotation",
+        ]) {
+          const entry = (row.geometry as Record<string, unknown>)[key];
+          if (entry !== null && (typeof entry !== "number" || !Number.isFinite(entry))) {
+            throw new Error("Malformed shape geometry");
+          }
+        }
+      }
+      nodes.set(row.id, row);
     }
-    if(value.complete&&(!value.nodes.length||counts.total!==value.nodes.length||counts.visited!==value.nodes.length))throw new Error("Complete inspection node counts disagree");
-  }else{
-    if(value.pageId!==null||!Array.isArray(value.sets)||!Array.isArray(value.themes))throw new Error("Malformed token inspection scope");
-    let tokens=0;
-    for(const set of value.sets){if(!set||!Number.isInteger(set.order)||!Array.isArray(set.tokens))throw new Error("Malformed token set evidence");tokens+=set.tokens.length;}
-    if(counts.returned!==tokens||value.complete&&counts.visited!==tokens+value.sets.length+value.themes.length)throw new Error("Token inspection counts disagree");
+    if (value.nodes.length && value.nodes[0]!.id !== scope.shapeId) {
+      throw new Error("Inspection root identity does not match its scope");
+    }
+    for (const row of value.nodes) {
+      if (
+        (row === value.nodes[0] && (row.parentId !== null || row.depth !== 0 || row.index !== 0)) ||
+        (row !== value.nodes[0] && row.parentId === null)
+      ) {
+        throw new Error("Inspection has an invalid subtree root");
+      }
+      if (row.parentId !== null) {
+        const parent = nodes.get(String(row.parentId));
+        if (
+          !parent ||
+          (parent.childIds as string[])[Number(row.index)] !== row.id ||
+          Number(row.depth) !== Number(parent.depth) + 1
+        ) {
+          throw new Error("Inspection parent/child evidence is inconsistent");
+        }
+      }
+      if (
+        value.complete &&
+        ((row.childIds as string[]).length !== row.childrenTotal ||
+          (row.childIds as string[]).some(
+            (id, index) =>
+              !nodes.has(id) ||
+              nodes.get(id)!.parentId !== row.id ||
+              nodes.get(id)!.index !== index,
+          ))
+      ) {
+        throw new Error("Complete inspection is missing a child");
+      }
+    }
+    if (
+      value.complete &&
+      (!value.nodes.length ||
+        counts.total !== value.nodes.length ||
+        counts.visited !== value.nodes.length)
+    ) {
+      throw new Error("Complete inspection node counts disagree");
+    }
+  } else {
+    if (value.pageId !== null || !Array.isArray(value.sets) || !Array.isArray(value.themes)) {
+      throw new Error("Malformed token inspection scope");
+    }
+    let tokens = 0;
+    for (const set of value.sets) {
+      if (!set || !Number.isInteger(set.order) || !Array.isArray(set.tokens)) {
+        throw new Error("Malformed token set evidence");
+      }
+      tokens += set.tokens.length;
+    }
+    if (
+      counts.returned !== tokens ||
+      (value.complete && counts.visited !== tokens + value.sets.length + value.themes.length)
+    ) {
+      throw new Error("Token inspection counts disagree");
+    }
   }
   return value;
 }
 export function reassembleInspection(chunks: InspectionChunk[]): InspectionDocument {
-  if (!chunks.length || chunks[0]!.offset!==0 || chunks.at(-1)!.nextOffset!==null) throw new Error("Inspection is missing its beginning or final chunk");
-  const first=chunks[0]!; let offset=0;
-  for (const chunk of chunks) {
-    if (chunk.offset!==offset || chunk.fileId!==first.fileId || chunk.pageId!==first.pageId || chunk.revision!==first.revision || chunk.queryHash!==first.queryHash || chunk.digest!==first.digest || chunk.totalCodeUnits!==first.totalCodeUnits || chunk.sourceComplete!==first.sourceComplete) throw new Error("Inspection chunks are mixed, missing or stale");
-    offset+=chunk.chunk.length;
+  if (!chunks.length || chunks[0]!.offset !== 0 || chunks.at(-1)!.nextOffset !== null) {
+    throw new Error("Inspection is missing its beginning or final chunk");
   }
-  const serialized=chunks.map(chunk=>chunk.chunk).join("");
-  if (serialized.length!==first.totalCodeUnits || fingerprint(serialized)!==first.digest) throw new Error("Inspection chunk content does not match its fingerprint");
-  const value=validateInspectionDocument(JSON.parse(serialized));
-  if (value.schemaVersion!==1 || !["shape-inspection","token-inspection"].includes(value.kind) || value.fileId!==first.fileId || value.pageId!==first.pageId || value.revision!==first.revision || value.complete!==first.sourceComplete) throw new Error("Inspection document lacks matching provenance");
+  const first = chunks[0]!;
+  let offset = 0;
+  for (const chunk of chunks) {
+    if (
+      chunk.offset !== offset ||
+      chunk.fileId !== first.fileId ||
+      chunk.pageId !== first.pageId ||
+      chunk.revision !== first.revision ||
+      chunk.queryHash !== first.queryHash ||
+      chunk.digest !== first.digest ||
+      chunk.totalCodeUnits !== first.totalCodeUnits ||
+      chunk.sourceComplete !== first.sourceComplete
+    ) {
+      throw new Error("Inspection chunks are mixed, missing or stale");
+    }
+    offset += chunk.chunk.length;
+  }
+  const serialized = chunks.map((chunk) => chunk.chunk).join("");
+  if (serialized.length !== first.totalCodeUnits || fingerprint(serialized) !== first.digest) {
+    throw new Error("Inspection chunk content does not match its fingerprint");
+  }
+  const value = validateInspectionDocument(JSON.parse(serialized));
+  if (
+    value.schemaVersion !== 1 ||
+    ![
+      "shape-inspection",
+      "token-inspection",
+    ].includes(value.kind) ||
+    value.fileId !== first.fileId ||
+    value.pageId !== first.pageId ||
+    value.revision !== first.revision ||
+    value.complete !== first.sourceComplete
+  ) {
+    throw new Error("Inspection document lacks matching provenance");
+  }
   return value;
 }
 export function validateCaptureBudget(budget: CaptureBudget = {}) {
-  const maxCalls=budget.maxCalls??256,maxTotalBytes=budget.maxTotalBytes??16*1024*1024,timeoutMs=budget.timeoutMs??60000;
-  if (!Number.isInteger(maxCalls)||maxCalls<1||maxCalls>2048||!Number.isInteger(maxTotalBytes)||maxTotalBytes<4096||maxTotalBytes>128*1024*1024||!Number.isInteger(timeoutMs)||timeoutMs<1||timeoutMs>300000) throw new Error("Invalid inspection capture budgets");
-  return {maxCalls,maxTotalBytes,timeoutMs};
+  const maxCalls = budget.maxCalls ?? 256;
+  const maxTotalBytes = budget.maxTotalBytes ?? 16 * 1024 * 1024;
+  const timeoutMs = budget.timeoutMs ?? 60000;
+  if (
+    !Number.isInteger(maxCalls) ||
+    maxCalls < 1 ||
+    maxCalls > 2048 ||
+    !Number.isInteger(maxTotalBytes) ||
+    maxTotalBytes < 4096 ||
+    maxTotalBytes > 128 * 1024 * 1024 ||
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > 300000
+  ) {
+    throw new Error("Invalid inspection capture budgets");
+  }
+  return {
+    maxCalls,
+    maxTotalBytes,
+    timeoutMs,
+  };
 }
-export async function captureInspection(client: PenpotToolClient, query: InspectionQuery, budget: CaptureBudget = {}): Promise<InspectionCapture|PartialInspection> {
-  if (query.cursor) throw new Error("Full capture starts at offset zero; use inspectChunk for manual cursor continuation");
-  const {maxCalls,maxTotalBytes,timeoutMs}=validateCaptureBudget(budget);
+export async function captureInspection(
+  client: PenpotToolClient,
+  query: InspectionQuery,
+  budget: CaptureBudget = {},
+): Promise<InspectionCapture | PartialInspection> {
+  return withPageSession(client, () => captureInspectionInSession(client, query, budget));
+}
+async function captureInspectionInSession(
+  client: PenpotToolClient,
+  query: InspectionQuery,
+  budget: CaptureBudget,
+): Promise<InspectionCapture | PartialInspection> {
+  if (query.cursor) {
+    throw new Error(
+      "Full capture starts at offset zero; use inspectChunk for manual cursor continuation",
+    );
+  }
+  const { maxCalls, maxTotalBytes, timeoutMs } = validateCaptureBudget(budget);
   validateInspectionQuery(query);
-  const started=Date.now(), chunks:InspectionChunk[]=[];
-  const metrics:InspectionMetrics={calls:0,requestSnippetBytes:0,responsePayloadBytes:0,maxRequestSnippetBytes:0,maxResponsePayloadBytes:0,assembledBytes:0,durationMs:0};
-  let cursor:string|undefined;
-  const partial=(reason:string,nextCursor=cursor??null):PartialInspection=>({schemaVersion:1,kind:"inspection-partial",fileId:chunks[0]?.fileId??null,pageId:chunks[0]?.pageId??null,complete:false,reason,chunks,nextCursor,metrics:{...metrics,durationMs:Date.now()-started}});
+  const started = Date.now();
+  const chunks: InspectionChunk[] = [];
+  const metrics: InspectionMetrics = {
+    calls: 0,
+    requestSnippetBytes: 0,
+    responsePayloadBytes: 0,
+    maxRequestSnippetBytes: 0,
+    maxResponsePayloadBytes: 0,
+    assembledBytes: 0,
+    durationMs: 0,
+  };
+  let cursor: string | undefined;
+  const partial = (reason: string, nextCursor = cursor ?? null): PartialInspection => ({
+    schemaVersion: 1,
+    kind: "inspection-partial",
+    fileId: chunks[0]?.fileId ?? null,
+    pageId: chunks[0]?.pageId ?? null,
+    complete: false,
+    reason,
+    chunks,
+    nextCursor,
+    metrics: {
+      ...metrics,
+      durationMs: Date.now() - started,
+    },
+  });
   while (true) {
-    if (metrics.calls>=maxCalls || Date.now()-started>=timeoutMs) return partial("Capture call/time budget exhausted");
-    const chunk=await inspectChunk(client,{...query,cursor},Math.max(1,timeoutMs-(Date.now()-started)));
-    metrics.calls++;metrics.requestSnippetBytes+=chunk.metrics.requestSnippetBytes;metrics.responsePayloadBytes+=chunk.metrics.responsePayloadBytes;
-    metrics.maxRequestSnippetBytes=Math.max(metrics.maxRequestSnippetBytes,chunk.metrics.requestSnippetBytes);metrics.maxResponsePayloadBytes=Math.max(metrics.maxResponsePayloadBytes,chunk.metrics.responsePayloadBytes);
-    const size=Buffer.byteLength(chunk.chunk,"utf8");
-    if (metrics.assembledBytes+size>maxTotalBytes) return partial("Capture total-byte budget exhausted",cursorAt(chunk,chunk.offset));
-    metrics.assembledBytes+=size;chunks.push(chunk);
-    if (!chunk.nextCursor) {
-      const document=reassembleInspection(chunks);metrics.durationMs=Date.now()-started;
-      return {...document,capturedAt:new Date().toISOString(),sha256:createHash("sha256").update(chunks.map(entry=>entry.chunk).join(""),"utf8").digest("hex"),metrics};
+    if (metrics.calls >= maxCalls || Date.now() - started >= timeoutMs) {
+      return partial("Capture call/time budget exhausted");
     }
-    cursor=chunk.nextCursor;
+    const chunk = await inspectChunk(
+      client,
+      {
+        ...query,
+        cursor,
+      },
+      Math.max(1, timeoutMs - (Date.now() - started)),
+    );
+    metrics.calls++;
+    metrics.requestSnippetBytes += chunk.metrics.requestSnippetBytes;
+    metrics.responsePayloadBytes += chunk.metrics.responsePayloadBytes;
+    metrics.maxRequestSnippetBytes = Math.max(
+      metrics.maxRequestSnippetBytes,
+      chunk.metrics.requestSnippetBytes,
+    );
+    metrics.maxResponsePayloadBytes = Math.max(
+      metrics.maxResponsePayloadBytes,
+      chunk.metrics.responsePayloadBytes,
+    );
+    const size = Buffer.byteLength(chunk.chunk, "utf8");
+    if (metrics.assembledBytes + size > maxTotalBytes) {
+      return partial("Capture total-byte budget exhausted", cursorAt(chunk, chunk.offset));
+    }
+    metrics.assembledBytes += size;
+    chunks.push(chunk);
+    if (!chunk.nextCursor) {
+      const document = reassembleInspection(chunks);
+      metrics.durationMs = Date.now() - started;
+      return {
+        ...document,
+        capturedAt: new Date().toISOString(),
+        sha256: createHash("sha256")
+          .update(chunks.map((entry) => entry.chunk).join(""), "utf8")
+          .digest("hex"),
+        metrics,
+      };
+    }
+    cursor = chunk.nextCursor;
   }
 }

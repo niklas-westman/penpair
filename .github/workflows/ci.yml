@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck, test and build
+      - name: Check style, conventions, types, tests and build
         run: pnpm check
 
       - name: Validate pending Changesets release notes

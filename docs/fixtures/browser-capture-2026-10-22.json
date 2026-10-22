@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-22",
+  "browser": "148.0.7778.96",
+  "kind": "local-browser-plumbing-trial",
+  "approvedDesignTrial": false,
+  "cases": [
+    {
+      "id": "1280-light-loaded",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 1280,
+        "height": 720
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "1280-light-empty",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 1280,
+        "height": 720
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "1280-dark-loaded",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 1280,
+        "height": 720
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "1280-dark-empty",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 1280,
+        "height": 720
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "390-light-loaded",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 390,
+        "height": 844
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "390-light-empty",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 390,
+        "height": 844
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "390-dark-loaded",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 390,
+        "height": 844
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    },
+    {
+      "id": "390-dark-empty",
+      "complete": true,
+      "diffPixelRatio": 0,
+      "clip": {
+        "x": 0,
+        "y": 64,
+        "width": 390,
+        "height": 844
+      },
+      "fonts": [
+        {
+          "family": "Fixture",
+          "weight": "400",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "hoveredControls": 0,
+      "occlusion": {
+        "samples": 5,
+        "blocked": 0
+      }
+    }
+  ],
+  "negativeCases": [
+    "wrong theme",
+    "missing face",
+    "missing weight",
+    "scale mismatch",
+    "hover contamination",
+    "sticky shell occlusion"
+  ],
+  "delayedFontCase": "passed",
+  "baselineBytesPreserved": true,
+  "verdict": "owner-review-required",
+  "limitations": [
+    "Synthetic unapproved browser references; no Penpot target authorized",
+    "Occlusion is sampled; visual inspection remains necessary",
+    "MCP could not import local modules; tested provider using bundled Playwright and cached Chromium"
+  ]
+}

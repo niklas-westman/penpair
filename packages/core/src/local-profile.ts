@@ -31,7 +31,11 @@ export interface Counts {
   profiles: number;
   teams: number;
   storageObjects: number;
-  fileRevisions: { id: string; name: string; revn: number }[];
+  fileRevisions: {
+    id: string;
+    name: string;
+    revn: number;
+  }[];
 }
 
 export interface BackupManifest {
@@ -39,7 +43,18 @@ export interface BackupManifest {
   penpotVersion: string;
   createdAt: string;
   label?: string;
-  files: { db: { name: string; sha256: string; bytes: number }; assets: { name: string; sha256: string; bytes: number } };
+  files: {
+    db: {
+      name: string;
+      sha256: string;
+      bytes: number;
+    };
+    assets: {
+      name: string;
+      sha256: string;
+      bytes: number;
+    };
+  };
   counts: Counts;
   note: string;
 }
@@ -56,13 +71,41 @@ export interface LocalProfile {
   preflight(runner: Runner): Promise<void>;
   /** Writes the config when missing, the compose file and the secrets (never replaced). */
   init(root: string, options: InitOptions): Promise<InitResult>;
-  up(c: LocalContext): Promise<{ url: string; ready: boolean }>;
+  up(c: LocalContext): Promise<{
+    url: string;
+    ready: boolean;
+  }>;
   down(c: LocalContext): Promise<void>;
-  status(c: LocalContext): Promise<{ services: ServiceState[]; frontendReachable: boolean; backendReady: boolean; url: string }>;
+  status(c: LocalContext): Promise<{
+    services: ServiceState[];
+    frontendReachable: boolean;
+    backendReady: boolean;
+    url: string;
+  }>;
   doctor(c: LocalContext, options?: DoctorOptions): Promise<DoctorCheck[]>;
-  backup(c: LocalContext, label?: string): Promise<{ directory: string; manifest: BackupManifest }>;
-  verifyBackup(c: LocalContext, directory: string): Promise<{ ok: boolean; checks: Check[] }>;
-  restore(c: LocalContext, directory: string, options: RestoreOptions): Promise<{ ok: boolean; checks: Check[]; safetyBackup?: string }>;
+  backup(
+    c: LocalContext,
+    label?: string,
+  ): Promise<{
+    directory: string;
+    manifest: BackupManifest;
+  }>;
+  verifyBackup(
+    c: LocalContext,
+    directory: string,
+  ): Promise<{
+    ok: boolean;
+    checks: Check[];
+  }>;
+  restore(
+    c: LocalContext,
+    directory: string,
+    options: RestoreOptions,
+  ): Promise<{
+    ok: boolean;
+    checks: Check[];
+    safetyBackup?: string;
+  }>;
 }
 
 /** The commands that run Penpot on this computer exist only when a package provides a profile for them. */
@@ -70,6 +113,8 @@ export const needsLocalProfile =
   "Running Penpot on this computer is not part of this install. It comes with `@penpair/docker`: install it with `npm i -D @penpair/docker` and run `npx penpair …` (or, once, `npx @penpair/docker <command>`). Penpot on the web needs nothing extra.";
 
 export function requireLocalProfile(local: LocalProfile | undefined): LocalProfile {
-  if (!local) throw new ConfigError(needsLocalProfile);
+  if (!local) {
+    throw new ConfigError(needsLocalProfile);
+  }
   return local;
 }

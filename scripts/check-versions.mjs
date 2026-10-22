@@ -7,8 +7,12 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const result = await checkVersions(root);
 await checkReleaseGroup(root);
 if (result.ok) {
-  console.log(`ok  ${result.packages.length} packages, all at ${result.version}: ${result.packages.map((p) => p.name).join(", ")}`);
+  console.log(
+    `ok  ${result.packages.length} packages, all at ${result.version}: ${result.packages.map((p) => p.name).join(", ")}`,
+  );
 } else {
-  for (const problem of result.problems) console.error(`FAIL ${problem}`);
+  for (const problem of result.problems) {
+    console.error(`FAIL ${problem}`);
+  }
   process.exitCode = 1;
 }

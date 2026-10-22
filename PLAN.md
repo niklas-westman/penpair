@@ -15,7 +15,34 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Branch review — locally eligible work complete; live and owner gates pending** Continue the [living improvement checklist](docs/improvements.md) on `codex/penpair-improvements`; review the full branch before merging.
+- [ ] **Owner branch review and live acceptance.** Feedback code phases 0–6 and repository readability are complete on `codex/tradient-feedback`; review the [branch report](docs/plans/tradient-feedback-review.md) and [readability completion](docs/conventions/completion-2026-10-22.md). Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. Push/PR authorized by the owner; merge and publication remain pending.
+
+## Repository readability
+
+- [x] Pin Biome, establish readable formatting and wire the checks into the normal workflow.
+- [x] Add `docs/conventions` with checked examples for Penpair's actual file types.
+- [x] Link conventions and a repository coding skill from `AGENTS.md`.
+- [x] Split the comparison adapter by responsibility without changing public imports or approval rules.
+- [x] Verify checks, templates and package installs; record results and remaining limits.
+- [x] Correct missing declaration/step spacing in the component pilot and document what Biome does not enforce.
+
+Resolved: consistent source layout, discoverable naming/placement rules, executable examples and a focused comparison adapter. Verification: 640 package tests + 3 convention tests, all six package smoke installs, public import/declaration checks and strict comparison-test typechecking pass. [Per-update completion report and limits](docs/conventions/completion-2026-10-22.md).
+
+## Tradient 0.2.0 feedback follow-up
+
+- [x] Read adoption feedback and prepare the phased living execution guide (2026-10-22).
+- [x] Make both companions visible in README/setup/skills with distinct install, registration and browser-readiness stages.
+- [x] Phase 0: preserve minimal timeout, metadata, lease-revision and delayed-page reproducers plus a scratch manifest template.
+- [x] Phase 1 / PP-01: share bounded layout fallback across CLI, SDK and kit; live build acceptance pending.
+- [x] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded fresh execution readiness; live editor trials pending.
+- [x] Phase 3 / PP-07–08: trace coordination revisions, serialize observed page sessions and restore snapshot navigation. PP-07 causal fix remains unresolved.
+- [x] Phase 4 / PP-06: group installed workflow help and add composition guidance and companion discovery.
+- [x] Phase 5 / PP-05: ship and exercise the browser comparison starter across eight real local cases, retaining independent capture evidence.
+- [x] Phase 6 / PP-04: deliver isolated offline projected theme previews and explicit native-capability limits.
+- [x] Final offline review: 630 tests, build/types/version rules, all six package smoke installs, browser matrix and whitespace pass; cancellation/evidence boundary regressions fixed.
+- [ ] Final live acceptance: scratch build/repeat/heading, doctor editor states, lease traces, multi-page capture and preservation checks.
+- [x] Owner authorizes pushing the branch and opening its feature PR (2026-10-22).
+- [ ] Owner branch/release review before merge or publication. All repository versions remain 0.2.0; Changesets are ready.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -124,6 +151,8 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-22: made companion adapters visible across README, setup/handoff docs and shipped skills; added install/registration/readiness guidance and patch changesets. Verified 583 tests and all package smoke installs. Runtime feedback implementation still begins at phase 0.
+- 2026-10-22: prepared the Tradient 0.2.0 feedback execution guide and refreshed Now after the original improvement branch merged and 0.2.0 was published. All eight findings have phased tasks, tests, exit criteria and separate live gates; no implementation started.
 - 2026-10-22: R3 fixed the GitHub Changesets CI failure and consumed-note release-PR validation, added a main-only manual version-PR trigger and regression coverage; prepared for push to PR #1.
 - 2026-10-22: R2: added the owner-requested temporary `penpair` publishing exclusion, visible reporting and strict five-package verification; actual activation and publishing remain owner actions.
 - 2026-10-21: R1 release follow-up: added Changesets version PRs and API-gated whole-family OIDC publishing, retained recovery guards and prepared the branch PR draft. All automation stays disabled pending owner setup.
@@ -188,3 +217,31 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-20: safe write runner, snippet model (valid-code and size checks without a connection), built-in read and archive snippets, stable export, effective-token diff, and the CLI commands `pages`, `tree`, `audit`, `tokens`, `export`, `archive`. 42 tests. Live read-only run against the local Penpot: `pages`, `tree`, `audit` (matches Sourcer's own audit of the phone frames), `archive` inspect and `tokens dump`/`diff` all behave.
 - 2026-10-20: MIT licence added. Core now has the neutral endpoint resolver (shell, `.env.local`, Codex and Claude Code configuration, configurable variable names), the Penpot tool client with failure classification, suspended-tab retry, secret redaction and a 90 KB snippet guard, the capability probe and `penpair probe`. 17 tests; live probe matches Sourcer's baseline (file, revision, APIs, request limit between 90 and 110 KB).
 - 2026-10-20: repository created with the plan, agent rules, workspace and the neutrality test. Name chosen by the owner: penpair.
+
+- 2026-10-22: feedback phase 0 preserves minimal layout, metadata, lease-revision and delayed-page evidence plus a public-ID-only scratch template; full checks pass (587 tests). Live causal claims remain open.
+
+- 2026-10-22: feedback phase 1 adds shared auto/native/geometry settling, bounded native fallback, complete hierarchy samples and CLI selection; 597 tests and package smoke pass. Live acceptance stays pending.
+
+- 2026-10-22: feedback phase 2 explains metadata-only migrations and bounds fresh doctor evidence across readiness layers; 607 tests and six-package smoke pass.
+
+- 2026-10-22: feedback phase 3 serializes observed page sessions, restores snapshot navigation and adds redacted writer traces; 614 tests and package smoke pass. PP-07 remains unresolved without causal live evidence.
+
+- 2026-10-22: feedback phase 4 groups installed workflow help and adds first-frame composition guidance, migration/readiness and snapshot recovery documentation; 615 tests and package smoke pass.
+
+- 2026-10-22: feedback phase 5 ships real browser capture/provider examples and metadata; 616 tests, package smoke and eight real local Chromium cases pass. Visual inspection caught and corrected sticky-shell occlusion; approved Penpot trials remain pending.
+
+- 2026-10-22: feedback phase 6 adds bounded offline projected-theme artifacts, shared neutral resolution and owned-root examples with preservation tests; 622 tests and package smoke pass. Native per-frame selection and live preservation remain unproved.
+
+- 2026-10-22: final branch review reproduced and fixed cancellation opening a parallel page queue, tightened malformed layout/readiness refusal and bounded browser frame waits. Full checks pass (630 tests), all six package smoke installs and eight real browser cases plus six rejection cases pass.
+
+- 2026-10-22: feedback execution handoff is complete for authorized code and local-browser work. The living guide and branch report contain per-phase results and an explicit remaining acceptance checklist.
+
+- 2026-10-22: readability baseline pins Biome 2.6.2 and formats supported source/configuration files. An AST comparison found no syntax changes beyond formatting, braces and separate declarations across 199 JavaScript/TypeScript files; full checks pass (630 tests). Convention docs, enforcement and the adapter split are in progress.
+
+- 2026-10-22: completed repository readability: Biome 2.6.2, formatting/path/example checks in CI, checked conventions, AGENTS routing and a local coding skill. Comparison planning, capture/provider validation, PNG I/O and command handling now have focused modules with compatible public imports. Full checks pass (640 package + 3 convention tests), strict comparison-test typing and all six package smoke installs pass; per-update results/limits are in `docs/conventions/completion-2026-10-22.md`. Owner/live acceptance remains Now.
+
+- 2026-10-22: corrected vertical spacing in the component pilot after owner review exposed a gap in the mechanical formatting pass. Biome retains these blank lines but does not create declaration/logical-step separation automatically; conventions now state that explicitly. Style/path checks, all 3 component tests and an added-blank-lines-only diff check pass. See the readability report's vertical-spacing correction.
+
+- 2026-10-22: release readiness checked against GitHub: both automation switches enabled, scoped PR-token metadata present, active workflows and main-only owner-reviewed environment confirmed. Changesets proposes 0.3.0 for all six; the explicit penpair exception keeps five scoped packages required. Corrected stale release-guide versions and a trailing font-license space. Feature PR/remote CI, reviewed version PR, environment approval and first verified OIDC publication remain pending; see branch report.
+
+- 2026-10-22: owner authorized pushing `codex/tradient-feedback` and opening the feature PR. Local checks and the release handoff are recorded; remote CI, owner merge review, the generated version PR and protected publication remain pending.

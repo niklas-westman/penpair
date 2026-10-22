@@ -12,7 +12,7 @@ Each one cost real time. They are written as the behaviour to use. Penpot 2.18.3
 - **Shapes cannot move between pages**, and `clone()` works only within the page. To put old work aside, nest it in an archive board on the same page (`penpair archive`).
 - **Wrapper objects are new on every read.** Look shapes up by `id`; `indexOf` on wrappers returns -1.
 - **Nested shapes inside an instance also answer `isComponentInstance()`.** Take the top-most instance (the one with no matched ancestor) when you count or replace.
-- **A clone of something built in the same call can lose its token bindings**, because they were not saved yet. Build, wait, then clone, or copy the bindings across in a second step.
+- **A clone of something built in the same call can lose its token bindings**, because they were not saved yet. Build, settle with the shared policy, independently observe the saved bindings, then clone; or copy bindings across in a separately verified step.
 
 ## Layout
 
@@ -21,7 +21,7 @@ Each one cost real time. They are written as the behaviour to use. Penpot 2.18.3
 - A **text box height does not recompute** when characters change; set it with `resize(width, height)` per line count. After swapping text, widths can stay stale; set an explicit width.
 - `clipContent = true` on a wrapper board cuts off shadows of children that touch its edge. Set it to `false` on wrappers around cards.
 - Image fills stretch by default; set `keepAspectRatio: true` on the fill.
-- Layout settles slowly (seconds, sometimes 30). Poll geometry or wait before reading or exporting.
+- Layout settles slowly (seconds, sometimes 30). Use bounded layout observations before independent readback and stable exports; elapsed time alone proves nothing.
 
 ## Tokens
 

@@ -5,8 +5,17 @@
 // It uses only calls already proven against Penpot 2.18 (boards, flex layout, text, a token set, a component). Binding a value
 // to a token has its own traps: read the installed penpair-design skill and its plugin gotchas before you add that.
 const page = "penpair POC";
-const names = { board: "POC / sign-in", button: "POC / button", set: "POC · Tokens" };
-const colours = { surface: "#FFFFFF", canvas: "#F4F2EF", primary: "#2F5BEA", text: "#1D1D1F" };
+const names = {
+  board: "POC / sign-in",
+  button: "POC / button",
+  set: "POC · Tokens",
+};
+const colours = {
+  surface: "#FFFFFF",
+  canvas: "#F4F2EF",
+  primary: "#2F5BEA",
+  text: "#1D1D1F",
+};
 
 export default {
   kind: "write",

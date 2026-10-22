@@ -8,7 +8,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "check": "pnpm build && pnpm typecheck && pnpm test && node scripts/check-versions.mjs",
+    "check": "pnpm check:style && pnpm build && pnpm typecheck && pnpm conventions:check && pnpm test && node scripts/check-versions.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
     "smoke:live": "node scripts/smoke-live.mjs",
     "bump": "node scripts/bump.mjs",
@@ -16,9 +16,17 @@
     "check:versions": "node scripts/check-versions.mjs",
     "docs:generate": "pnpm --filter @penpair/core build && node scripts/generate-troubleshooting.mjs",
     "changeset": "changeset",
-    "version-packages": "node scripts/version-packages.mjs"
+    "version-packages": "node scripts/version-packages.mjs",
+    "smoke:browser": "pnpm build && node scripts/smoke-browser.mjs",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check:style": "biome check . && node scripts/check-code-paths.mjs",
+    "conventions:check": "tsc -p docs/conventions/tsconfig.json && vitest run --config docs/conventions/vitest.config.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.2",
     "@changesets/cli": "3.0.3",
     "@types/node": "22.12.0",
     "typescript": "5.6.3",

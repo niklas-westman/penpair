@@ -18,12 +18,21 @@ async function filesOf(root: string, entry: string): Promise<string[]> {
     absolute = await resolveProjectInput(root, entry);
     info = await stat(absolute);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new Error(`${entry} does not exist`);
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(`${entry} does not exist`);
+    }
     throw error;
   }
-  if (!info.isDirectory()) return [absolute];
+  if (!info.isDirectory()) {
+    return [
+      absolute,
+    ];
+  }
   return (await readdir(absolute))
-    .filter((name) => /\.(mjs|js)$/.test(name) && !name.endsWith(".test.js") && !name.endsWith(".test.mjs"))
+    .filter(
+      (name) =>
+        /\.(mjs|js)$/.test(name) && !name.endsWith(".test.js") && !name.endsWith(".test.mjs"),
+    )
     .sort()
     .map((name) => path.join(absolute, name));
 }
@@ -32,9 +41,16 @@ async function filesOf(root: string, entry: string): Promise<string[]> {
  * Loads a project's own snippets into the registry. Each file default-exports one definition or a list. A broken file is
  * reported and skipped; the rest still load, so one mistake does not hide the others.
  */
-export async function loadProjectSnippets(root: string, entries: string[] | undefined, registry: SnippetRegistry): Promise<LoadReport> {
+export async function loadProjectSnippets(
+  root: string,
+  entries: string[] | undefined,
+  registry: SnippetRegistry,
+): Promise<LoadReport> {
   const projectRoot = await realpath(root);
-  const report: LoadReport = { files: [], problems: [] };
+  const report: LoadReport = {
+    files: [],
+    problems: [],
+  };
   for (const entry of entries ?? []) {
     let files: string[];
     try {
@@ -48,13 +64,27 @@ export async function loadProjectSnippets(root: string, entries: string[] | unde
       report.files.push(relative);
       let loaded: unknown;
       try {
-        loaded = ((await import(pathToFileURL(await resolveProjectInput(projectRoot, relative)).href)) as { default?: unknown }).default;
+        loaded = (
+          (await import(pathToFileURL(await resolveProjectInput(projectRoot, relative)).href)) as {
+            default?: unknown;
+          }
+        ).default;
       } catch (error) {
-        report.problems.push(`${relative}: could not be loaded: ${String((error as Error).message).split("\n")[0]}`);
+        report.problems.push(
+          `${relative}: could not be loaded: ${String((error as Error).message).split("\n")[0]}`,
+        );
         continue;
       }
-      const definitions = Array.isArray(loaded) ? loaded : [loaded];
-      if (loaded === undefined) report.problems.push(`${relative}: has no default export (use \`export default defineSnippet({...})\`)`);
+      const definitions = Array.isArray(loaded)
+        ? loaded
+        : [
+            loaded,
+          ];
+      if (loaded === undefined) {
+        report.problems.push(
+          `${relative}: has no default export (use \`export default defineSnippet({...})\`)`,
+        );
+      }
       for (const definition of definitions.filter((d) => d !== undefined)) {
         try {
           registry.register(definition as SnippetDefinition, "project");

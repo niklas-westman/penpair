@@ -1,7 +1,14 @@
 import { requirePage, snippet, type Snippet } from "../snippet.js";
 
 export interface ArchiveParams {
-  expectedPlan?: { id: string; name: string; x: number; y: number; w: number; h: number }[];
+  expectedPlan?: {
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }[];
   expectedArchiveId?: string | null;
   page: string;
   /** Name of the board the archived frames are nested into. */

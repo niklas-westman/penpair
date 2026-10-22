@@ -1,6 +1,10 @@
 # @penpair/reflection-check
 
-An optional adapter for explicit implementation-case evidence against approved penpair baselines. Add it to `adapters` and install it alongside one command package at the same reviewed version. It depends on the neutral core; the core does not load or depend on this adapter.
+The recommended companion when you implement a frontend from Penpot and want repeatable visual checks against approved designs. It is an optional package installed alongside one command package at the same reviewed version and registered in `adapters`.
+
+**Penpot design → approved reference and handoff → frontend code → browser capture → comparison → owner review.** Start with the [companion setup guide](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md#check-the-frontend-against-the-design) for installation, registration and the readiness checklist. Installing the package does not configure application state or supply a browser provider.
+
+It depends on the neutral core; the core does not load or depend on this adapter.
 
 The existing generated Reflection `visualSmoke` configuration remains the simple route for legacy cases. This adapter addresses the missing setup hook for rich theme/state/fixture/font cases. It does not bundle a browser or assume a version-specific Reflection API. A trusted project provider owns actual application activation, capture and comparison using the project's pinned browser/checker stack.
 

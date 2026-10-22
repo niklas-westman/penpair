@@ -24,8 +24,8 @@ The last two examples require the token adapter configured in the adopting proje
 | `inst(parent, path, name, textOverrides, library?)` | Exact unique component match; validates named text overrides and never removes/reorders instance children. Defaults to the local library. |
 | `style(shape, options)` | Queues requested styling only; an isolated color update preserves existing spacing and bindings. |
 | `fill`, `fillV` | Sets layout-child horizontal/vertical fill sizing. |
-| `settle(root, options)` | Native completion where available, otherwise bounded equal geometry. Time/node/malformed evidence cannot report stable. |
-| `flush({root, timeoutMs})` | Waits for layout, applies queued values/styles, then awaits queued bindings, then settles again. Active token-context changes refuse. |
+| `settle(root, options)` | `strategy: auto | native | geometry`, default auto. Auto caps native at min(500 ms, remaining/4), then requires three complete equal geometry/hierarchy samples. Time/node/malformed evidence cannot report stable. |
+| `flush({root, timeoutMs, strategy})` | Waits for layout, applies queued values/styles, then awaits queued bindings, then settles again. Active token-context changes refuse. |
 
 Always `await pp.flush()` before independent readback/export. There are no fixed 1.2/2.5-second styling sleeps. Layout completion does not prove font download, token persistence or pixels; keep positive readback and stable exports. Queues are local to one execution, not a recovery log. Partial errors are not transactions; the enclosing reviewed operation must own and reconcile its roots. Bindings remain subject to the runtime's supported token properties; A4 owns the broader compatibility whitelist.
 
@@ -55,3 +55,5 @@ These are compositional starting points. They are not generated native component
 A verified trial saves a private PNG preview under `.penpair/probes/`, with byte hash and capture identity. Look at the preview as the write protocol requires. `visualApproval: false` remains explicit. Redacted/incomplete evidence cannot publish a preview; an existing differing preview is preserved. No new live pinned-version trial has been performed in this branch.
 
 Current references: [flex layout](https://doc.plugins.penpot.app/interfaces/FlexLayout), [font application](https://doc.plugins.penpot.app/interfaces/Font), [component instantiation](https://doc.plugins.penpot.app/interfaces/LibraryComponent), [spacing properties](https://doc.plugins.penpot.app/types/TokenSpacingProps) and [sizing properties](https://doc.plugins.penpot.app/types/TokenSizingProps). Runtime capability and independent evidence remain required.
+
+Host operations retain a 30 s total layout deadline; kit settle/flush default to 10 s. `native` reports failure without fallback; `geometry` skips native waiting. Diagnostics include the chosen strategy, native outcome, fallback reason and elapsed time. Neither transport loss, cancellation, changed target nor malformed/truncated data becomes a successful fallback. `run-file`, `export` and `shots` accept `--layout auto|native|geometry`. The default is suitable for ordinary builds; there is no CLI off mode.

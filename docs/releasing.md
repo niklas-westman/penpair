@@ -39,10 +39,11 @@ Publishing cannot be undone: a version, once published, cannot be replaced. Chec
    the job instead of publishing a different commit. Do not merge another main
    change until a release finishes; use manual recovery if it has moved.
 
-All automation starts disabled. Merging this implementation PR alone does not
-publish anything. The branch has a minor changeset proposing **0.2.0** for the
-whole improvement batch; all actual package versions remain **0.1.3** until the
-separate version PR is generated and reviewed.
+Automation is opt-in through the activation switches below. Merging a feature PR
+creates or updates the version PR; publishing starts only after that reviewed
+version PR is merged and any environment approval is granted. Pending Changesets
+determine the next shared version. Package versions remain unchanged on feature
+branches until the separate version PR is generated and reviewed.
 
 ## One-time owner activation
 
@@ -165,6 +166,7 @@ npm view @penpair/core version
 npm view @penpair/web version
 npm view @penpair/docker version
 npm view @penpair/marwes-ui version
+npm view @penpair/reflection-check version
 ```
 
 Then, in an empty folder, run `npx @penpair/web --version`, `npx @penpair/web setup --help` and `npx @penpair/docker --version` (and, once the short name is published, the same with `npx penpair`). Tag the release if you want one: `git tag v<version> && git push origin v<version>`.

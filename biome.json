@@ -1,0 +1,60 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**/*.{js,cjs,mjs,ts,tsx,json,jsonc}",
+      "!!**/node_modules",
+      "!!**/dist",
+      "!!**/.local",
+      "!**/fixtures/**",
+      "!docs/trials/**",
+      "!docs/upstream/**",
+      "!examples/hello-card/**",
+      "!examples/theme-preview/**",
+      "!examples/trials/**"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf",
+    "expand": "always"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "style": {
+        "useBlockStatements": "error",
+        "useSingleVarDeclarator": "error",
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": [
+              "kebab-case"
+            ]
+          }
+        }
+      },
+      "preset": "none"
+    }
+  },
+  "assist": {
+    "enabled": false
+  }
+}

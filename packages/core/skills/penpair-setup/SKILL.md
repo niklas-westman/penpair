@@ -18,7 +18,7 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
 
 ## Steps
 
-1. **Look.** If `penpair.config.json` exists, run `npx @penpair/web doctor --json` and read its versioned envelope: `data.ok`, then `data.checks`. Done when you can name the first failing check, or say all pass. If all pass, stop here and say so.
+1. **Look.** If `penpair.config.json` exists, run `npx @penpair/web doctor --json` and read its versioned envelope: `data.ok`, then `data.checks`. Done when you can name the first failing check, or say all pass. If all pass, skip connection repair and check the companion recommendations in step 7 before reporting setup complete.
 2. **Choose where Penpot runs.** Recommend web. Choose Docker when the person asks for offline work, data that stays on this computer, or a disposable instance. Ask once, in one sentence, and take the answer. Done when the choice is stated. The decision table and what is checked: [references/web-or-docker.md](references/web-or-docker.md).
 3. **Initialise.**
    - Web: `npx @penpair/web init --external https://design.penpot.app --gitignore` (a team's own Penpot: its address instead).
@@ -40,6 +40,8 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
    | key file: git would commit it | Add `.env.local` to `.gitignore`; `penpair connect` does it. |
 
 6. **Install the rules.** Run `npx @penpair/web skills install`, add the printed rows to the project's agent guide, then fill in `.skills/penpair-design/references/project-facts.md` with the person (the Penpot file, token sets, naming, who approves). Done when that file has no `<...>` placeholders left.
+
+7. **Recommend companions for the task.** Read the [adapter guide](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md). A library adapter brings the project's chosen component-library tokens and recipes into the workflow. When frontend implementation/comparison is in scope, recommend `@penpair/reflection-check`, installed at the same version as the command/core and merged into the existing `adapters` list. State the remaining requirements: approved baselines, explicit case mappings and a real browser provider. Record those as pending until configured and exercised; connection-ready does not mean comparison-ready. Design-only projects can defer comparison setup.
 
 ## Moving between web and Docker
 

@@ -41,7 +41,12 @@ export interface AdapterCommand {
   run(context: AdapterContext, args: string[]): Promise<number>;
 }
 
-export interface AdapterStatusLine { id: string; label: string; state: "ok" | "warning" | "failed" | "unknown"; detail: string }
+export interface AdapterStatusLine {
+  id: string;
+  label: string;
+  state: "ok" | "warning" | "failed" | "unknown";
+  detail: string;
+}
 
 export interface Adapter {
   name: string;
@@ -57,8 +62,41 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
-  "formats", "snapshot", "approve", "mcp", "spec", "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
-  "up", "down", "open", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
+  "formats",
+  "snapshot",
+  "approve",
+  "mcp",
+  "spec",
+  "inspect",
+  "probe",
+  "pages",
+  "tree",
+  "audit",
+  "tokens",
+  "export",
+  "shots",
+  "archive",
+  "snippets",
+  "run",
+  "run-file",
+  "kit",
+  "recipes",
+  "skills",
+  "init",
+  "setup",
+  "connect",
+  "up",
+  "down",
+  "open",
+  "status",
+  "doctor",
+  "backup",
+  "restore",
+  "baselines",
+  "config",
+  "runs",
+  "onboard",
+  "help",
 ] as const;
 
 export interface LoadedAdapters {
@@ -71,29 +109,49 @@ export type AdapterImporter = (specifier: string, root: string) => Promise<unkno
 /** Resolves an adapter the way the project would: a relative path from the project's folder, or a package installed in the project. */
 export const importFromProject: AdapterImporter = async (specifier, root) => {
   let file: string;
-  if (specifier.startsWith(".") || path.isAbsolute(specifier)) file = await resolveProjectInput(root, specifier);
-  else {
-    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[a-z0-9._-]+)*$/i.test(specifier) || specifier.split("/").includes("..")) throw new Error("Adapter must name an installed package or a relative project module");
+  if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+    file = await resolveProjectInput(root, specifier);
+  } else {
+    if (
+      !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[a-z0-9._-]+)*$/i.test(specifier) ||
+      specifier.split("/").includes("..")
+    ) {
+      throw new Error("Adapter must name an installed package or a relative project module");
+    }
     try {
       file = createRequire(path.join(root, "package.json")).resolve(specifier);
     } catch {
-      const error = Object.assign(new Error(`${specifier} is not installed in this project`), { code: "ERR_MODULE_NOT_FOUND" });
+      const error = Object.assign(new Error(`${specifier} is not installed in this project`), {
+        code: "ERR_MODULE_NOT_FOUND",
+      });
       throw error;
     }
   }
   return import(pathToFileURL(file).href);
 };
 
-export async function loadAdapters(root: string, specifiers: string[] | undefined, importer: AdapterImporter = importFromProject): Promise<LoadedAdapters> {
+export async function loadAdapters(
+  root: string,
+  specifiers: string[] | undefined,
+  importer: AdapterImporter = importFromProject,
+): Promise<LoadedAdapters> {
   const adapters: Adapter[] = [];
   const problems: string[] = [];
   const taken = new Map<string, string>();
   for (const specifier of specifiers ?? []) {
-    let loaded: { default?: Adapter };
+    let loaded: {
+      default?: Adapter;
+    };
     try {
-      loaded = (await importer(specifier, root)) as { default?: Adapter };
+      loaded = (await importer(specifier, root)) as {
+        default?: Adapter;
+      };
     } catch (error) {
-      const code = (error as { code?: string }).code;
+      const code = (
+        error as {
+          code?: string;
+        }
+      ).code;
       problems.push(
         code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND"
           ? `adapter ${specifier} is not installed in this project. Install it (for example \`npm i -D ${specifier}\`).`
@@ -103,22 +161,36 @@ export async function loadAdapters(root: string, specifiers: string[] | undefine
     }
     const adapter = loaded.default;
     if (!adapter || typeof adapter.name !== "string" || !Array.isArray(adapter.commands)) {
-      problems.push(`adapter ${specifier} does not export a default adapter (use \`export default defineAdapter({...})\`)`);
+      problems.push(
+        `adapter ${specifier} does not export a default adapter (use \`export default defineAdapter({...})\`)`,
+      );
       continue;
     }
     for (const command of adapter.commands) {
-      if ((reservedCommands as readonly string[]).includes(command.name)) problems.push(`adapter ${specifier}: the command "${command.name}" is one the core already has`);
-      else if (taken.has(command.name)) problems.push(`adapter ${specifier}: the command "${command.name}" is already provided by ${taken.get(command.name)}`);
-      else taken.set(command.name, adapter.name);
+      if ((reservedCommands as readonly string[]).includes(command.name)) {
+        problems.push(
+          `adapter ${specifier}: the command "${command.name}" is one the core already has`,
+        );
+      } else if (taken.has(command.name)) {
+        problems.push(
+          `adapter ${specifier}: the command "${command.name}" is already provided by ${taken.get(command.name)}`,
+        );
+      } else {
+        taken.set(command.name, adapter.name);
+      }
     }
-    adapters.push({ ...adapter, commands: adapter.commands.filter((c) => taken.get(c.name) === adapter.name) });
+    adapters.push({
+      ...adapter,
+      commands: adapter.commands.filter((c) => taken.get(c.name) === adapter.name),
+    });
   }
-  return { adapters, problems };
+  return {
+    adapters,
+    problems,
+  };
 }
 
 /** The whole penpair.config.json as written (an adapter's own settings live in it). Empty when there is no file. */
 export async function readRawConfig(root: string): Promise<Record<string, unknown>> {
-  return await readProjectConfig(root) ?? {};
+  return (await readProjectConfig(root)) ?? {};
 }
-
-
