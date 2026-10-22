@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Recover 0.3.0 and review registry polling.** The [polling fix and report](docs/plans/registry-polling-fix.md) are built and verified. Finish the interrupted 0.3.0 release on current main with explicit continuation before merging the tooling fix; live Penpot acceptance remains pending below.
+- [ ] **Recover 0.3.0 after the early polling merge.** Merge the metadata-only empty-note cleanup, then dispatch the existing release workflow on main with `version=0.3.0` and `continue_release=true`. The [recovery report](docs/plans/registry-polling-fix.md#early-merge-recovery) records verified guards and unchanged versions; live Penpot acceptance remains pending below.
 
 ## Release registry polling
 
@@ -24,7 +24,9 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Verify immediate/delayed visibility, timeout and error handling without real waits or publication.
 - [x] Document the current 0.3.0 continuation and the fix's release sequence; record checks and results.
 - [ ] Complete and independently verify the interrupted 0.3.0 release with owner-approved continuation.
-- [ ] Review/merge the polling fix after the current release is complete.
+- [x] Polling fix merged as PR #5 while 0.3.0 remained interrupted; preserve the fix and recover through metadata cleanup.
+- [x] Consume its empty tooling Changeset through Changesets without changing any package version or release guard; preserve the note in the report.
+- [ ] Merge the metadata-only cleanup before explicitly continuing publication.
 
 ## Repository readability
 
@@ -256,3 +258,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: owner authorized pushing `codex/tradient-feedback` and opening the feature PR. Local checks and the release handoff are recorded; remote CI, owner merge review, the generated version PR and protected publication remain pending.
 
 - 2026-10-22: diagnosed 0.3.0 publication stopping after npm accepted the core and requested processing time; only core was visible in independent registry checks. Extracted minute-interval visibility polling with a ten-minute per-package deadline, bounded queries and progress logs. Full checks pass (658 tests), all six package smoke installs pass, and virtual-time/error tests preserve explicit recovery. See `docs/plans/registry-polling-fix.md`; current 0.3.0 continuation must finish before merging pending tooling notes.
+
+- 2026-10-22: PR #5 was merged before 0.3.0 recovery. Prepared a metadata-only cleanup using Changesets' normal empty-note consumption, first reproduced in a disposable workspace. All six manifests, source version, lockfile, scripts, workflows and guards stay unchanged; the existing manual gate accepts 0.3.0 after consumption. Preserved the tooling note in the recovery report; owner cleanup merge and explicit publication continuation remain pending. The new push-gate failure was a separate GitHub API 500 and published nothing.

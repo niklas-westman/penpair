@@ -49,7 +49,7 @@ or retrying the upload is unnecessary.
   `version=0.3.0` and `continue_release=true`, then approve `npm-release`.
 - [ ] Verify all five required scoped versions and provenance. The `penpair`
   wrapper remains explicitly excluded.
-- [ ] After recovery completes, review and merge the polling fix.
+- [x] Polling fix merged as PR #5 before recovery completed; the early-merge recovery below supersedes the original merge order.
 
 The current main workflow still has its original one-minute visibility wait. If
 another accepted upload exceeds it, inspect the registry and explicitly continue
@@ -61,3 +61,41 @@ manual release gate on main. This preserves the existing guard rather than
 changing it to accommodate an interrupted release. Ten minutes is a bounded
 window, not a guarantee that npm finishes processing; a failed lookup or an
 expired deadline still stops for inspection.
+
+## Early merge recovery
+
+PR #5 was merged on 2026-10-22 as `d339a19` while the 0.3.0 release remained
+interrupted. The new minute polling is now on main. The remaining pending note
+`bounded-registry-polling` has an empty release list and requests no version bump.
+The version-PR workflow therefore created no release PR. Manual continuation is
+blocked until that metadata has been consumed.
+
+The post-merge push workflow separately hit a GitHub API HTTP 500 while reading
+associated PRs; its publish job was skipped. That API error is distinct from the
+pending-note check. Manual dispatch uses the explicit-version path.
+
+- [x] Reproduce Changesets' consumption in an isolated workspace: only the empty
+  note is removed and every package stays at 0.3.0.
+- [x] Use the same Changesets CLI operation on the cleanup branch. Confirm no
+  package manifest, source version, lockfile, script or workflow changes.
+- [x] Run the unchanged `checkReleaseCommit` and manual workflow gate against the
+  resulting tree: both accept 0.3.0 with no pending notes. No publish command runs.
+- [x] Pass style/path checks and 47 existing Changesets, release-guard, polling,
+  registry-query and documentation tests. The cleanup changes only metadata/docs;
+  the previous 658-test run and six-package smoke cover the retained polling code.
+- [ ] Review/merge the metadata-only cleanup PR and pass its CI.
+- [ ] On the resulting main, dispatch **Publish reviewed Penpair release** with
+  `version=0.3.0`, `continue_release=true`, and approve `npm-release`.
+- [ ] Verify all five scoped packages and their provenance before marking the
+  release complete; the short-name exception remains enabled.
+
+The consumed tooling note is preserved here:
+
+> Allow npm processing time after successful uploads: check visibility immediately
+> and then once per minute within a ten-minute deadline per package. Bound metadata
+> queries and retain explicit recovery for interrupted releases. This changes
+> repository release tooling only.
+
+This cleanup completes an empty metadata item through Changesets. Package release
+notes and release guards remain intact; the interrupted version remains 0.3.0,
+with core skipped by explicit continuation once independently observed on npm.
