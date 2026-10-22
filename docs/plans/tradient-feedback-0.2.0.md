@@ -1,6 +1,6 @@
 # Tradient feedback: execution plan
 
-Created: 2026-10-22. Status: **planned; implementation has not started**.
+Created: 2026-10-22. Status: **runtime implementation planned; adapter-discovery documentation delivered separately**.
 
 Goal: make the ordinary Penpair workflow complete the observed trial without a custom SDK host, then reduce the project glue needed for comparison and theme previews.
 
@@ -97,6 +97,8 @@ Exit: multi-page fixtures succeed sequentially with correct identities and resto
 
 ### Phase 4 — help and composition guidance (PP-06, P3)
 
+- [x] Adapter-discovery slice: promote both companion roles in the README/setup guides and recommend the comparison adapter in shipped setup/handoff skills, with distinct installation and browser-readiness stages. This independent documentation slice does not complete the runtime help/composition work below.
+
 - [ ] Group installed help around connect/diagnose, build, inspect/spec, snapshot/diff, capture/approve and compare. Include examples of actual installed syntax and link to limitations; do not invent new aliases merely to reorganize help.
 - [ ] Add a short pre-build composition checklist to the design/recipe skills: primary user task, chosen existing reference, hierarchy, useful context, responsive/focus order, and a small first-frame critique before expanding variants. This records a design decision; it does not manufacture owner approval.
 - [ ] Document migration previews, settling modes, doctor layers and snapshot recovery; remove suggestions to work around these with arbitrary waits.
@@ -148,9 +150,21 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | 1 Layout | Not started | Pending | Pending | — |
 | 2 Migration/readiness | Not started | Pending | Pending | — |
 | 3 Coordination/snapshots | Not started | Pending | Pending | — |
-| 4 Help/skills | Not started | Pending | Installed workflow review pending | — |
+| 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
 | 5 Browser starter | Not started | Pending | Pending | — |
 | 6 Theme previews | Not started | Pending | Pending | — |
 | Final trial/release review | Not started | Pending | Pending | — |
 
 Append phase reports here during execution. Update the table and relevant `PLAN.md` checkbox in the same verified change.
+
+### 2026-10-22 — Companion discovery (phase 4 documentation slice)
+
+**Resolved:** Readers and agents can now discover why to add the library and frontend-comparison adapters, with Reflection Check recommended when implementing and verifying frontend code.
+
+**Changed:** Added a companion selection/setup/readiness guide, promoted both roles in README and onboarding docs, updated shipped setup/handoff/recipe skills and project-facts guidance, and added a matching-version registration path. Kept adapter dependencies explicit and the browser starter planned. No runtime help/composition or reliability fix is claimed by this documentation slice.
+
+**Validated:** `pnpm check` passes (583 tests), including navigation/anchors, core/skill neutrality and skill installation. All six package smoke installs pass; the command tarball includes the new adapter guide. Added patch changesets for the affected shipped packages.
+
+**Risks:** These guidance changes need the next reviewed release and skill refresh to reach existing installations. Browser verification still requires approved baseline/case evidence and a real provider; automatic bundling/setup was not added. No version bump, push, merge or publish was performed.
+
+**Next:** Phase 0 remains the runtime entry point; phase 5 supplies the real-browser starter. Phase 4's help/composition tasks remain unchecked.

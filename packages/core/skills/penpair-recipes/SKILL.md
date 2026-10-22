@@ -13,4 +13,6 @@ Use the existing project library and declared tokens as inputs. Work within the 
 4. **Build.** Apply within the existing authorization, set values/fonts before bindings and await helper flush. On uncertainty, retain the run ID and inspect actual state before explicit recovery. Done when independent geometry, text and binding evidence matches the intended output.
 5. **Judge.** Export until stable, inspect the image twice, and audit the complete relevant scope. Done when visual findings and unknowns are reported separately from mechanical verification. Name frames with the project's page/state/device convention.
 
+When frontend implementation follows, recommend the comparison companion described in the [adapter guide](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md#check-the-frontend-against-the-design) and the installed handoff skill. Retain intended viewport/theme/state/fixture information so the project can map approved designs to actual browser cases. A rendered design is not yet a verified implementation.
+
 Report **Changed**, **Validated**, **Risks**, with exact object/artifact IDs and any owner decisions still needed. The kit smoke test is scratch work requiring its own authorized target. Native library expansion stays gated on demonstrated instance-override preservation.

@@ -22,6 +22,7 @@ The person may have linked this file into a chat in their own project, with no c
 | The overview, every package and command | https://raw.githubusercontent.com/niklas-westman/penpair/main/README.md |
 | The same setup by hand, with browser steps | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/getting-started.md |
 | Web or Docker, the full comparison | https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-setup/references/web-or-docker.md |
+| Companion adapters: why, installation, registration and browser readiness | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/adapters.md |
 | Marwes tokens: config, commands, CI | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/marwes-tokens.md |
 | Extension points, snippets, instances | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/guide.md |
 
@@ -34,10 +35,11 @@ The person may have linked this file into a chat in their own project, with no c
 | `@penpair/web` | Penpot runs on the web (design.penpot.app or a team's server). The default | The `penpair` command and the library |
 | `@penpair/docker` | Penpot should run in Docker on this computer | Everything in `@penpair/web`, plus `up`, `down`, `status`, `backup`, `restore`. Install it **instead of** `@penpair/web`, never beside it: both provide the `penpair` command |
 | `@penpair/marwes-ui` | The project's app uses Marwes UI (`@marwes-ui/*`) and the person wants its tokens in Penpot | `penpair marwes tokens …`. Goes next to one of the two above |
+| `@penpair/reflection-check` | Recommended when implementing a frontend from Penpot and verifying it in a browser | Approved design cases mapped to real browser/provider comparison evidence; install next to one command package at the same version |
 | `@penpair/core` | Not for setup. Only for someone writing their own tooling on the library | Comes with the two command packages anyway |
 | `penpair` (no scope) | Never: the name is not on npm yet | Nothing |
 
-So one command package, and Marwes only when asked for. Install them as dev dependencies; then `npx penpair <command>` runs the project's own copy. **Without a local install, bare `npx penpair` fails** (that name is not on npm): use `npx @penpair/web <command>` (or `npx @penpair/docker <command>`) instead.
+So one command package, the library companion when that library is used, and the recommended Reflection Check companion for frontend verification. Adapter installation and registration are separate from approved-baseline and browser-provider readiness. Install them as dev dependencies; then `npx penpair <command>` runs the project's own copy. **Without a local install, bare `npx penpair` fails** (that name is not on npm): use `npx @penpair/web <command>` (or `npx @penpair/docker <command>`) instead.
 
 ### The commands this guide uses
 
@@ -48,7 +50,7 @@ So one command package, and Marwes only when asked for. Install them as dev depe
 | `penpair connect [--replace]` | Takes the person's MCP link through a hidden prompt (or a pipe), saves it in `.env.local`, then waits up to five minutes for the plugin |
 | `penpair doctor [--json]` | Every check, `ok` or not, each with a `remedy`. `--json` is for you |
 | `penpair pages` | The open file and its pages: the quickest proof the connection works |
-| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `design-judgment`) into the project and links them for Claude Code and Codex |
+| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `penpair-recipes`, `penpair-handoff`, `design-judgment`) into the project and links them for Claude Code and Codex |
 | `penpair marwes tokens snapshot --write`, `push [--apply]` | Marwes only: build the expected tokens, then make Penpot match (looks first; `--apply` writes) |
 | `penpair setup` | The same path as a guided terminal wizard, for a person who prefers to do it alone. It asks questions you cannot answer for them, so you use the steps below instead |
 
@@ -69,7 +71,7 @@ This matters more than speed; a guide that leaks the key has failed even if ever
 Keep a short checklist in your replies so the person sees where they are:
 
 ```
-1 Check  2 Web or Docker  3 Account  4 Install  5 Plugin  6 MCP link  7 Verify  8 Marwes  9 Rules  10 First POC
+1 Check  2 Web or Docker  3 Account  4 Install  5 Plugin  6 MCP link  7 Verify  8 Companions  9 Rules  10 First POC
 ```
 
 ### 1. Check where things stand
@@ -144,19 +146,31 @@ A failing check carries a `remedy`; say it in plain words and let them act. The 
 
 **An address that is not theirs, before `connect` has run.** Until `.env.local` exists, penpair borrows a Penpot MCP server from the assistant's own configuration (`~/.codex/config.toml` or `~/.claude.json`, a server named `penpot`), and `doctor` names it: `(from codex-config)` or `(from claude-config)`. That is often an old local Penpot, for example `http://localhost:9001`, and the check fails with "points at … which is not …". It is not their mistake and nothing needs deleting: the order is environment, then `.env.local`, then those configurations, so step 6 fixes it. Its remedy says to put the address in `.env.local`; that is what `connect` does, so do not edit the file for them.
 
-### 8. Ask: Marwes UI or not?
+### 8. Choose companion adapters
+
+Explain the library and implementation-checking roles using the adapter guide above. Keep existing adapter entries and align directly installed versions with `npx penpair --version`.
+
+**Library companion**
 
 First look: does any `package.json` in the project depend on `@marwes-ui/*`? Then ask, with what you found:
 
 > Do you want to use **Marwes UI** ([marwes.io](https://marwes.io)), the themeable component library for React, Vue and Svelte? With it, your Penpot file gets the same design tokens as your code, and penpair warns you when they drift apart. (I can see your project already uses it. / Your project does not use it yet; you can skip this and add it any time.)
 
-- **No:** skip to step 9. Nothing is lost; it can be added later.
+- **No:** skip the library part and continue to the frontend-verification recommendation below.
 - **Yes, and the project uses Marwes:**
   1. `npm i -D @penpair/marwes-ui`
-  2. Add to `penpair.config.json`: `"adapters": ["@penpair/marwes-ui"]` and a `marwes` block. Find their theme file (search for the Marwes theme export) and ask them to confirm it; leave `themes` out if they use the plain Marwes theme. Read the Marwes tokens file listed above for the block's settings and an example.
+  2. Append to the existing `adapters` array in `penpair.config.json`: `"@penpair/marwes-ui"` and a `marwes` block. Find their theme file (search for the Marwes theme export) and ask them to confirm it; leave `themes` out if they use the plain Marwes theme. Read the Marwes tokens file listed above for the block's settings and an example.
   3. `npx penpair marwes tokens snapshot --write`, and tell them to commit the snapshot file.
-  4. `npx penpair marwes tokens push` first, without `--apply`: it only shows what would change in Penpot. Show them the summary and ask before running it with `--apply`: it writes to their Penpot file, and Marwes wins, so a token value someone changed by hand in Penpot is put back.
-- **Yes, but the project does not use Marwes yet:** installing a component library in their app is a bigger decision than this setup. Note it as a next step, and skip to step 9.
+  4. `npx penpair marwes tokens push` first, without `--apply`: it only shows what would change in Penpot. Show them the summary and ask before running it with `--apply`: it writes to their Penpot file. Review ownership and designer-edit conflicts; require an explicit adopt/overwrite decision instead of silently replacing intentional values.
+- **Yes, but the project does not use Marwes yet:** installing a component library in their app is a bigger decision than this setup. Note it as a next step and continue to the frontend-verification recommendation.
+
+**Frontend-verification companion**
+
+When the requested workflow includes frontend implementation and visual checking, recommend `@penpair/reflection-check`. Explain: approved Penpot references plus explicit case mappings and a real project browser provider let the agent compare the implemented route/theme/state with the intended design. It can be used with or without the library companion.
+
+Use the adapter guide for the matching-version install and append `"@penpair/reflection-check"` to the existing `adapters` array. Keep the project's package manager and dependency location. Record installed/registered separately from references approved, cases mapped, provider configured and browser verified. The package does not bundle a browser or configure the application's states. A design-only setup can defer it; a frontend handoff should explicitly recommend it and record missing integration work rather than leave the companion invisible.
+
+Continue to the handoff skill once installed; a reusable browser starter is planned, so a real project provider is currently required. No owner approval or browser result may be inferred from a successful install.
 
 ### 9. Install the rules the assistant follows
 

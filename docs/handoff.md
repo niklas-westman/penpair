@@ -1,5 +1,7 @@
 # Derived design handoff
 
+For frontend implementation, pair this handoff with the recommended [Reflection Check companion](adapters.md#check-the-frontend-against-the-design). The handoff carries observed design facts; the companion connects approved cases to actual browser comparison evidence. Install/register the adapter and configure the project's real provider before claiming that comparison is ready.
+
 ```sh
 penpair spec --page Dashboard --frame FRAME_ID --out design/specs/dashboard.md
 penpair spec --from design/inspections/dashboard.json --map design/component-map.json --out design/specs/dashboard.md

@@ -84,6 +84,7 @@ check(JSON.parse(await penpair(web, "skills", "install", "--agents", "AGENTS.md"
 check(/^name: penpair-setup/m.test(await readFile(join(web, ".skills/penpair-setup/SKILL.md"), "utf8")), "skills install writes the setup skill");
 check(/Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")), "the npm page's README is the repository's");
 check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("getting-started.md"), "the docs ship");
+check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("adapters.md"), "the companion adapter setup guide ships with the command package");
 // In a fresh project folder (no config yet), run the installed command by its path.
 const bin = join(web, "node_modules/.bin/penpair");
 for (const args of [["init"], ["setup", "--docker"]]) {

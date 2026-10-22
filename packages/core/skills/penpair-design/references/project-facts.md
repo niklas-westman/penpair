@@ -20,5 +20,7 @@ penpair installs this template once and never overwrites it. Keep it short and t
 - Library parts that are never archived: <name starts>
 
 ## Checks
+- Configured companion adapters and versions: <installed and registered, or intentionally deferred>
+- Frontend comparison setup: <approved baseline location, case map, real provider path, and pending readiness stages>
 - The pixel or visual check: <command>
 - The audit: `penpair audit --page <page> --prefix <frames> --steps <steps> --ignore <library part name starts>`

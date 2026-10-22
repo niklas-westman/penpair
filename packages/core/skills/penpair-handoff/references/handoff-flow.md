@@ -1,5 +1,7 @@
 # Evidence and review
 
+For frontend checks, first follow [the recommended comparison companion](comparison-companion.md). Report adapter installation separately from complete browser/provider evidence.
+
 Use `spec --page PAGE --frame ID` for live evidence or `spec --from INSPECTION --map MAP --out FILE` for an offline handoff. `spec check` regenerates against the supplied inspection/map and detects manual edits or changed provenance. Offline success establishes freshness against those inputs, not the current live file or an unchanged PNG.
 
 A schema-1 map declares exact `libraryId`, `componentId`, identifier `codeComponent`, literal scalar `props` and `textProps` pointing at exact descendant text node IDs. Familiar names and equal scalar values are insufficient for automatic semantic mapping. Missing references remain unknown. A single captured viewport/state cannot establish responsive behavior, application transitions, focus order, keyboard support or accessible roles.

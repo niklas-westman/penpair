@@ -4,6 +4,15 @@
 
 Inspect structure and tokens, compose reviewed recipes, capture references and hand design evidence to the implementation. Penpot holds the design; Git holds declarations, snapshots and review records.
 
+**Design in Penpot → hand off to frontend code → check the implementation.** Add the companion adapters for the parts of that workflow your project uses:
+
+| Companion | When to add it | What it helps with |
+| --- | --- | --- |
+| [Marwes UI adapter](docs/adapters.md#bring-your-component-library-into-penpot) | Your application uses Marwes UI | Bring library/project tokens into Penpot, detect drift and compose library-aware recipes |
+| [Reflection Check adapter](docs/adapters.md#check-the-frontend-against-the-design) | You implement a frontend from Penpot and want repeatable visual checks | Connect approved design cases to real browser captures and comparison evidence |
+
+**Reflection Check is the recommended companion for design-to-frontend verification.** Install it explicitly alongside your command package. It needs approved references and a project browser provider; the [adapter guide](docs/adapters.md) shows installation, registration and readiness steps.
+
 ## Choose your path
 
 | You want to… | Start here |
@@ -12,6 +21,7 @@ Inspect structure and tokens, compose reviewed recipes, capture references and h
 | Let an agent guide setup | [Setup guide skill](skills/penpair-setup-guide/SKILL.md) |
 | Join a shared file | [Team guide](docs/team.md) |
 | Build and review a page | [Design workflow](docs/design-workflow.md) |
+| Choose adapters or check the frontend | [Companion adapters](docs/adapters.md) |
 | Resolve a failure | [Troubleshooting](docs/troubleshooting.md) |
 | Extend the framework | [Guide and reference map](docs/guide.md) |
 
@@ -30,11 +40,11 @@ pnpm exec penpair skills install --dry-run
 
 Confirm the owner-authorized file ID, then follow the [skill installation preview](docs/skill-installation.md). Each teammate uses their own key. Prefer a team/web Penpot; [Docker is an alternative](packages/core/skills/penpair-setup/references/web-or-docker.md).
 
-This improvement branch is **unreleased**. Registry installs do not establish that these changes are present: review the branch or use the complete packed-package trial in the [trial runbook](docs/trials.md). Live/human checks remain explicitly pending.
+Use the installed version's `--help` to confirm available commands. For an unreleased source trial, install the complete matching package set described in the [trial runbook](docs/trials.md). Live/human acceptance gates remain explicit.
 
 ## Packages and workflows
 
-Install one command package: `@penpair/web`, or `@penpair/docker` for a local instance. Both use the neutral `@penpair/core` library. `penpair` is the short-name wrapper. Optional adapters are [`@penpair/marwes-ui`](docs/marwes.md) and [`@penpair/reflection-check`](packages/reflection-check/README.md). Every package is released together at one version; publishing belongs to the owner.
+Install one command package: `@penpair/web`, or `@penpair/docker` for a local instance. Both use the neutral `@penpair/core` library. Add the [companion adapters](docs/adapters.md) your workflow needs. Keep their versions aligned with the command package. The unscoped `penpair` wrapper currently has a publishing exception; use the scoped command package. Every repository package is versioned together; publishing belongs to the owner.
 
 | Shipped skill | Use |
 | --- | --- |
