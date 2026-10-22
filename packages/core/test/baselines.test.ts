@@ -34,7 +34,7 @@ function penpot(fake: Fake): PenpotToolClient {
   return {
     async callTool(_name, args) {
       const code = String((args as { code: string }).code);
-      if (code.includes("const geometry = [], stack")) return reply({ok:true,fileId:fake.fileId ?? "file",pageId:"page",native:true,geometry:[["root",0,0,10,10]],truncated:false});
+      if (code.includes("const geometry = [], stack")) return reply({ok:true,fileId:fake.fileId ?? "file",pageId:"page",native:true,geometry:[["root",0,0,10,10,null,0]],truncated:false});
       const id = /"id":"([^"]+)"/.exec(code)?.[1];
       if (id && code.includes("export({")) {
         fake.onExport?.();

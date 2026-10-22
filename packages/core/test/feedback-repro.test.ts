@@ -10,7 +10,7 @@ import type { PenpotToolClient } from "../src/client.js";
 const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
 const clientFor = (penpot: unknown): PenpotToolClient => ({ async callTool(_name, args) { return { text: JSON.stringify({ result: await new AsyncFunction("penpot", String(args.code))(penpot), log: "" }), isError: false }; }, async close() {} });
 
-it.fails("PP-01: an idle native timeout can fall back to complete stable geometry", async () => {
+it("PP-01: an idle native timeout can fall back to complete stable geometry", async () => {
  const root = { id: "root", x: 0, y: 0, width: 10, height: 10, children: [] };
  const penpot = { currentFile: { id: "file" }, currentPage: { id: "page", root }, waitForLayoutUpdate: async () => { throw new Error("idle layout timeout"); } };
  expect(await waitForStableLayout(clientFor(penpot), { sleep: async () => undefined })).toMatchObject({ stable: true, method: "geometry" });

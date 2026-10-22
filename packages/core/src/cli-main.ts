@@ -162,6 +162,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       note: { type: "string" }, by: { type: "string" }, "case": { type: "string" }, "force-reason": { type: "string" },
       from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
       inspect: { type: "string" }, readback: { type: "string" },
+      layout: { type: "string" },
       page: { type: "string" },
       out: { type: "string" },
       fields: {type:"string"}, cursor:{type:"string"}, all:{type:"boolean"},
@@ -219,10 +220,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     snapshot: ["write", "out", "from"],
     approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
-    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore", "rules", "from", "token-source"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name"], shots: ["page", "prefix", "out", "scale"],
+    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore", "rules", "from", "token-source"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name", "layout"], shots: ["page", "prefix", "out", "scale", "layout"],
     archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
     kit: ["include"], recipes: ["include"],
-    "run-file": ["include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
+    "run-file": ["layout", "include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], open: ["print"], status: ["adapters"], backup: [], restore: ["yes"],
@@ -237,6 +238,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   if (command === "export" && (rest.length !== (values.name ? 1 : 2) || values.name && !values.page)) throw new CommandArgumentError("Export requires an ID and output path, or --name with an explicit --page and one output path");
   if (command === "shots" && (!values.page || rest.length)) throw new CommandArgumentError("Shots requires --page and supports optional --prefix/--out");
+  if (values.layout !== undefined && !["auto", "native", "geometry"].includes(values.layout)) throw new CommandArgumentError("--layout must be auto, native or geometry");
   let tokenEdit: TokenEdit | undefined;
   if (command === "tokens" && !["dump", "diff"].includes(rest[0] ?? "")) {
     const [kind, set, name] = rest;
@@ -622,7 +624,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
-  const options = { signal: commandSignal(), redact: endpointRedactor(endpoint), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
+  const options = { ...(values.layout ? { layout: { strategy: values.layout as import("./layout.js").LayoutStrategy } } : {}), signal: commandSignal(), redact: endpointRedactor(endpoint), onWait: (m: string) => output.error(`… ${m}`), onStep: (m: string) => output.error(`… ${m}`) };
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
     ...(values.apply ? { journal: {

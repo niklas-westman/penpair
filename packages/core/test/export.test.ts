@@ -10,7 +10,7 @@ function exporting(sequence: (string | Error)[]): PenpotToolClient & { calls: nu
   return {
     get calls() { return calls; },
     async callTool(_name, args) {
-      if (String(args.code).includes("const geometry = [], stack")) return reply({ok:true,fileId:"file",pageId:"page",native:true,geometry:[["id",0,0,10,10]],truncated:false});
+      if (String(args.code).includes("const geometry = [], stack")) return reply({ok:true,fileId:"file",pageId:"page",native:true,geometry:[["id",0,0,10,10,null,0]],truncated:false});
       const next = sequence[Math.min(calls++, sequence.length - 1)]!;
       if (next instanceof Error) return { text: `Tool execution failed: ${next.message}`, isError: true };
       return reply({ ok: true, base64: png(next), length: next.length, capture: { fileId:"file", pageId:"page", frameId:"id", revision:1, scale:1, penpotApiVersion:"test", renderEnvironment:null, activeThemes:[] } });

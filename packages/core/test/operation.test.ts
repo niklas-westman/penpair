@@ -16,7 +16,7 @@ function editor(script: Record<string, unknown[]>, startsOnWrongPage = false): P
       const code = String(args.code);
       if (code.includes("const geometry = [], stack")) {
         log.push("layout-state");
-        return reply({ ok: true, fileId: "file", pageId: "page", native: true, geometry: [["root",0,0,10,10]], truncated: false });
+        return reply({ ok: true, fileId: "file", pageId: "page", native: true, geometry: [["root",0,0,10,10,null,0]], truncated: false });
       }
       const name = ["switch-page", "archive-inspect", "archive-apply", "archive-readback"].find((n) => script[n] && matches(code, n)) ?? "unknown";
       log.push(name);

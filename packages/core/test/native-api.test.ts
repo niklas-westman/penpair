@@ -32,16 +32,16 @@ describe("native layout with older-API fallback", () => {
     await expect(waitForStableLayout(malformed)).rejects.toThrow(/no geometry evidence/);
     const late = fixture();
     Object.assign(late.penpot, { waitForLayoutUpdate: async () => new Promise((resolve) => setTimeout(resolve, 10)) });
-    expect(await waitForStableLayout(late.client, { timeoutMs: 1 })).toMatchObject({stable:false,method:"native",reason:expect.stringContaining("deadline")});
+    expect(await waitForStableLayout(late.client, { timeoutMs: 1, strategy: "native" })).toMatchObject({stable:false,method:"native",reason:expect.stringContaining("deadline")});
   });
   it("polls geometry until an old API settles", async () => {
     const f = fixture((n) => { f.shape.width = n < 3 ? n * 10 : 30; });
-    expect(await waitForStableLayout(f.client, { sleep: noSleep })).toMatchObject({ stable: true, method: "geometry", samples: 4 });
+    expect(await waitForStableLayout(f.client, { sleep: noSleep })).toMatchObject({ stable: true, method: "geometry", samples: 5 });
   });
   it("reports a bounded native timeout instead of silently declaring success", async () => {
     const f = fixture();
     Object.assign(f.penpot, { waitForLayoutUpdate: async () => { throw new Error("layout timeout"); } });
-    expect(await waitForStableLayout(f.client)).toMatchObject({ stable: false, method: "native", reason: "layout timeout" });
+    expect(await waitForStableLayout(f.client, { strategy: "native" })).toMatchObject({ stable: false, method: "native", reason: "layout timeout" });
   });
   it("stops bounded geometry polling when every read changes", async () => {
     const f = fixture((n) => { f.shape.width = n; });

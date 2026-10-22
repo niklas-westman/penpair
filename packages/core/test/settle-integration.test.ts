@@ -32,12 +32,12 @@ const operation: Operation<Record<string, never>> = {
 const noSleep = async()=>undefined;
 it("waits for changing geometry before independent operation readback", async()=>{
   const e=editor("settles");
-  expect(await runOperation(e.client,operation,{}, {apply:true,sleep:noSleep})).toMatchObject({verified:true,layout:{stable:true,method:"geometry",samples:4},readback:{width:30}});
+  expect(await runOperation(e.client,operation,{}, {apply:true,sleep:noSleep})).toMatchObject({verified:true,layout:{stable:true,method:"geometry",samples:5},readback:{width:30}});
   expect(e.penpot.writes).toBe(1);
 });
 it("checks layout and then still requires two matching renders",async()=>{
   const e=editor("settles");
-  expect(await exportShapePng(e.client,"shape",{sleep:noSleep})).toMatchObject({stable:true,exports:3,layout:{stable:true,method:"geometry",samples:4}});
+  expect(await exportShapePng(e.client,"shape",{sleep:noSleep})).toMatchObject({stable:true,exports:3,layout:{stable:true,method:"geometry",samples:5}});
   expect(e.exports()).toBe(3);
 });
 it("cannot verify a write whose layout keeps moving",async()=>{

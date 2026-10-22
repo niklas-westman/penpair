@@ -1,3 +1,5 @@
+import { layoutPolicySource } from "./layout-policy.js";
+
 /** Plain plugin-sandbox JavaScript. Inclusion defines helpers without touching the document. */
 export const coreKitSource = String.raw`// penpair: read
 const pp = (() => {
@@ -218,45 +220,14 @@ const pp = (() => {
     const fillV = shape => { if (!shape.layoutChild)
         throw new Error("Layout child unavailable"); shape.layoutChild.verticalSizing = "fill"; return shape; };
     const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+    ${layoutPolicySource}
     const settle = async (root = penpot.currentPage.root, options = {}) => {
-        const timeout = options.timeoutMs === undefined ? 10000 : options.timeoutMs, interval = options.intervalMs === undefined ? 100 : options.intervalMs, maxNodes = options.maxNodes === undefined ? 10000 : options.maxNodes;
-        if (!Number.isInteger(timeout) || timeout < 1 || timeout > 30000 || !Number.isInteger(interval) || interval < 1 || interval > 1000 || !Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 10000)
-            throw new Error("Invalid settling budgets");
-        const started = Date.now(), sample = () => { const rows = [], stack = [root], seen = new Set(); while (stack.length) {
-            if (rows.length >= maxNodes)
-                throw new Error("Settling node budget exceeded");
-            const shape = stack.pop();
-            if (!shape || !shape.id || seen.has(shape.id) || ![shape.x, shape.y, shape.width, shape.height].every(Number.isFinite))
-                throw new Error("Malformed settling geometry");
-            seen.add(shape.id);
-            rows.push([shape.id, shape.x, shape.y, shape.width, shape.height]);
-            for (const child of shape.children || [])
-                stack.push(child);
-        } return JSON.stringify(rows); };
-        try {
-            const target = root && typeof root.waitForLayoutUpdate === "function" ? root : penpot;
-            if (typeof target.waitForLayoutUpdate === "function") {
-                await target.waitForLayoutUpdate(timeout);
-                sample();
-                if (Date.now() - started >= timeout)
-                    return { stable: false, method: "native", samples: 1, reason: "Native layout exceeded deadline" };
-                return { stable: true, method: "native", samples: 1 };
-            }
-            let previous = sample();
-            for (let samples = 2; samples <= 1000 && Date.now() - started < timeout; samples++) {
-                await wait(Math.min(interval, Math.max(1, timeout - (Date.now() - started))));
-                const current = sample();
-                if (Date.now() - started >= timeout)
-                    break;
-                if (current === previous)
-                    return { stable: true, method: "geometry", samples };
-                previous = current;
-            }
-            return { stable: false, method: "geometry", reason: "Layout did not settle within budget" };
-        }
-        catch (error) {
-            return { stable: false, method: "unavailable", reason: String(error && error.message || error) };
-        }
+        const fileId = penpot.currentFile.id, pageId = penpot.currentPage.id;
+        try { return await settleLayout(async nativeMs => {
+            if (penpot.currentFile.id !== fileId || penpot.currentPage.id !== pageId) throw new Error("Layout target changed between samples");
+            return observeLayout(penpot, root, { nativeMs, maxNodes: options.maxNodes });
+        }, { timeoutMs: options.timeoutMs === undefined ? 10000 : options.timeoutMs, intervalMs: options.intervalMs === undefined ? 100 : options.intervalMs, strategy: options.strategy === undefined ? "auto" : options.strategy, sleep: wait }); }
+        catch (error) { return { stable: false, method: "unavailable", samples: 0, reason: String(error && error.message || error) }; }
     };
     const flush = async (options = {}) => {
         if (flushing)
@@ -269,7 +240,7 @@ const pp = (() => {
         try {
             if (queuedContext !== null && context() !== queuedContext)
                 throw new Error("Active token context changed before flush");
-            let layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining() });
+            let layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy });
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");
             if (queuedContext !== null && context() !== queuedContext)
@@ -288,7 +259,7 @@ const pp = (() => {
                 bindings.shift();
                 applied++;
             }
-            layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining() });
+            layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy });
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");
             queuedContext = null;

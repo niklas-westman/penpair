@@ -55,11 +55,11 @@ Exit: the confirmed layout and migration failures reproduce in controlled tests.
 
 Entry points: `packages/core/src/layout.ts`, `kit-source.ts`, operation settling and stable export callers.
 
-- [ ] Extend `LayoutOptions` and kit `settle`/`flush` options with `strategy: auto | native | geometry`, default `auto`. Add `--layout auto|native|geometry` to `run-file`, `export` and `shots`; omit any unverified `off` mode. Existing SDK `layout:false` stays an explicit advanced-caller contract, not a suggested CLI workaround.
-- [ ] Use one shared policy definition for host and kit behavior. Preserve existing total deadlines; cap an automatic native attempt at the smaller of **500 ms** and **one quarter of the remaining budget**. Leave time for geometry fallback rather than spending the full deadline on native waiting.
-- [ ] In `auto`, fall back after an unsupported native API or an observed native wait failure when execution and target identity remain valid. A lost transport response, cancellation, changed target, malformed data or exhausted budget must not become success or trigger a write replay.
-- [ ] Require three consecutive complete, equal geometry samples in geometry mode, with stable IDs/hierarchy and finite measurements; use the existing host/kit poll intervals. Duplicate IDs, cycles, truncation and node-budget excess refuse. In `native`, propagate native failure without fallback.
-- [ ] Add optional attempt diagnostics to `LayoutResult`: selected strategy, native outcome, fallback reason and elapsed time. Preserve `stable`, `method` and `samples` meanings. Report verification failure after a partial flush through the existing journal/readback path.
+- [x] Extend `LayoutOptions` and kit `settle`/`flush` options with `strategy: auto | native | geometry`, default `auto`. Add `--layout auto|native|geometry` to `run-file`, `export` and `shots`; omit any unverified `off` mode. Existing SDK `layout:false` stays an explicit advanced-caller contract, not a suggested CLI workaround.
+- [x] Use one shared policy definition for host and kit behavior. Preserve existing total deadlines; cap an automatic native attempt at the smaller of **500 ms** and **one quarter of the remaining budget**. Leave time for geometry fallback rather than spending the full deadline on native waiting.
+- [x] In `auto`, fall back after an unsupported native API or an observed native wait failure when execution and target identity remain valid. A lost transport response, cancellation, changed target, malformed data or exhausted budget must not become success or trigger a write replay.
+- [x] Require three consecutive complete, equal geometry samples in geometry mode, with stable IDs/hierarchy and finite measurements; use the existing host/kit poll intervals. Duplicate IDs, cycles, truncation and node-budget excess refuse. In `native`, propagate native failure without fallback.
+- [x] Add optional attempt diagnostics to `LayoutResult`: selected strategy, native outcome, fallback reason and elapsed time. Preserve `stable`, `method` and `samples` meanings. Report verification failure after a partial flush through the existing journal/readback path.
 
 Tests: successful native path; unsupported/timed-out native with stable geometry; continually moving geometry; malformed/truncated samples; changed file/page; cancellation/deadline; bindings recorded only after valid settling; equivalent host/kit policy; CLI option rejection; stable PNG export still requires independent matching renders.
 
@@ -147,7 +147,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | Phase | Status | Offline evidence | Live evidence | Completed |
 | --- | --- | --- | --- | --- |
 | 0 Baseline/reproducers | Complete offline | 587 tests; explicit expected-failure reproducers | Target pending | 2026-10-22 |
-| 1 Layout | Not started | Pending | Pending | — |
+| 1 Layout | Complete offline | 597 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 2 Migration/readiness | Not started | Pending | Pending | — |
 | 3 Coordination/snapshots | Not started | Pending | Pending | — |
 | 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
@@ -172,3 +172,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Phase 0 report — 2026-10-22
 
 **Resolved:** portable, credential-free reproductions now distinguish confirmed defects from suspected live causes. **Changed:** [baseline evidence](../fixtures/feedback-reproductions.md), scratch manifest template, native timeout/metadata/delayed-page expected-failure tests and conservative delayed-revision fixture. **Validated:** existing targeted suites: 55 tests; reproducers: 4 tests; `pnpm check`: 587 tests pass, including three explicitly expected failures. **Risks:** expected-failure tests demonstrate missing behavior; they do not verify fixes. No live target or lease causality proof. **Next:** phase 1 shared layout fallback. Commit: `test: preserve adoption failure reproductions`.
+
+### Phase 1 report — 2026-10-22
+
+**Resolved:** idle native failure no longer blocks the default workflow when independent complete geometry settles. **Changed:** one static host/kit policy, bounded native attempts, three equal hierarchy-aware samples, diagnostics and CLI `--layout`; no write retry. **Validated:** native success/failure/hang, node overflow/cycles, target/transport refusal, kit binding and stable-render tests; `pnpm check` passes 597 tests and six-package smoke passes. **Risks:** geometry is neither visual approval nor font readiness; live CLI/kit build remains pending. **Next:** migration explanations and bounded doctor readiness. Commit: `feat: share bounded layout fallback across host and kit`.
