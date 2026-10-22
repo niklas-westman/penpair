@@ -1,3 +1,4 @@
+import { inheritPageSession } from "./page-session.js";
 import { createHash, randomUUID } from "node:crypto";
 import { hostname, userInfo } from "node:os";
 import { lstat, mkdir, open, readFile, unlink } from "node:fs/promises";
@@ -89,10 +90,10 @@ return { ok:true, supported:true };`, params, "write"));
 
 /** Revision precondition is checked inside the delivered mutation, after all guard calls. It is not a server CAS. */
 export function guardRevision(client: PenpotToolClient, target: JournalTarget): PenpotToolClient {
-  return { ...client, close: () => client.close(), async callTool(name, args, options) {
+  return inheritPageSession({ ...client, close: () => client.close(), async callTool(name, args, options) {
     if (name !== "execute_code" || typeof args.code !== "string") throw new Error("Revision guards require execute_code");
     const code = `{ if (penpot.currentFile.id !== ${JSON.stringify(target.fileId)} || penpot.currentFile.revn !== ${JSON.stringify(target.revision)}) return {ok:false, message:"File revision changed before mutation; inspect again"}; }\n` + args.code;
     if (Buffer.byteLength(code) > maxSnippetBytes) throw new PenpairError("snippet-too-large", "Snippet including revision guard exceeds 90 KB");
     return client.callTool(name, { ...args, code }, options);
-  } };
+  } }, client);
 }

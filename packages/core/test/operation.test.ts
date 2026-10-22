@@ -18,9 +18,10 @@ function editor(script: Record<string, unknown[]>, startsOnWrongPage = false): P
         log.push("layout-state");
         return reply({ ok: true, fileId: "file", pageId: "page", native: true, geometry: [["root",0,0,10,10,null,0]], truncated: false });
       }
+      if (code.includes("return {ok:true,fileId:penpot.currentFile.id,pageId:penpot.currentPage.id}")) return reply({ok:true,fileId:"file",pageId:"page"});
       const name = ["switch-page", "archive-inspect", "archive-apply", "archive-readback"].find((n) => script[n] && matches(code, n)) ?? "unknown";
       log.push(name);
-      if (name === "switch-page") { wrong = false; return reply({ ok: true, switched: true }); }
+      if (name === "switch-page") { wrong = false; return reply({ ok: true, fileId: "file", pageId: "page", previousPageId: "old" }); }
       if (wrong && name !== "unknown") return reply({ ok: false, wrongPage: true, message: "wrong page" });
       const results = script[name] as unknown[];
       const i = counters[name] ?? 0;

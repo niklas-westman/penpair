@@ -32,7 +32,7 @@ describe("native layout with older-API fallback", () => {
     await expect(waitForStableLayout(malformed)).rejects.toThrow(/no geometry evidence/);
     const late = fixture();
     Object.assign(late.penpot, { waitForLayoutUpdate: async () => new Promise((resolve) => setTimeout(resolve, 10)) });
-    expect(await waitForStableLayout(late.client, { timeoutMs: 1, strategy: "native" })).toMatchObject({stable:false,method:"native",reason:expect.stringContaining("deadline")});
+    expect(await waitForStableLayout(late.client, { timeoutMs: 1, strategy: "native" })).toMatchObject({stable:false,method:"native",reason:expect.stringMatching(/deadline|timed out/)});
   });
   it("polls geometry until an old API settles", async () => {
     const f = fixture((n) => { f.shape.width = n < 3 ? n * 10 : 30; });

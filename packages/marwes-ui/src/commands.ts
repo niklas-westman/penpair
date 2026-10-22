@@ -83,7 +83,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseCommandArgs({ args, allowPositionals: true, options: { from: { type: "string" }, ownership: { type: "string" }, resolved: { type: "boolean" }, page: { type: "string" }, out: { type: "string" }, overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" } } });
+  parseCommandArgs({ args, allowPositionals: true, options: { from: { type: "string" }, ownership: { type: "string" }, resolved: { type: "boolean" }, page: { type: "string" }, out: { type: "string" }, overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" }, trace: { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -173,7 +173,7 @@ async function diffCommand(context: AdapterContext, args: string[]): Promise<num
 
 async function modeCommand(context: AdapterContext, args: string[], frameId?: string): Promise<number> {
   const { values } = flags(args);
-  if ((values.resume || values.checkpoint || values["force-lock"]) && !values.apply) throw new Error("Mode resume/checkpoint/force-lock require --apply");
+  if ((values.resume || values.checkpoint || values["force-lock"] || values.trace) && !values.apply) throw new Error("Mode resume/checkpoint/force-lock require --apply");
   if (frameId && (!values.page || !values.out)) throw new Error("verify-modes requires one frame ID, --page and --out");
   if (values.out) await resolveProjectOutput(context.root, values.out);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
@@ -191,7 +191,7 @@ async function modeCommand(context: AdapterContext, args: string[], frameId?: st
 
 async function pushCommand(context: AdapterContext, args: string[]): Promise<number> {
   const { values } = flags(args);
-  if ((values.resume || values.checkpoint || values["force-lock"]) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
+  if ((values.resume || values.checkpoint || values["force-lock"] || values.trace) && !values.apply) throw new Error("Resume/checkpoint require --apply; inspect the journal and current design first");
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (!check.committed) {
     diagnostic(context, `FAIL ${check.problems.join("; ")}`);
@@ -239,7 +239,7 @@ async function pushCommand(context: AdapterContext, args: string[]): Promise<num
   }
   const report = await context.withPenpot((client) => applyPlan(client, check.committed!, plan, (message) => context.log(message), {
     prune: values.prune === true, ancestor, expectedFileId: target.fileId, expectedLive: live,
-    journal: { root: context.root, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
+    journal: { root: context.root, trace: values.trace === true, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), redact: context.redact, requireCheckpoint: values.checkpoint === true,
       ...(values.checkpoint ? { checkpoint: (runId) => createCheckpoint(client, { label: "token push", runId }, { apply: true }) } : {}),
     },
   }));
@@ -332,7 +332,7 @@ export const marwesCommand: AdapterCommand = {
       return 1;
     }
     const parsed = flags(rest);
-    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock", "overwrite", "adopt"] : sub === "diff" ? ["resolved", "apply", "resume", "checkpoint", "force-lock"] : sub === "verify-modes" ? ["page", "out", "apply", "resume", "checkpoint", "force-lock"] : [])]);
+    const allowed = new Set(["json", ...(sub === "snapshot" ? ["write"] : sub === "push" ? ["apply", "prune", "resume", "checkpoint", "force-lock", "trace", "overwrite", "adopt"] : sub === "diff" ? ["resolved", "apply", "resume", "checkpoint", "force-lock"] : sub === "verify-modes" ? ["page", "out", "apply", "resume", "checkpoint", "force-lock"] : [])]);
     if (sub === "verify-modes" ? parsed.positionals.length !== 1 : parsed.positionals.length) throw new Error("Unexpected positional arguments after the token subcommand");
     for (const key of Object.keys(parsed.values)) if (!allowed.has(key)) throw new Error(`--${key} is not supported by tokens ${sub}`);
     if (sub === "diff" && !parsed.values.resolved && [parsed.values.apply, parsed.values.resume, parsed.values.checkpoint, parsed.values["force-lock"]].some(Boolean)) throw new Error("Mode write flags require diff --resolved");

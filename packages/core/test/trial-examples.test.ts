@@ -35,7 +35,7 @@ describe("controlled human-trial example bodies (offline preparation only)", () 
     let ready!: () => void; const active = new Promise<void>(resolve => { ready = resolve; });
     const first = runFileScript(client, prepared, { apply: true, journal: { root }, onStep: message => { if (message === "run-file") ready(); } });
     await active;
-    await expect(runFileScript(client, prepared, { apply: true, journal: { root } })).rejects.toThrow(/writer/i);
+    await expect(runFileScript({ ...client }, prepared, { apply: true, journal: { root } })).rejects.toThrow(/writer/i);
     expect(await first).toMatchObject({ verified: true }); expect(f.root.children).toEqual([]);
   });
 });

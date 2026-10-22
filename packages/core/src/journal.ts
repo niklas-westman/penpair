@@ -25,6 +25,7 @@ export interface JournalStep<T> {
   verify(current: T, before: T, result?: unknown): boolean;
   reconcile(before: T, current: T, result?: unknown): "complete" | "pending" | "conflict";
 }
+export interface JournalTraceEvent { event: "lease-acquire-start" | "lease-acquired" | "lease-check" | "inspection-start" | "inspection-end" | "revision-observed" | "lease-release-start" | "lease-released" | "lease-release-failed"; at: string; elapsedMs: number; step?: number; target?: JournalTarget }
 export interface OperationJournal {
   schemaVersion: 1;
   engineVersion: string;
@@ -38,6 +39,7 @@ export interface OperationJournal {
   createdAt: string;
   updatedAt: string;
   redacted: boolean;
+  trace?: JournalTraceEvent[];
   checkpoint?: unknown;
   error?: string;
   steps: { key: string; label: string; state: "pending" | "started" | "completed" | "uncertain" | "failed"; before: unknown; after?: unknown; targetBefore?: JournalTarget; targetAfter?: JournalTarget; result?: unknown; error?: string }[];
@@ -56,6 +58,8 @@ export interface JournalOptions {
   requireCheckpoint?: boolean;
   finalVerify?(): Promise<boolean>;
   redact?(text: string): string;
+  trace?: boolean;
+  onTrace?(event: JournalTraceEvent): void;
   onStep?(message: string): void;
 }
 
@@ -161,14 +165,24 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
   };
   if (!options.resume) await persist(true);
   options.onStep?.(`operation run ${runId}`);
+  const traceStarted = Date.now();
+  const trace = (event: JournalTraceEvent["event"], step?: number, target?: JournalTarget): void => {
+    if (!options.trace && !options.onTrace) return;
+    const entry: JournalTraceEvent = { event, at: new Date().toISOString(), elapsedMs: Date.now() - traceStarted, ...(step === undefined ? {} : { step }), ...(target ? { target: { fileId: redact(target.fileId), revision: target.revision } } : {}) };
+    if (options.trace) { record.trace ??= []; if (record.trace.length < 10000) record.trace.push(entry); }
+    options.onTrace?.(structuredClone(entry));
+  };
   const assertTarget = async () => {
     const actual = await options.target();
     if (actual.fileId !== record.target.fileId) throw new Error("The operation target file changed");
+    trace("revision-observed", undefined, actual);
     return actual;
   };
   let lease: WriteLease | undefined;
   try {
+    trace("lease-acquire-start", undefined, target);
     lease = await options.coordinate?.(runId, target);
+    trace("lease-acquired", undefined, options.trace || options.onTrace ? await assertTarget() : undefined);
     if (options.checkpoint && record.steps.every((step) => step.state === "pending") && record.checkpoint === undefined) {
       record.state = "running";
       await persist();
@@ -182,9 +196,11 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
     for (let index = 0; index < steps.length; index++) {
       const step = steps[index]!;
       const saved = record.steps[index]!;
-      await lease?.check();
+      await lease?.check(); trace("lease-check", index);
       const beforeInspection = await assertTarget();
+      trace("inspection-start", index, beforeInspection);
       const current = await step.inspect();
+      trace("inspection-end", index);
       const afterInspection = await assertTarget();
       if (beforeInspection.revision !== afterInspection.revision) { record.state = "conflict"; throw new Error("File revision changed during step inspection"); }
       if (saved.state === "completed") {
@@ -227,6 +243,11 @@ export async function runJournaledSteps<T>(steps: JournalStep<T>[], options: Jou
     try { await persist(); } catch { /* The pre-write started marker remains the recovery authority when a later local save fails. */ }
     throw new JournalRunError(runId, record.state, redact(error instanceof Error ? error.message : String(error)));
   } finally {
-    if (lease) await lease.release().catch((error) => options.onStep?.(`Writer marker release needs inspection: ${redact(error instanceof Error ? error.message : String(error))}`));
+    if (lease) {
+      trace("lease-release-start");
+      try { await lease.release(); trace("lease-released"); }
+      catch (error) { trace("lease-release-failed"); options.onStep?.(`Writer marker release needs inspection: ${redact(error instanceof Error ? error.message : String(error))}`); }
+      if (options.trace) await persist().catch(() => undefined);
+    }
   }
 }

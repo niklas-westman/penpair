@@ -205,6 +205,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       resume: { type: "string" },
       checkpoint: { type: "boolean" },
       "force-lock": { type: "boolean" },
+      trace: { type: "boolean" },
       force: { type: "boolean" },
       to: { type: "string" },
       only: { type: "string", multiple: true },
@@ -221,11 +222,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     snapshot: ["write", "out", "from"],
     approve: ["page", "frame", "note", "by", "case", "write"],
     spec: ["from", "map", "out", "page", "frame"],
-    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore", "rules", "from", "token-source"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock"], export: ["page", "scale", "name", "layout"], shots: ["page", "prefix", "out", "scale", "layout"],
-    archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock"],
+    pages: [], tree: ["page", "depth", "prefix", "limit"], audit: ["page", "prefix", "steps", "ignore", "rules", "from", "token-source"], inspect:["page","depth","fields",...inspectionFlags], tokens:rest[0]==="dump"?inspectionFlags:rest[0]==="diff"?["theme"]:["type","value","description","apply","resume","checkpoint","force-lock","trace"], export: ["page", "scale", "name", "layout"], shots: ["page", "prefix", "out", "scale", "layout"],
+    archive: ["page", "name", "keep", "parts", "x", "apply", "resume", "checkpoint", "force-lock", "trace"],
     kit: ["include"], recipes: ["include"],
-    "run-file": ["layout", "include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
-    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
+    "run-file": ["layout", "include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock", "trace"],
+    run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock", "trace"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
     connect: ["replace", "pin-file", "any-file"], doctor: ["timeout-ms"], up: [], down: [], open: ["print"], status: ["adapters"], backup: [], restore: ["yes"],
   };
@@ -268,7 +269,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (values.kit && (!values.deep || !values.write)) throw new CommandArgumentError("--kit requires the explicit scratch probe --deep --write");
   if (values.steps && values.steps.split(",").some((step) => !step.trim() || !Number.isFinite(Number(step)) || Number(step) < 0)) throw new Error("--steps requires finite nonnegative numbers");
   if (command === "skills" && rest[0] !== "install" && [values.agents, values["dry-run"], values.to, values.only, values.force].some((value) => value !== undefined)) throw new Error("Installation flags require skills install");
-  if ((values.resume || values.checkpoint || values["force-lock"]) && (!values.apply || !(["archive", "run", "run-file"].includes(command ?? "") || command === "tokens" && tokenEdit)))
+  if ((values.resume || values.checkpoint || values["force-lock"] || values.trace) && (!values.apply || !(["archive", "run", "run-file"].includes(command ?? "") || command === "tokens" && tokenEdit)))
     throw new Error("--resume and --checkpoint require an operation command (archive/run/run-file/tokens) with --apply");
   if (values.version) {
     output.log(version);
@@ -633,7 +634,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const writeOptions = (operation: string) => ({
     ...options, apply: values.apply === true, redact: (text: string) => redactEndpoint(text, endpoint),
     ...(values.apply ? { journal: {
-      root, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), requireCheckpoint: values.checkpoint === true,
+      root, trace: values.trace === true, forceLock: values["force-lock"] === true, runId: values.resume, resume: Boolean(values.resume), requireCheckpoint: values.checkpoint === true,
       ...(values.checkpoint ? { checkpoint: (runId: string) => createCheckpoint(client, { label: operation, runId }, { apply: true }) } : {}),
     } } : {}),
   });

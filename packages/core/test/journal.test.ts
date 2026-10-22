@@ -77,3 +77,14 @@ describe("durable operation phases and explicit recovery", () => {
     expect(state.writes).toEqual([0]);
   });
 });
+
+it("persists redacted lease/revision traces without weakening external-edit refusal", async () => {
+ const root = await folder(); let revision = 1, inspections = 0, writes = 0;
+ await expect(runJournaledSteps([{ key: "step", label: "step", signature: "v1", inspect: async () => { if (++inspections === 2) revision++; return 0; }, apply: async () => { writes++; }, verify: () => true, reconcile: () => "pending" }], {
+  root, runId: "trace-test", operation: "trace", input: {}, trace: true,
+  target: async () => ({ fileId: "file", revision }), coordinate: async () => ({ check: async () => undefined, release: async () => undefined }),
+ })).rejects.toMatchObject({ outcome: "conflict" });
+ const record = await readJournal(root, "trace-test");
+ expect(writes).toBe(0); expect(record.trace?.map(event => event.event)).toEqual(expect.arrayContaining(["lease-acquire-start", "lease-acquired", "lease-check", "inspection-start", "inspection-end", "revision-observed", "lease-released"]));
+ expect(record.trace?.every(event => Object.keys(event).every(key => ["event", "at", "elapsedMs", "step", "target"].includes(key)))).toBe(true);
+});

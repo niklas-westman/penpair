@@ -26,7 +26,7 @@ it("PP-07: deferred lease save is observable but indistinguishable from an exter
   expect(writes).toBe(0);
  }
 });
-it.fails("PP-08: waits for observed page identity when switching takes more than one turn", async () => {
+it("PP-08: waits for observed page identity when switching takes more than one turn", async () => {
  const root = { children: [] }, first = { id: "a", name: "A", root }, second = { id: "b", name: "B", root };
  let pending = false, sleeps = 0;
  const penpot = { currentFile: { id: "file", pages: [first, second] }, currentPage: first, openPage: () => { pending = true; } };

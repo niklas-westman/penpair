@@ -1,3 +1,4 @@
+import { inheritPageSession } from "./page-session.js";
 import { executionEnvelope, maxSnippetBytes, type PenpotToolClient } from "./client.js";
 import { PenpairError } from "./errors.js";
 import type { ProjectFile } from "./instance/config.js";
@@ -13,7 +14,7 @@ export function guardFile(client: PenpotToolClient, expected: ProjectFile | unde
     return client;
   }
   const warningPrefix = "penpair-file-warning: ";
-  return {
+  return inheritPageSession({
     ...client,
     close: () => client.close(),
     ...(client.listTools ? { listTools: () => client.listTools!() } : {}),
@@ -40,5 +41,5 @@ if (!__penpairActualFile || __penpairActualFile.id !== __penpairExpectedFile.id)
       }
       return outcome;
     },
-  };
+  }, client);
 }

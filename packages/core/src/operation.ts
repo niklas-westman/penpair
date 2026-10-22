@@ -2,7 +2,7 @@ import { waitForStableLayout, type LayoutOptions, type LayoutResult } from "./la
 import { commandSleep } from "./command-result.js";
 import type { ExecuteOptions, PenpotToolClient } from "./client.js";
 import { runSnippet, type Snippet, type SnippetResult } from "./snippet.js";
-import { switchPage } from "./snippets/read.js";
+import { withPageSession, pinPageSnippet, selectPage, rememberPage } from "./page-session.js";
 import { archiveApply, archiveInspect, archiveReadback, type ArchiveParams } from "./snippets/archive.js";
 import { PenpairError } from "./errors.js";
 import { UncertainExecutionError } from "./client.js";
@@ -54,21 +54,27 @@ export interface OperationReport {
 
 const defaultSleep = commandSleep;
 
-/** Runs a snippet; if the editor shows another page, opens the right one, waits, and tries once more. */
+/** Runs once on the expected page; page transitions require independently observed IDs. */
 export async function runOnPage(
   client: PenpotToolClient,
   s: Snippet,
   page: string | undefined,
-  { settleMs = 3_000, sleep = defaultSleep, onStep, ...execute }: OperationOptions = {},
+  { settleMs: _settleMs, sleep = defaultSleep, onStep, ...execute }: OperationOptions = {},
 ): Promise<SnippetResult> {
-  const first = await runSnippet(client, s, execute);
-  if (!first.wrongPage || !page) return first;
-  onStep?.(`opening page ${page}`);
-  await runSnippet(client, switchPage(page), execute);
-  await sleep(settleMs);
-  const second = await runSnippet(client, s, execute);
-  if (second.wrongPage) throw new Error(`${s.name}: the editor still shows another page than ${page}`);
-  return second;
+  return withPageSession(client, async () => {
+    const started = Date.now();
+    const remaining = () => ({ ...execute, ...(execute.timeoutMs ? { timeoutMs: Math.max(1, execute.timeoutMs - (Date.now() - started)) } : {}) });
+    const first = await runSnippet(client, pinPageSnippet(client, s), remaining());
+    if (!first.wrongPage || !page) {
+      if (typeof first.fileId === "string" && typeof first.pageId === "string") rememberPage(client, { fileId: first.fileId, pageId: first.pageId });
+      return first;
+    }
+    onStep?.(`opening page ${page}`);
+    await selectPage(client, { name: page }, { ...remaining(), sleep });
+    const second = await runSnippet(client, pinPageSnippet(client, s), remaining());
+    if (second.wrongPage) throw new Error(`${s.name}: the editor still shows another page than ${page}`);
+    return second;
+  });
 }
 
 export async function runOperation<P>(
@@ -77,6 +83,9 @@ export async function runOperation<P>(
   params: P,
   options: OperationOptions = {},
 ): Promise<OperationReport> {
+  return withPageSession(client, () => runOperationInSession(client, operation, params, options));
+}
+async function runOperationInSession<P>(client: PenpotToolClient, operation: Operation<P>, params: P, options: OperationOptions): Promise<OperationReport> {
   if (options.settleMs !== undefined && (!Number.isFinite(options.settleMs) || options.settleMs < 0 || options.settleMs > 30000)) throw new Error("Minimum settle delay must be from 0 to 30000 ms");
   if (options.apply && options.journal) return journaledOperation(client, operation, params, options);
   const { settleMs = 0, sleep = defaultSleep, onStep } = options;

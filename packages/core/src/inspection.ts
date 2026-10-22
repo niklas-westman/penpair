@@ -1,3 +1,4 @@
+import { withPageSession } from "./page-session.js";
 import { createHash } from "node:crypto";
 import { runOnPage } from "./operation.js";
 import { runSnippet, snippet, requirePage } from "./snippet.js";
@@ -280,6 +281,9 @@ export function validateCaptureBudget(budget: CaptureBudget = {}) {
   return {maxCalls,maxTotalBytes,timeoutMs};
 }
 export async function captureInspection(client: PenpotToolClient, query: InspectionQuery, budget: CaptureBudget = {}): Promise<InspectionCapture|PartialInspection> {
+ return withPageSession(client, () => captureInspectionInSession(client, query, budget));
+}
+async function captureInspectionInSession(client: PenpotToolClient, query: InspectionQuery, budget: CaptureBudget): Promise<InspectionCapture|PartialInspection> {
   if (query.cursor) throw new Error("Full capture starts at offset zero; use inspectChunk for manual cursor continuation");
   const {maxCalls,maxTotalBytes,timeoutMs}=validateCaptureBudget(budget);
   validateInspectionQuery(query);

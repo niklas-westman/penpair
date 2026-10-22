@@ -82,12 +82,12 @@ Exit: the retained schema-1 fixture explains its failure and migrates without va
 
 ### Phase 3 — coordination evidence and page-aware snapshots (PP-07/08)
 
-- [ ] Add redacted optional journal trace events around lease acquisition/check/release, inspection and observed revisions. Record source identities and timing without credentials, document text or whole catalogs in logs.
-- [ ] Reproduce delayed lease persistence separately from external shape/token edits. First make no-op/reconciliation behavior observable; do not replace guards with sleeps or automatically ignore revision differences.
-- [ ] **PP-07 decision gate:** if causal attribution is proven, fix the ordering of lease acquisition, target capture and inspection so the operation starts from its own independently read post-acquisition revision, while preserving conflict detection during inspection and before mutation. Test an external edit in each interval. If attribution remains unproven, deliver tracing/reproducer and retain PP-07 as unresolved; changing revision policy then requires a separately reviewed plan amendment.
-- [ ] Replace the fixed page-switch sleep in `runOnPage` with bounded polling of the expected page ID: default **5000 ms**, **100 ms** intervals, limited by the enclosing command's remaining budget. Resolve a unique name once to an ID. A timeout identifies expected/observed page and stage.
-- [ ] Serialize page-sensitive work on the same client through a shared page-session mechanism. Whole-file snapshots hold that session for the collection, capture pages sequentially, and restore the original visible page in `finally`. Unexpected external navigation causes a clear failure rather than silent mixing.
-- [ ] Record per-page progress and timings. Preserve the original snapshot manifest on failure; diagnostic partial observations must never be assembled across revisions or published as a complete snapshot. Keep the original error if restoring the visible page also fails, and report both.
+- [x] Add redacted optional journal trace events around lease acquisition/check/release, inspection and observed revisions. Record source identities and timing without credentials, document text or whole catalogs in logs.
+- [x] Reproduce delayed lease persistence separately from external shape/token edits. First make no-op/reconciliation behavior observable; do not replace guards with sleeps or automatically ignore revision differences.
+- [x] **PP-07 decision gate:** if causal attribution is proven, fix the ordering of lease acquisition, target capture and inspection so the operation starts from its own independently read post-acquisition revision, while preserving conflict detection during inspection and before mutation. Test an external edit in each interval. If attribution remains unproven, deliver tracing/reproducer and retain PP-07 as unresolved; changing revision policy then requires a separately reviewed plan amendment.
+- [x] Replace the fixed page-switch sleep in `runOnPage` with bounded polling of the expected page ID: default **5000 ms**, **100 ms** intervals, limited by the enclosing command's remaining budget. Resolve a unique name once to an ID. A timeout identifies expected/observed page and stage.
+- [x] Serialize page-sensitive work on the same client through a shared page-session mechanism. Whole-file snapshots hold that session for the collection, capture pages sequentially, and restore the original visible page in `finally`. Unexpected external navigation causes a clear failure rather than silent mixing.
+- [x] Record per-page progress and timings. Preserve the original snapshot manifest on failure; diagnostic partial observations must never be assembled across revisions or published as a complete snapshot. Keep the original error if restoring the visible page also fails, and report both.
 
 Tests: core `coordination`, `journal`, `operation-recovery`, `operation`, `inspection`, `structure-snapshot`; add delayed page-switch and concurrent same-client collector tests. Include duplicate page names, removed pages, manual navigation, mid-capture file/token edits, deadline exhaustion and restoration after failure.
 
@@ -149,7 +149,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | 0 Baseline/reproducers | Complete offline | 587 tests; explicit expected-failure reproducers | Target pending | 2026-10-22 |
 | 1 Layout | Complete offline | 597 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 2 Migration/readiness | Complete offline | 607 tests; six-package smoke pass | Pending | 2026-10-22 |
-| 3 Coordination/snapshots | Not started | Pending | Pending | — |
+| 3 Coordination/snapshots | Offline delivery complete; PP-07 unresolved | 614 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
 | 5 Browser starter | Not started | Pending | Pending | — |
 | 6 Theme previews | Not started | Pending | Pending | — |
@@ -180,3 +180,9 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Phase 2 report — 2026-10-22
 
 **Resolved:** metadata-only stale snapshots now explain schema/ownership/hash causes; transport connection alone cannot prove editor readiness. **Changed:** additive reason codes and existing migration guidance; bounded origin/transport/challenge execution/file-pin layers, timestamps and duration, default 5 s doctor with 1–30 s option. Docker uses the same fresh-read proof. **Validated:** 74 targeted tests, stale/missing challenges, wrong file, sleeping origin/editor, timeout validation and secret redaction; `pnpm check` 607 tests and six-package smoke pass. **Risks:** real background/disconnected editor tests remain pending; heartbeat/version are unknown unless observed. **Next:** coordination trace and serialized page sessions. Commit: `feat: explain migration drift and prove fresh doctor readiness`.
+
+### Phase 3 report — 2026-10-22
+
+**Resolved:** delayed synthetic navigation and overlapping same-client collectors now use observed IDs and serialized sessions, restoring the starting page. **Changed:** page/session guards shared by derived clients, bounded polling, per-page progress and separate restoration errors; optional `--trace --apply` journal lease/revision events (also token pushes). **Validated:** real plugin bodies cover delayed switches, concurrent collectors, manual navigation, removed/ambiguous pages, revision changes, restoration failure and cross-client writer contention; `pnpm check` 614 tests and six-package smoke pass. **Risks:** PP-07 remains **unresolved**: delayed own saves and external edits cannot be causally distinguished with current evidence. Revision guards are unchanged. Live sequential/external-edit tests pending. **Next:** installed help and composition guidance. Commit: `feat: serialize observed page sessions and trace writer revisions`.
+
+- [ ] PP-07 follow-up: obtain scratch trace proving delayed writer-marker persistence, then separately review any change to revision ordering. Tracing and conservative conflict refusal are delivered; no race fix is claimed.

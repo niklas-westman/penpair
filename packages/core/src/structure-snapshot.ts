@@ -1,3 +1,5 @@
+import { withCleanupDeadline } from "./command-result.js";
+import { withPageSession, observePage, selectPage, rememberPage, pinPageSnippet } from "./page-session.js";
 import { mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { captureInspection, type InspectionDocument } from "./inspection.js";
@@ -33,27 +35,51 @@ export function assembleStructuralSnapshot(pages: StructuralPage[], rawTokens: I
 const listingSnippet = () => snippet("snapshot-pages", `
 if (penpot.currentFile.pages.length > 100) return {ok:false,message:"Snapshot supports at most 100 pages"};
 return {ok:true,fileId:penpot.currentFile.id,revision:penpot.currentFile.revn,pages:penpot.currentFile.pages.map(p=>({id:p.id,name:p.name}))};`, {}, "read");
-export async function captureStructuralSnapshot(client: PenpotToolClient, options: ExecuteOptions & { signal?: AbortSignal } = {}): Promise<StructuralSnapshot> {
- const before = await runSnippet(client, listingSnippet(), options);
+export interface SnapshotProgress { pageId: string; stage: "start" | "complete"; elapsedMs: number }
+export class SnapshotCaptureError extends Error {
+ constructor(message: string, readonly progress: SnapshotProgress[], readonly restorationError?: string) { super(message + (restorationError ? `; visible-page restoration also failed: ${restorationError}` : "")); }
+}
+export async function captureStructuralSnapshot(client: PenpotToolClient, options: ExecuteOptions & { signal?: AbortSignal; onStep?: (message: string) => void; onProgress?: (event: SnapshotProgress) => void } = {}): Promise<StructuralSnapshot> {
+ return withPageSession(client, async () => {
+ const started = Date.now(), progress: SnapshotProgress[] = [];
+ const budget = () => { const remaining = Math.min(300000, options.timeoutMs ?? 300000) - (Date.now() - started); if (remaining < 1) throw new Error("Snapshot collection exceeded time budget"); return { maxTotalBytes: 8 * 1024 * 1024, timeoutMs: Math.min(60000, remaining) }; };
+ const original = await observePage(client, { ...options, timeoutMs: budget().timeoutMs });
+ rememberPage(client, original);
+ let result: StructuralSnapshot | undefined, failure: unknown, restorationError: string | undefined;
+ const notify = (pageId: string, stage: SnapshotProgress["stage"]) => { const event = { pageId, stage, elapsedMs: Date.now() - started }; progress.push(event); options.onProgress?.(event); options.onStep?.(`snapshot ${stage}: page ${pageId} (${event.elapsedMs} ms)`); };
+ try {
+ const before = await runSnippet(client, pinPageSnippet(client, listingSnippet()), { ...options, timeoutMs: budget().timeoutMs });
  if (!Array.isArray(before.pages) || !before.pages.length || typeof before.fileId !== "string" || !Number.isInteger(before.revision)) throw new Error("Snapshot listing identity missing");
  const pages = before.pages as Array<{id:string;name:string}>;
- if (pages.some(p => typeof p.id !== "string" || typeof p.name !== "string") || new Set(pages.map(p => p.id)).size !== pages.length || new Set(pages.map(p => p.name)).size !== pages.length) throw new Error("Ambiguous page identity/name; page selection must be explicit and unique");
- const result: StructuralPage[] = []; let nodes = 0;
- const started = Date.now();
- const budget = () => { const remaining = 300000 - (Date.now() - started); if (remaining < 1) throw new Error("Snapshot collection exceeded five-minute budget"); return { maxTotalBytes: 8 * 1024 * 1024, timeoutMs: Math.min(60000, remaining) }; };
+ if (pages.some(p => typeof p.id !== "string" || !p.id || typeof p.name !== "string") || new Set(pages.map(p => p.id)).size !== pages.length || new Set(pages.map(p => p.name)).size !== pages.length) throw new Error("Ambiguous page identity/name; page selection must be explicit and unique");
+ const captures: StructuralPage[] = []; let nodes = 0;
  for (const page of pages) {
-   options.signal?.throwIfAborted();
+   options.signal?.throwIfAborted(); notify(page.id, "start");
+   await selectPage(client, { id: page.id }, { ...options, timeoutMs: budget().timeoutMs });
    const capture = await captureInspection(client, { kind: "shape", shapeId: "@page-root", page: page.name, depth: 10000, maxNodes: 50000, documentBytes: 8 * 1024 * 1024 }, budget());
-   if (!capture.complete || capture.kind !== "shape-inspection" || capture.pageId !== page.id) throw new Error("Snapshot page inspection incomplete or selected identity changed");
-   const data = structuralPage(capture as InspectionDocument, page.name); nodes += data.nodes.length; if (nodes > 50000) throw new Error("Snapshot file exceeds 50000 nodes"); result.push(data);
+   await observePage(client, { ...options, timeoutMs: budget().timeoutMs });
+   if (!capture.complete || capture.kind !== "shape-inspection" || capture.pageId !== page.id) throw new Error(`Snapshot page ${page.id} inspection incomplete or selected identity changed`);
+   const data = structuralPage(capture as InspectionDocument, page.name); nodes += data.nodes.length; if (nodes > 50000) throw new Error("Snapshot file exceeds 50000 nodes"); captures.push(data); notify(page.id, "complete");
  }
  const tokens = await captureInspection(client, { kind: "tokens", documentBytes: 8 * 1024 * 1024 }, budget());
- const after = await runSnippet(client, listingSnippet(), options);
+ const after = await runSnippet(client, pinPageSnippet(client, listingSnippet()), { ...options, timeoutMs: budget().timeoutMs });
  if (!tokens.complete || tokens.kind !== "token-inspection" || observationHash(before, true) !== observationHash(after, true)) throw new Error("Snapshot source changed or token inspection incomplete");
- const snapshot = assembleStructuralSnapshot(result, tokens as InspectionDocument);
- if (snapshot.fileId !== before.fileId || snapshot.revision !== before.revision) throw new Error("Snapshot source changed during collection");
- return snapshot;
+ result = assembleStructuralSnapshot(captures, tokens as InspectionDocument);
+ if (result.fileId !== before.fileId || result.revision !== before.revision) throw new Error("Snapshot source changed during collection");
+ } catch (error) { failure = error; }
+ finally {
+   try { await withCleanupDeadline(async () => {
+     const current = await runSnippet(client, snippet("restore-page-state", "return {ok:true,fileId:penpot.currentFile.id,pageId:penpot.currentPage.id};", {}, "read"), { retries: 0, timeoutMs: 5000 });
+     if (current.fileId !== original.fileId || typeof current.pageId !== "string") throw new Error("Original file no longer open; cannot restore its visible page");
+     rememberPage(client, { fileId: original.fileId, pageId: current.pageId });
+     if (current.pageId !== original.pageId) await selectPage(client, { id: original.pageId }, { timeoutMs: 5000 });
+   }, 10000); } catch (error) { restorationError = error instanceof Error ? error.message : String(error); }
+ }
+ if (failure || restorationError) throw new SnapshotCaptureError(failure instanceof Error ? failure.message : failure ? String(failure) : "Snapshot visible-page restoration failed", progress, restorationError);
+ return result!;
+ });
 }
+
 async function readBounded(file: string, maximum: number): Promise<unknown> { if ((await stat(file)).size > maximum) throw new Error("Structural artifact exceeds byte budget"); return JSON.parse(await readFile(file, "utf8")); }
 export async function writeStructuralSnapshot(root: string, out: string, snapshot: StructuralSnapshot, redact?: (text: string) => string): Promise<StructuralManifest> {
  snapshot = assembleStructuralSnapshot(snapshot.pages, { ...snapshot.tokens, kind: "token-inspection", pageId: null, complete: true, reasons: [], counts: {}, producer: { name: "penpair", version } });
