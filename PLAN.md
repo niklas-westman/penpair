@@ -15,7 +15,16 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Owner branch review and live acceptance.** Feedback code phases 0–6 and repository readability are complete on `codex/tradient-feedback`; review the [branch report](docs/plans/tradient-feedback-review.md) and [readability completion](docs/conventions/completion-2026-10-22.md). Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. Push/PR authorized by the owner; merge and publication remain pending.
+- [ ] **Recover 0.3.0 and review registry polling.** The [polling fix and report](docs/plans/registry-polling-fix.md) are built and verified. Finish the interrupted 0.3.0 release on current main with explicit continuation before merging the tooling fix; live Penpot acceptance remains pending below.
+
+## Release registry polling
+
+- [x] Inspect the failed publish log and current registry: core 0.3.0 was accepted and is now visible; four scoped packages are absent.
+- [x] Implement minute polling with a ten-minute per-package deadline and bounded metadata queries.
+- [x] Verify immediate/delayed visibility, timeout and error handling without real waits or publication.
+- [x] Document the current 0.3.0 continuation and the fix's release sequence; record checks and results.
+- [ ] Complete and independently verify the interrupted 0.3.0 release with owner-approved continuation.
+- [ ] Review/merge the polling fix after the current release is complete.
 
 ## Repository readability
 
@@ -245,3 +254,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: release readiness checked against GitHub: both automation switches enabled, scoped PR-token metadata present, active workflows and main-only owner-reviewed environment confirmed. Changesets proposes 0.3.0 for all six; the explicit penpair exception keeps five scoped packages required. Corrected stale release-guide versions and a trailing font-license space. Feature PR/remote CI, reviewed version PR, environment approval and first verified OIDC publication remain pending; see branch report.
 
 - 2026-10-22: owner authorized pushing `codex/tradient-feedback` and opening the feature PR. Local checks and the release handoff are recorded; remote CI, owner merge review, the generated version PR and protected publication remain pending.
+
+- 2026-10-22: diagnosed 0.3.0 publication stopping after npm accepted the core and requested processing time; only core was visible in independent registry checks. Extracted minute-interval visibility polling with a ten-minute per-package deadline, bounded queries and progress logs. Full checks pass (658 tests), all six package smoke installs pass, and virtual-time/error tests preserve explicit recovery. See `docs/plans/registry-polling-fix.md`; current 0.3.0 continuation must finish before merging pending tooling notes.
