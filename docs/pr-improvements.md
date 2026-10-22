@@ -18,14 +18,17 @@ The neutral core and one-way package dependency rules remain enforced.
 Releases now use Changesets to collect notes into one **Release Penpair** PR. All
 six packages receive the same bump, including unchanged packages. Merging that
 reviewed version PR can trigger the existing guarded whole-family publisher using
-npm OIDC. Feature merges only collect notes. A separate GitHub PR token is needed
+npm OIDC. Feature merges only collect notes. The owner-approved temporary
+`PENPAIR_RELEASE_EXCLUDE_PENPAIR=true` repository variable can omit only the
+blocked short-name wrapper from publishing, with explicit logs/summary and all
+other packages still required. All six repository versions continue together. A separate GitHub PR token is needed
 for automatic version-PR checks. Both automation paths remain disabled until
 owner activation; no package version is changed by this PR. The pending note
 proposes 0.2.0 in the separate generated version PR.
 
 ## Validation
 
-- `pnpm check`: build, typecheck, 579 tests and lockstep/config checks.
+- `pnpm check`: build, typecheck, 582 tests and lockstep/config checks.
 - `pnpm smoke:package`: all six tarballs install and run in clean consumers.
 - Real Changesets CLI tests verify unchanged-package bumps, highest-level
   selection, changelogs, note consumption and exact workspace dependencies.

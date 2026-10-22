@@ -32,7 +32,7 @@ Publishing cannot be undone: a version, once published, cannot be replaced. Chec
    owner approval, depending on its configured protection.
 5. The existing `pnpm release` entrypoint reruns checks and all package smoke
    installs, publishes packed tarballs in dependency order with npm OIDC and
-   provenance, and verifies all six registry versions. A moved main branch stops
+   provenance, and verifies every required registry version (all six by default). A moved main branch stops
    the job instead of publishing a different commit. Do not merge another main
    change until a release finishes; use manual recovery if it has moved.
 
@@ -65,16 +65,52 @@ separate version PR is generated and reviewed.
   workflow uses Node 24 and checks npm before publishing.
 - [ ] Verify publishing/bootstrap permissions for every package, especially the
   previously refused short name `penpair` and the new comparison adapter. A
-  missing or blocked package stops the full-family release; automatic publishing
-  has no `--except` escape hatch.
-- [ ] Set `PENPAIR_TRUSTED_RELEASE_ENABLED=true` only when the full family is
-  provisioned. Merge the reviewed version PR to release. Inspect registry versions
+  missing or blocked required package stops publishing. The owner-approved
+  temporary `PENPAIR_RELEASE_EXCLUDE_PENPAIR=true` exception may omit only
+  the short-name wrapper; every other package remains required.
+- [ ] Set `PENPAIR_TRUSTED_RELEASE_ENABLED=true` only when all required packages
+  are provisioned (five while the explicit short-name exception is enabled). Merge the reviewed version PR to release. Inspect registry versions
   and provenance for all packages afterward.
 
 No npm token is needed for this path. The PR token authorizes GitHub changes;
 short-lived OIDC authorizes npm publishing. The versioning job has no OIDC
 permission; the publishing job has no repository write token. No workflow creates
 or pushes tags or GitHub releases automatically.
+
+## Temporary exception for the short name
+
+While npm cannot accept `penpair`, set this **repository Actions variable**:
+
+```text
+PENPAIR_RELEASE_EXCLUDE_PENPAIR=true
+```
+
+This is the only configurable publishing exclusion. The same shared version and
+Changesets fixed group still cover **all six** packages. Both automatic and manual
+CI releases publish and verify the other five, skip registry access/publication
+for `penpair`, and display the exception in logs and the GitHub step summary.
+A successful run means all five required packages are verified; it does not claim
+the full six-package family is published. Any other missing package still fails.
+The exception is rejected if a required package starts depending on the wrapper.
+
+The variable defaults to `false`/unset. Values other than `true`, `false` or empty
+fail before release work. This variable does not enable automation or publishing.
+Keep the two activation switches disabled until owner setup is complete. While
+the exception is enabled, leave only `penpair`'s npm trusted publisher pending.
+The `npm-release` environment does not need its own copy of this variable.
+
+Once the name is available, configure its trusted publisher and set the repository
+variable to `false` or remove it. For the latest reviewed version whose other five
+packages already exist on npm, use manual dispatch with that exact version and
+`continue_release=true`; the unchanged recovery guard publishes only the missing
+wrapper. If nothing at the current version has been published, release normally.
+The first run without the exception refuses a partial family unless continuation
+is explicit. Historical skipped versions are not automatically backfilled.
+
+Local owner-led releases can use the same environment variable. The older local
+`--except penpair` option below still deliberately returns INCOMPLETE/exit 3; it
+is separate from the configured CI exception, which succeeds once its five
+required packages are independently verified.
 
 ## Local owner-led recovery
 

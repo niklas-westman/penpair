@@ -221,6 +221,7 @@ describe("workflow permission and activation boundaries", () => {
     const publish = release.jobs.publish.steps.at(-1);
     expect(publish.env.PENPAIR_EXPECTED_VERSION).toContain("needs.gate.outputs.version");
     expect(publish.env.NPM_TOKEN).toBeUndefined();
+    expect(publish.env.PENPAIR_RELEASE_EXCLUDE_PENPAIR).toBe("${{ vars.PENPAIR_RELEASE_EXCLUDE_PENPAIR }}");
     expect(release.concurrency["cancel-in-progress"]).toBe(false);
     expect(ci.jobs.check.steps.some((step: { run?: string }) => step.run === "node scripts/check-pr-changeset.mjs")).toBe(true);
   });

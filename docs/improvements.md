@@ -1181,3 +1181,20 @@ Append reports here in completion order; each checked item links to its report.
 **Risks:** Remote branch/environment protections, PR-token permissions, npm trusted-publisher/bootstrap settings and the previously refused short name need owner verification. npm multi-package publication is sequential, not atomic; partial failures require explicit continuation. A moved main or ambiguous merge SHA fails closed. No push, merge, tag, real version bump, activation or publish was performed.
 
 **Next:** Review the full improvement branch using [the review guide](branch-review.md), then authorize a push and draft PR when ready. Live G3/I12/C1 acceptance gates remain pending.
+
+## R2 — Temporary short-name publishing exception (2026-10-22)
+
+- [x] Add `PENPAIR_RELEASE_EXCLUDE_PENPAIR` as an explicit boolean that can omit only `penpair`, never an arbitrary package.
+- [x] Keep all six packages in the version group; verify all five required packages and report the omitted wrapper in logs and the GitHub step summary.
+- [x] Preserve partial-release guards and explicit continuation when restoring six-package publication.
+- [ ] Owner: set the repository Actions variable to `true` while the short name is blocked, then remove/set `false` when ready to publish it.
+
+**Resolved:** The blocked short name no longer prevents an explicitly configured five-package release, while repository versions remain in lockstep and unrelated publication failures remain fatal.
+
+**Changed:** Added a boolean exclusion policy and dependency checks, mapped the repository variable into the protected publisher, and added visible exception reporting. This is the owner's requested narrow exception to R1's full-family publication requirement, not a package/version exclusion in Changesets.
+
+**Validated:** Real release-entrypoint tests with local fake git/pnpm/npm commands verify the five-package result, no short-name registry access, refusal of partial required releases, explicit continuation and catch-up after removing the exception. `pnpm check` passes (582 tests), all six package smoke installs pass, and the workflow/config mapping remains tested. No real npm operation is performed by these tests.
+
+**Risks:** Account setup and variable activation remain pending; npm publication is still sequential. The CI job succeeds for five verified packages only with the explicit exception and labels the family incomplete. Historical skipped wrapper versions are not automatically backfilled.
+
+**Next:** Finish account settings, review the branch and create its PR when authorized.

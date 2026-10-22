@@ -80,3 +80,4 @@ jobs:
           PENPAIR_CONTINUE_RELEASE: ${{ inputs.continue_release || 'false' }}
           PENPAIR_RELEASE_PR: ${{ needs.gate.outputs.release_pr }}
           PENPAIR_RELEASE_ENVIRONMENT: npm-release
+          PENPAIR_RELEASE_EXCLUDE_PENPAIR: ${{ vars.PENPAIR_RELEASE_EXCLUDE_PENPAIR }}
