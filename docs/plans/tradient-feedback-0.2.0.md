@@ -1,6 +1,6 @@
 # Tradient feedback: execution plan
 
-Created: 2026-10-22. Status: **phases 0–6 delivered and verified offline; final review in progress; live Penpot gates and PP-07 causality remain open**.
+Created: 2026-10-22. Status: **phases 0–6 delivered and verified offline; final offline review complete; live Penpot gates and PP-07 causality remain open**.
 
 Goal: make the ordinary Penpair workflow complete the observed trial without a custom SDK host, then reduce the project glue needed for comparison and theme previews.
 
@@ -136,9 +136,10 @@ Exit: simultaneous light/dark preview artifacts are reproducible and accurately 
 
 - [ ] Re-run the eight-case scratch trial using shipped CLI/kit paths, a repeat build and one heading change. Compare IDs, bindings, geometry, native/browser images and changed fields. Record observed timings, unknowns and interventions.
 - [ ] Confirm no consumer-side timeout bypass, fixed inter-operation sleep or fabricated provider evidence is needed for the covered paths.
-- [ ] Run `pnpm check`, `pnpm smoke:package` and whitespace checks. Record the actual final test count and installed-package results; do not assume the 0.2.0 baseline count remains current.
-- [ ] Add Changesets per package behavior: fixes as patch, new public options/provider/preview capabilities as minor. The generated version PR selects the highest bump for every package; no manual version bump or release activation change belongs here.
-- [ ] Review the branch, evidence and remaining PP-07/native-mode/live gates. Obtain owner decisions before any push/PR, merge, publish or non-scratch write.
+- [x] Run `pnpm check`, `pnpm smoke:package` and whitespace checks. Record the actual final test count and installed-package results; do not assume the 0.2.0 baseline count remains current.
+- [x] Add Changesets per package behavior: fixes as patch, new public options/provider/preview capabilities as minor. The generated version PR selects the highest bump for every package; no manual version bump or release activation change belongs here.
+- [x] Review the branch, evidence and remaining PP-07/native-mode/live gates; see the [branch review and acceptance checklist](tradient-feedback-review.md).
+- [ ] Obtain owner decisions before any push/PR, merge, publish or non-scratch write.
 
 If the scratch target is unavailable, code may be reviewed with live checks still pending, but the release must not claim those checks passed. No rollback or exactly-once guarantee is introduced. On an uncertain write: stop, retain the journal, inspect independently, reconcile only owned changes and resume explicitly. After repeated failure, record the trace and narrow the reproducer; never relax a guard to get a green report.
 
@@ -153,7 +154,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | 4 Help/skills | Complete | 615 tests; six-package smoke pass | Not applicable | 2026-10-22 |
 | 5 Browser starter | Complete | 616 tests; package smoke; 8 real-browser cases + negative cases | Local Chromium trial complete; Penpot pending | 2026-10-22 |
 | 6 Theme previews | Complete offline | 622 tests; six-package smoke pass | Scratch/native capability pending | 2026-10-22 |
-| Final trial/release review | Not started | Pending | Pending | — |
+| Final trial/release review | Offline review complete; owner/live pending | 630 tests; six-package smoke; real browser matrix | Penpot target pending | 2026-10-22 (offline) |
 
 Append phase reports here during execution. Update the table and relevant `PLAN.md` checkbox in the same verified change.
 
@@ -202,3 +203,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Final boundary review report — 2026-10-22
 
 **Resolved:** cancelling a queued collector no longer opens a parallel page queue while its predecessor is still active. **Changed:** deferred queue cleanup, stricter geometry/hierarchy and doctor identity validation, correct doctor range text, bounded browser animation-frame waits. **Validated:** the queue regression failed before the fix and passes afterward; cancellation after a delivered read performs no second observation. Malformed native/geometry/root/sibling evidence refuses. `pnpm check`: 630 tests; all six package smoke installs; eight real local browser cases plus six rejection cases and delayed fonts pass. **Risks:** live gates and PP-07 causality remain open. **Next:** owner branch review and separately authorized scratch acceptance. Commit: `fix: preserve cancellation and evidence boundaries`.
+
+### Final handoff — 2026-10-22
+
+**Resolved:** all authorized code phases and offline/local-browser acceptance are complete on the review branch. **Changed:** [consolidated branch report](tradient-feedback-review.md) maps every finding to its delivered outcome, evidence and remaining live checks. **Validated:** 630 tests, six installed package families, eight real browser cases and six rejection cases; build/types/version/whitespace checks pass. **Risks:** PP-07 causality, live Penpot build/repeat/heading and multi-page trials, native frame-theme proof and owner release decisions remain unchecked. **Next:** owner branch review and confirmed disposable-file acceptance; no credentials are requested and no publication was attempted.

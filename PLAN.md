@@ -15,20 +15,22 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Tradient feedback — final branch verification and review** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
+- [ ] **Tradient feedback — owner review and live acceptance.** Code phases 0–6 are complete on `codex/tradient-feedback`; [branch report](docs/plans/tradient-feedback-review.md) and [living execution guide](docs/plans/tradient-feedback-0.2.0.md) record the evidence. Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. No push or publication yet.
 
 ## Tradient 0.2.0 feedback follow-up
 
-- [x] Read the adoption report, cross-check the findings against current code and prepare the [phased living execution guide](docs/plans/tradient-feedback-0.2.0.md) (2026-10-22). Defaults: all eight findings, reliability first, dedicated scratch-copy verification; no code implementation or live mutation yet.
-- [x] Companion-discovery documentation slice (2026-10-22): both adapters are visible in README/setup, and shipped skills recommend Reflection Check for frontend verification. The [adapter guide](docs/adapters.md) separates installation, registration and real-browser readiness. `pnpm check` (583 tests) and all package smoke installs pass; runtime phases remain pending.
-- [x] Phase 0: baseline and minimal failure reproductions (587 tests, expected failures explicitly marked).
-- [x] Phase 1 / PP-01: shared bounded layout fallback across CLI, SDK and kit.
-- [x] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded execution readiness.
-- [x] Phase 3 / PP-07–08: trace coordination revisions and make multi-page capture reliable; offline delivery verified; PP-07 causal fix and live gates remain open.
-- [x] Phase 4 / PP-06: installed workflow discovery and composition guidance. Companion README/setup/skill recommendations are a separate completed documentation slice; runtime help and composition work remain pending.
-- [x] Phase 5 / PP-05: real-browser comparison starter with independent state/capture evidence.
-- [x] Phase 6 / PP-04: isolated projected theme previews with explicit native-capability limits.
-- [ ] Final: eight-case scratch re-trial, package validation, owner branch/release review.
+- [x] Read adoption feedback and prepare the phased living execution guide (2026-10-22).
+- [x] Make both companions visible in README/setup/skills with distinct install, registration and browser-readiness stages.
+- [x] Phase 0: preserve minimal timeout, metadata, lease-revision and delayed-page reproducers plus a scratch manifest template.
+- [x] Phase 1 / PP-01: share bounded layout fallback across CLI, SDK and kit; live build acceptance pending.
+- [x] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded fresh execution readiness; live editor trials pending.
+- [x] Phase 3 / PP-07–08: trace coordination revisions, serialize observed page sessions and restore snapshot navigation. PP-07 causal fix remains unresolved.
+- [x] Phase 4 / PP-06: group installed workflow help and add composition guidance and companion discovery.
+- [x] Phase 5 / PP-05: ship and exercise the browser comparison starter across eight real local cases, retaining independent capture evidence.
+- [x] Phase 6 / PP-04: deliver isolated offline projected theme previews and explicit native-capability limits.
+- [x] Final offline review: 630 tests, build/types/version rules, all six package smoke installs, browser matrix and whitespace pass; cancellation/evidence boundary regressions fixed.
+- [ ] Final live acceptance: scratch build/repeat/heading, doctor editor states, lease traces, multi-page capture and preservation checks.
+- [ ] Owner branch/release review before push/PR, merge or publication. All repository versions remain 0.2.0; Changesets are ready.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -219,3 +221,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: feedback phase 6 adds bounded offline projected-theme artifacts, shared neutral resolution and owned-root examples with preservation tests; 622 tests and package smoke pass. Native per-frame selection and live preservation remain unproved.
 
 - 2026-10-22: final branch review reproduced and fixed cancellation opening a parallel page queue, tightened malformed layout/readiness refusal and bounded browser frame waits. Full checks pass (630 tests), all six package smoke installs and eight real browser cases plus six rejection cases pass.
+
+- 2026-10-22: feedback execution handoff is complete for authorized code and local-browser work. The living guide and branch report contain per-phase results and an explicit remaining acceptance checklist.
