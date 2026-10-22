@@ -42,10 +42,10 @@ After every phase, append a report below with **Resolved / Changed / Validated /
 
 ### Phase 0 — reproduce and preserve the baseline
 
-- [ ] Record the feedback version, package/agent/runtime versions and the relevant reproduction sources. Extract only credential-free minimal fixtures; do not copy the whole consumer runner or unreviewed logs.
-- [ ] Run the existing layout/kit, migration, doctor, coordination and structural-snapshot suites. Record pre-existing failures separately.
-- [ ] Add failing regressions before behavioral changes: native wait times out while geometry is stable; metadata-only snapshot migration; delayed own-lease save versus a real external edit; page switching delayed past the initial read.
-- [ ] Prepare a public-ID-only scratch fixture manifest with two pages, one flex/text/token example and expected preservation checks. Keep credentials and private journals ignored.
+- [x] Record the feedback version, package/agent/runtime versions and the relevant reproduction sources. Extract only credential-free minimal fixtures; do not copy the whole consumer runner or unreviewed logs.
+- [x] Run the existing layout/kit, migration, doctor, coordination and structural-snapshot suites. Record pre-existing failures separately.
+- [x] Add failing regressions before behavioral changes: native wait times out while geometry is stable; metadata-only snapshot migration; delayed own-lease save versus a real external edit; page switching delayed past the initial read.
+- [x] Prepare a public-ID-only scratch fixture manifest with two pages, one flex/text/token example and expected preservation checks. Keep credentials and private journals ignored.
 
 Tests: core `settle-integration.test.ts`, `kit.test.ts`, `external.test.ts`, `coordination.test.ts`, `journal.test.ts`, `structure-snapshot.test.ts`; adapter `migration.test.ts`, `commands.test.ts`.
 
@@ -146,7 +146,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 
 | Phase | Status | Offline evidence | Live evidence | Completed |
 | --- | --- | --- | --- | --- |
-| 0 Baseline/reproducers | Not started | Pending | Target pending | — |
+| 0 Baseline/reproducers | Complete offline | 587 tests; explicit expected-failure reproducers | Target pending | 2026-10-22 |
 | 1 Layout | Not started | Pending | Pending | — |
 | 2 Migration/readiness | Not started | Pending | Pending | — |
 | 3 Coordination/snapshots | Not started | Pending | Pending | — |
@@ -168,3 +168,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 **Risks:** These guidance changes need the next reviewed release and skill refresh to reach existing installations. Browser verification still requires approved baseline/case evidence and a real provider; automatic bundling/setup was not added. No version bump, push, merge or publish was performed.
 
 **Next:** Phase 0 remains the runtime entry point; phase 5 supplies the real-browser starter. Phase 4's help/composition tasks remain unchecked.
+
+### Phase 0 report — 2026-10-22
+
+**Resolved:** portable, credential-free reproductions now distinguish confirmed defects from suspected live causes. **Changed:** [baseline evidence](../fixtures/feedback-reproductions.md), scratch manifest template, native timeout/metadata/delayed-page expected-failure tests and conservative delayed-revision fixture. **Validated:** existing targeted suites: 55 tests; reproducers: 4 tests; `pnpm check`: 587 tests pass, including three explicitly expected failures. **Risks:** expected-failure tests demonstrate missing behavior; they do not verify fixes. No live target or lease causality proof. **Next:** phase 1 shared layout fallback. Commit: `test: preserve adoption failure reproductions`.

@@ -15,13 +15,13 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Tradient feedback — phase 0: baseline and reproducers** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, beginning with controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
+- [ ] **Tradient feedback — phase 1: bounded layout fallback** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
 
 ## Tradient 0.2.0 feedback follow-up
 
 - [x] Read the adoption report, cross-check the findings against current code and prepare the [phased living execution guide](docs/plans/tradient-feedback-0.2.0.md) (2026-10-22). Defaults: all eight findings, reliability first, dedicated scratch-copy verification; no code implementation or live mutation yet.
 - [x] Companion-discovery documentation slice (2026-10-22): both adapters are visible in README/setup, and shipped skills recommend Reflection Check for frontend verification. The [adapter guide](docs/adapters.md) separates installation, registration and real-browser readiness. `pnpm check` (583 tests) and all package smoke installs pass; runtime phases remain pending.
-- [ ] Phase 0: capture baseline and minimal failure reproductions.
+- [x] Phase 0: baseline and minimal failure reproductions (587 tests, expected failures explicitly marked).
 - [ ] Phase 1 / PP-01: shared bounded layout fallback across CLI, SDK and kit.
 - [ ] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded execution readiness.
 - [ ] Phase 3 / PP-07–08: trace coordination revisions and make multi-page capture reliable; unresolved causal claims stay explicitly open.
@@ -203,3 +203,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-20: safe write runner, snippet model (valid-code and size checks without a connection), built-in read and archive snippets, stable export, effective-token diff, and the CLI commands `pages`, `tree`, `audit`, `tokens`, `export`, `archive`. 42 tests. Live read-only run against the local Penpot: `pages`, `tree`, `audit` (matches Sourcer's own audit of the phone frames), `archive` inspect and `tokens dump`/`diff` all behave.
 - 2026-10-20: MIT licence added. Core now has the neutral endpoint resolver (shell, `.env.local`, Codex and Claude Code configuration, configurable variable names), the Penpot tool client with failure classification, suspended-tab retry, secret redaction and a 90 KB snippet guard, the capability probe and `penpair probe`. 17 tests; live probe matches Sourcer's baseline (file, revision, APIs, request limit between 90 and 110 KB).
 - 2026-10-20: repository created with the plan, agent rules, workspace and the neutrality test. Name chosen by the owner: penpair.
+
+- 2026-10-22: feedback phase 0 preserves minimal layout, metadata, lease-revision and delayed-page evidence plus a public-ID-only scratch template; full checks pass (587 tests). Live causal claims remain open.
