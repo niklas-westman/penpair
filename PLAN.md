@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Owner branch review and live acceptance.** Feedback code phases 0–6 and repository readability are complete on `codex/tradient-feedback`; review the [branch report](docs/plans/tradient-feedback-review.md) and [readability completion](docs/conventions/completion-2026-10-22.md). Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. No push or publication yet.
+- [ ] **Owner branch review and live acceptance.** Feedback code phases 0–6 and repository readability are complete on `codex/tradient-feedback`; review the [branch report](docs/plans/tradient-feedback-review.md) and [readability completion](docs/conventions/completion-2026-10-22.md). Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. Push/PR authorized by the owner; merge and publication remain pending.
 
 ## Repository readability
 
@@ -41,7 +41,8 @@ Resolved: consistent source layout, discoverable naming/placement rules, executa
 - [x] Phase 6 / PP-04: deliver isolated offline projected theme previews and explicit native-capability limits.
 - [x] Final offline review: 630 tests, build/types/version rules, all six package smoke installs, browser matrix and whitespace pass; cancellation/evidence boundary regressions fixed.
 - [ ] Final live acceptance: scratch build/repeat/heading, doctor editor states, lease traces, multi-page capture and preservation checks.
-- [ ] Owner branch/release review before push/PR, merge or publication. All repository versions remain 0.2.0; Changesets are ready.
+- [x] Owner authorizes pushing the branch and opening its feature PR (2026-10-22).
+- [ ] Owner branch/release review before merge or publication. All repository versions remain 0.2.0; Changesets are ready.
 
 ## Phases
 ### 0. Done in Sourcer before extraction
@@ -242,3 +243,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: corrected vertical spacing in the component pilot after owner review exposed a gap in the mechanical formatting pass. Biome retains these blank lines but does not create declaration/logical-step separation automatically; conventions now state that explicitly. Style/path checks, all 3 component tests and an added-blank-lines-only diff check pass. See the readability report's vertical-spacing correction.
 
 - 2026-10-22: release readiness checked against GitHub: both automation switches enabled, scoped PR-token metadata present, active workflows and main-only owner-reviewed environment confirmed. Changesets proposes 0.3.0 for all six; the explicit penpair exception keeps five scoped packages required. Corrected stale release-guide versions and a trailing font-license space. Feature PR/remote CI, reviewed version PR, environment approval and first verified OIDC publication remain pending; see branch report.
+
+- 2026-10-22: owner authorized pushing `codex/tradient-feedback` and opening the feature PR. Local checks and the release handoff are recorded; remote CI, owner merge review, the generated version PR and protected publication remain pending.

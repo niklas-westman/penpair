@@ -2,7 +2,7 @@
 
 Date: 2026-10-22. Branch: `codex/tradient-feedback`. Base: `57f9782`.
 
-Code phases 0–6 are implemented and verified. The branch is ready for owner review. Live Penpot acceptance remains pending; the lease/save race is investigated rather than claimed fixed. No version bump, push, PR, merge or publication was performed. All six repository versions remain 0.2.0.
+Code phases 0–6 are implemented and verified. The branch is ready for owner review. Live Penpot acceptance remains pending; the lease/save race is investigated rather than claimed fixed. The owner has authorized pushing this branch and opening its feature PR. No version bump, merge or publication was performed. All six repository versions remain 0.2.0.
 
 ## What each update resolves
 
@@ -53,7 +53,8 @@ what each change resolves and the remaining formatter/review limits.
 
 ## Remaining acceptance
 
-- [ ] Owner reviews the branch and authorizes any push/PR or release work.
+- [x] Owner authorizes pushing the branch and opening its feature PR (2026-10-22).
+- [ ] Owner reviews the branch before merge or release work.
 - [ ] Owner confirms a disposable Penpot copy by public file ID; populate the [scratch manifest](../fixtures/feedback-scratch.template.json). No credentials belong in it.
 - [ ] Run shipped CLI/kit build, repeat it and change one heading across the eight cases; independently compare IDs, bindings, geometry and two inspected exports.
 - [ ] Verify fresh doctor reads with responsive/background/disconnected scratch editor states.
@@ -66,7 +67,7 @@ The [living execution guide](tradient-feedback-0.2.0.md) contains the per-phase 
 
 ## Release readiness check — 2026-10-22
 
-- [x] Working branch is based on current remote main (`57f9782`); no branch PR exists yet.
+- [x] Working branch is based on remote main (`57f9782`) verified during the readiness check.
 - [x] Pending Changesets plan **0.3.0 for all six packages** without changing versions on this feature branch.
 - [x] GitHub has both release activation variables set to `true`, and `CHANGESETS_PR_TOKEN` is present. Both release workflows are active; recent version-PR workflow runs succeeded.
 - [x] `npm-release` allows the `main` branch and requires the owner as reviewer, with self-review allowed.
