@@ -3,6 +3,7 @@ name: Release version PR
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +14,7 @@ concurrency:
 
 jobs:
   version:
-    if: vars.PENPAIR_RELEASE_AUTOMATION_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.PENPAIR_RELEASE_AUTOMATION_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write

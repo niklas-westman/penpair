@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -17,7 +17,7 @@ const names = ["@penpair/core", "@penpair/web", "penpair"];
 async function fixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "penpair-changesets-"));
   await mkdir(join(root, ".changeset"));
-  await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture", private: true, packageManager: "pnpm@10.12.1" }));
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture", private: true, packageManager: "pnpm@10.12.1", scripts: { changeset: "changeset" } }));
   await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
   const config = JSON.parse(await readFile(join(repository, ".changeset/config.json"), "utf8"));
   config.fixed = [names];
@@ -124,6 +124,45 @@ describe("Changesets whole-family releases", () => {
     await expect(check()).rejects.toMatchObject({ stderr: expect.stringContaining("Only the reviewed Changesets version PR") });
     await expect(check("changeset-release/main")).resolves.toBeDefined();
   });
+
+  it("validates a detached feature checkout without local main and uses the dedicated verifier for consumed release notes", async () => {
+    const root = await fixture();
+    await cp(join(repository, "scripts"), join(root, "scripts"), { recursive: true });
+    await symlink(join(repository, "node_modules"), join(root, "node_modules"), "dir");
+    await writeFile(join(root, ".gitignore"), "node_modules/\n");
+    const git = (args: string[]) => run("git", args, { cwd: root });
+    await git(["init", "-b", "ci-fixture"]);
+    await git(["config", "user.name", "Release fixture"]);
+    await git(["config", "user.email", "fixture@example.invalid"]);
+    await git(["add", "."]);
+    await git(["commit", "-m", "Base"]);
+    const base = (await git(["rev-parse", "HEAD"])).stdout.trim();
+    await writeFile(join(root, "packages/core/src/feature.ts"), "export const feature = true;\n");
+    await git(["add", "."]);
+    await git(["commit", "-m", "Feature without note"]);
+    const ci = parse(await readFile(join(repository, ".github/workflows/ci.yml"), "utf8"));
+    const status = ci.jobs.check.steps.find((step: { name?: string }) => step.name === "Validate pending Changesets release notes");
+    const check = (ref: string) => run("bash", ["-c", status.run], { cwd: root, env: { ...process.env, CHANGESETS_BASE_REF: ref } });
+    await expect(check(base)).rejects.toMatchObject({ stdout: expect.stringContaining("no changesets were found") });
+    await writeFile(join(root, ".changeset/fix.md"), '---\n"@penpair/core": patch\n---\n\nFix.\n');
+    await git(["add", "."]);
+    await git(["commit", "-m", "Release note"]);
+    const releaseBase = (await git(["rev-parse", "HEAD"])).stdout.trim();
+    await git(["checkout", "--detach", "HEAD"]);
+    await expect(git(["show-ref", "--verify", "refs/heads/main"])).rejects.toBeDefined();
+    await expect(check(base)).resolves.toBeDefined();
+    await versionWithCli(root);
+    await syncSourceVersion(root);
+    await git(["add", "."]);
+    await git(["commit", "-m", "Version packages"]);
+    await expect(check(releaseBase)).rejects.toMatchObject({ stdout: expect.stringContaining("no changesets were found") });
+    expect(status.if).toBe("github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'");
+    const verify = ci.jobs.check.steps.find((step: { run?: string }) => step.run === "node scripts/check-pr-changeset.mjs");
+    expect(verify.if).toBe("github.event_name == 'pull_request'");
+    await expect(run("bash", ["-c", verify.run], {
+      cwd: root, env: { ...process.env, PENPAIR_PR_BASE_SHA: releaseBase, PENPAIR_PR_HEAD: "changeset-release/main" },
+    })).resolves.toBeDefined();
+  }, 15000);
 });
 
 describe("merged version PR authorization", () => {
@@ -206,6 +245,8 @@ describe("workflow permission and activation boundaries", () => {
     const release = parse(await readFile(join(repository, ".github/workflows/release.yml"), "utf8"));
     const ci = parse(await readFile(join(repository, ".github/workflows/ci.yml"), "utf8"));
     expect(version.jobs.version.if).toContain("PENPAIR_RELEASE_AUTOMATION_ENABLED");
+    expect(version.jobs.version.if).toContain("github.ref == 'refs/heads/main'");
+    expect(Object.hasOwn(version.on, "workflow_dispatch")).toBe(true);
     expect(version.jobs.version.permissions["id-token"]).toBeUndefined();
     const action = version.jobs.version.steps.find((step: { uses?: string }) => step.uses?.startsWith("changesets/action@"));
     expect(action.with["github-token"]).toContain("CHANGESETS_PR_TOKEN");

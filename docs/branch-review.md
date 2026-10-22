@@ -54,6 +54,6 @@ continuation to catch up the current missing wrapper. See [release exception](re
 
 ## Validation and handoff
 
-Final verification covers `pnpm check`, `pnpm smoke:package`, docs/anchor and generated-remedy checks, targeted skill-entrypoint validation, release helper syntax and workflow YAML boundaries. The final recorded suite has 582 tests across core, adapter, implementation bridge and Docker. The final full branch check and six-package smoke both passed before handoff. Live/editor/browser/human acceptance remains pending as listed above.
+Final verification covers `pnpm check`, `pnpm smoke:package`, docs/anchor and generated-remedy checks, targeted skill-entrypoint validation, release helper syntax and workflow YAML boundaries. The final recorded suite has 583 tests across core, adapter, implementation bridge and Docker. The final full branch check and six-package smoke both passed before handoff. Live/editor/browser/human acceptance remains pending as listed above.
 
 Review this branch locally against main. External authorization is needed before any push, merge, release activation, publishing, version bump, consumer write or non-scratch Penpot change. No new confirmation is needed for the already authorized local implementation work.

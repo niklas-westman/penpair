@@ -32,7 +32,10 @@ jobs:
         run: pnpm check
 
       - name: Validate pending Changesets release notes
-        run: pnpm changeset status
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+        run: pnpm changeset status --since "$CHANGESETS_BASE_REF"
+        env:
+          CHANGESETS_BASE_REF: ${{ github.event.pull_request.base.sha }}
 
       - name: Require release notes or verify the version PR
         if: github.event_name == 'pull_request'

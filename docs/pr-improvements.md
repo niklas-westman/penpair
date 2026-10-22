@@ -28,7 +28,7 @@ proposes 0.2.0 in the separate generated version PR.
 
 ## Validation
 
-- `pnpm check`: build, typecheck, 582 tests and lockstep/config checks.
+- `pnpm check`: build, typecheck, 583 tests and lockstep/config checks.
 - `pnpm smoke:package`: all six tarballs install and run in clean consumers.
 - Real Changesets CLI tests verify unchanged-package bumps, highest-level
   selection, changelogs, note consumption and exact workspace dependencies.
@@ -37,6 +37,9 @@ proposes 0.2.0 in the separate generated version PR.
 - All three workflows pass actionlint 1.7.12 and parsed permission/gate checks.
 - Gate tests cover ordinary pushes, exact merged version PRs, manual confirmation,
   pending notes, malformed auth evidence and workflow permission separation.
+- Detached-checkout regression runs the exact CI Changesets command against the
+  base SHA and verifies consumed-note version PRs through their dedicated path.
+  Version-PR creation also supports a main-only manual trigger.
 
 ## Open acceptance and activation
 

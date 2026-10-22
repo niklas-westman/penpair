@@ -27,6 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [ ] Hosted-Penpot probe (needs the owner's account)
 
 ### 1. Core
+- [x] **R3 — CI base references and release-PR validation** (2026-10-22). Feature checks use the exact base SHA; consumed-note version PRs use their dedicated verifier; version PRs can be triggered manually on main. Detached-checkout regression, 583 tests and all package smoke installs pass.
 - [x] **R2 — Temporary short-name publishing exception** (2026-10-22). Explicit repository variable omits only `penpair`, retains six-package versioning and verifies every other package; release logs/summary disclose the exception and re-enabling supports explicit catch-up.
 - [x] **R1 — Reviewed whole-family Changesets releases** (2026-10-21). One fixed group, generated version PR, exact merged-PR publication gate and manual recovery; real package versions remain unchanged. Owner activation remains pending in [release setup](docs/releasing.md#one-time-owner-activation).
 - [x] **H2 — Evidence-qualified unsent upstream request draft** (2026-10-21). Upstream asks now distinguish observed source contracts and historical measurements, avoiding requests for capabilities that already exist. Validation and limits: [delivery report](docs/improvements.md#h2-completion-2026-10-21).
@@ -123,6 +124,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-22: R3 fixed the GitHub Changesets CI failure and consumed-note release-PR validation, added a main-only manual version-PR trigger and regression coverage; prepared for push to PR #1.
 - 2026-10-22: R2: added the owner-requested temporary `penpair` publishing exclusion, visible reporting and strict five-package verification; actual activation and publishing remain owner actions.
 - 2026-10-21: R1 release follow-up: added Changesets version PRs and API-gated whole-family OIDC publishing, retained recovery guards and prepared the branch PR draft. All automation stays disabled pending owner setup.
 - 2026-10-21: completed H2: Evidence-qualified unsent upstream request draft; report in `docs/improvements.md`.

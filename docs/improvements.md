@@ -1198,3 +1198,20 @@ Append reports here in completion order; each checked item links to its report.
 **Risks:** Account setup and variable activation remain pending; npm publication is still sequential. The CI job succeeds for five verified packages only with the explicit exception and labels the family incomplete. Historical skipped wrapper versions are not automatically backfilled.
 
 **Next:** Finish account settings, review the branch and create its PR when authorized.
+
+## R3 — CI base references and release-PR validation (2026-10-22)
+
+- [x] Validate feature release notes against the exact PR base SHA rather than assuming a local `main` branch exists.
+- [x] Route consumed-note version PRs through the dedicated increased-version/lockstep verifier instead of requiring new notes.
+- [x] Add main-only manual version-PR creation, still protected by the existing activation variable.
+- [x] Reproduce detached/no-local-main and consumed-note cases with the real CLI, then pass the corrected paths.
+
+**Resolved:** GitHub PR checkouts no longer fail solely because they lack local main, and generated version PRs are no longer rejected for having consumed their release notes. Enabling automation after merge no longer requires another commit to create the version PR.
+
+**Changed:** The generic Changesets status step now runs only for feature PRs with the exact base SHA. Every PR still passes the dedicated release-note/version policy. Added `workflow_dispatch` to the version workflow with a main-branch guard and documented its use.
+
+**Validated:** `pnpm check` passes (583 tests); all six package smoke installs and actionlint pass. The regression executes the actual workflow command in a detached temporary checkout with no main branch, proves missing notes still fail, and verifies a correctly versioned release PR after consuming its notes.
+
+**Risks:** Live npm publication and live acceptance trials remain pending. This change does not enable release automation, merge the PR or publish anything.
+
+**Next:** Push to PR #1 and confirm the GitHub check completes, including package smoke testing.

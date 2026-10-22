@@ -24,7 +24,10 @@ Publishing cannot be undone: a version, once published, cannot be replaced. Chec
    requested across pending notes applies to **every** member of the fixed group,
    including unchanged packages. `pnpm version-packages` runs Changesets, updates
    the CLI source constant, refreshes the lockfile and checks consistency. It
-   never publishes. Never run it on a feature branch.
+   never publishes. Never run it on a feature branch. Feature-PR release-note
+   checks use the exact PR base SHA, so detached CI checkouts need no local main
+   branch. Version PRs instead verify the increased shared version and consumed
+   notes through the dedicated release verifier.
 4. Merge the version PR after CI passes. `.github/workflows/release.yml` checks
    the GitHub API for that exact merged, same-repository release PR and verifies
    a higher committed version with no pending notes. Ordinary main pushes skip
@@ -56,7 +59,10 @@ separate version PR is generated and reviewed.
   GitHub plan supports it. The token lets generated PR checks run automatically;
   do not give it branch-protection bypass. Never put it in repository files.
 - [ ] Set `PENPAIR_RELEASE_AUTOMATION_ENABLED=true` to enable version PR creation.
-  Inspect the first generated PR and confirm its CI checks actually run.
+  After this workflow is on main, open **Actions → Release version PR → Run
+  workflow**, choose `main`, and run it to create the first version PR without
+  another commit. The manual trigger still requires the activation variable and
+  main branch. Inspect the generated PR and confirm its CI checks actually run.
 - [ ] Create/protect environment `npm-release`, restrict deployments to main and
   configure required reviewers if retaining a second approval before publish.
 - [ ] Configure the exact GitHub repository, `release.yml` workflow and
