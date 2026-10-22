@@ -10,7 +10,10 @@ export interface Secrets {
 
 /** A 512-bit master key for Penpot and a database password. Generated once; changing the password later breaks an existing database volume. */
 export function generateSecrets(): Secrets {
-  return { secretKey: randomBytes(64).toString("base64url"), databasePassword: randomBytes(24).toString("base64url") };
+  return {
+    secretKey: randomBytes(64).toString("base64url"),
+    databasePassword: randomBytes(24).toString("base64url"),
+  };
 }
 
 export function renderEnv(config: InstanceConfig, secrets: Secrets): string {
@@ -23,12 +26,23 @@ PENPOT_DATABASE_PASSWORD=${secrets.databasePassword}
 }
 
 /** Writes a file readable by its owner only. Refuses to overwrite unless told to. */
-export async function writeSecretFile(file: string, content: string, overwrite = false): Promise<boolean> {
-  await mkdir(path.dirname(file), { recursive: true });
+export async function writeSecretFile(
+  file: string,
+  content: string,
+  overwrite = false,
+): Promise<boolean> {
+  await mkdir(path.dirname(file), {
+    recursive: true,
+  });
   try {
-    await writeFile(file, content, { mode: 0o600, flag: overwrite ? "w" : "wx" });
+    await writeFile(file, content, {
+      mode: 0o600,
+      flag: overwrite ? "w" : "wx",
+    });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      return false;
+    }
     throw error;
   }
   await chmod(file, 0o600);
@@ -39,7 +53,9 @@ export async function readEnvValues(file: string): Promise<Record<string, string
   const out: Record<string, string> = {};
   for (const line of (await readFile(file, "utf8")).split(/\r?\n/)) {
     const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
-    if (match) out[match[1] as string] = match[2] as string;
+    if (match) {
+      out[match[1] as string] = match[2] as string;
+    }
   }
   return out;
 }

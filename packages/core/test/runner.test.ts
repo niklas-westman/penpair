@@ -8,14 +8,30 @@ const node = process.execPath;
 
 describe("the command runner", () => {
   it("captures output and the exit code without a shell", async () => {
-    const result = await nodeRunner.run(node, ["-e", 'console.log("a;b $HOME"); console.error("e"); process.exit(3)']);
-    expect(result).toEqual({ code: 3, stdout: "a;b $HOME\n", stderr: "e\n" });
+    const result = await nodeRunner.run(node, [
+      "-e",
+      'console.log("a;b $HOME"); console.error("e"); process.exit(3)',
+    ]);
+    expect(result).toEqual({
+      code: 3,
+      stdout: "a;b $HOME\n",
+      stderr: "e\n",
+    });
   });
 
   it("streams a large output into a file and finishes even when the file closes first", async () => {
     const file = path.join(await mkdtemp(path.join(os.tmpdir(), "penpair-runner-")), "out.bin");
     for (let i = 0; i < 5; i++) {
-      const result = await nodeRunner.run(node, ["-e", 'process.stdout.write("x".repeat(3_000_000))'], { outFile: file });
+      const result = await nodeRunner.run(
+        node,
+        [
+          "-e",
+          'process.stdout.write("x".repeat(3_000_000))',
+        ],
+        {
+          outFile: file,
+        },
+      );
       expect(result.code).toBe(0);
       expect((await stat(file)).size).toBe(3_000_000);
     }
@@ -25,9 +41,24 @@ describe("the command runner", () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "penpair-runner-"));
     const input = path.join(dir, "in.txt");
     await writeFile(input, "from a file");
-    const echo = ["-e", "process.stdin.pipe(process.stdout)"];
-    expect((await nodeRunner.run(node, echo, { inFile: input })).stdout).toBe("from a file");
-    expect((await nodeRunner.run(node, echo, { input: "from text" })).stdout).toBe("from text");
+    const echo = [
+      "-e",
+      "process.stdin.pipe(process.stdout)",
+    ];
+    expect(
+      (
+        await nodeRunner.run(node, echo, {
+          inFile: input,
+        })
+      ).stdout,
+    ).toBe("from a file");
+    expect(
+      (
+        await nodeRunner.run(node, echo, {
+          input: "from text",
+        })
+      ).stdout,
+    ).toBe("from text");
     expect(await readFile(input, "utf8")).toBe("from a file");
   });
 

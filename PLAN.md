@@ -15,7 +15,15 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Tradient feedback — owner review and live acceptance.** Code phases 0–6 are complete on `codex/tradient-feedback`; [branch report](docs/plans/tradient-feedback-review.md) and [living execution guide](docs/plans/tradient-feedback-0.2.0.md) record the evidence. Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. No push or publication yet.
+- [ ] **Repository readability conventions.** Add pinned Biome formatting, checked file-type examples, naming/module-boundary guidance and a repository skill; apply the conventions to the comparison adapter while preserving existing contracts. The previous feedback branch's owner/live acceptance remains pending below.
+
+## Repository readability
+
+- [ ] Pin Biome, establish readable formatting and wire the checks into the normal workflow.
+- [ ] Add `docs/conventions` with checked examples for Penpair's actual file types.
+- [ ] Link conventions and a repository coding skill from `AGENTS.md`.
+- [ ] Split the comparison adapter by responsibility without changing public imports or approval rules.
+- [ ] Verify checks, templates and package installs; record results and remaining limits.
 
 ## Tradient 0.2.0 feedback follow-up
 
@@ -223,3 +231,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: final branch review reproduced and fixed cancellation opening a parallel page queue, tightened malformed layout/readiness refusal and bounded browser frame waits. Full checks pass (630 tests), all six package smoke installs and eight real browser cases plus six rejection cases pass.
 
 - 2026-10-22: feedback execution handoff is complete for authorized code and local-browser work. The living guide and branch report contain per-phase results and an explicit remaining acceptance checklist.
+
+- 2026-10-22: readability baseline pins Biome 2.6.2 and formats supported source/configuration files. An AST comparison found no syntax changes beyond formatting, braces and separate declarations across 199 JavaScript/TypeScript files; full checks pass (630 tests). Convention docs, enforcement and the adapter split are in progress.

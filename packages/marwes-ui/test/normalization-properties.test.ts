@@ -16,9 +16,29 @@ describe("storage normalization invariants", () => {
     for (let i = 0; i < 100; i++) {
       const family = `Family ${i}`;
       const weight = 100 + i * 5;
-      expect(normalizeValue("fontFamilies", family)).toBe(normalizeValue("fontFamilies", [family]));
-      expect(normalizeValue("typography", { fontFamily: family, fontWeight: weight })).toBe(normalizeValue("typography", { fontWeight: String(weight), fontFamilies: [family] }));
-      expect(normalizeValue("fontFamilies", family)).not.toBe(normalizeValue("fontFamilies", [`Other ${i}`]));
+      expect(normalizeValue("fontFamilies", family)).toBe(
+        normalizeValue("fontFamilies", [
+          family,
+        ]),
+      );
+      expect(
+        normalizeValue("typography", {
+          fontFamily: family,
+          fontWeight: weight,
+        }),
+      ).toBe(
+        normalizeValue("typography", {
+          fontWeight: String(weight),
+          fontFamilies: [
+            family,
+          ],
+        }),
+      );
+      expect(normalizeValue("fontFamilies", family)).not.toBe(
+        normalizeValue("fontFamilies", [
+          `Other ${i}`,
+        ]),
+      );
     }
   });
 });

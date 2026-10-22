@@ -12,8 +12,16 @@ export { renderCompose } from "./template.js";
 /** The Docker way of running Penpot: what the `penpair` command is started with. */
 export const dockerProfile: LocalProfile = {
   async preflight(runner) {
-    const version = await runner.run("docker", ["version", "--format", "{{.Server.Version}}"]);
-    if (version.code !== 0) throw new ConfigError("Docker is not running. Start Docker Desktop, wait until it says it is running, then run the command again.");
+    const version = await runner.run("docker", [
+      "version",
+      "--format",
+      "{{.Server.Version}}",
+    ]);
+    if (version.code !== 0) {
+      throw new ConfigError(
+        "Docker is not running. Start Docker Desktop, wait until it says it is running, then run the command again.",
+      );
+    }
   },
   init: initDocker,
   up,

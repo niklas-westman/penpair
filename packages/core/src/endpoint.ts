@@ -4,7 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import { PenpairError } from "./errors.js";
 
-export type EndpointSource = "credential-file" | "keychain" | "env" | "env-file" | "codex-config" | "claude-config";
+export type EndpointSource =
+  | "credential-file"
+  | "keychain"
+  | "env"
+  | "env-file"
+  | "codex-config"
+  | "claude-config";
 
 // What a report may say about the connection. The URL itself carries the user's MCP key and is never persisted.
 export interface EndpointDescription {
@@ -18,7 +24,9 @@ export interface Endpoint {
   description: EndpointDescription;
 }
 
-export const defaultVariableNames = ["PENPAIR_MCP_URL"];
+export const defaultVariableNames = [
+  "PENPAIR_MCP_URL",
+];
 
 export interface ResolveOptions {
   /** Defaults to the process environment. */
@@ -43,16 +51,32 @@ function describe(url: string, source: EndpointSource): Endpoint {
   } catch {
     throw new PenpairError("endpoint-invalid", `The ${source} Penpot endpoint is not a valid URL`);
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
-    throw new PenpairError("endpoint-invalid", `The ${source} Penpot endpoint must use http or https`);
-  return { url, description: { source, origin: parsed.origin, pathname: parsed.pathname } };
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new PenpairError(
+      "endpoint-invalid",
+      `The ${source} Penpot endpoint must use http or https`,
+    );
+  }
+  return {
+    url,
+    description: {
+      source,
+      origin: parsed.origin,
+      pathname: parsed.pathname,
+    },
+  };
 }
 
 async function readOptional(file: string, strict = false): Promise<string | undefined> {
   try {
     return await readFile(file, "utf8");
   } catch (error) {
-    if (strict && (error as NodeJS.ErrnoException).code !== "ENOENT") throw new PenpairError("endpoint-unconfigured", "Project connection source cannot be read; repair its storage before resolving credentials");
+    if (strict && (error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new PenpairError(
+        "endpoint-unconfigured",
+        "Project connection source cannot be read; repair its storage before resolving credentials",
+      );
+    }
     // An unreadable file is treated as absent; the error would otherwise expose a local path layout.
     return undefined;
   }
@@ -62,15 +86,21 @@ async function readOptional(file: string, strict = false): Promise<string | unde
 export function parseEnvFileValue(text: string, name: string): string | undefined {
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) continue;
+    if (line === "" || line.startsWith("#")) {
+      continue;
+    }
     const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
-    if (!match || match[1] !== name) continue;
+    if (!match || match[1] !== name) {
+      continue;
+    }
     let value = (match[2] ?? "").trim();
     const quote = value[0];
     if ((quote === '"' || quote === "'") && value.length > 1) {
       const end = value.indexOf(quote, 1);
       value = end === -1 ? value.slice(1) : value.slice(1, end);
-    } else value = value.replace(/\s+#.*$/, "");
+    } else {
+      value = value.replace(/\s+#.*$/, "");
+    }
     return value.length > 0 ? value : undefined;
   }
   return undefined;
@@ -87,9 +117,13 @@ export function parseCodexServerUrl(toml: string, serverName = "penpot"): string
       inServer = header.test(line);
       continue;
     }
-    if (!inServer) continue;
+    if (!inServer) {
+      continue;
+    }
     const match = /^url\s*=\s*(?:"((?:[^"\\]|\\.)*)"|'([^']*)')\s*(?:#.*)?$/.exec(line);
-    if (match) return (match[1] ?? match[2])?.replace(/\\(["\\])/g, "$1");
+    if (match) {
+      return (match[1] ?? match[2])?.replace(/\\(["\\])/g, "$1");
+    }
   }
   return undefined;
 }
@@ -98,12 +132,22 @@ export function parseCodexServerUrl(toml: string, serverName = "penpot"): string
 export function parseClaudeServerUrl(json: string, serverName = "penpot"): string | undefined {
   try {
     const value: unknown = JSON.parse(json);
-    if (typeof value !== "object" || value === null || !("mcpServers" in value)) return undefined;
-    const servers = value.mcpServers;
-    if (typeof servers !== "object" || servers === null || !(serverName in servers)) return undefined;
-    const server = (servers as Record<string, unknown>)[serverName];
-    if (typeof server !== "object" || server === null || !("url" in server) || typeof server.url !== "string")
+    if (typeof value !== "object" || value === null || !("mcpServers" in value)) {
       return undefined;
+    }
+    const servers = value.mcpServers;
+    if (typeof servers !== "object" || servers === null || !(serverName in servers)) {
+      return undefined;
+    }
+    const server = (servers as Record<string, unknown>)[serverName];
+    if (
+      typeof server !== "object" ||
+      server === null ||
+      !("url" in server) ||
+      typeof server.url !== "string"
+    ) {
+      return undefined;
+    }
     return server.url;
   } catch {
     return undefined;
@@ -119,39 +163,106 @@ export async function resolveEndpoint(options: ResolveOptions = {}): Promise<End
   const environment = options.environment ?? process.env;
   const home = options.home ?? os.homedir();
   const names = options.variableNames ?? defaultVariableNames;
-  const envFiles = options.envFiles ?? (environment === process.env ? [path.join(process.cwd(), ".env.local")] : []);
+  const envFiles =
+    options.envFiles ??
+    (environment === process.env
+      ? [
+          path.join(process.cwd(), ".env.local"),
+        ]
+      : []);
   const serverName = options.serverName ?? "penpot";
 
-  if (options.credential) return describe(await readCredential(options.credential, { root: options.credentialRoot ?? process.cwd() }), options.credential.type === "file" ? "credential-file" : "keychain");
+  if (options.credential) {
+    return describe(
+      await readCredential(options.credential, {
+        root: options.credentialRoot ?? process.cwd(),
+      }),
+      options.credential.type === "file" ? "credential-file" : "keychain",
+    );
+  }
   const providerFile = environment.PENPAIR_MCP_URL_FILE?.trim();
-  if (providerFile) return describe(await readCredential({ type: "file", path: providerFile }, { root: options.credentialRoot ?? process.cwd() }), "credential-file");
-  if (environment.PENPAIR_MCP_URL_COMMAND?.trim()) throw new PenpairError("endpoint-invalid", "Arbitrary credential commands are not enabled; use a private file or OS credential reference");
+  if (providerFile) {
+    return describe(
+      await readCredential(
+        {
+          type: "file",
+          path: providerFile,
+        },
+        {
+          root: options.credentialRoot ?? process.cwd(),
+        },
+      ),
+      "credential-file",
+    );
+  }
+  if (environment.PENPAIR_MCP_URL_COMMAND?.trim()) {
+    throw new PenpairError(
+      "endpoint-invalid",
+      "Arbitrary credential commands are not enabled; use a private file or OS credential reference",
+    );
+  }
   // Explicit file references outrank legacy URL/global sources and fail closed when unreadable.
   for (const file of envFiles) {
-    const text = await readOptional(file, true); if (text === undefined) continue;
+    const text = await readOptional(file, true);
+    if (text === undefined) {
+      continue;
+    }
     const provider = parseEnvFileValue(text, "PENPAIR_MCP_URL_FILE");
-    if (provider) return describe(await readCredential({ type: "file", path: provider }, { root: path.dirname(file) }), "credential-file");
-    if (parseEnvFileValue(text, "PENPAIR_MCP_URL_COMMAND")) throw new PenpairError("endpoint-invalid", "Arbitrary credential commands are not enabled; use a private file or OS credential reference");
+    if (provider) {
+      return describe(
+        await readCredential(
+          {
+            type: "file",
+            path: provider,
+          },
+          {
+            root: path.dirname(file),
+          },
+        ),
+        "credential-file",
+      );
+    }
+    if (parseEnvFileValue(text, "PENPAIR_MCP_URL_COMMAND")) {
+      throw new PenpairError(
+        "endpoint-invalid",
+        "Arbitrary credential commands are not enabled; use a private file or OS credential reference",
+      );
+    }
   }
   for (const name of names) {
     const explicit = environment[name]?.trim();
-    if (explicit) return describe(explicit, "env");
+    if (explicit) {
+      return describe(explicit, "env");
+    }
   }
   for (const file of envFiles) {
     const text = await readOptional(file, true);
-    if (text === undefined) continue;
+    if (text === undefined) {
+      continue;
+    }
     for (const name of names) {
       const fromFile = parseEnvFileValue(text, name);
-      if (fromFile) return describe(fromFile, "env-file");
+      if (fromFile) {
+        return describe(fromFile, "env-file");
+      }
     }
   }
-  if (options.globalConfig === false) throw new PenpairError("endpoint-unconfigured", "No project Penpot endpoint in the environment or configured project env file; global client fallback is disabled");
+  if (options.globalConfig === false) {
+    throw new PenpairError(
+      "endpoint-unconfigured",
+      "No project Penpot endpoint in the environment or configured project env file; global client fallback is disabled",
+    );
+  }
   const codex = await readOptional(path.join(home, ".codex/config.toml"));
   const fromCodex = codex === undefined ? undefined : parseCodexServerUrl(codex, serverName);
-  if (fromCodex) return describe(fromCodex, "codex-config");
+  if (fromCodex) {
+    return describe(fromCodex, "codex-config");
+  }
   const claude = await readOptional(path.join(home, ".claude.json"));
   const fromClaude = claude === undefined ? undefined : parseClaudeServerUrl(claude, serverName);
-  if (fromClaude) return describe(fromClaude, "claude-config");
+  if (fromClaude) {
+    return describe(fromClaude, "claude-config");
+  }
   throw new PenpairError(
     "endpoint-unconfigured",
     `No Penpot MCP endpoint: ${names.join(" or ")} is unset (environment and .env.local) and no '${serverName}' MCP server is configured for Codex or Claude Code`,
@@ -164,8 +275,15 @@ export function redactEndpoint(text: string, endpoint?: Endpoint): string {
   if (endpoint) {
     const parsed = new URL(endpoint.url);
     const key = parsed.searchParams.get("userToken") ?? "";
-    for (const secret of [endpoint.url, parsed.search, parsed.search.slice(1), key, encodeURIComponent(key)].filter((value) => value.length > 1))
+    for (const secret of [
+      endpoint.url,
+      parsed.search,
+      parsed.search.slice(1),
+      key,
+      encodeURIComponent(key),
+    ].filter((value) => value.length > 1)) {
       redacted = redacted.split(secret).join("[redacted]");
+    }
   }
   return redacted.replace(/userToken=[^\s&"'<>]+/gi, "userToken=[redacted]");
 }
@@ -173,15 +291,28 @@ export function redactEndpoint(text: string, endpoint?: Endpoint): string {
 /** Known endpoint redaction with optional boundary fragments for serialized inspection chunks. */
 export function endpointRedactor(endpoint: Endpoint, fragments = false): (text: string) => string {
   const key = new URL(endpoint.url).searchParams.get("userToken") ?? "";
-  const variants = [...new Set([key, encodeURIComponent(key), JSON.stringify(key).slice(1,-1)])].filter(value=>value.length>1);
+  const variants = [
+    ...new Set([
+      key,
+      encodeURIComponent(key),
+      JSON.stringify(key).slice(1, -1),
+    ]),
+  ].filter((value) => value.length > 1);
   return (text) => {
-    let clean=redactEndpoint(text,endpoint);
-    if (fragments) for (const value of variants) {
-      const minimum=Math.min(8,Math.ceil(value.length/2));
-      for(let size=value.length-1;size>=minimum;size--){
-        const prefix=value.slice(0,size),suffix=value.slice(-size);
-        if(clean.endsWith(prefix))clean=clean.slice(0,-prefix.length)+"[redacted]";
-        if(clean.startsWith(suffix))clean="[redacted]"+clean.slice(suffix.length);
+    let clean = redactEndpoint(text, endpoint);
+    if (fragments) {
+      for (const value of variants) {
+        const minimum = Math.min(8, Math.ceil(value.length / 2));
+        for (let size = value.length - 1; size >= minimum; size--) {
+          const prefix = value.slice(0, size);
+          const suffix = value.slice(-size);
+          if (clean.endsWith(prefix)) {
+            clean = clean.slice(0, -prefix.length) + "[redacted]";
+          }
+          if (clean.startsWith(suffix)) {
+            clean = "[redacted]" + clean.slice(suffix.length);
+          }
+        }
       }
     }
     return clean;

@@ -41,20 +41,53 @@ return {
 export async function probe(
   endpoint: Endpoint,
   connect: () => Promise<PenpotToolClient>,
-  { requestSizesKb = [60, 90, 110, 200], responseSizesKb = [100, 1000], integrity = false }: ProbeOptions = {},
+  {
+    requestSizesKb = [
+      60,
+      90,
+      110,
+      200,
+    ],
+    responseSizesKb = [
+      100,
+      1000,
+    ],
+    integrity = false,
+  }: ProbeOptions = {},
 ): Promise<ProbeReport> {
   const redact = (text: string): string => redactEndpoint(text, endpoint);
-  async function attempt(code: string, bypassGuard = false): Promise<{ ok: boolean; value?: unknown; error?: string }> {
+  async function attempt(
+    code: string,
+    bypassGuard = false,
+  ): Promise<{
+    ok: boolean;
+    value?: unknown;
+    error?: string;
+  }> {
     const client = await connect();
     try {
       if (bypassGuard) {
-        const outcome = await client.callTool("execute_code", { code });
-        return { ok: !outcome.isError };
+        const outcome = await client.callTool("execute_code", {
+          code,
+        });
+        return {
+          ok: !outcome.isError,
+        };
       }
-      const { result } = await executeCode(client, code, { redact, retries: 0, effect: "read" });
-      return { ok: true, value: result };
+      const { result } = await executeCode(client, code, {
+        redact,
+        retries: 0,
+        effect: "read",
+      });
+      return {
+        ok: true,
+        value: result,
+      };
     } catch (error) {
-      return { ok: false, error: redact(String((error as Error)?.message ?? error)).slice(0, 90) };
+      return {
+        ok: false,
+        error: redact(String((error as Error)?.message ?? error)).slice(0, 90),
+      };
     } finally {
       await client.close().catch(() => undefined);
     }
@@ -77,7 +110,9 @@ export async function probe(
       schemaVersion: 1,
       endpoint: endpoint.description,
       tools,
-      capabilities: { error: "this MCP server offers no execute_code tool, so penpair cannot drive this Penpot" },
+      capabilities: {
+        error: "this MCP server offers no execute_code tool, so penpair cannot drive this Penpot",
+      },
       requestLimit: {},
       responseLimit: {},
     };
@@ -86,7 +121,11 @@ export async function probe(
   let integrityResult: ProbeReport["integrity"];
   if (integrity) {
     const client = await connect();
-    try { integrityResult = await validateFileIntegrity(client); } finally { await client.close(); }
+    try {
+      integrityResult = await validateFileIntegrity(client);
+    } finally {
+      await client.close();
+    }
   }
   const requestLimit: Record<string, string> = {};
   for (const kb of requestSizesKb) {
@@ -99,14 +138,27 @@ export async function probe(
   for (const kb of responseSizesKb) {
     const result = await attempt(`return "y".repeat(${kb * 1024});`);
     const length = typeof result.value === "string" ? result.value.length : -1;
-    responseLimit[`${kb} KB`] = result.ok && length >= kb * 1024 ? "returned" : `failed (${result.error ?? "short"})`;
+    responseLimit[`${kb} KB`] =
+      result.ok && length >= kb * 1024 ? "returned" : `failed (${result.error ?? "short"})`;
   }
   return {
     schemaVersion: 1,
-    ...(integrityResult ? { integrity: integrityResult } : {}),
+    ...(integrityResult
+      ? {
+          integrity: integrityResult,
+        }
+      : {}),
     endpoint: endpoint.description,
-    ...(tools ? { tools } : {}),
-    capabilities: capabilityResult.ok ? capabilityResult.value : { error: capabilityResult.error },
+    ...(tools
+      ? {
+          tools,
+        }
+      : {}),
+    capabilities: capabilityResult.ok
+      ? capabilityResult.value
+      : {
+          error: capabilityResult.error,
+        },
     requestLimit,
     responseLimit,
   };

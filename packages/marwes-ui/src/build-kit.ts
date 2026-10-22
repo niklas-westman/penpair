@@ -1,13 +1,31 @@
 import type { BuildKit } from "@penpair/core";
 /** Recipes refer to library token names, while project-derived constants remain explicit parameters. */
 export const marwesKit: BuildKit = {
-  include: "@marwes-kit", requires: ["@kit"],
+  include: "@marwes-kit",
+  requires: [
+    "@kit",
+  ],
   recipes: [
-    { name: "card", description: "Surface/border card; project radius token is explicit" },
-    { name: "segmented", description: "Token-styled segments with an explicit selected label" },
-    { name: "progress", description: "Labeled bounded progress; explicit pill-radius token" },
-    { name: "icon-tile", description: "Square token-styled icon tile with explicit dimensions" },
-    { name: "stat-tile", description: "Card with project content and library typography" },
+    {
+      name: "card",
+      description: "Surface/border card; project radius token is explicit",
+    },
+    {
+      name: "segmented",
+      description: "Token-styled segments with an explicit selected label",
+    },
+    {
+      name: "progress",
+      description: "Labeled bounded progress; explicit pill-radius token",
+    },
+    {
+      name: "icon-tile",
+      description: "Square token-styled icon tile with explicit dimensions",
+    },
+    {
+      name: "stat-tile",
+      description: "Card with project content and library typography",
+    },
   ],
   source: String.raw`// penpair: read
 const mw = (() => {

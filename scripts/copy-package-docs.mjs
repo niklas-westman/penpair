@@ -8,8 +8,16 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const target = process.argv[2] ?? "core";
 const core = `${root}packages/${target}/`;
 await copyFile(`${root}README.md`, `${core}README.md`);
-await mkdir(`${core}docs`, { recursive: true });
+await mkdir(`${core}docs`, {
+  recursive: true,
+});
 // The README links its logo by URL, so the images stay out of the tarball.
-await cp(`${root}docs`, `${core}docs`, { recursive: true, filter: (source) => !/[\\/]assets([\\/]|$)/.test(source) });
-await cp(`${root}examples`, `${core}examples`, { recursive: true, filter: source => !/[\\/](?:node_modules|artifacts|\.penpair)([\\/]|$)/.test(source) });
+await cp(`${root}docs`, `${core}docs`, {
+  recursive: true,
+  filter: (source) => !/[\\/]assets([\\/]|$)/.test(source),
+});
+await cp(`${root}examples`, `${core}examples`, {
+  recursive: true,
+  filter: (source) => !/[\\/](?:node_modules|artifacts|\.penpair)([\\/]|$)/.test(source),
+});
 console.log(`copied README.md, docs/ and examples/ into packages/${target} for packing`);

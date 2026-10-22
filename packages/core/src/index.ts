@@ -33,35 +33,81 @@ export { defaultInstanceName, init } from "./instance/init.js";
 export type { InitOptions, InitResult } from "./instance/init.js";
 export * from "./instance/runner.js";
 
-export { writeCoordinator, guardRevision, type WriteLease, type CoordinationOptions } from "./coordination.js";
+export {
+  writeCoordinator,
+  guardRevision,
+  type WriteLease,
+  type CoordinationOptions,
+} from "./coordination.js";
 
 export { onboardingChecklist } from "./onboard.js";
 
 export { atomicWriteFile } from "./atomic-output.js";
 
-export { commandSleep, withCleanupDeadline, commandResultSchema, collectCommand, commandOutput, type CommandResult, type CommandFailure, type CommandOutput } from "./command-result.js";
+export {
+  commandSleep,
+  withCleanupDeadline,
+  commandResultSchema,
+  collectCommand,
+  commandOutput,
+  type CommandResult,
+  type CommandFailure,
+  type CommandOutput,
+} from "./command-result.js";
 
 export { resolveProjectInput, resolveProjectOutput, designDataBlock } from "./project-input.js";
 
-export { planSkillInstructions, applySkillInstructions, type InstructionReport } from "./skill-instructions.js";
+export {
+  planSkillInstructions,
+  applySkillInstructions,
+  type InstructionReport,
+} from "./skill-instructions.js";
 
 export { parseCommandArgs, CommandArgumentError } from "./cli-arguments.js";
 
-export { findShapesByName, exportShapeByName, captureShots, type ShapeLookup, type ShapeMatch, type ShotsReport } from "./shots.js";
+export {
+  findShapesByName,
+  exportShapeByName,
+  captureShots,
+  type ShapeLookup,
+  type ShapeMatch,
+  type ShotsReport,
+} from "./shots.js";
 
 export * from "./inspection.js";
 
-export { tokenTypes, validateEditableToken, validateTokenEdit, planTokenEdit, tokenEditOperation, type EditableToken, type TokenEdit, type TokenEditState, type TokenEditPlan } from "./token-edit.js";
+export {
+  tokenTypes,
+  validateEditableToken,
+  validateTokenEdit,
+  planTokenEdit,
+  tokenEditOperation,
+  type EditableToken,
+  type TokenEdit,
+  type TokenEditState,
+  type TokenEditPlan,
+} from "./token-edit.js";
 
 export { ensureGitignoreEntry } from "./instance/gitignore.js";
 
-export { prepareFileScript, runFileScript, type FileScriptOptions, type PreparedFileScript } from "./run-file.js";
+export {
+  prepareFileScript,
+  runFileScript,
+  type FileScriptOptions,
+  type PreparedFileScript,
+} from "./run-file.js";
 
 export { kit, coreKit, checkKits, loadKits, type BuildKit, type RecipeInfo } from "./kit.js";
 
 export { runKitSmoke, kitSmokeOperation } from "./kit-smoke.js";
 
-export { baselineCoverage, readBaselineCoverage, designCaseKey, type BaselineCoverage, type CoverageRow } from "./baseline-coverage.js";
+export {
+  baselineCoverage,
+  readBaselineCoverage,
+  designCaseKey,
+  type BaselineCoverage,
+  type CoverageRow,
+} from "./baseline-coverage.js";
 
 export * from "./design-spec.js";
 

@@ -1,6 +1,7 @@
 import { requirePage, snippet, type Snippet } from "../snippet.js";
 
-const readSnippet = (name: string, body: string, params: unknown = {}): Snippet => snippet(name, body, params, "read");
+const readSnippet = (name: string, body: string, params: unknown = {}): Snippet =>
+  snippet(name, body, params, "read");
 
 export function pages(): Snippet {
   return readSnippet(
@@ -19,7 +20,9 @@ if (!target) return { ok: false, message: "no page named " + CFG.name };
 if (penpot.currentPage.id === target.id) return { ok: true, alreadyThere: true };
 penpot.openPage(target);
 return { ok: true, switched: true };`,
-    { name },
+    {
+      name,
+    },
   );
 }
 
@@ -49,7 +52,16 @@ export interface TreeParams {
 
 /** One line per shape: type, name, size, position on the page, layout and sizing, the text it carries. */
 export function tree(params: TreeParams): Snippet {
-  if(params.limit!==undefined&&(!Number.isInteger(params.limit)||params.limit<1||params.limit>1000)||params.depth!==undefined&&(!Number.isInteger(params.depth)||params.depth<0||params.depth>100))throw new Error("Readable tree budgets require limit 1..1000 and depth 0..100; use inspect for larger structured scopes");
+  if (
+    (params.limit !== undefined &&
+      (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > 1000)) ||
+    (params.depth !== undefined &&
+      (!Number.isInteger(params.depth) || params.depth < 0 || params.depth > 100))
+  ) {
+    throw new Error(
+      "Readable tree budgets require limit 1..1000 and depth 0..100; use inspect for larger structured scopes",
+    );
+  }
   return readSnippet(
     "tree",
     `${requirePage}
@@ -121,7 +133,9 @@ return {ok:true,readOnly:true,schemaVersion:1,kind:"audit-preview",scope:{frameP
 
 /** Bounded typed preview. Use captureInspection(kind: tokens) for chunked complete evidence. */
 export function tokensDump(): Snippet {
-  return readSnippet("tokens-dump", `const tokens=penpot.library.local.tokens;
+  return readSnippet(
+    "tokens-dump",
+    `const tokens=penpot.library.local.tokens;
 const sets=[],themes=[];let records=0,bytes=1024,returnedTokens=0,complete=true;
 const size=(value)=>{let n=0;for(const c of JSON.stringify(value)){const p=c.codePointAt(0);n+=p<128?1:p<2048?2:p<65536?3:4;}return n;};
 outer:for(const [order,set] of tokens.sets.entries()){
@@ -140,5 +154,6 @@ for(const theme of tokens.themes){
   if(records>=5000||bytes+count>262144){complete=false;break;}
   themes.push(value);records++;bytes+=count+1;
 }
-return {ok:true,readOnly:true,schemaVersion:1,kind:"token-preview",fileId:penpot.currentFile.id,revision:penpot.currentFile.revn,complete,truncated:!complete,sets,themes,counts:{returnedTokens,totalTokens:complete?returnedTokens:null,setsTotal:tokens.sets.length,themesTotal:tokens.themes.length},previewBudget:{entities:5000,bytes:262144}};`);
+return {ok:true,readOnly:true,schemaVersion:1,kind:"token-preview",fileId:penpot.currentFile.id,revision:penpot.currentFile.revn,complete,truncated:!complete,sets,themes,counts:{returnedTokens,totalTokens:complete?returnedTokens:null,setsTotal:tokens.sets.length,themesTotal:tokens.themes.length},previewBudget:{entities:5000,bytes:262144}};`,
+  );
 }

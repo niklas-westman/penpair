@@ -3,20 +3,123 @@
     "page": "Candidate",
     "root": "design/baselines",
     "frames": [
-      { "frame": "Home / Default / Desktop / Light", "id": "home-desktop-light", "route": "home", "case": { "viewport": { "width": 1440, "height": 900 }, "theme": "light", "state": "default", "fixture": "home-populated-v1", "fonts": ["Your pinned font family and weight"] } },
-      { "frame": "Home / Default / Mobile / Light", "id": "home-mobile-light", "route": "home", "case": { "viewport": { "width": 390, "height": 844 }, "theme": "light", "state": "default", "fixture": "home-populated-v1", "fonts": ["Your pinned font family and weight"] } },
-      { "frame": "Home / Empty / Mobile / Light", "id": "home-mobile-empty", "route": "home", "case": { "viewport": { "width": 390, "height": 844 }, "theme": "light", "state": "empty", "fixture": "home-empty-v1", "fonts": ["Your pinned font family and weight"] } }
+      {
+        "frame": "Home / Default / Desktop / Light",
+        "id": "home-desktop-light",
+        "route": "home",
+        "case": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "theme": "light",
+          "state": "default",
+          "fixture": "home-populated-v1",
+          "fonts": [
+            "Your pinned font family and weight"
+          ]
+        }
+      },
+      {
+        "frame": "Home / Default / Mobile / Light",
+        "id": "home-mobile-light",
+        "route": "home",
+        "case": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "light",
+          "state": "default",
+          "fixture": "home-populated-v1",
+          "fonts": [
+            "Your pinned font family and weight"
+          ]
+        }
+      },
+      {
+        "frame": "Home / Empty / Mobile / Light",
+        "id": "home-mobile-empty",
+        "route": "home",
+        "case": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "light",
+          "state": "empty",
+          "fixture": "home-empty-v1",
+          "fonts": [
+            "Your pinned font family and weight"
+          ]
+        }
+      }
     ],
     "coverage": {
       "required": [
-        { "route": "home", "viewport": { "width": 1440, "height": 900 }, "theme": "light", "state": "default", "fixture": "home-populated-v1" },
-        { "route": "home", "viewport": { "width": 1440, "height": 900 }, "theme": "dark", "state": "default", "fixture": "home-populated-v1" },
-        { "route": "home", "viewport": { "width": 390, "height": 844 }, "theme": "light", "state": "default", "fixture": "home-populated-v1" },
-        { "route": "home", "viewport": { "width": 390, "height": 844 }, "theme": "light", "state": "empty", "fixture": "home-empty-v1" },
-        { "route": "home", "viewport": { "width": 390, "height": 844 }, "theme": "dark", "state": "empty", "fixture": "home-empty-v1" }
+        {
+          "route": "home",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "theme": "light",
+          "state": "default",
+          "fixture": "home-populated-v1"
+        },
+        {
+          "route": "home",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "theme": "dark",
+          "state": "default",
+          "fixture": "home-populated-v1"
+        },
+        {
+          "route": "home",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "light",
+          "state": "default",
+          "fixture": "home-populated-v1"
+        },
+        {
+          "route": "home",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "light",
+          "state": "empty",
+          "fixture": "home-empty-v1"
+        },
+        {
+          "route": "home",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "dark",
+          "state": "empty",
+          "fixture": "home-empty-v1"
+        }
       ],
       "unsupported": [
-        { "route": "home", "viewport": { "width": 390, "height": 844 }, "theme": "dark", "state": "empty", "fixture": "home-empty-v1", "reason": "This case still needs a reviewed design and deterministic fixture" }
+        {
+          "route": "home",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "theme": "dark",
+          "state": "empty",
+          "fixture": "home-empty-v1",
+          "reason": "This case still needs a reviewed design and deterministic fixture"
+        }
       ]
     }
   }
