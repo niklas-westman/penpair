@@ -477,6 +477,50 @@ const reflection = await consumer(
     "@penpair/core": asFile(core),
   },
 );
+check(
+  (
+    await run(
+      "node",
+      [
+        "--input-type=module",
+        "-e",
+        `import adapter, { planImplementationCases, runImplementationCases } from "@penpair/reflection-check";
+console.log(adapter.name, typeof planImplementationCases, typeof runImplementationCases);`,
+      ],
+      {
+        cwd: reflection,
+      },
+    )
+  ).trim() === "@penpair/reflection-check function function",
+  "the case adapter preserves its public default adapter and named function exports",
+);
+await writeFile(join(reflection, "tsconfig.json"), await readFile(join(library, "tsconfig.json")));
+await writeFile(
+  join(reflection, "use.ts"),
+  `import adapter, { planImplementationCases, runImplementationCases } from "@penpair/reflection-check";
+export type {
+  ImplementationMapping,
+  ImplementationCase,
+  CasePlan,
+  BrowserCaptureMetadata,
+  ProviderEvidence,
+  ImplementationProvider,
+} from "@penpair/reflection-check";
+export { adapter, planImplementationCases, runImplementationCases };
+`,
+);
+await run(
+  "node",
+  [
+    join(repo, "node_modules/typescript/bin/tsc"),
+    "-p",
+    "tsconfig.json",
+  ],
+  {
+    cwd: reflection,
+  },
+);
+check(true, "TypeScript resolves the case adapter's public contracts from its packed declarations");
 await writeFile(
   join(reflection, "penpair.config.json"),
   JSON.stringify({

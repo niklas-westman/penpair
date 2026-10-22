@@ -1,0 +1,4 @@
+interface:
+  display_name: "Penpair Code Conventions"
+  short_description: "Readable Penpair modules, names and formatting"
+  default_prompt: "Use $penpair-code-conventions to implement this change with focused modules, descriptive names and checked formatting."

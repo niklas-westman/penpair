@@ -15,15 +15,17 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Repository readability conventions.** Add pinned Biome formatting, checked file-type examples, naming/module-boundary guidance and a repository skill; apply the conventions to the comparison adapter while preserving existing contracts. The previous feedback branch's owner/live acceptance remains pending below.
+- [ ] **Owner branch review and live acceptance.** Feedback code phases 0–6 and repository readability are complete on `codex/tradient-feedback`; review the [branch report](docs/plans/tradient-feedback-review.md) and [readability completion](docs/conventions/completion-2026-10-22.md). Live Penpot gates need a confirmed disposable file; PP-07 causality remains open. No push or publication yet.
 
 ## Repository readability
 
-- [ ] Pin Biome, establish readable formatting and wire the checks into the normal workflow.
-- [ ] Add `docs/conventions` with checked examples for Penpair's actual file types.
-- [ ] Link conventions and a repository coding skill from `AGENTS.md`.
-- [ ] Split the comparison adapter by responsibility without changing public imports or approval rules.
-- [ ] Verify checks, templates and package installs; record results and remaining limits.
+- [x] Pin Biome, establish readable formatting and wire the checks into the normal workflow.
+- [x] Add `docs/conventions` with checked examples for Penpair's actual file types.
+- [x] Link conventions and a repository coding skill from `AGENTS.md`.
+- [x] Split the comparison adapter by responsibility without changing public imports or approval rules.
+- [x] Verify checks, templates and package installs; record results and remaining limits.
+
+Resolved: consistent source layout, discoverable naming/placement rules, executable examples and a focused comparison adapter. Verification: 640 package tests + 3 convention tests, all six package smoke installs, public import/declaration checks and strict comparison-test typechecking pass. [Per-update completion report and limits](docs/conventions/completion-2026-10-22.md).
 
 ## Tradient 0.2.0 feedback follow-up
 
@@ -233,3 +235,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: feedback execution handoff is complete for authorized code and local-browser work. The living guide and branch report contain per-phase results and an explicit remaining acceptance checklist.
 
 - 2026-10-22: readability baseline pins Biome 2.6.2 and formats supported source/configuration files. An AST comparison found no syntax changes beyond formatting, braces and separate declarations across 199 JavaScript/TypeScript files; full checks pass (630 tests). Convention docs, enforcement and the adapter split are in progress.
+
+- 2026-10-22: completed repository readability: Biome 2.6.2, formatting/path/example checks in CI, checked conventions, AGENTS routing and a local coding skill. Comparison planning, capture/provider validation, PNG I/O and command handling now have focused modules with compatible public imports. Full checks pass (640 package + 3 convention tests), strict comparison-test typing and all six package smoke installs pass; per-update results/limits are in `docs/conventions/completion-2026-10-22.md`. Owner/live acceptance remains Now.

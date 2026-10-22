@@ -19,10 +19,21 @@ Code phases 0–6 are implemented and verified. The branch is ready for owner re
 
 The final review also reproduced and fixed cancellation allowing a third collector to bypass an active session. Queue order now survives cancellation. Layout and doctor reject malformed evidence, and browser frame sampling has a deadline.
 
+## Repository readability follow-up
+
+Biome 2.6.2 supplies a separately committed formatting baseline (`b1a9445`).
+[Conventions and executable examples](../conventions/README.md), an `AGENTS.md`
+reference and the repository-local coding skill now guide naming and module
+boundaries. `pnpm check` also enforces formatting, focused lint rules, kebab-case
+code paths and checked templates. The comparison adapter is split into focused
+modules with its existing public entrypoint intact. The
+[completion checklist/report](../conventions/completion-2026-10-22.md) explains
+what each change resolves and the remaining formatter/review limits.
+
 ## Validation
 
-- `pnpm check`: **630 tests** pass (core 498, Docker 28, token adapter 99, comparison adapter 5), build/typecheck and six-package version guard pass.
-- `pnpm smoke:package`: all **six tarballs** install and run in clean consumers. Installed help, skills, adapter documentation and browser starter are verified.
+- `pnpm check`: **643 tests** pass (core 498, Docker 28, token adapter 99, comparison adapter 15, convention examples 3), style/path checks, build/typecheck and six-package version guard pass.
+- `pnpm smoke:package`: all **six tarballs** install and run in clean consumers. Installed help, skills, adapter documentation and browser starter are verified, including the comparison adapter's preserved runtime exports and public TypeScript declarations.
 - Real browser trial: bundled Playwright **1.62.1**, cached Chromium **148.0.7778.96**; desktop/mobile × light/dark × loaded/empty. Missing/wrong font face/weight, wrong theme, scale mismatch, hover contamination and sticky occlusion refuse; delayed font loading succeeds. Baseline bytes remain unchanged and verdict stays `owner-review-required`.
 - Actual captures were visually inspected. That inspection found a sticky header hiding the heading; an occlusion guard and explicit project scroll hook corrected it. [Portable evidence](../fixtures/browser-capture-2026-10-22.json) records the cases without machine paths or credentials.
 - `git diff --check` passes. Changesets cover fixes and new public capabilities; repository versions are unchanged.
