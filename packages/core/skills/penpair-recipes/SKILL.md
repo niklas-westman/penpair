@@ -7,6 +7,9 @@ description: Build or update a Penpot page through reviewed penpair recipes, act
 
 Use the existing project library and declared tokens as inputs. Work within the owner's authorized design scope; retain unresolved choices for review.
 
+
+Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
+
 1. **Target.** Read the project's design facts and `penpair doctor --json`. Confirm the pinned file and exact page/frame IDs. Done when the connected target matches the authorized target and required APIs are observed.
 2. **Vocabulary.** Inspect the actual token catalog, theme selection and existing components. Select explicit token names/types and component IDs. Done when every recipe input resolves or is listed as an explicit missing dependency. Equal computed values alone establish candidate matches.
 3. **Preview.** Read [build-flow.md](references/build-flow.md) for file declarations, helper order and partial-root ownership. Prepare an idempotent operation with positive independent readback. Run inspection first. Done when source preconditions and the exact changed objects are reviewable.

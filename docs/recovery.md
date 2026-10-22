@@ -23,3 +23,11 @@ Resume checks file identity and independently reads actual state. Verified steps
 Add `--checkpoint` to request a run-keyed named Penpot version before operation steps. That flag requires a supported API and independently verified checkpoint; an unavailable checkpoint stops the run. Keep the flag when resuming. A checkpoint is a recovery aid, and is neither a transaction nor proof that a separate backup can be restored. See [backup guidance](backup.md).
 
 A response lost after a mutation leaves the step uncertain, even if the file changed successfully. Completed batches remain applied. There is no automatic rollback over human edits. This release's recovery tests use simulated Penpot execution and HTTP transport faults; live recovery on a scratch file remains to be checked. Journaled CLI writers also use local locks and shared advisory markers; see [team coordination](team.md).
+
+## Coordination evidence
+
+Use `--trace --apply` on journaled core writes or `marwes tokens push` to retain bounded lease/revision events in the private run journal. Inspect with `penpair runs RUN_ID`. Events contain identity, stage and time; they omit document text, token values and endpoint credentials. A revision change remains a conflict even if delayed marker persistence is suspected. Tracing does not establish causality or permit automatic retries.
+
+## Fresh doctor evidence
+
+`penpair doctor --json --timeout-ms 5000` uses a total origin/connection/execution budget (1000–30000 ms). It reports origin reachability, connected transport, a fresh random editor challenge with file/page IDs, and file-pin matching separately. Observation times/durations are measured; heartbeat and unobserved API versions stay unknown. A reachable origin or a connected transport alone is insufficient. Reconnect/foreground an unresponsive editor and obtain a fresh read before starting another operation.

@@ -99,9 +99,9 @@ Exit: multi-page fixtures succeed sequentially with correct identities and resto
 
 - [x] Adapter-discovery slice: promote both companion roles in the README/setup guides and recommend the comparison adapter in shipped setup/handoff skills, with distinct installation and browser-readiness stages. This independent documentation slice does not complete the runtime help/composition work below.
 
-- [ ] Group installed help around connect/diagnose, build, inspect/spec, snapshot/diff, capture/approve and compare. Include examples of actual installed syntax and link to limitations; do not invent new aliases merely to reorganize help.
-- [ ] Add a short pre-build composition checklist to the design/recipe skills: primary user task, chosen existing reference, hierarchy, useful context, responsive/focus order, and a small first-frame critique before expanding variants. This records a design decision; it does not manufacture owner approval.
-- [ ] Document migration previews, settling modes, doctor layers and snapshot recovery; remove suggestions to work around these with arbitrary waits.
+- [x] Group installed help around connect/diagnose, build, inspect/spec, snapshot/diff, capture/approve and compare. Include examples of actual installed syntax and link to limitations; do not invent new aliases merely to reorganize help.
+- [x] Add a short pre-build composition checklist to the design/recipe skills: primary user task, chosen existing reference, hierarchy, useful context, responsive/focus order, and a small first-frame critique before expanding variants. This records a design decision; it does not manufacture owner approval.
+- [x] Document migration previews, settling modes, doctor layers and snapshot recovery; remove suggestions to work around these with arbitrary waits.
 
 Tests: core `docs`, `skill-instructions`, `skills`, CLI help assertions and installed-package smoke. Verify instructions survive idempotent installation and no project names enter the neutral core.
 
@@ -186,3 +186,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 **Resolved:** delayed synthetic navigation and overlapping same-client collectors now use observed IDs and serialized sessions, restoring the starting page. **Changed:** page/session guards shared by derived clients, bounded polling, per-page progress and separate restoration errors; optional `--trace --apply` journal lease/revision events (also token pushes). **Validated:** real plugin bodies cover delayed switches, concurrent collectors, manual navigation, removed/ambiguous pages, revision changes, restoration failure and cross-client writer contention; `pnpm check` 614 tests and six-package smoke pass. **Risks:** PP-07 remains **unresolved**: delayed own saves and external edits cannot be causally distinguished with current evidence. Revision guards are unchanged. Live sequential/external-edit tests pending. **Next:** installed help and composition guidance. Commit: `feat: serialize observed page sessions and trace writer revisions`.
 
 - [ ] PP-07 follow-up: obtain scratch trace proving delayed writer-marker persistence, then separately review any change to revision ordering. Tracing and conservative conflict refusal are delivered; no race fix is claimed.
+
+### Phase 4 report — 2026-10-22
+
+**Resolved:** installed help now exposes the full inspect/spec/snapshot/capture/compare workflow; composition guidance catches under-designed first frames before multiplying variants. **Changed:** task-grouped actual command examples, composition checklist in shipped skills, and migration/layout/doctor/snapshot/recovery docs. Corrected old help wording that implied updating an image alone approves it. **Validated:** help, docs, neutral-core and idempotent skill installation tests; `pnpm check` 615 tests and six-package smoke pass. **Risks:** composition remains a human/agent judgment step; a checklist does not establish visual quality or owner approval. **Next:** real-browser comparison starter. Commit: `docs: expose the complete workflow and first-frame composition checks`.

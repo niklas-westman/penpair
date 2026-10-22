@@ -161,3 +161,16 @@ Each apply still checks file/source identity, original journal inputs and struct
 After `--include @kit`, opt into `--include @marwes-kit` for card, segmented, progress, icon-tile and stat-tile recipes. Project radius constants and progress sizing height remain explicit inputs; these recipes do not claim measured native-component parity. See [the build kit](build-kit.md).
 
 Component anatomy is a separate [measured three-component pilot](marwes-components.md); token sync does not establish component parity.
+
+## Metadata-only upgrades
+
+`tokens check --json` includes `reasons` with stable codes: `missing-snapshot`, `schema-migration`, `missing-ownership`, `content-drift`, `metadata-mismatch` and `package-mismatch`. `current:false` always explains why, even if `diff.identical:true`. Exit 2 is stale data; invalid/unreadable input is still an error.
+
+For a legacy snapshot, explicitly map **every** set name to `"adapter"` or `"project"` in `ownership.json`. Preview without connecting to Penpot:
+
+```sh
+penpair marwes tokens migrate --from design/legacy-tokens.json --ownership ownership.json
+penpair marwes tokens migrate --from design/legacy-tokens.json --ownership ownership.json --out design/migrated-tokens.json
+```
+
+Review values, themes and original provenance before adopting the migrated file. Do not infer ownership from name prefixes or regenerate away the source evidence.

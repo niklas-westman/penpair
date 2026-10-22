@@ -60,44 +60,58 @@ Start here (guided, plain language; safe to run again):
                                                        (a pipe works too: pbpaste | penpair connect)
   penpair connect --pin-file                           pin the connected design file ID in project configuration
   (--any-file explicitly overrides a pinned file; instance guarding still applies)
-Read-only:
-  penpair config check [--json]                        validate project configuration offline, without loading extensions
-  penpair config schema                               print its JSON Schema (also works while fixing invalid config)
-  (without a project config, built-in inspection requires --standalone; writes require a project)
-  penpair probe [--integrity]                          APIs and limits; optionally validate file integrity when supported
-  penpair probe --deep --write                         also tries layout, tokens, components, swap, clone and export on a temporary
-                                                       board it removes again (it touches the open file, so --write is required)
-  (in a project with an instance every command below acts on that instance only; --any-instance overrides)
-  penpair pages                                        the file, its revision, pages and their sizes
-  penpair inspect <shape-id> --page <name> [--all] [--fields geometry,text,tokens] [--cursor <cursor>]
-  penpair tree --page <name> [--depth 3] [--prefix <text>]
-  penpair audit --page <name> --prefix <frame name start> [--steps 0,2,4,8] [--ignore <name starts>]
-  penpair baselines coverage [--json]                  offline case matrix: approved intent, missing, unsupported and unknown
-  penpair kit check / recipes [--include @kit]          offline compilation and recipe metadata
-  penpair run-file <script.js> [--include helpers.js]    trusted plugin body; read declaration or reviewed inspect/apply/readback
-  penpair tokens dump                                  typed token sets and themes as JSON
-  penpair tokens add-set|set|remove|promote              inspect token edits; --apply writes once
-  penpair tokens diff <before.json> <after.json> --theme <name>
-  penpair export <shapeId> <out.png> [--page <name>] [--scale 1]
-  penpair export --name <exact-name> --page <name> <out.png>
-  penpair shots --page <name> [--prefix <prefix>] [--out design/shots]
-  penpair backup file <new.penpot>                     try a bounded full-file export, without replacing an existing archive
+Connect / diagnose:
+  penpair config check [--json]                        validate configuration offline
+  penpair config schema                               print its JSON Schema
+  penpair doctor [--json] [--timeout-ms 5000]           origin, transport, fresh editor read and file pin (1000–30000 ms)
+  penpair status [--adapters]                          observed project health and optional companion readiness
+  penpair open [--print]                              open the pinned public file URL, or print it
+  penpair probe [--integrity]                          observed APIs and limits
+  penpair probe --deep --write [--kit]                 temporary scratch checks; requires an authorized disposable file
+  penpair onboard [--json]                            personal-key colleague setup checklist
+Build:
+  penpair kit check [--include @kit]                   compile helpers offline
+  penpair recipes [--include @kit]                     list available recipes without building
+  penpair run-file <script.js> --include @kit --inspect inspect.js --readback readback.js --page PAGE [--apply]
+  penpair run <name> [--param key=value] [--apply]       configured snippet; inspect first
+  penpair snippets / snippets check                    list or validate configured trusted scripts
+  penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
+  penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
+  (run-file/export/shots accept --layout auto|native|geometry; default auto)
+  (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
+Inspect / spec:
+  penpair pages                                       file identity, revision and pages
+  penpair tree --page PAGE [--depth 3] [--prefix TEXT]  bounded preview
+  penpair inspect ID --page PAGE --all --out design/inspection.json
+  penpair spec --from design/inspection.json --out design/spec.md
+  penpair spec check --from design/inspection.json --out design/spec.md
+  penpair spec --page PAGE --frame ID [--map mapping.json]
+  penpair audit --page PAGE --prefix PREFIX [--rules]  advisory findings and unknowns
+  penpair tokens dump                                  complete typed token catalog
+Snapshot / diff:
+  penpair snapshot [--write] [--out design/snapshots/current]
+  penpair snapshot diff design/snapshots/before --from design/snapshots/current
+  penpair tokens diff before.json after.json --theme NAME
+  penpair runs [RUN_ID]                                private recovery evidence, offline
+Capture / approve:
+  penpair export ID out.png [--page PAGE] [--scale 1]
+  penpair export --name EXACT_NAME --page PAGE out.png
+  penpair shots --page PAGE [--prefix PREFIX] [--out design/shots]
+  penpair approve --page PAGE --frame ID [--case CASE_ID]  preview exact-artifact evidence
+  penpair approve --page PAGE --frame ID --write --note "OWNER WORDS" --by OWNER
+  penpair baselines [--apply] [--update]                capture configured references; approval requires exact owner evidence
+  penpair baselines coverage [--json]                  approved intent, missing cases and unknowns
+  penpair backup file new.penpot                        bounded full-file archive; restore proof remains separate
+Compare:
+  penpair reflection plan --map cases.json              requires the configured comparison companion
+  penpair reflection check --map cases.json --provider provider.mjs
+  (install/register the companion, then supply real browser setup/readback; scores require owner review)
+  Workflow and limitations: docs/design-workflow.md, docs/adapters.md, docs/recovery.md
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
-  penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]   copy them into the project and make them discoverable
-Snippets (the built-in ones and the project's own, listed under "snippets" in penpair.config.json):
-  penpair snippets                                     what can be run, with its parameters
-  penpair snippets check                               validate the project's snippets without a connection
-  penpair run <name> [--param key=value ...] [--apply] run one; a snippet that changes things only looks unless --apply
-Hand a page's design to a check (Reflection or any image comparison):
-  penpair baselines [--apply] [--update]               export the frames listed under "baselines" in penpair.config.json as approved images,
-                                                       a manifest and ready-made Reflection cases. Looks first; --apply writes new images;
-                                                       --update also replaces images whose design changed (approving the new design)
-Changes in a Penpot file (inspect first; nothing is written without --apply):
-  penpair onboard [--json]                              colleague setup checklist, offline
-  penpair runs [run-id]                                list recovery runs or inspect one, offline
-  (write commands support --resume <run-id> --apply and optional --checkpoint)
-  penpair archive --page <name> --name <archive board> --keep <prefixes> --parts <prefixes> [--x 9000] [--apply]
+  penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]
+  (built-in help lists configured extensions without importing their trusted code)
+  (config-free inspection requires --standalone; writes require a project)
   penpair --version`;
 
 const usageLocalInstance = `An instance on this computer (one Penpot per project, configured in penpair.config.json):

@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Tradient feedback — phase 4: installed help and composition guidance** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
+- [ ] **Tradient feedback — phase 5: real-browser comparison starter** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
 
 ## Tradient 0.2.0 feedback follow-up
 
@@ -25,7 +25,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Phase 1 / PP-01: shared bounded layout fallback across CLI, SDK and kit.
 - [x] Phase 2 / PP-02–03: explain snapshot migrations and prove bounded execution readiness.
 - [x] Phase 3 / PP-07–08: trace coordination revisions and make multi-page capture reliable; offline delivery verified; PP-07 causal fix and live gates remain open.
-- [ ] Phase 4 / PP-06: installed workflow discovery and composition guidance. Companion README/setup/skill recommendations are a separate completed documentation slice; runtime help and composition work remain pending.
+- [x] Phase 4 / PP-06: installed workflow discovery and composition guidance. Companion README/setup/skill recommendations are a separate completed documentation slice; runtime help and composition work remain pending.
 - [ ] Phase 5 / PP-05: real-browser comparison starter with independent state/capture evidence.
 - [ ] Phase 6 / PP-04: isolated projected theme previews with explicit native-capability limits.
 - [ ] Final: eight-case scratch re-trial, package validation, owner branch/release review.
@@ -211,3 +211,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: feedback phase 2 explains metadata-only migrations and bounds fresh doctor evidence across readiness layers; 607 tests and six-package smoke pass.
 
 - 2026-10-22: feedback phase 3 serializes observed page sessions, restores snapshot navigation and adds redacted writer traces; 614 tests and package smoke pass. PP-07 remains unresolved without causal live evidence.
+
+- 2026-10-22: feedback phase 4 groups installed workflow help and adds first-frame composition guidance, migration/readiness and snapshot recovery documentation; 615 tests and package smoke pass.
