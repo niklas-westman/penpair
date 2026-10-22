@@ -79,3 +79,5 @@ export * from "./project-status.js";
 export * from "./audit-rules.js";
 
 export * from "./credentials.js";
+
+export * from "./token-projection.js";

@@ -6,7 +6,7 @@ import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { parseCommandArgs, readDesignJson, atomicWriteFile, resolveProjectOutput, readJournalTarget, guardFile, resolveProjectInput, createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
+import { projectTheme, parseCommandArgs, readDesignJson, atomicWriteFile, resolveProjectOutput, readJournalTarget, guardFile, resolveProjectInput, createCheckpoint, loadConfig, readRawConfig, type AdapterCommand, type AdapterContext, type PenpotToolClient } from "@penpair/core";
 import { readMarwesSettings, type MarwesSettings } from "./config.js";
 import { familyProblems, loadInstalledMarwes, type InstalledMarwes } from "./marwes.js";
 import { applyPlan, compareToPenpot, describePlan, formatDrift, impactOf, planPush, readLive, type Drift } from "./penpot.js";
@@ -83,7 +83,7 @@ const summary = (snapshot: TokenSnapshot): string => `Marwes ${snapshot.marwesVe
 const coverage = (snapshot: TokenSnapshot): string | undefined => ((snapshot.unmapped ?? []).length > 0 ? `${snapshot.unmapped.length} Marwes variable(s) are not tokens: ${snapshot.unmapped.slice(0, 6).join(", ")}${snapshot.unmapped.length > 6 ? ", ..." : ""}` : undefined);
 
 const flags = (args: string[]) =>
-  parseCommandArgs({ args, allowPositionals: true, options: { from: { type: "string" }, ownership: { type: "string" }, resolved: { type: "boolean" }, page: { type: "string" }, out: { type: "string" }, overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" }, trace: { type: "boolean" } } });
+  parseCommandArgs({ args, allowPositionals: true, options: { from: { type: "string" }, ownership: { type: "string" }, theme: { type: "string" }, resolved: { type: "boolean" }, page: { type: "string" }, out: { type: "string" }, overwrite: { type: "boolean" }, adopt: { type: "string" }, write: { type: "boolean" }, apply: { type: "boolean" }, prune: { type: "boolean" }, json: { type: "boolean" }, resume: { type: "string" }, checkpoint: { type: "boolean" }, "force-lock": { type: "boolean" }, trace: { type: "boolean" } } });
 
 const staleAdvice = "Run `penpair marwes tokens snapshot --write`, review the change in git, and commit it.";
 
@@ -292,6 +292,8 @@ export const marwesCommand: AdapterCommand = {
     "penpair marwes theme lint [--json]              advisory family/default hue gaps; no design writes",
     "penpair marwes tokens schema | migrate --from FILE --ownership FILE [--out NEW_FILE]   schema and explicit legacy migration",
     "penpair marwes tokens snapshot [--write]       build the expected Penpot tokens from the installed Marwes and your theme; --write saves the snapshot",
+    "penpair marwes tokens preview --from SNAPSHOT --theme NAME [--out FILE]  offline projected values; no native bindings or live selection changes",
+    "penpair marwes tokens migrate --from LEGACY --ownership MAP [--out NEW_FILE]  explicit offline ownership upgrade",
     "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)",
     "penpair marwes tokens diff [--json]            Penpot against the snapshot: missing, changed, added by hand, and what each change reaches",
     "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations",
@@ -317,6 +319,19 @@ export const marwesCommand: AdapterCommand = {
     if (sub === "schema") {
       if (rest.some(value => value !== "--json")) throw new Error("tokens schema accepts only --json");
       context.output?.result(tokenSnapshotSchema); print(context, JSON.stringify(tokenSnapshotSchema, null, 2)); return 0;
+    }
+    if (sub === "preview") {
+      const { values, positionals } = flags(rest);
+      if (positionals.length || !values.from || !values.theme || Object.keys(values).some(key => !["from", "theme", "out", "json"].includes(key))) throw new Error("tokens preview --from SNAPSHOT --theme NAME [--out FILE]");
+      const snapshot = await readSnapshot(context.root, values.from);
+      if (!snapshot) throw new Error("Preview source snapshot does not exist");
+      const preview = { ...projectTheme(snapshot, values.theme), sourceSnapshotHash: snapshot.hash };
+      if (values.out) {
+        const target = await resolveProjectOutput(context.root, values.out);
+        if (target === await resolveProjectInput(context.root, values.from)) throw new Error("Preview cannot overwrite its source snapshot");
+        await mkdir(path.dirname(target), { recursive: true }); await atomicWriteFile(target, JSON.stringify(preview, null, 2) + "\n");
+      }
+      context.output?.result(preview); print(context, JSON.stringify(preview, null, 2)); return preview.complete ? 0 : 3;
     }
     if (sub === "migrate") {
       const { values, positionals } = flags(rest);

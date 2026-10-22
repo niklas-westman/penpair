@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Tradient feedback — phase 6: isolated projected theme previews** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
+- [ ] **Tradient feedback — final branch verification and review** Execute the [feedback implementation guide](docs/plans/tradient-feedback-0.2.0.md) on `codex/tradient-feedback`, continuing from verified controlled failure fixtures. Live acceptance requires an owner-confirmed disposable file; prior live acceptance gates remain open.
 
 ## Tradient 0.2.0 feedback follow-up
 
@@ -27,7 +27,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Phase 3 / PP-07–08: trace coordination revisions and make multi-page capture reliable; offline delivery verified; PP-07 causal fix and live gates remain open.
 - [x] Phase 4 / PP-06: installed workflow discovery and composition guidance. Companion README/setup/skill recommendations are a separate completed documentation slice; runtime help and composition work remain pending.
 - [x] Phase 5 / PP-05: real-browser comparison starter with independent state/capture evidence.
-- [ ] Phase 6 / PP-04: isolated projected theme previews with explicit native-capability limits.
+- [x] Phase 6 / PP-04: isolated projected theme previews with explicit native-capability limits.
 - [ ] Final: eight-case scratch re-trial, package validation, owner branch/release review.
 
 ## Phases
@@ -215,3 +215,5 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - 2026-10-22: feedback phase 4 groups installed workflow help and adds first-frame composition guidance, migration/readiness and snapshot recovery documentation; 615 tests and package smoke pass.
 
 - 2026-10-22: feedback phase 5 ships real browser capture/provider examples and metadata; 616 tests, package smoke and eight real local Chromium cases pass. Visual inspection caught and corrected sticky-shell occlusion; approved Penpot trials remain pending.
+
+- 2026-10-22: feedback phase 6 adds bounded offline projected-theme artifacts, shared neutral resolution and owned-root examples with preservation tests; 622 tests and package smoke pass. Native per-frame selection and live preservation remain unproved.

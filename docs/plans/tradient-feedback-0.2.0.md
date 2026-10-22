@@ -1,6 +1,6 @@
 # Tradient feedback: execution plan
 
-Created: 2026-10-22. Status: **runtime implementation planned; adapter-discovery documentation delivered separately**.
+Created: 2026-10-22. Status: **phases 0–6 delivered and verified offline; final review in progress; live Penpot gates and PP-07 causality remain open**.
 
 Goal: make the ordinary Penpair workflow complete the observed trial without a custom SDK host, then reduce the project glue needed for comparison and theme previews.
 
@@ -123,10 +123,10 @@ Exit: an adopter can supply explicit setup hooks and run a genuine comparison wi
 
 ### Phase 6 — explicit, isolated theme previews (PP-04, P2)
 
-- [ ] Record the pinned API's frame-level theme capabilities with links and observed proof. Do not expose native per-frame binding as supported based on an API name or projected appearance.
-- [ ] Deliver a deterministic offline preview first: neutral token-projection logic plus adapter command `penpair marwes tokens preview --from SNAPSHOT --theme NAME [--out FILE]`. Resolve the selected declared theme using existing token precedence/alias rules; ambiguous names, missing dependencies or unsupported values produce errors/explicit unknowns.
-- [ ] Return a versioned preview with source hash, selected theme/set identities, resolved values/unknowns and `kind: projected-theme-preview`. `--out` writes only a project-bound artifact. It does not mutate Penpot, switch global themes or imply native bindings.
-- [ ] Supply a scratch example applying projected color values to owned roots, with projection metadata retained separately from actual typography/spacing/radius bindings. Native frame-mode support remains a separate acceptance gate if it cannot be proved on the pinned version.
+- [x] Record the pinned API's frame-level theme capabilities with links and observed proof. Do not expose native per-frame binding as supported based on an API name or projected appearance.
+- [x] Deliver a deterministic offline preview first: neutral token-projection logic plus adapter command `penpair marwes tokens preview --from SNAPSHOT --theme NAME [--out FILE]`. Resolve the selected declared theme using existing token precedence/alias rules; ambiguous names, missing dependencies or unsupported values produce errors/explicit unknowns.
+- [x] Return a versioned preview with source hash, selected theme/set identities, resolved values/unknowns and `kind: projected-theme-preview`. `--out` writes only a project-bound artifact. It does not mutate Penpot, switch global themes or imply native bindings.
+- [x] Supply a scratch example applying projected color values to owned roots, with projection metadata retained separately from actual typography/spacing/radius bindings. Native frame-mode support remains a separate acceptance gate if it cannot be proved on the pinned version.
 
 Tests: adapter preview/command-contract tests and neutral resolver tests: multiple themes, ordering, aliases/cycles, composite values, ambiguous names and missing values. Before/after scratch checks must show identical global selections, catalog values/order and unrelated objects.
 
@@ -150,9 +150,9 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | 1 Layout | Complete offline | 597 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 2 Migration/readiness | Complete offline | 607 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 3 Coordination/snapshots | Offline delivery complete; PP-07 unresolved | 614 tests; six-package smoke pass | Pending | 2026-10-22 |
-| 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
+| 4 Help/skills | Complete | 615 tests; six-package smoke pass | Not applicable | 2026-10-22 |
 | 5 Browser starter | Complete | 616 tests; package smoke; 8 real-browser cases + negative cases | Local Chromium trial complete; Penpot pending | 2026-10-22 |
-| 6 Theme previews | Not started | Pending | Pending | — |
+| 6 Theme previews | Complete offline | 622 tests; six-package smoke pass | Scratch/native capability pending | 2026-10-22 |
 | Final trial/release review | Not started | Pending | Pending | — |
 
 Append phase reports here during execution. Update the table and relevant `PLAN.md` checkbox in the same verified change.
@@ -194,3 +194,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Phase 5 report — 2026-10-22
 
 **Resolved:** adopters can reuse real capture plumbing with explicit project hooks rather than rewrite fonts/scroll/hover/cropping logic. **Changed:** shipped browser provider, independent DOM state and loaded font/weight evidence, outward CSS clipping, hover/occlusion checks, optional schema-1 metadata validation and installed-example smoke. **Validated:** `pnpm check` 616 tests and six-package smoke pass; eight real local browser cases plus wrong theme, missing face/weight, delayed font load, scale mismatch, hover and sticky-shell refusal. Actual screenshots were inspected; a sticky header initially obscured the heading and the new guard/scroll hook corrected it. [Portable browser evidence](../fixtures/browser-capture-2026-10-22.json) records Chromium 148.0.7778.96, bundled Playwright 1.62.1, unchanged reference bytes and owner-review-required. MCP could inspect the fixture but could not import modules; the real provider ran with the bundled runtime and cached Chromium. **Risks:** references are explicitly unapproved synthetic browser fixtures, not approved Penpot designs; sampled occlusion still requires image inspection. No consumer provider was registered. **Next:** offline projected themes and pinned native capability evidence. Commit: `feat: ship a verified real-browser comparison starter`.
+
+### Phase 6 report — 2026-10-22
+
+**Resolved:** independent light/dark artifacts can be generated without switching live themes or falsely claiming native frame modes. **Changed:** bounded neutral projection resolver shared with mode verification; adapter `tokens preview --from --theme [--out]`, discoverable artifact schema, source/theme/set provenance and owned scratch example. **Validated:** ordered precedence, aliases/arithmetic, composites, ambiguous/missing themes/sets, cyclic/budget failures, project-bound output and preservation through actual sandbox example bodies; `pnpm check` 622 tests and six-package smoke pass. **Risks:** [pinned capability evidence](../theme-previews.md#pinned-native-capability-evidence) is source-based; the hosted API version is distinct. Native frame themes, component parity/overrides and live projection preservation remain unproved. **Next:** full branch review, final browser/package validation and explicit live checklist. Commit: `feat: project declared themes without changing live selection`.

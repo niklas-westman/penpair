@@ -13,6 +13,7 @@ export const artifactSchemas: Record<string, unknown> = {
  "approvals": schema("approvals", 1, "design-approvals", { records: { type: "array", maxItems: 10000 } }),
  "structural-manifest": schema("structural-manifest", 1, "structural-snapshot-manifest", { fileId: string, revision: { type: "integer" }, producer: string, fidelity: { const: "review-only" }, pages: { type: "array", minItems: 1, maxItems: 100 }, tokens: { type: "object" }, hash: string }),
  "baseline-manifest": schema("baseline-manifest", 2, undefined, { complete: { type: "boolean" }, fileId: string, pageId: string, captureId: string, frames: { type: "array", maxItems: 1000 } }),
+ "projected-theme-preview": schema("projected-theme-preview", 1, "projected-theme-preview", { sourceHash: string, theme: { type: "object" }, sets: array, resolved: array, unknowns: array, complete: { type: "boolean" }, nativeBindings: { const: false } }),
  "portable-tokens": schema("portable-tokens", 1, "portable-tokens", { format: { const: "dtcg-2025.10-subset" }, tokens: { type: "array", minItems: 1, maxItems: 10000, items: { type: "object", required: ["path", "type", "value"], properties: { path: { type: "array", minItems: 1, maxItems: 32, items: string }, type: { enum: ["color", "dimension", "number", "fontFamily", "fontWeight", "typography"] }, value: {}, description: string, extensions: { type: "object" } } } }, groups: { type: "object" }, losses: { type: "array", maxItems: 0 } }),
 };
 /** Legacy unversioned config is v1; preserve every extension block and require explicit new output for persistence. */
