@@ -14,6 +14,7 @@ function editor(answer: (code: string) => unknown): PenpotToolClient & { codes: 
     codes,
     async callTool(_name, args) {
       codes.push(String(args.code));
+      if (String(args.code).includes("const geometry = [], stack")) return reply({ok:true,fileId:"file",pageId:"page",native:true,geometry:[["root",0,0,10,10]],truncated:false});
       return reply(answer(String(args.code)));
     },
     async close() {},
@@ -79,10 +80,10 @@ describe("the registry", () => {
     expect(client.codes[0]).toContain("wrongPage");
   });
 
-  it("only looks at a write snippet unless told to apply, then reads back and uses the problems it reports", async () => {
+  it("only looks at a write snippet unless told to apply, then compares explicit observations", async () => {
     const registry = new SnippetRegistry();
-    registry.register({ kind: "write", name: "tidy", description: "d", inspect: "return {ok:true, willChange: 2};", apply: "return {ok:true, changed: 2};", readback: "return {ok:true, problems: CFG.fail ? ['still untidy'] : []};" });
-    const calls = editor((code) => (code.includes("willChange") ? { ok: true, willChange: 2 } : code.includes("changed:") ? { ok: true, changed: 2 } : { ok: true, problems: [] }));
+    registry.register({ kind: "write", name: "tidy", description: "d", inspect: "return {ok:true, willChange: 2};", apply: "return {ok:true, changed: 2};", readback: "return {ok:true, verification: { expected: {count:2}, actual: {count: penpot.currentPage.root.children.length} }};" });
+    const calls = editor((code) => (code.includes("willChange") ? { ok: true, willChange: 2 } : code.includes("changed:") ? { ok: true, changed: 2 } : { ok: true, verification: { expected: { count: 2 }, actual: { count: 2 } } }));
     const inspected = (await registry.run(calls, "tidy", {}, { sleep: async () => undefined })) as { phase: string };
     expect(inspected.phase).toBe("inspected");
     expect(calls.codes).toHaveLength(1);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { tokenTypes, validateEditableToken } from "@penpair/core";
 
-export type PenpotTokenType = "color" | "spacing" | "sizing" | "borderRadius" | "fontFamilies" | "typography";
+export type PenpotTokenType = typeof tokenTypes[number];
 
 export interface PenpotToken {
   name: string;
@@ -23,7 +24,9 @@ export interface PenpotTokenTheme {
 
 /** What the Penpot file is expected to hold: generated from the installed Marwes and the project's theme, committed to the project. */
 export interface TokenSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  /** Version 2 explicitly records ownership. Missing only in legacy v1 inputs. */
+  ownership?: Record<string, "adapter" | "project">;
   /** The Marwes version the values came from. */
   marwesVersion: string;
   /** What produced the file, so a reader knows not to edit it by hand. */
@@ -170,9 +173,10 @@ export interface SnapshotInput {
   /** The project's name, which prefixes its overlay sets. */
   name: string;
   generatedBy: string;
+  extras?: PenpotTokenSet[];
 }
 
-const hashOf = (parts: { marwesVersion: string; project: string; sets: PenpotTokenSet[]; themes: PenpotTokenTheme[]; unmapped: string[] }): string => createHash("sha256").update(canonical(parts)).digest("hex");
+const hashOf = (parts: { marwesVersion: string; project: string; sets: PenpotTokenSet[]; themes: PenpotTokenTheme[]; unmapped: string[]; ownership: Record<string, "adapter" | "project"> }): string => createHash("sha256").update(canonical(parts)).digest("hex");
 
 /**
  * The Penpot token sets for Marwes and for the project, generated from the installed Marwes. Light values live in the core set,
@@ -217,11 +221,23 @@ export function buildSnapshot(input: SnapshotInput): TokenSnapshot {
       darkSets.push(`${name} · Dark`);
     }
   }
+  const ownership: Record<string, "adapter" | "project"> = Object.fromEntries(sets.map(set => [set.name, "adapter"]));
+  const seenSets = new Set(sets.map(set => set.name));
+  for (const extra of input.extras ?? []) {
+    if (seenSets.has(extra.name)) throw new Error("Project extra collides with generated set: " + extra.name);
+    if (typeof extra.name !== "string" || !extra.name.trim() || extra.name.length > 200 || !Array.isArray(extra.tokens)) throw new Error("Invalid project extra set");
+    const tokenNames = new Set<string>();
+    for (const token of extra.tokens) { validateEditableToken(token); if (tokenNames.has(token.name)) throw new Error("Duplicate project extra token: " + token.name); tokenNames.add(token.name); }
+    seenSets.add(extra.name);
+    sets.push({ name: extra.name, tokens: extra.tokens.map(token => validateEditableToken(token) as PenpotToken).sort((a, b) => a.name.localeCompare(b.name)) });
+    Object.defineProperty(ownership, extra.name, { value: "project", enumerable: true, configurable: true, writable: true });
+    lightSets.push(extra.name); darkSets.push(extra.name);
+  }
   const themes: PenpotTokenTheme[] = [
     { group: themeGroup, name: "Light", sets: lightSets },
     { group: themeGroup, name: "Dark", sets: darkSets },
   ];
-  return { schemaVersion: 1, marwesVersion: version, generatedBy: input.generatedBy, project: name, hash: hashOf({ marwesVersion: version, project: name, sets, themes, unmapped }), unmapped, sets, themes };
+  return { schemaVersion: 2, ownership, marwesVersion: version, generatedBy: input.generatedBy, project: name, hash: hashOf({ marwesVersion: version, project: name, sets, themes, unmapped, ownership }), unmapped, sets, themes };
 }
 
 /** The value of a token as it compares in Penpot: strings are exact, font families and typography are normalised the way Penpot stores them. */

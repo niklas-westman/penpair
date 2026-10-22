@@ -1,4 +1,5 @@
-import { readdir, stat } from "node:fs/promises";
+import { resolveProjectInput } from "./project-input.js";
+import { readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { checkEntry, SnippetRegistry, type SnippetDefinition } from "./registry.js";
@@ -11,12 +12,14 @@ export interface LoadReport {
 }
 
 async function filesOf(root: string, entry: string): Promise<string[]> {
-  const absolute = path.resolve(root, entry);
+  let absolute: string;
   let info;
   try {
+    absolute = await resolveProjectInput(root, entry);
     info = await stat(absolute);
-  } catch {
-    throw new Error(`${entry} does not exist`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new Error(`${entry} does not exist`);
+    throw error;
   }
   if (!info.isDirectory()) return [absolute];
   return (await readdir(absolute))
@@ -30,21 +33,22 @@ async function filesOf(root: string, entry: string): Promise<string[]> {
  * reported and skipped; the rest still load, so one mistake does not hide the others.
  */
 export async function loadProjectSnippets(root: string, entries: string[] | undefined, registry: SnippetRegistry): Promise<LoadReport> {
+  const projectRoot = await realpath(root);
   const report: LoadReport = { files: [], problems: [] };
   for (const entry of entries ?? []) {
     let files: string[];
     try {
-      files = await filesOf(root, entry);
+      files = await filesOf(projectRoot, entry);
     } catch (error) {
       report.problems.push(String((error as Error).message));
       continue;
     }
     for (const file of files) {
-      const relative = path.relative(root, file);
+      const relative = path.relative(projectRoot, file);
       report.files.push(relative);
       let loaded: unknown;
       try {
-        loaded = ((await import(pathToFileURL(file).href)) as { default?: unknown }).default;
+        loaded = ((await import(pathToFileURL(await resolveProjectInput(projectRoot, relative)).href)) as { default?: unknown }).default;
       } catch (error) {
         report.problems.push(`${relative}: could not be loaded: ${String((error as Error).message).split("\n")[0]}`);
         continue;

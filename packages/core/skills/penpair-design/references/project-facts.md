@@ -4,7 +4,7 @@ penpair installs this template once and never overwrites it. Keep it short and t
 
 ## The file
 - Penpot: <where it runs: local instance name, team server or hosted>
-- File name and id: <name> <id>
+- File name and id: <name> <id>; pin the ID under `file` in `penpair.config.json` (`penpair connect --pin-file`)
 - Pages and what each is for: <list>
 
 ## Libraries and tokens

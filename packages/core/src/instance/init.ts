@@ -41,7 +41,7 @@ export async function init(root: string, options: InitOptions = {}, deps: { loca
   try {
     existing = await loadConfig(root);
   } catch (error) {
-    if (!(error instanceof ConfigError) || !/No penpair\.config\.json/.test(error.message)) throw error;
+    if (!(error instanceof ConfigError) || error.code !== "missing") throw error;
   }
   if (existing && isExternal(existing)) return { config: existing, createdConfig: false, createdSecrets: false, files: [], gitignoreAdded: options.gitignore ? await ensureKeyFileIgnored(root) : false };
   if (!existing && options.external) {

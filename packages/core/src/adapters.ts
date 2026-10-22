@@ -1,9 +1,11 @@
-import { readFile } from "node:fs/promises";
+import type { BuildKit } from "./kit.js";
+import { resolveProjectInput } from "./project-input.js";
+import type { CommandOutput } from "./command-result.js";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { PenpotToolClient } from "./client.js";
-import { configFileName, type ProjectConfig } from "./instance/config.js";
+import { readProjectConfig, type ProjectConfig } from "./instance/config.js";
 
 /**
  * An adapter is a package that teaches penpair about one library or tool (a component library's tokens, a checker) by adding
@@ -11,6 +13,9 @@ import { configFileName, type ProjectConfig } from "./instance/config.js";
  * project and knows nothing about any of them. An adapter keeps its own settings in its own block of the same file.
  */
 export interface AdapterContext {
+  output?: CommandOutput;
+  /** Removes this connection's credentials before recovery evidence is persisted or reported. */
+  redact?(text: string): string;
   /** The project's folder. */
   root: string;
   /** The project's validated configuration. */
@@ -36,9 +41,15 @@ export interface AdapterCommand {
   run(context: AdapterContext, args: string[]): Promise<number>;
 }
 
+export interface AdapterStatusLine { id: string; label: string; state: "ok" | "warning" | "failed" | "unknown"; detail: string }
+
 export interface Adapter {
   name: string;
   commands: AdapterCommand[];
+  /** Executed only by an explicit status --adapters request; trusted project code. */
+  status?(context: AdapterContext): Promise<AdapterStatusLine[]>;
+  /** Explicit opt-in plugin-source includes. Built-in commands do not load these unless requested. */
+  kits?: BuildKit[];
 }
 
 /** Declares an adapter. Returns the definition unchanged, so a module can `export default defineAdapter({...})` with types checked. */
@@ -46,8 +57,8 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
-  "probe", "pages", "tree", "audit", "tokens", "export", "archive", "snippets", "run", "skills", "init", "setup", "connect",
-  "up", "down", "status", "doctor", "backup", "restore", "baselines",
+  "formats", "snapshot", "approve", "mcp", "spec", "inspect", "probe", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "snippets", "run", "run-file", "kit", "recipes", "skills", "init", "setup", "connect",
+  "up", "down", "open", "status", "doctor", "backup", "restore", "baselines", "config", "runs", "onboard", "help",
 ] as const;
 
 export interface LoadedAdapters {
@@ -60,8 +71,9 @@ export type AdapterImporter = (specifier: string, root: string) => Promise<unkno
 /** Resolves an adapter the way the project would: a relative path from the project's folder, or a package installed in the project. */
 export const importFromProject: AdapterImporter = async (specifier, root) => {
   let file: string;
-  if (specifier.startsWith(".") || path.isAbsolute(specifier)) file = path.resolve(root, specifier);
+  if (specifier.startsWith(".") || path.isAbsolute(specifier)) file = await resolveProjectInput(root, specifier);
   else {
+    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[a-z0-9._-]+)*$/i.test(specifier) || specifier.split("/").includes("..")) throw new Error("Adapter must name an installed package or a relative project module");
     try {
       file = createRequire(path.join(root, "package.json")).resolve(specifier);
     } catch {
@@ -106,12 +118,7 @@ export async function loadAdapters(root: string, specifiers: string[] | undefine
 
 /** The whole penpair.config.json as written (an adapter's own settings live in it). Empty when there is no file. */
 export async function readRawConfig(root: string): Promise<Record<string, unknown>> {
-  try {
-    const parsed: unknown = JSON.parse(await readFile(path.join(root, configFileName), "utf8"));
-    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
+  return await readProjectConfig(root) ?? {};
 }
 
 

@@ -1,7 +1,8 @@
-import { chmod, readFile, writeFile } from "node:fs/promises";
+import { readCredential, type CredentialReference } from "../credentials.js";
+import { chmod, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseEnvFileValue } from "../endpoint.js";
-import { isExternal, type ProjectConfig } from "./config.js";
+import { configFileName, isExternal, readProjectConfig, type ProjectConfig, type ProjectFile } from "./config.js";
 import { ensureKeyFileIgnored } from "./gitignore.js";
 import { endpointIsInstance } from "./connection.js";
 import type { Runner } from "./runner.js";
@@ -15,7 +16,9 @@ export interface ConnectIo {
   askHidden(question: string): Promise<string>;
   sleep(ms: number): Promise<void>;
   /** Looks for the editor tab and the plugin; throws until both are there. */
-  openFile(url: string): Promise<{ file: string; pages: string[] }>;
+  openFile(url: string): Promise<{ file: string; fileId?: string; pages: string[] }>;
+  /** Optional for noninteractive hosts; a positive answer pins local config, never changes the design. */
+  confirmFile?(file: ProjectFile): Promise<boolean>;
 }
 
 export const keyVariable = "PENPAIR_MCP_URL";
@@ -83,16 +86,16 @@ export async function readKeyFile(root: string): Promise<string | undefined> {
 }
 
 /** Warns when .env.local exists but git would commit it. Asks git itself, so global ignore rules count. */
-export async function keyFileCheck(root: string, runner: Runner): Promise<{ check: string; ok: boolean; detail: string; remedy?: string } | undefined> {
-  try {
-    await readFile(path.join(root, ".env.local"), "utf8");
-  } catch {
-    return undefined;
-  }
-  const result = await runner.run("git", ["-C", root, "check-ignore", "-q", ".env.local"]);
-  if (result.code === 0) return { check: "key file", ok: true, detail: ".env.local is kept out of git" };
-  if (result.code === 1) return { check: "key file", ok: false, detail: ".env.local holds your personal key and git would commit it", remedy: "Add .env.local to .gitignore (penpair connect does it for you)." };
-  return { check: "key file", ok: true, detail: ".env.local exists; this folder is not a git repository" };
+export async function keyFileCheck(root: string, runner: Runner): Promise<{ check: string; ok: boolean; warning?: boolean; detail: string; remedy?: string } | undefined> {
+  let info: Awaited<ReturnType<typeof stat>>;
+  try { info = await stat(path.join(root, ".env.local")); } catch { return undefined; }
+  if (process.platform !== "win32" && (info.mode & 0o077) !== 0) return { check: "key file", ok: false, detail: ".env.local is group/world-readable", remedy: "Make the private connection file owner-readable only (0600) and verify repository exclusion." };
+  const ignored = await runner.run("git", ["-C", root, "check-ignore", "-q", ".env.local"]);
+  if (ignored.code === 1) return { check: "key file", ok: false, detail: ".env.local is tracked or not ignored", remedy: "Keep .env.local out of Git with .gitignore; if already tracked, coordinate removal and key rotation with the owner." };
+  if (ignored.code !== 0) return { check: "key file", ok: true, detail: ".env.local exists; this folder is not a git repository" };
+  const history = await runner.run("git", ["-C", root, "log", "--all", "-n", "1", "--format=%H", "--", ".env.local"]);
+  if (history.code === 0 && history.stdout.trim()) return { check: "key file", ok: true, warning: true, detail: ".env.local is ignored now but appears in Git history", remedy: "Rotate any exposed key through the provider UI; let the owner decide whether history remediation is needed. No historical file contents were read." };
+  return { check: "key file", ok: true, detail: ".env.local is private and kept out of git" };
 }
 
 export interface WaitOptions {
@@ -103,7 +106,7 @@ export interface WaitOptions {
 }
 
 /** Waits for the editor tab and the plugin, saying in plain words what to do, until `timeoutMs` has passed. */
-export async function waitForEditor(url: string, io: ConnectIo, options: WaitOptions = {}): Promise<{ file: string; pages: string[] } | undefined> {
+export async function waitForEditor(url: string, io: ConnectIo, options: WaitOptions = {}): Promise<{ file: string; fileId?: string; pages: string[] } | undefined> {
   const timeout = options.timeoutMs ?? 5 * 60_000;
   const interval = options.intervalMs ?? 3_000;
   const remind = options.remindMs ?? 20_000;
@@ -132,14 +135,25 @@ export interface ConnectResult {
   keyWritten: boolean;
   file?: string;
   pages?: string[];
+  fileId?: string;
+  filePinned?: boolean;
 }
 
 /**
  * The connection step: take the personal key without showing it, check that it belongs to this project's Penpot, store it in
  * a git-ignored file, then wait for the editor and plugin and read the file's pages once. Safe to run again.
  */
-export async function connectProject(root: string, config: ProjectConfig, io: ConnectIo, options: { replace?: boolean; pasted?: string; wait?: WaitOptions } = {}): Promise<ConnectResult> {
-  let url = options.replace ? undefined : await readKeyFile(root);
+export async function connectProject(root: string, config: ProjectConfig, io: ConnectIo, options: { replace?: boolean; pasted?: string; wait?: WaitOptions; anyFile?: boolean; environment?: NodeJS.ProcessEnv } = {}): Promise<ConnectResult> {
+  const environment = options.environment ?? process.env;
+  let reference: CredentialReference | undefined = config.connection?.credential;
+  if (!reference) {
+    let text = ""; try { text = await readFile(path.join(root, ".env.local"), "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new ConnectError("Project connection file could not be read"); }
+    const file = environment.PENPAIR_MCP_URL_FILE?.trim() || parseEnvFileValue(text, "PENPAIR_MCP_URL_FILE");
+    if (file) reference = { type: "file", path: file };
+    else if (environment.PENPAIR_MCP_URL_COMMAND || parseEnvFileValue(text, "PENPAIR_MCP_URL_COMMAND")) throw new ConnectError("Arbitrary credential commands are not enabled; configure a file or OS reference");
+  }
+  if (reference && options.replace) throw new ConnectError("Rotate the configured credential in its private storage, then reconnect; --replace is for the legacy pasted-URL flow");
+  let url = reference ? await readCredential(reference, { root }) : options.replace ? undefined : await readKeyFile(root);
   let keyWritten = false;
   if (url) {
     let origin: string | undefined;
@@ -148,7 +162,8 @@ export async function connectProject(root: string, config: ProjectConfig, io: Co
     } catch {
       origin = undefined;
     }
-    if (origin && belongsToProject(origin, config)) io.say("The key in .env.local belongs to this Penpot, so I will use it. (Run `penpair connect --replace` to paste a new one.)");
+    if (origin && belongsToProject(origin, config)) io.say(reference ? "Using the configured private credential reference; its output stays private." : "The key in .env.local belongs to this Penpot, so I will use it. (Run `penpair connect --replace` to paste a new one.)");
+    else if (reference) throw new ConnectError("Configured credential reference belongs to another or invalid Penpot origin; no fallback was used");
     else url = undefined;
   }
   if (!url) {
@@ -165,6 +180,17 @@ export async function connectProject(root: string, config: ProjectConfig, io: Co
   }
   const editor = await waitForEditor(url, io, options.wait);
   if (!editor) throw new ConnectError("I did not see the editor within five minutes. Open a design file in Penpot, choose File, MCP Server, Connect, keep the tab in front, then run `penpair connect` again.");
+  if (config.file && config.file.id !== editor.fileId && !options.anyFile)
+    throw new ConnectError(`Expected file "${config.file.name ?? config.file.id}" (${config.file.id}), connected to "${editor.file}" (${editor.fileId ?? "unknown id"}). Open the expected file and reconnect.`);
+  let filePinned = false;
+  if (!config.file && editor.fileId && await io.confirmFile?.({ id: editor.fileId, name: editor.file })) {
+    const raw = await readProjectConfig(root);
+    if (!raw || raw.file) throw new ConnectError("The project configuration changed while connecting. Inspect it and connect again; no file pin was replaced.");
+    await writeFile(path.join(root, configFileName), `${JSON.stringify({ ...raw, file: { id: editor.fileId, name: editor.file } }, null, 2)}\n`);
+    filePinned = true;
+    io.say("Pinned the design file ID in penpair.config.json. Commit that file for your team.");
+  }
+  if (!config.file && !filePinned) io.say("No file ID is pinned yet. Run `penpair connect --pin-file` to protect against a different file being open.");
   io.say(`Connected to the file "${editor.file}" (${editor.pages.length} page${editor.pages.length === 1 ? "" : "s"}: ${editor.pages.slice(0, 6).join(", ")}${editor.pages.length > 6 ? ", ..." : ""}).`);
-  return { keyWritten, file: editor.file, pages: editor.pages };
+  return { keyWritten, file: editor.file, pages: editor.pages, fileId: editor.fileId, filePinned };
 }

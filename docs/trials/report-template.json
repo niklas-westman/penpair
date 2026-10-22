@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "kind": "human-trial",
+  "status": "not-run",
+  "commit": null,
+  "artifacts": [],
+  "participants": [],
+  "environment": {
+    "os": null,
+    "node": null,
+    "packageManager": null,
+    "agentClient": null,
+    "skillPath": null,
+    "penpotDeployment": null,
+    "apiVersion": null
+  },
+  "target": {
+    "ownerAuthorized": false,
+    "fileIds": [],
+    "pageIds": []
+  },
+  "metrics": {
+    "timeToDoctorGreenMs": null,
+    "interventions": null,
+    "understandableFailures": null,
+    "eligibleTokens": null,
+    "boundTokens": null,
+    "inspectionComplete": null,
+    "verifiedOutcomes": null
+  },
+  "exercises": {
+    "onboarding": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "skillDiscovery": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "smallBuild": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "wrongFile": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "writerConflict": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "recovery": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "implementationRoute": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    },
+    "cleanup": {
+      "status": "not-run",
+      "evidence": [],
+      "findings": null
+    }
+  },
+  "blockers": [],
+  "backlogChanges": [],
+  "ownerReviewed": false
+}

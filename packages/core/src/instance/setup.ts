@@ -55,7 +55,7 @@ export async function setup(root: string, io: SetupIo, options: SetupOptions): P
     config = await loadConfig(root);
     io.say(`This folder is already set up for ${isExternal(config) ? `Penpot at ${config.profile.origin}` : `Penpot on this computer (port ${config.ports.frontend})`}. Continuing from there.`);
   } catch (error) {
-    if (!(error instanceof ConfigError) || !/No penpair\.config\.json/.test(error.message)) throw error;
+    if (!(error instanceof ConfigError) || error.code !== "missing") throw error;
   }
   if (!config) {
     const where = options.where ?? (await chooseWhere(io, Boolean(options.local)));

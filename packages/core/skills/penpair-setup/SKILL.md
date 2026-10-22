@@ -18,7 +18,7 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
 
 ## Steps
 
-1. **Look.** If `penpair.config.json` exists, run `npx @penpair/web doctor --json` and read it: `ok`, then each check. Done when you can name the first failing check, or say all pass. If all pass, stop here and say so.
+1. **Look.** If `penpair.config.json` exists, run `npx @penpair/web doctor --json` and read its versioned envelope: `data.ok`, then `data.checks`. Done when you can name the first failing check, or say all pass. If all pass, stop here and say so.
 2. **Choose where Penpot runs.** Recommend web. Choose Docker when the person asks for offline work, data that stays on this computer, or a disposable instance. Ask once, in one sentence, and take the answer. Done when the choice is stated. The decision table and what is checked: [references/web-or-docker.md](references/web-or-docker.md).
 3. **Initialise.**
    - Web: `npx @penpair/web init --external https://design.penpot.app --gitignore` (a team's own Penpot: its address instead).
@@ -29,7 +29,7 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
    2. Account, Integrations, MCP Server: switch it on and copy the address.
    3. In your own terminal, in this folder, run `npx @penpair/web connect` and paste the address (nothing is shown as you paste).
    4. In the design file: File, then MCP Server, then Connect. Keep that tab in front while we work.
-5. **Verify.** Run `npx @penpair/web doctor --json` after the person says they are done. Done when `ok` is true and the check named `editor and plugin` says it is connected. A failing check carries a `remedy`; say it in plain words and let the person act. Common ones:
+5. **Verify.** Run `npx @penpair/web doctor --json` after the person says they are done. Done when `data.ok` is true and the check named `editor and plugin` says it is connected. A failing check carries a `remedy`; say it in plain words and let the person act. Common ones:
 
    | Check says | Meaning and fix |
    | --- | --- |
@@ -51,3 +51,7 @@ A project has one profile. To switch, keep the old `penpair.config.json` aside, 
 - Never run `penpair probe --deep --write` on a file the person has not called a scratch file; it creates and removes a temporary board.
 - Read `penpair --help` for the current commands; this skill names only the setup ones.
 - Report each check you did not run.
+
+## Private references and rotation
+
+A person can configure `PENPAIR_MCP_URL_FILE` or a `connection.credential` file/macOS Keychain reference. Resolve it only at connection time and keep returned values out of messages. Connect reuses the reference without copying its URL into `.env.local`. Rotate that value in private storage, reconnect the intended visible editor and confirm the same public file pin with doctor. The legacy hidden `connect --replace` flow handles pasted URLs. Treat permission/history warnings as owner review tasks; retain historical metadata without printing old keys or rewriting history automatically.

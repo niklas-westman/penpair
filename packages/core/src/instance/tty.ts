@@ -58,5 +58,6 @@ export async function askLine(question: string, fallback: string): Promise<strin
 export async function openInBrowser(url: string): Promise<void> {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
-  await nodeRunner.run(command, args);
+  const result = await nodeRunner.run(command, args);
+  if (result.code !== 0) throw new Error("Browser launch failed; open the configured public Penpot address manually.");
 }

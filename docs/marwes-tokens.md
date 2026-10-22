@@ -70,8 +70,8 @@ penpair marwes tokens push --apply         # make Penpot match (look first witho
 | Your theme file changed | `check`: the snapshot is stale | the same |
 | Marwes packages are at different versions (a half-finished upgrade) | `check` fails with exit 1 | finish the upgrade; Marwes releases its packages together |
 | **Marwes grew a kind of variable the adapter does not turn into a token** | `check`: the snapshot lists every variable it does not cover, so a new one changes it | review it, then extend the adapter or accept it by writing the snapshot |
-| Someone edited a token in Penpot by hand | `diff`: shown as a difference, with what it reaches | `push --apply` puts it back (Marwes is authoritative) |
-| Someone added a token to a Marwes set by hand | `diff`: "not in the expectation" | kept unless you push with `--prune` |
+| Someone edited a token in Penpot by hand | `diff`: shown as a difference, with what it reaches | `push` stops for an explicit adoption or overwrite decision |
+| Someone added a token to a Marwes set by hand | `diff`: "not in the expectation" | preserved, including with `--prune`, unless a verified ancestor establishes ownership |
 | A set was deleted or a theme changed in Penpot | `diff` | `push --apply` |
 | The recorded Marwes version (in every token's description) is old | `diff` | `push --apply` updates it, so the file says which Marwes it came from |
 
@@ -117,3 +117,47 @@ penpair marwes tokens push --apply                # bring Penpot along; it reads
 Everything Marwes resolves for a theme becomes a token: colours, density sizes, the two radii, the three font families and the typography styles, plus the spacing scale. A variable that is not (today: `--mw-density-spacing-multiplier`, a multiplier) is listed in the snapshot's `unmapped` field and in `snapshot` output, so the gap is visible and a change to it is noticed.
 
 Not covered yet: Marwes **components** in Penpot. Tokens come first; components are built as pages need them.
+
+## Project-owned extra sets and snapshot migration
+
+Declare extra sets under `marwes.extras` in `penpair.config.json`. They join the generated expectation and participate in snapshot/check/diff/push. Each extra is appended after the mode overlays in both themes, in declaration order:
+
+```json
+"extras": [{
+  "name": "Acme · Page",
+  "tokens": [{ "name": "page-card-radius", "type": "borderRadius", "value": "{mw-ui-radius} * 2", "description": "Project card radius" }]
+}]
+```
+
+These are project declarations, including their formulas; they are not inferred component measurements. C1 owns evidence for component-derived constants. Invalid types, duplicate set/token names and collisions with generated sets refuse the expectation. Up to 50 extra sets and 10000 extra tokens are accepted. Values are strings or composite objects with string-valued fields.
+
+New snapshots use `schemaVersion: 2` and an explicit `ownership` map: generated sets are `adapter`, extras are `project`. Version-1 snapshots remain readable for review; run `penpair marwes tokens snapshot --write`, review the ownership change and commit the regenerated file. Unknown versions or malformed version-2 ownership refuse loading. Hashes now include ownership. Writes publish atomically within the project path.
+
+An existing live catalog can still place a set in a different global precedence order. Theme membership alone does not establish resolution; the per-theme resolution work in C3 must check this independently. Ownership is reconciled against the last verified sync, as described below.
+
+For one-off edits, the neutral core supplies [guarded token editing](token-editing.md). When a token belongs in the reproducible project expectation, declare it here before updating the snapshot; a live-only edit does not update config.
+
+## Reconciliation, ownership and destructive plans
+
+A successful verified `push --apply` records a schema-1, file-bound ancestor in ignored private `.penpair/token-sync/` evidence (mode 600). Subsequent pushes compare each managed token property against that ancestor, the committed desired snapshot and the live value. Upstream-only changes may proceed. Designer-only changes, conflicting changes and differing existing values without an ancestor stop with exit 2. Convergent changes need no conflict decision. Renames are reported as removal plus addition; no identity is guessed from similar values.
+
+Inspect the report before choosing:
+
+- `push --adopt design/adoption.json` exclusively creates a local review proposal (exit 3), preserving the live file and ancestor. Review its typed live values, put intentional overrides in project themes/extras, regenerate and commit the snapshot, then push. Adoption is not silently written into generated upstream tokens. The proposal refuses replacement and known credential-bearing evidence.
+- `push --overwrite` shows the overwrite plan; `push --overwrite --apply` explicitly permits the reported designer/untracked/conflicting values to be replaced. This permission never bypasses destructive dependency checks.
+
+New checkouts lack local ancestry: matching live values can be recorded with an unchanged `push --apply`; differing existing values require a decision. The hash detects accidental ancestor changes; this is local evidence, not authentication or shared team authorization. Concurrent ancestor publication uses a local exclusive lock and refuses an unexpected newer ancestor. An interrupted `.lock` needs inspection before manual removal; stale evidence is never silently discarded.
+
+`--prune` removes only retired tokens present in the verified ancestor, inside currently declared managed sets. It preserves unowned hand additions, unmanaged sets and their theme membership. Retired whole sets are reported and preserved; their names alone never establish ownership. Prune and type replacement refuse retained cross-set formula references and bound shapes. Dependencies are checked again inside each destructive mutation. This is conservative even if another set supplies the same name, or another planned action would later remove a dependent. Change declarations/dependencies in a separate reviewed step.
+
+Each apply still checks file/source identity, original journal inputs and structure. A failed or uncertain push does not advance the ancestor. Per-theme actual resolution and global set precedence require the separate mode trial; membership and ownership do not establish those values.
+
+## Actual resolution and mode review
+
+`diff --resolved [--apply]` measures actual token resolution in each isolated declared theme, with full original selection restoration. `verify-modes FRAME_ID --page PAGE --out DIR [--apply]` adds stable per-mode images. See [mode verification, recovery and limits](mode-verification.md).
+
+## Adapter recipe source
+
+After `--include @kit`, opt into `--include @marwes-kit` for card, segmented, progress, icon-tile and stat-tile recipes. Project radius constants and progress sizing height remain explicit inputs; these recipes do not claim measured native-component parity. See [the build kit](build-kit.md).
+
+Component anatomy is a separate [measured three-component pilot](marwes-components.md); token sync does not establish component parity.

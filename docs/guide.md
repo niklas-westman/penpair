@@ -1,6 +1,16 @@
-# Guide (skeleton)
+# Guide
 
-The contract an adopting project works through. It grows with the code; each section ends in a checklist like Reflection's provider guide.
+For this unreleased improvement branch, start with the [review guide](branch-review.md). Choose a tested workflow below, then use the extension and command references for the selected work. Live checks are identified separately.
+
+## Documentation map
+
+| Path | Documents |
+| --- | --- |
+| First run / shared file | [Getting started](getting-started.md), [team](team.md), [trial runbook](trials.md) |
+| Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
+| Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
+| Integration | [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md), [upstream draft](upstream/marwes-requests.md) |
+| Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 
 ## Extension points
 | Point | A project supplies | First implementations |
@@ -11,13 +21,27 @@ The contract an adopting project works through. It grows with the code; each sec
 | Verification provider | what "matches the design" means | `penpair baselines` (images and Reflection cases, below), a page-verify gate |
 | Skill pack | rules the agent follows | the Penpot skill, design judgment |
 
-## Sections to write
-- Starting from an empty machine
-- Instances (written, below): one per project, ports, volumes, secrets, backup and restore
-- The write protocol
-- Writing a snippet
-- Writing a library adapter
-- What breaks when Penpot is upgraded
+## Live documentation checks still pending
+
+- Follow the first-run guide on a clean machine with real participants.
+- Capture owner-reviewed screenshots of actual browser steps and a hosted large-file run.
+- Record the [human trial findings](trials.md) rather than treating offline fixtures as usability evidence.
+
+## Configuration checks and standalone inspection
+
+`penpair config check` validates `penpair.config.json` offline before loading any adapter or project snippet. `--json` returns the version-1 command envelope with `data: { "valid": true, "file": "penpair.config.json" }`, or data containing `valid: false` with an error code and message (exit 1). Missing, unreadable, malformed JSON and invalid core settings are reported separately. Adapter-owned blocks are preserved; each adapter validates its own settings when used.
+
+Print the editor schema with `penpair config schema > penpair.schema.json`, then add `"$schema": "./penpair.schema.json"` to your config. The schema command works even while the project config is broken and executes no project extensions. It is also exported as `projectConfigSchema` from the library. `config check` additionally checks semantic constraints such as distinct ports and unique baseline IDs.
+
+An existing invalid config stops project commands before endpoint discovery or extension imports. Fix the named field or file permissions and rerun `config check`; `--any-instance` cannot bypass invalid configuration. Setup and init create a config only when it is genuinely absent, never when an existing file is unreadable or invalid.
+
+For inspection from a folder with **no** config, explicitly use `--standalone`, for example `penpair pages --standalone`. Supported commands: `pages`, `tree`, `inspect`, `audit`, `tokens dump`, `export`, and the ordinary read-only `probe`. Endpoint resolution then uses the usual environment, `.env.local`, or agent configuration, so check the endpoint source in the probe. Export may save a local image, and page-scoped reads may switch the editor page. Standalone mode cannot bypass an existing config, run registered snippets, or perform document writes (including `probe --deep --write`). Write commands require a project configured with `penpair setup` or `penpair init`.
+
+## Connected-file protection
+
+Add `"file": { "id": "<file-id>", "name": "Shared design" }` to `penpair.config.json`, or run `penpair connect --pin-file` to record the connected file after checking its name and ID. Setup/connect offer to pin an unconfigured file; only a positive answer writes the pin. Existing pins are never replaced by reconnecting to another file. Commit the pin; colleagues keep their own MCP keys.
+
+Every delivered execution checks the pinned ID inside the editor. Writes, deep probes, adapter calls and file-specific exports/baselines refuse a mismatch, even if the file changed after inspection or between batches. Basic `pages`, `tree`, `audit`, token reads and ordinary probes warn and identify the actual file. Older configs remain usable with an unpinned warning. `--any-file` explicitly overrides the file guard for one command; it does not override the instance guard. Doctor reports expected/actual identity, including under `--json`. Names may change; the file ID is the authority.
 
 ## Instances
 One Penpot per project, configured in `penpair.config.json` (no secrets, commit it):
@@ -44,6 +68,20 @@ Things to know:
 - The frontend answers a few seconds before the backend; `up` and `doctor` look at `/readyz`.
 - `doctor` compares the MCP key's port with the instance's, because a key for another instance silently drives the wrong file.
 - Penpot's accounts come from the first registration in the browser; the MCP key is made in Account, Integrations, MCP Server and goes in `.env.local` as `PENPAIR_MCP_URL`.
+
+Native capability presence appears in `penpair probe`; `penpair probe --integrity` optionally checks file referential integrity without changing the document. Unsupported integrity checks are explicit, not successful validation. See [native API compatibility](compatibility.md#capability-driven-native-apis).
+
+## Retry safety and uncertain writes
+
+Penpair retries suspended executions only when explicitly classified as reads. Writes and unclassified scripts are delivered once, even if a caller requests retries. A lost response, timeout, suspended-tab failure or failed mutating snippet reports `write-uncertain` with a run ID. Inspect the intended file independently and reconcile existing objects before explicitly running another write. Run IDs identify executions; they do not provide transactions, deduplication or rollback.
+
+Library callers pass `effect: "read"` only for code they trust to be read-only. Registered read snippets and built-in reads carry that classification. Operation inspect/readback phases are reads and apply is a write; adapter mutations and deep probes use the same policy. Successful snippet reports include `execution.runId` and `outcome: "ran"`; this means a result was received, while operation verification remains a separate step.
+
+## Verified operations
+
+A received result (`execution.outcome: "ran"`) is an acknowledgment, not verification. An operation reports `outcome: inspected`, `verified`, or `failed`; an ambiguous apply throws `write-uncertain`. Inspect/apply require explicit `ok: true`. Readback must supply real observations; empty objects, primitives and `problems: []` alone do not verify a write. Failed independent verification retains inspect/apply/readback evidence in the report and causes CLI writes to exit nonzero.
+
+For registered writes, supply an explicit `verify({ inspect, apply, readback })` returning a list of problems, or return `verification: { expected: { count: 2 }, actual: { count: measuredCount } }` from readback. Both observations must be nonempty objects; the default verifier compares them structurally. Read `actual` from the real file independently. Code that copies its expected values into actual is not independent evidence. The verifier and read declarations remain trusted project code. Structural verification, visual review and owner approval are separate steps.
 
 ## Baselines for a check
 
@@ -91,3 +129,39 @@ export default defineReflection({
 `baselineRoot` in the generated cases is relative to the Reflection config's folder, so keep the two in the same project root. The same images work with any other image comparison; the Reflection cases are one output of the manifest.
 
 The percentage a comparison reports is not a verdict: a correct implementation differs from a Penpot render by about 1 to 2% on text alone, so read the diff image.
+
+Interrupted write recovery, run inspection and optional checkpoints: [recovery guide](recovery.md).
+
+Baseline schema 2 keeps current capture and original approval provenance separate, publishes immutable image generations, and requires a complete capture. See [artifact publication](artifacts.md) for paths, migration and interruption behavior.
+
+For scripts and tools, use the versioned [command result contract](command-contract.md): command-specific JSON now lives under `data`, progress uses stderr, and incomplete/uncertain/cancelled outcomes have explicit exit codes.
+
+Adapters, snippet definitions and theme files execute trusted project code. Built-in help/inspection avoid adapter imports; use `snippets --builtins-only` for the shipped registry. See [extension trust boundaries](extensions-trust.md).
+
+Use `skills install --agents AGENTS.md --dry-run` to preview owned-marker instruction integration, then repeat without dry-run. Default destination selection and conflicting instruction files are explained in [skill installation](skill-installation.md).
+
+Use `export --name <exact-name> --page <page> <out.png>` when a rebuild changed IDs, or `shots --page <page> --prefix <prefix>` for ad-hoc captures without baseline approval. See [named exports and shots](shots.md).
+
+Normal operations and captures now use [bounded layout settling](layout-settling.md). Layout evidence, independent postcondition checks, stable renders and visual approval remain distinct.
+
+## Complete inspection
+
+Use `inspect <shape-id> --page <name> --all` for bounded structured evidence with full text and typed properties. `tree` and audit examples remain previews. See [inspection formats, budgets and migration](inspection.md) before consuming captures or cursors.
+
+## Token editing
+
+`tokens add-set`, `set`, `remove` and `promote` inspect first and require `--apply` for guarded writes. See [semantics, bounds and recovery](token-editing.md).
+
+## Plugin bodies from files
+
+`run-file script.js --include helpers.js --param key=value --page Candidate` runs trusted declared reads. Reviewed write files require explicit inspection/readback files, idempotency declarations and `--apply`. See [script contracts, examples and recovery](run-file.md).
+
+## Build helpers and recipes
+
+`run-file --include @kit` adds neutral token-aware helpers; configured adapters can supply explicit additional aliases. `kit check` compiles selected kits offline and `recipes` lists their metadata. See [build kit, recipes and scratch probe](build-kit.md).
+
+## State, theme and responsive coverage
+
+Add explicit `frames[].case` metadata and a required matrix under `baselines.coverage`. `baselines coverage --json` validates approved images offline and exposes missing/unsupported slots. Rich cases remain pending browser setup mappings; see [coverage semantics and approval](coverage.md).
+
+For project-specific agent tools, use the [explicit-root stdio server and client examples](mcp.md). It exposes typed guarded services and defaults to omitting design-write tools.

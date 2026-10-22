@@ -1,9 +1,19 @@
-import { readFile } from "node:fs/promises";
+import { validateCredentialReference, type CredentialReference } from "../credentials.js";
+import { validateAuditRules, type AuditRules } from "../audit-rules.js";
+import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { validateBaselines, type BaselinesConfig } from "../baselines-config.js";
 
 /** What a project keeps in `penpair.config.json`: no secrets, so it can be committed. */
+export interface ProjectFile { id: string; name?: string }
+export interface BackupReminder { noteFile: string; remindAfterDays: number }
+
 export interface InstanceConfig {
+  schemaVersion?: 1;
+  audit?: AuditRules;
+  connection?: { credential: CredentialReference };
+  file?: ProjectFile;
+  backup?: BackupReminder;
   /** Short name; it becomes part of the compose project, so containers and volumes of two instances never collide. */
   instance: string;
   /** Pinned Penpot image version. Run the smoke test before changing it. */
@@ -23,6 +33,11 @@ export interface InstanceConfig {
 
 /** A project that uses a Penpot someone else runs (a team server or the hosted service): no Docker here, only the connection. */
 export interface ExternalConfig {
+  schemaVersion?: 1;
+  audit?: AuditRules;
+  connection?: { credential: CredentialReference };
+  file?: ProjectFile;
+  backup?: BackupReminder;
   instance: string;
   profile: { type: "external"; origin: string };
   snippets?: string[];
@@ -37,18 +52,33 @@ export const isExternal = (config: ProjectConfig): config is ExternalConfig => "
 export const configFileName = "penpair.config.json";
 export const testedPenpotVersion = "2.18.3";
 
-export class ConfigError extends Error {}
+export class ConfigError extends Error {
+  constructor(message: string, readonly code: "missing" | "unreadable" | "invalid-json" | "invalid-config" = "invalid-config") {
+    super(message);
+  }
+}
 
 export function composeProjectOf(config: InstanceConfig): string {
   return config.composeProject ?? `penpair-${config.instance}`;
 }
 
+function validateSchemaVersion(value: unknown): void {
+ if (value && typeof value === "object" && "schemaVersion" in value && value.schemaVersion !== 1) throw new ConfigError("Unsupported project config schemaVersion; legacy/unversioned and v1 are supported. Use the producer's documented migration for another major version.");
+}
 export function validateConfig(value: unknown): InstanceConfig {
+  validateSchemaVersion(value);
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };
-  if (typeof value !== "object" || value === null) return fail("must be a JSON object");
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return fail("must be a JSON object");
   const v = value as Record<string, unknown>;
+  validateFile(v.file);
+  validateBackup(v.backup);
+  if (v.connection !== undefined) {
+    if (!v.connection || typeof v.connection !== "object" || Array.isArray(v.connection) || Object.keys(v.connection).some(k => k !== "credential")) throw new ConfigError("connection requires only a credential reference");
+    try { validateCredentialReference((v.connection as {credential?:unknown}).credential); } catch (error) { throw new ConfigError(String((error as Error).message)); }
+  }
+  if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance))
     fail("instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)");
   if (typeof v.penpotVersion !== "string" || !/^\d+\.\d+(\.\d+)?$/.test(v.penpotVersion)) fail("penpotVersion must look like 2.18.3");
@@ -73,9 +103,19 @@ const instanceNamePattern = /^[a-z][a-z0-9-]{0,30}$/;
 
 /** Accepts either kind of project config: a local Docker instance or an external Penpot. */
 export function validateProjectConfig(value: unknown): ProjectConfig {
+  validateSchemaVersion(value);
   const profile = typeof value === "object" && value !== null ? (value as { profile?: { type?: unknown } }).profile : undefined;
-  if (profile?.type !== "external") return validateConfig(value);
+  if (profile === undefined) return validateConfig(value);
+  if (typeof profile !== "object" || profile === null || Array.isArray(profile) || profile.type !== "external")
+    throw new ConfigError(`${configFileName}: profile.type must be external; omit profile for an instance on this computer`);
   const v = value as Record<string, unknown>;
+  validateFile(v.file);
+  validateBackup(v.backup);
+  if (v.connection !== undefined) {
+    if (!v.connection || typeof v.connection !== "object" || Array.isArray(v.connection) || Object.keys(v.connection).some(k => k !== "credential")) throw new ConfigError("connection requires only a credential reference");
+    try { validateCredentialReference((v.connection as {credential?:unknown}).credential); } catch (error) { throw new ConfigError(String((error as Error).message)); }
+  }
+  if (v.audit !== undefined) { try { validateAuditRules(v.audit); } catch (error) { throw new ConfigError(String((error as Error).message)); } }
   const fail = (message: string): never => {
     throw new ConfigError(`${configFileName}: ${message}`);
   };
@@ -94,6 +134,20 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
   return v as unknown as ExternalConfig;
 }
 
+function validateFile(value: unknown): void {
+  if (value === undefined) return;
+  const file = value as ProjectFile;
+  if (typeof file !== "object" || file === null || Array.isArray(file) || typeof file.id !== "string" || !file.id.trim() || (file.name !== undefined && typeof file.name !== "string"))
+    throw new ConfigError(`${configFileName}: file must have a nonempty id and an optional name`);
+}
+
+function validateBackup(value: unknown): void {
+  if (value === undefined) return;
+  const backup = value as BackupReminder;
+  if (!backup || typeof backup !== "object" || Array.isArray(backup) || typeof backup.noteFile !== "string" || !backup.noteFile || path.isAbsolute(backup.noteFile) || backup.noteFile.split(/[\\/]/).includes("..") || !Number.isSafeInteger(backup.remindAfterDays) || backup.remindAfterDays <= 0)
+    throw new ConfigError(`${configFileName}: backup needs an in-project relative noteFile and positive integer remindAfterDays`);
+}
+
 /** The config of a project that runs its own Penpot; anything else cannot start, stop or back up containers. */
 export function requireLocal(config: ProjectConfig): InstanceConfig {
   if (isExternal(config))
@@ -101,19 +155,41 @@ export function requireLocal(config: ProjectConfig): InstanceConfig {
   return config;
 }
 
-export async function loadConfig(root: string): Promise<ProjectConfig> {
+/** Missing is optional; unreadable, malformed or invalid project files always stop the caller. */
+export async function readProjectConfig(root: string): Promise<Record<string, unknown> | undefined> {
   let text: string;
   try {
     text = await readFile(path.join(root, configFileName), "utf8");
-  } catch {
-    throw new ConfigError(`No ${configFileName} here. Run \`penpair init\` first.`);
-  }
-  try {
-    return validateProjectConfig(JSON.parse(text));
   } catch (error) {
-    if (error instanceof ConfigError) throw error;
-    throw new ConfigError(`${configFileName} is not valid JSON`);
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      try {
+        await lstat(path.join(root, configFileName));
+      } catch (statError) {
+        if ((statError as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      }
+    }
+    throw new ConfigError(`Cannot read ${configFileName}${code ? ` (${code})` : ""}. Check that it is a readable file and fix its permissions.`, "unreadable");
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new ConfigError(`${configFileName} is not valid JSON. Fix its JSON syntax, then run \`penpair config check\`.`, "invalid-json");
+  }
+  validateProjectConfig(parsed);
+  return parsed as Record<string, unknown>;
+}
+
+export async function loadOptionalConfig(root: string): Promise<ProjectConfig | undefined> {
+  const raw = await readProjectConfig(root);
+  return raw === undefined ? undefined : validateProjectConfig(raw);
+}
+
+export async function loadConfig(root: string): Promise<ProjectConfig> {
+  const config = await loadOptionalConfig(root);
+  if (config === undefined) throw new ConfigError(`No ${configFileName} here. Run \`penpair init\` first. For config-free inspection, use a read command with --standalone.`, "missing");
+  return config;
 }
 
 export const instancePaths = (root: string, config: InstanceConfig) => {

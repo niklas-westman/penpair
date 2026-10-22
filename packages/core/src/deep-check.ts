@@ -95,19 +95,22 @@ export interface DeepOptions extends ExecuteOptions {
 
 export async function runDeepCheck(client: PenpotToolClient, options: DeepOptions = {}): Promise<DeepReport> {
   const tag = `penpair-deep-${randomBytes(3).toString("hex")}`;
-  const first = (await executeCode(client, wrap(deepCheckBody, { tag }), options)).result as { ok?: boolean; message?: string; steps?: DeepStep[]; cleanup?: string[]; penpotVersion?: string };
+  const first = (await executeCode(client, wrap(deepCheckBody, { tag }), { ...options, effect: "write" })).result as { ok?: boolean; message?: string; steps?: DeepStep[]; cleanup?: string[]; penpotVersion?: string };
   if (first.ok === false) throw new Error(`the deep check could not run: ${first.message ?? "unknown error"}`);
   await new Promise((resolve) => setTimeout(resolve, options.settleMs ?? 3_000));
-  const second = (await executeCode(client, wrap(deepLeftoversBody, { tag }), options)).result as { left?: string[] };
-  const steps = first.steps ?? [];
-  const leftovers = second.left ?? [];
+  const second = (await executeCode(client, wrap(deepLeftoversBody, { tag }), { ...options, effect: "read" })).result as { ok?: boolean; left?: string[] };
+  const steps = Array.isArray(first.steps) ? [...first.steps] : [];
+  const required = ["create board", "flex layout and children", "text content", "token set, token and binding", "component and swap", "clone", "export png"];
+  const complete = required.every((name) => steps.some((step) => step.step === name && step.ok === true));
+  if (!complete) steps.push({ step: "complete evidence", ok: false, ms: 0, detail: "Required deep-check observations are missing or failed" });
+  const leftovers = Array.isArray(second.left) ? second.left : ["cleanup readback was missing; inspect the scratch file"];
   return {
     tag,
     ...(first.penpotVersion ? { penpotVersion: first.penpotVersion } : {}),
     steps,
     cleanup: first.cleanup ?? [],
     leftovers,
-    ok: steps.every((s) => s.ok) && leftovers.length === 0,
+    ok: first.ok === true && second.ok === true && complete && steps.every((s) => s.ok === true) && leftovers.length === 0,
   };
 }
 

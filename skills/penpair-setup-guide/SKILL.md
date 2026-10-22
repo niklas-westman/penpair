@@ -138,7 +138,7 @@ It ends with "Connected to the file …" and the file's pages. If it says it did
 
 ### 7. Verify
 
-Run `npx penpair doctor --json` and read the `ok` field and each check (the exit code is non-zero while anything fails). Done when `ok` is `true` and the `editor and plugin` check says connected. Then run `npx penpair pages` and read the page names back to them: proof that you can see their file.
+Run `npx penpair doctor --json` and read `data.ok` and each `data.checks` entry (the exit code is non-zero while anything fails). Done when `data.ok` is `true` and the `editor and plugin` check says connected. Then run `npx penpair pages` and read the page names back to them: proof that you can see their file.
 
 A failing check carries a `remedy`; say it in plain words and let them act. The usual ones: Docker not running (start Docker Desktop), containers not running (`npx penpair up`), the key belongs to another Penpot (`npx penpair connect --replace` with this Penpot's link), plugin not connected or the tab is asleep (redo step 5.2 and 5.3).
 

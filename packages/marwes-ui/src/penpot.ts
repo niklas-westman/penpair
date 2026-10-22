@@ -1,5 +1,7 @@
-import { runSnippet, snippet, type PenpotToolClient, type Snippet } from "@penpair/core";
+import { assertSafeDestruction } from "./ownership.js";
+import { waitForStableLayout, type LayoutOptions, type LayoutResult, guardRevision, writeCoordinator, runSnippet, snippet, guardFile, observationHash, readJournal, readJournalTarget, runJournaledSteps, type JournalOptions, type JournalStep, type PenpotToolClient, type Snippet } from "@penpair/core";
 import { canonical, normalizeValue, type PenpotToken, type PenpotTokenSet, type TokenSnapshot } from "./tokens.js";
+import { actionSatisfied, reconcileAction, remainingAction } from "./reconciliation.js";
 
 /** What the Penpot file holds today. */
 export interface LiveTokens {
@@ -21,9 +23,10 @@ return { ok: true, readOnly: true, sets: tokens.sets.map(set),
 export function bindingCounts(): Snippet {
   return snippet(
     "marwes-tokens-bindings",
-    `const counts = {}; let shapes = 0;
-const visit = (s) => { shapes++; const b = s.tokens; if (b && typeof b === "object") for (const key of Object.keys(b)) { const name = b[key]; if (typeof name === "string") counts[name] = (counts[name] || 0) + 1; } (s.children || []).forEach(visit); };
-for (const page of penpot.currentFile.pages) (page.root.children || []).forEach(visit);
+    `const counts = Object.create(null); let shapes = 0;
+const stack=[],seen=new Set();
+for(const page of penpot.currentFile.pages)for(const shape of page.root.children||[])stack.push(shape);
+while(stack.length){if(++shapes>50000)throw new Error("Binding inventory exceeds 50000 shapes");const s=stack.pop();if(!s.id||seen.has(s.id))throw new Error("Invalid binding inventory identity");seen.add(s.id);const b=s.tokens||{};for(const name of Object.values(b)){if(typeof name!=="string")throw new Error("Unknown token binding");counts[name]=(counts[name]||0)+1;}for(const child of s.children||[])stack.push(child);}
 return { ok: true, readOnly: true, shapes, counts };`,
   );
 }
@@ -74,7 +77,7 @@ const display = (type: string, value: unknown): string => {
 };
 
 /** Compares the committed expectation with what the file holds. Only the sets the expectation names are judged; other sets are the project's own. */
-export function compareToPenpot(expected: TokenSnapshot, live: LiveTokens): Drift {
+export function compareToPenpot(expected: TokenSnapshot, live: LiveTokens, options: { ancestor?: TokenSnapshot } = {}): Drift {
   const sets: SetDrift[] = [];
   for (const wanted of expected.sets) {
     const found = live.sets.find((s) => s.name === wanted.name);
@@ -103,13 +106,14 @@ export function compareToPenpot(expected: TokenSnapshot, live: LiveTokens): Drif
       continue;
     }
     const missingSets = wanted.sets.filter((s) => !found.sets.includes(s));
-    const extraSets = found.sets.filter((s) => !wanted.sets.includes(s));
+    const owned = new Set([...expected.sets, ...(options.ancestor?.sets ?? [])].map(set => set.name));
+    const extraSets = found.sets.filter((s) => !wanted.sets.includes(s) && owned.has(s));
     if (missingSets.length || extraSets.length) themes.push({ theme: `${wanted.group}/${wanted.name}`, missingSets, extraSets });
   }
   const managed = new Set(expected.sets.map((s) => s.name));
-  const looksManaged = (name: string): boolean => name.startsWith("Marwes · ") || name === `${expected.project} · Light` || name === `${expected.project} · Dark`;
-  const unexpectedSets = live.sets.map((s) => s.name).filter((name) => looksManaged(name) && !managed.has(name));
-  return { inSync: sets.length === 0 && themes.length === 0 && unexpectedSets.length === 0, sets, themes, unexpectedSets };
+  const unexpectedSets = live.sets.map(set => set.name).filter(name => options.ancestor?.sets.some(set => set.name === name) && !managed.has(name));
+  const actionable = sets.some(set => set.missing || set.tokens.some(token => token.kind !== "extra" || options.ancestor?.sets.find(old => old.name === set.set)?.tokens.some(old => old.name === token.name)));
+  return { inSync: !actionable && themes.length === 0, sets, themes, unexpectedSets };
 }
 
 export function formatDrift(drift: Drift, impact?: Record<string, number>, limit = 6): string[] {
@@ -151,11 +155,13 @@ export type Action =
 export interface PlanOptions {
   /** Also remove what Penpot has but the expectation does not (tokens added by hand, sets no longer expected, extra sets in a theme). */
   prune?: boolean;
+  /** Only tokens in a verified ancestor can be pruned. */
+  ancestor?: TokenSnapshot;
 }
 
 /** The writes that bring the file to the expectation. Nothing in a set the expectation does not name is ever touched. */
 export function planPush(expected: TokenSnapshot, live: LiveTokens, options: PlanOptions = {}): Action[] {
-  const drift = compareToPenpot(expected, live);
+  const drift = compareToPenpot(expected, live, options);
   const actions: Action[] = [];
   const wantedSet = new Map(expected.sets.map((s) => [s.name, s]));
   for (const s of drift.sets) {
@@ -175,7 +181,8 @@ export function planPush(expected: TokenSnapshot, live: LiveTokens, options: Pla
     if (update.length) actions.push({ kind: "updateTokens", set: s.set, tokens: update });
     if (replace.length) actions.push({ kind: "replaceTokens", set: s.set, tokens: replace });
     const extra = s.tokens.filter((t) => t.kind === "extra").map((t) => t.name);
-    if (options.prune && extra.length) actions.push({ kind: "removeTokens", set: s.set, names: extra });
+    const ownedExtra = extra.filter(name => options.ancestor?.sets.find(old => old.name === s.set)?.tokens.some(token => token.name === name));
+    if (options.prune && ownedExtra.length) actions.push({ kind: "removeTokens", set: s.set, names: ownedExtra });
   }
   const createdThemes = new Set<string>();
   for (const t of drift.themes) {
@@ -291,6 +298,10 @@ return { ok: true, active: !!theme[0].active };`, { group: action.group, name: a
 }
 
 export interface ApplyReport {
+  redacted?: boolean;
+  complete?: boolean;
+  layout?: LayoutResult;
+  journal?: { runId: string; state: string };
   steps: string[];
   structureBefore: { count: number; hash: string };
   structureAfter: { count: number; hash: string };
@@ -315,40 +326,119 @@ const describeAction = (action: Action, count?: number): string => {
 export const describePlan = (actions: Action[]): string[] => actions.map((a) => describeAction(a));
 
 export async function readLive(client: PenpotToolClient): Promise<LiveTokens> {
-  const record = await runSnippet(client, readTokens());
-  return { sets: record.sets as LiveTokens["sets"], themes: record.themes as LiveTokens["themes"] };
+  const record = await runSnippet(client, readTokens(), { effect: "read" });
+  if (record.ok !== true || !Array.isArray(record.sets) || !Array.isArray(record.themes))
+    throw new Error("Token readback did not provide explicit sets and themes; synchronization is not verified");
+  const sets = record.sets as LiveTokens["sets"], themes = record.themes as LiveTokens["themes"];
+  const setNames = new Set<string>(); let count = 0;
+  for (const set of sets) {
+    if (typeof set.name !== "string" || setNames.has(set.name) || !Array.isArray(set.tokens)) throw new Error("Invalid or ambiguous token set observation");
+    setNames.add(set.name); const names = new Set<string>();
+    for (const token of set.tokens) {
+      if (++count > 50000 || typeof token.name !== "string" || names.has(token.name) || typeof token.type !== "string" || token.value === undefined || typeof token.description !== "string") throw new Error("Incomplete, ambiguous or over-budget token observation");
+      names.add(token.name);
+    }
+  }
+  const themeNames = new Set<string>();
+  for (const theme of themes) {
+    const key = JSON.stringify([theme.group, theme.name]);
+    if (typeof theme.group !== "string" || typeof theme.name !== "string" || themeNames.has(key) || !Array.isArray(theme.sets) || theme.sets.some(name => typeof name !== "string" || !setNames.has(name)) || new Set(theme.sets).size !== theme.sets.length) throw new Error("Invalid theme membership observation");
+    themeNames.add(key);
+  }
+  return { sets, themes };
 }
 
 /**
  * Carries out the plan one write at a time, stopping at the first anomaly, then reads everything back: the file must now match the
  * expectation, and no shape may have moved or been rebound.
  */
-export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void): Promise<ApplyReport> {
+export async function applyPlan(client: PenpotToolClient, expected: TokenSnapshot, actions: Action[], onStep?: (message: string) => void, options: { layout?: false | LayoutOptions; expectedFileId?: string; ancestor?: TokenSnapshot; prune?: boolean; expectedLive?: LiveTokens; journal?: Omit<JournalOptions, "input" | "operation" | "payload" | "target"> } = {}): Promise<ApplyReport> {
+  if (options.expectedFileId) client = guardFile(client, { id: options.expectedFileId });
+  if (options.journal) client = guardFile(client, { id: (await readJournalTarget(client)).fileId });
+  let layout: LayoutResult | undefined;
+  const settle = async () => {
+    if (options.layout === false) return;
+    layout = await waitForStableLayout(client, options.layout);
+    if (!layout.stable) throw new Error(`Layout did not settle during token verification: ${layout.reason ?? "unknown reason"}`);
+  };
+  await settle();
   const fingerprint = async (): Promise<{ count: number; hash: string }> => {
-    const r = await runSnippet(client, structureFingerprint());
+    const r = await runSnippet(client, structureFingerprint(), { effect: "read" });
+    if (r.ok !== true || !Number.isInteger(r.count) || Number(r.count) < 0 || typeof r.hash !== "string" || !r.hash)
+      throw new Error("Structure readback did not provide a count and hash; nothing can be verified");
     return { count: Number(r.count), hash: String(r.hash) };
   };
   const structureBefore = await fingerprint();
+  const initialLive = await readLive(client);
+  for (const action of actions) if (action.kind === "removeTokens" && action.names.some(name => !options.ancestor?.sets.find(set => set.name === action.set)?.tokens.some(token => token.name === name))) throw new Error("Prune refuses tokens absent from the verified ownership ancestor");
+  assertSafeDestruction(actions, initialLive, await impactOf(client));
+
+  if (options.journal) {
+    const target = await readJournalTarget(client);
+    const guarded = guardFile(client, { id: target.fileId });
+    let originalStructure = structureBefore;
+    if (options.journal.resume) {
+      if (!options.journal.runId) throw new Error("Resume requires a run ID");
+      const prior = await readJournal(options.journal.root, options.journal.runId);
+      const payload = prior.payload as { actions?: Action[]; structure?: typeof structureBefore } | undefined;
+      if (!payload || !Array.isArray(payload.actions) || !payload.structure || typeof payload.structure.hash !== "string") throw new Error("Token journal has no original action/structure plan");
+      actions = payload.actions;
+      originalStructure = payload.structure;
+    }
+    if (structureBefore.hash !== originalStructure.hash) throw new Error("Shapes changed since the token run began; reconcile the design before resuming");
+    const baseline = { live: await readLive(guarded), structure: structureBefore };
+    if (!options.journal.resume && options.expectedLive && observationHash(options.expectedLive) !== observationHash(baseline.live)) throw new Error("Token source changed since the CLI plan; inspect again before writing");
+    const work = actions.flatMap<Action>((action) => "tokens" in action ? inBatches(action.tokens).map((tokens) => ({ ...action, tokens })) : [action]);
+    const record = await runJournaledSteps(work.map<JournalStep<typeof baseline>>((action, index) => ({
+      key: `step-${index}-${observationHash(action).slice(0, 12)}`, label: describeAction(action), signature: [actionSnippet(action, "tokens" in action ? action.tokens : undefined).code, actionSatisfied.toString(), reconcileAction.toString(), remainingAction.toString(), waitForStableLayout.toString()].join("\n"),
+      initial: baseline,
+      inspect: async () => { await settle(); return { live: await readLive(guarded), structure: await fingerprint() }; },
+      apply: async (current, target) => {
+        const residual = remainingAction(action, current.live);
+        if (!residual) return { ok: true, reconciled: true };
+        const mutation = actionSnippet(residual, "tokens" in residual ? residual.tokens : undefined);
+        const sourceGuard = `${destructionGuard(residual)}\n{ const observed = await (async () => { ${readTokens().code} })();
+if (JSON.stringify({sets:observed.sets, themes:observed.themes}) !== ${JSON.stringify(JSON.stringify(current.live))}) return {ok:false, message:"Token source changed before mutation"}; }\n`;
+        return runSnippet(guardRevision(guarded, target), { ...mutation, code: sourceGuard + mutation.code }, { effect: "write" });
+      },
+      verify: (current) => current.structure.hash === originalStructure.hash && actionSatisfied(action, current.live),
+      reconcile: (before, current) => current.structure.hash !== originalStructure.hash ? "conflict" : reconcileAction(action, before.live, current.live),
+    })), { ...options.journal, coordinate: writeCoordinator(guarded, { root: options.journal.root, operation: "tokens-push", forceLock: options.journal.forceLock, warn: onStep }), operation: "tokens-push", input: { snapshot: observationHash(expected), ancestor: options.ancestor ? observationHash(options.ancestor) : null, prune: options.prune === true, layout: options.layout ?? {} }, payload: { actions, structure: originalStructure }, target: () => readJournalTarget(guarded), onStep,
+      finalVerify: async () => { await settle(); return compareToPenpot(expected, await readLive(guarded), options).inSync && (await fingerprint()).hash === originalStructure.hash; },
+    });
+    await settle();
+    const structureAfter = await fingerprint();
+    const drift = compareToPenpot(expected, await readLive(guarded), options);
+    return { layout, steps: record.steps.map((step) => step.label), structureBefore: originalStructure, structureAfter, structureUnchanged: originalStructure.hash === structureAfter.hash, drift, ...(record.redacted ? { redacted: true, complete: false } : {}), verified: !record.redacted && drift.inSync && originalStructure.hash === structureAfter.hash, journal: { runId: record.runId, state: record.state } };
+  }
   const steps: string[] = [];
   for (const action of actions) {
     const work: (PenpotToken[] | undefined)[] = "tokens" in action ? inBatches(action.tokens) : [undefined];
     for (const batch of work) {
       const message = describeAction(action, batch?.length);
       onStep?.(message);
-      const result = await runSnippet(client, actionSnippet(action, batch));
+      const mutation = actionSnippet(action, batch);
+      const result = await runSnippet(client, { ...mutation, code: destructionGuard(action) + mutation.code }, { effect: "write" });
       const failed = (result.failed as string[] | undefined) ?? [];
       if (failed.length > 0) throw new Error(`${message}: ${failed.join(" | ")}. Nothing after this was written.`);
       steps.push(message);
     }
   }
+  await settle();
   const structureAfter = await fingerprint();
-  const drift = compareToPenpot(expected, await readLive(client));
-  return { steps, structureBefore, structureAfter, structureUnchanged: structureBefore.hash === structureAfter.hash, drift, verified: drift.inSync && structureBefore.hash === structureAfter.hash };
+  const drift = compareToPenpot(expected, await readLive(client), options);
+  return { layout, steps, structureBefore, structureAfter, structureUnchanged: structureBefore.hash === structureAfter.hash, drift, verified: drift.inSync && structureBefore.hash === structureAfter.hash };
+}
+
+function destructionGuard(action: Action): string {
+  if (action.kind !== "removeTokens" && action.kind !== "replaceTokens") return "";
+  return `{ const live=await(async()=>{${readTokens().code}})(); const bindings=await(async()=>{${bindingCounts().code}})();
+    (${assertSafeDestruction.toString()})([${JSON.stringify(action)}],live,bindings.counts); }\n`;
 }
 
 /** The use count of every token a drift would change, so a bump can be judged by what it reaches. */
 export async function impactOf(client: PenpotToolClient): Promise<Record<string, number>> {
-  const record = await runSnippet(client, bindingCounts());
+  const record = await runSnippet(client, bindingCounts(), { effect: "read" });
   return record.counts as Record<string, number>;
 }
 

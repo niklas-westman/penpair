@@ -23,7 +23,7 @@ You need a link to your team's Penpot and an account.
 That is all. The assistant looks first, changes things in one go, and checks its own work; you review the result in Penpot as usual.
 
 ## If you set it up
-You need: a Mac or Linux computer, **Node.js** (the current LTS version), a terminal, and an account on a Penpot (the hosted one at design.penpot.app is free to start; use your team's address if it runs its own).
+You need: a Mac or Linux computer, **Node.js** (22 or newer), a terminal, and an account on a Penpot (use design.penpot.app or your team's own address).
 
 **The quick way:** in your project's folder run `npx @penpair/web setup`. It asks where your Penpot is (press Enter for the web), does steps 1 to 5 below, and says in plain words what it is waiting for. Run it again if you stop halfway. The rest of this section is what it does, one step at a time, for when you want to do it by hand or something needs fixing.
 
@@ -43,6 +43,8 @@ Open the Penpot address, create an account and log in. Create a project and a de
 1. In Penpot open **Account, Integrations, MCP Server** and switch it on (not tried yet). Copy the address it shows; it contains your personal key, so treat it like a password. The key belongs to you, not to the team; each person who uses the assistant makes their own.
 2. In your project folder run `npx @penpair/web connect` and paste the address when asked. Nothing is shown as you paste. It saves the address in `.env.local` (readable only by you, and added to `.gitignore`) and refuses an address that belongs to a different Penpot. (By hand instead: put the line `PENPAIR_MCP_URL=<the address>` in `.env.local` and keep that file out of git.)
 3. Open your design file in Penpot, choose **File, MCP Server, Connect**, and keep that tab visible.
+
+After connecting, run `npx @penpair/web connect --pin-file` and check the displayed file name and ID. This records the intended file in `penpair.config.json`; commit it for teammates. A different open file now blocks writes and file-specific exports. Basic reads warn. If doctor reports a file mismatch, open the expected file and reconnect its plugin.
 
 ### 4. Check that it works
 ```
@@ -70,7 +72,9 @@ This copies the rules the assistant follows (how to work safely in Penpot, and h
 Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visible, and start working with the assistant.
 
 ### Your safety net
-`up`, `down`, `status`, `backup` and `restore` belong to the Docker alternative and do not apply here. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
+See the [hosted backup and scratch-restore guide](backup.md). `penpair backup file <new.penpot>` can try a bounded file export; it never replaces an existing archive and does not claim restore proof. Larger/failing exports use the manual UI route. Optional backup-note reminders are disabled unless configured.
+
+`up`, `down`, Docker `status`, instance `backup` and instance `restore` belong to the Docker alternative; `backup file` is the separate hosted-file export candidate described above. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
 
 ## What it will not do
 It needs the Penpot tab open and visible while the assistant works, so it cannot run on its own overnight. It changes one Penpot at a time and only the page you have open.
@@ -99,3 +103,7 @@ Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to 
 ## Still to make easier (see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md))
 - A short illustrated version with a screenshot of each browser step.
 - A shared Penpot for a team, so designers need no setup.
+
+## Rotate or move a personal key
+
+Follow [private credential storage and rotation](credentials.md). Use the provider UI and a private file/Keychain update, or the legacy hidden `connect --replace` prompt. Reconnect the intended editor and confirm the public file pin with doctor. The assistant should never receive either key value.

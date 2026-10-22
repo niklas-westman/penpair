@@ -1,0 +1,7 @@
+# Project status and file opening
+
+`penpair status --json` reports deployment reachability, configured file pin, actual connected identity/revision/pages, observed API capabilities, skill installation differences and baseline coverage for web or local profiles. Unknown/missing evidence remains visible and produces incomplete status; a reachable web page alone cannot make the project healthy. It does not run a write probe, install skills, activate themes or approve images.
+
+By default configured adapters are listed as uninspected. `status --adapters` explicitly loads trusted configured modules and their optional `defineAdapter({status: async context => lines})` hooks. Each line has `id`, `label`, `state` (`ok`, `warning`, `failed`, `unknown`) and `detail`. The token adapter contributes declaration freshness, explicitly separate from a live token comparison. Third-party hooks execute project code and should use the context output contract. Status never implies sandboxed imports or complete native/browser acceptance.
+
+`penpair open --print` returns the public URL derived from the configured origin and encoded owner-confirmed file ID. `penpair open` invokes the platform browser opener for that same URL. No MCP key enters it. If the deployment needs extra team context, use the owner's full editor link and confirm the ID in doctor. Browser launch success cannot prove that a login/file page rendered; inspect it normally. Tests use a stub opener, not a real browser session.

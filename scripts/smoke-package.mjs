@@ -34,9 +34,9 @@ const check = (ok, message) => {
   console.log(`ok  ${message}`);
 };
 
-for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/marwes-ui", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
+for (const directory of ["packages/core", "packages/web", "packages/docker", "packages/marwes-ui", "packages/reflection-check", "packages/penpair"]) await run("pnpm", ["pack", "--pack-destination", packDir], { cwd: join(repo, directory) });
 const tarballs = (await readdir(packDir)).filter((file) => file.endsWith(".tgz"));
-check(tarballs.length === 5, `five tarballs packed (${tarballs.join(", ")})`);
+check(tarballs.length === 6, `six tarballs packed (${tarballs.join(", ")})`);
 const tarball = (name) => join(packDir, tarballs.find((file) => file === name) ?? name);
 const core = `penpair-core-${version}.tgz`;
 const asFile = (name) => `file:${tarball(name)}`;
@@ -66,14 +66,21 @@ check(true, "TypeScript resolves the library's declarations (types, defineSnippe
 const web = await consumer("web", [`penpair-web-${version}.tgz`], { "@penpair/core": asFile(core) });
 check((await readdir(join(web, "node_modules/@penpair"))).sort().join(",") === "core,web", "installing only @penpair/web brings the core with it");
 check((await penpair(web, "--version")).trim() === version, `penpair --version is ${version}`);
+check(JSON.parse(await penpair(web, "config", "schema")).type === "object", "the packed command includes the project configuration schema");
 const skills = (await penpair(web, "skills")).split("\n").filter(Boolean);
-check(["design-judgment", "penpair-setup", "penpair-design"].every((name) => skills.includes(name)), `the three skills ship (${skills.join(", ")})`);
+check(["design-judgment", "penpair-setup", "penpair-design", "penpair-recipes", "penpair-handoff"].every((name) => skills.includes(name)), `the five skills ship (${skills.join(", ")})`);
 const help = await penpair(web, "--help");
 check(/penpair setup/.test(help) && /not part of this install/.test(help), "the help starts with setup and says where Docker comes from");
 check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet } from "@penpair/web"; console.log(typeof defineSnippet);'], { cwd: web })).trim() === "function", "@penpair/web exports everything the core has");
 await penpair(web, "init", "--external", "https://design.penpot.app", "--gitignore");
 check(/profile/.test(await readFile(join(web, "penpair.config.json"), "utf8")), "init --external writes the config");
+check(JSON.parse(await penpair(web, "config", "check", "--json")).data.valid === true, "config check validates the installed project's settings offline");
 await penpair(web, "skills", "install");
+const instructionPreview = JSON.parse(await penpair(web, "skills", "install", "--agents", "AGENTS.md", "--dry-run", "--json"));
+check(instructionPreview.data.instructions.status === "preview" && !(await readdir(web)).includes("AGENTS.md"), "instruction preview leaves the consumer untouched");
+await penpair(web, "skills", "install", "--agents", "AGENTS.md");
+check((await readFile(join(web, "AGENTS.md"), "utf8")).includes("<!-- penpair:skills:start -->"), "instruction integration ships and writes only its owned block");
+check(JSON.parse(await penpair(web, "skills", "install", "--agents", "AGENTS.md", "--json")).data.instructions.status === "unchanged", "instruction integration is idempotent from installed tarballs");
 check(/^name: penpair-setup/m.test(await readFile(join(web, ".skills/penpair-setup/SKILL.md"), "utf8")), "skills install writes the setup skill");
 check(/Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")), "the npm page's README is the repository's");
 check((await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("getting-started.md"), "the docs ship");
@@ -107,7 +114,10 @@ check((await run("node", ["--input-type=module", "-e", 'import { defineSnippet, 
 // 5. The Marwes adapter: installed beside the web command, loaded from the project's configuration, offline.
 const marwes = await consumer("marwes", [`penpair-web-${version}.tgz`, `penpair-marwes-ui-${version}.tgz`], { "@penpair/core": asFile(core) });
 await writeFile(join(marwes, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://design.penpot.app" }, adapters: ["@penpair/marwes-ui"], marwes: { project: "." } }));
-check(/penpair marwes tokens check/.test(await penpair(marwes, "--help")), "the help lists the adapter's commands once it is listed in the configuration");
+check(/Configured executable extensions[\s\S]*@penpair\/marwes-ui/.test(await penpair(marwes, "--help")), "help names configured extensions without executing them");
 const noMarwes = await runFailing("npx", ["--no-install", "penpair", "marwes", "tokens", "check"], { cwd: marwes });
 check(/No @marwes-ui\/react, vue or svelte is installed/.test(noMarwes), "and its commands run, saying plainly when Marwes is not installed in the project");
+const reflection = await consumer("reflection", [`penpair-web-${version}.tgz`, `penpair-reflection-check-${version}.tgz`], { "@penpair/core": asFile(core) });
+await writeFile(join(reflection, "penpair.config.json"), JSON.stringify({ instance: "demo", profile: { type: "external", origin: "https://design.penpot.app" }, adapters: ["@penpair/reflection-check"] }));
+check(/Configure baselines first/.test(await runFailing("npx", ["--no-install", "penpair", "reflection", "plan", "--map", "mapping.json"], { cwd: reflection })), "the case adapter installs and explains missing baseline setup without a connection");
 console.log(`\npackages smoke-tested from ${packDir}`);

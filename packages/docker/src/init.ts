@@ -45,7 +45,7 @@ export async function initDocker(root: string, options: InitOptions = {}): Promi
   try {
     config = await loadConfig(root);
   } catch (error) {
-    if (!(error instanceof ConfigError) || !/No penpair\.config\.json/.test(error.message)) throw error;
+    if (!(error instanceof ConfigError) || error.code !== "missing") throw error;
     const free = options.isFree ?? isPortFree;
     const frontend = options.port ?? (await firstFreePort(9001, [], free));
     const mail = options.mailPort ?? (await firstFreePort(1080, [frontend], free));

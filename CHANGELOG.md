@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+- **Explicit design coverage:** baseline case metadata and required matrices distinguish approved intent, missing captures, unsupported states and unknown environments. Offline coverage independently validates approved PNGs. Viewport/native-theme assertions can reject a capture; metadata or source-identity changes require approval even with identical pixels. Rich cases remain pending implementation setup instead of generating false default-state checks. Baseline paths now reject external symlink escapes.
+
+- **Build kit and recipes:** neutral plain plugin source (`kit()`, `--include @kit`) adds token-aware layout/text/icon/component helpers, queued values-before-bindings and bounded settling. Explicit adapter kit aliases keep library recipes out of the core; offline `kit check` and `recipes` preserve lazy loading. Added a tested repeatable Hello-card example and opt-in scratch kit probe with stable preview, owned cleanup and independent readback.
+
+- **Reviewed file scripts:** `run-file` compiles bounded project-local plugin bodies offline, concatenates ordered declared-read helpers and passes literal parameters. Writes require idempotency plus inspect/readback contracts and share the journaled operation verifier. Read headers remain trusted declarations, never sandbox guarantees. Fixed CLI admission of token-edit recovery/checkpoint flags.
+
+- **Resolved mode trials:** `marwes tokens diff --resolved` and `verify-modes` inspect before temporarily selecting isolated themes with `--apply`. Actual resolved values and global precedence are compared against bounded snapshot expectations. Complete original theme/set selection is independently restored, including bounded cancellation cleanup. Coherent mode images publish only after restoration; unknowns, drift and uncertain execution remain distinct.
+
+- **Ownership reconciliation:** token pushes compare desired/live properties against a private, file-bound verified ancestor. Designer/conflicting/untracked values require an explicit overwrite decision or local adoption proposal. Prune preserves tokens without ownership evidence and unmanaged theme membership. Cross-set references and bound type replacements refuse before and inside destructive mutations; concurrent ancestor publication preserves newer evidence.
+
+- **Project token sets and CRUD:** neutral inspect/apply/readback commands for inactive set creation, same-type token upsert, reference-aware removal and conflict-free promotion copies. Source rechecks, journals and independent complete readback share the write protocol. The token adapter includes declared project extras in both modes; schema-2 snapshots record ownership and retain version-1 review support.
+
+- **Structured inspection:** selected-frame full text, hierarchy, layout, bindings and provenance with explicit unknowns; bounded Unicode-safe transfers, stale-cursor rejection and measured request/response budgets. Typed token dumps preserve composites; tree/audit previews expose truncation and totals. Incomplete or credential-redacted captures refuse artifact publication. See `docs/inspection.md` for versioned formats and legacy token migration.
+
+- **Bounded layout settling:** operation verification, recovery, exports and token pushes now prefer native completion or bounded geometry polling instead of an unconditional ten-second sleep. Request budgets propagate through guards to the SDK; malformed/late/timeout samples cannot pass. Two matching exports and independent postconditions remain required, and reports retain measured layout evidence.
+
+- **Named exports and shots:** exact page-scoped shape lookup refuses ambiguous names, incomplete search and stale lookup/capture identity. Ad-hoc shots reuse stable exports, publish complete immutable generations and carry capture provenance without approving baselines. CLI option typos gain explanatory hints without automatic reinterpretation.
+
+- **Instruction integration:** skills install/setup can target `--agents <path>`. The installer owns only marked skills rows, preserves other instructions, refuses malformed markers and ambiguous default files, and exposes resolved paths. `skills install --dry-run` previews all files/links and the instruction diff without writes. Local output paths reject symlink escapes and dangling links; repeated installs remain idempotent.
+
+- **Dated build gotchas:** thirteen hosted-2.18.4 reports now appear in the shipped neutral skill and compatibility reference, explicitly distinguished from new live reproductions. Doctor suggests a visible separate editor window; write suspension guidance follows the no-replay policy.
+
+- **Explicit extension trust:** built-in commands/help avoid adapter imports; help lists configured extension names. Built-in snippet runs avoid project modules, and `snippets/run --builtins-only` gives an explicit restricted registry. Local adapter/snippet/theme entry points reject real-path escapes; read declarations remain trusted code. Added literal design-data formatting and quoted tree labels.
+
+- **Versioned command contract:** `--json` now emits one shared envelope; earlier JSON roots move under `data`. Core and bundled adapter results retain completeness, target/run evidence and structured errors. Added explicit incomplete/uncertain/cancelled/deadline exits, cooperative request cancellation, strict flag/numeric validation, and structured MCP executor-envelope support with legacy text compatibility.
+
+- **Artifact provenance and safe publication:** schema-2 baseline manifests separate capture and approval identity/revision/hash. Complete coherent runs publish immutable capture generations before atomically publishing the manifest; missing/unstable captures preserve previous output. Generated Reflection cases follow approved paths. PNG/archive outputs stage complete bytes; archives retain exclusive no-replacement behavior.
+
+- **Team safeguards:** offline `onboard [--json]`, local checkout writer locks and capability-driven shared advisory markers for journaled writes. Explicit abandoned-lock override, lease expiry and independent ownership checks; same-execution revision, archive-source and token-source guards stop stale mutations. Cross-machine markers are explicitly non-atomic.
+
+- **Recoverable writes:** local redacted journals persist original plans and started/completed phases for CLI writes and adapter token batches. Explicit `--resume` reconciles actual state, skips verified work and refuses conflicting inputs or edits. `runs` inspects evidence offline; optional `--checkpoint` requires verified native version support. No transaction or automatic rollback.
+
+- **Hosted backup candidates:** bounded `backup file <new.penpot>` exports with identity/revision/length/hash evidence and refusal to replace existing files. Exported bytes never imply a verified restore. Added manual export/scratch-restore guidance and opt-in non-blocking backup-note reminders; the first real archive round trip remains outstanding.
+
+- **Capability-driven native support:** versioned probe metadata and optional `probe --integrity`, bounded native/fallback layout waiting, explicit unsupported/failure results, and run-keyed optional version checkpoints with independent readback. No Penpot version bump or new live-compatibility claim.
+
+- **Transport reliability tests and opt-in scratch smoke:** a real HTTP fake exercises the installed MCP client, including lost write responses. The manual `smoke:live` harness pins origin/file/version and refuses unconfirmed targets; its workflow requires a connected editor and a protected environment. Empty/incomplete deep-check evidence cannot pass. Added generated token-storage normalization invariants.
+
+- **Verified writes require observations.** Empty/missing/primitive readbacks and an empty error list no longer count as success. Registered writes need an explicit verifier or matching expected/actual observation objects. Failed readback/verifier results retain the applied evidence, and adapter token/structure reads reject missing evidence.
+
+- **Ambiguous writes are never retried automatically.** Only classified reads retry suspended requests; write/unknown failures report `write-uncertain` and a run ID. Operations, adapter mutations and deep probes use the same conservative policy; received snippet results include execution metadata separately from verification.
+
+- **File identity guards**: optional `file.id` pin, offered by setup/connect (`--pin-file`), checked inside every delivered execution including adapter batches and deep probes. Basic reads warn; writes/artifacts refuse another file. Doctor reports expected/actual IDs; `--any-file` is an explicit override.
+
+- **Invalid project configuration stops commands before connecting or loading extensions.** Missing files are distinguished from unreadable files, malformed JSON and invalid settings. `penpair config check [--json]` validates core settings offline, and `penpair config schema` prints editor hints. Config-free built-in inspection now requires `--standalone`; it cannot bypass a configured project or run document writes/snippets. Setup/init only create a config when the file is genuinely absent.
 - **`penpair-setup-guide`**, a skill for Claude Code, Codex and GitHub Copilot that walks a person from nothing to a first design: Node check, web or Docker, a Penpot account, where the MCP link goes (never through the chat), the plugin, `doctor`, the optional Marwes adapter, the agent rules and a test POC on its own page. It lives in `skills/` in the repository; an assistant can read it by URL or it can be copied into a project. The README now starts with it. It works from the file alone (package map, commands, raw links), and `references/poc-snippet.mjs` is a starting snippet for the first POC.
 - **`penpair init --external` now names the browser steps before `connect`**, since `connect` waits for the plugin; it used to say only `next: penpair connect`.
 

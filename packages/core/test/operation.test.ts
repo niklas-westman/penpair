@@ -14,6 +14,10 @@ function editor(script: Record<string, unknown[]>, startsOnWrongPage = false): P
     log,
     async callTool(_name, args) {
       const code = String(args.code);
+      if (code.includes("const geometry = [], stack")) {
+        log.push("layout-state");
+        return reply({ ok: true, fileId: "file", pageId: "page", native: true, geometry: [["root",0,0,10,10]], truncated: false });
+      }
       const name = ["switch-page", "archive-inspect", "archive-apply", "archive-readback"].find((n) => script[n] && matches(code, n)) ?? "unknown";
       log.push(name);
       if (name === "switch-page") { wrong = false; return reply({ ok: true, switched: true }); }
@@ -35,9 +39,9 @@ const matches = (code: string, name: string): boolean => {
 
 const script = {
   "switch-page": [{}],
-  "archive-inspect": [{ ok: true, willMove: 3, stays: 5 }],
+  "archive-inspect": [{ ok: true, willMove: 3, stays: 5, plan: [{ id: "a" }, { id: "b" }, { id: "c" }] }],
   "archive-apply": [{ ok: true, moved: 3 }],
-  "archive-readback": [{ ok: true, archive: { children: 3 }, loose: [] }],
+  "archive-readback": [{ ok: true, archive: { children: 3 }, insideIds: ["a", "b", "c"], loose: [] }],
 };
 
 describe("running an operation", () => {
@@ -52,13 +56,13 @@ describe("running an operation", () => {
     const waited: number[] = [];
     const client = editor(script);
     const report = await runOperation(client, archiveOperation, params, { apply: true, settleMs: 7_000, sleep: async (ms) => void waited.push(ms) });
-    expect(client.log).toEqual(["archive-inspect", "archive-apply", "archive-readback"]);
+    expect(client.log).toEqual(["archive-inspect", "archive-apply", "layout-state", "archive-readback"]);
     expect(waited).toContain(7_000);
     expect(report).toMatchObject({ phase: "applied", verified: true, problems: [] });
   });
 
   it("reports what the readback found wrong", async () => {
-    const client = editor({ ...script, "archive-readback": [{ ok: true, archive: { children: 1 }, loose: ["Old / a", "Old / b"] }] });
+    const client = editor({ ...script, "archive-readback": [{ ok: true, archive: { children: 1 }, insideIds: ["a"], loose: ["Old / a", "Old / b"] }] });
     const report = await runOperation(client, archiveOperation, params, { apply: true, sleep: async () => undefined });
     expect(report.verified).toBe(false);
     expect(report.problems.join(" ")).toMatch(/holds 1 frames/);
@@ -74,7 +78,7 @@ describe("running an operation", () => {
   });
 
   it("treats nothing to move as already done", async () => {
-    const client = editor({ ...script, "archive-inspect": [{ ok: true, willMove: 0, stays: 9 }], "archive-apply": [{ ok: true, moved: 0 }], "archive-readback": [{ ok: true, archive: { children: 12 }, loose: [] }] });
+    const client = editor({ ...script, "archive-inspect": [{ ok: true, willMove: 0, stays: 9, plan: [] }], "archive-apply": [{ ok: true, moved: 0 }], "archive-readback": [{ ok: true, archive: { children: 12 }, insideIds: [], loose: [] }] });
     const report = await runOperation(client, archiveOperation, params, { apply: true, sleep: async () => undefined });
     expect(report.verified).toBe(true);
   });

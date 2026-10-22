@@ -1,10 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { atomicWriteFile, resolveProjectInput, resolveProjectOutput, validateEditableToken } from "@penpair/core";
 import { canonical, type PenpotToken, type TokenSnapshot } from "./tokens.js";
 
 export async function readSnapshot(root: string, file: string): Promise<TokenSnapshot | undefined> {
   try {
-    return JSON.parse(await readFile(path.join(root, file), "utf8")) as TokenSnapshot;
+    const snapshot = JSON.parse(await readFile(await resolveProjectInput(root, file), "utf8")) as TokenSnapshot;
+    if (![1, 2].includes(snapshot.schemaVersion) || !Array.isArray(snapshot.sets) || !Array.isArray(snapshot.themes) || typeof snapshot.hash !== "string" || typeof snapshot.project !== "string") throw new Error("Unsupported or malformed snapshot; regenerate with tokens snapshot --write");
+    if (snapshot.schemaVersion === 2 && (!snapshot.ownership || Object.keys(snapshot.ownership).length !== snapshot.sets.length || snapshot.sets.some(set => !["adapter", "project"].includes(snapshot.ownership?.[set.name] ?? "")))) throw new Error("Invalid schema-2 set ownership");
+    return snapshot;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw new Error(`${file} is not a readable snapshot: ${String((error as Error).message)}`);
@@ -12,9 +17,9 @@ export async function readSnapshot(root: string, file: string): Promise<TokenSna
 }
 
 export async function writeSnapshot(root: string, file: string, snapshot: TokenSnapshot): Promise<void> {
-  const target = path.join(root, file);
+  const target = await resolveProjectOutput(root, file);
   await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, `${JSON.stringify(snapshot, null, 2)}\n`);
+  await atomicWriteFile(target, `${JSON.stringify(snapshot, null, 2)}\n`, { replace: true });
 }
 
 export interface TokenChange {
@@ -99,3 +104,25 @@ export function formatDiff(diff: SnapshotDiff, limit = 8): string[] {
   for (const t of diff.themes.changed) lines.push(`theme ${t.theme}: sets ${t.before.join(" + ")} -> ${t.after.join(" + ")}`);
   return lines;
 }
+
+/** Explicitly classify every legacy set; names cannot establish ownership. Original fields survive migration. */
+export function migrateTokenSnapshot(raw: unknown, ownership: Record<string, "adapter" | "project">): TokenSnapshot {
+ const source = raw as TokenSnapshot;
+ if (!source || source.schemaVersion !== 1 || !Array.isArray(source.sets) || !Array.isArray(source.themes) || !Array.isArray(source.unmapped) || typeof source.marwesVersion !== "string" || typeof source.project !== "string") throw new Error("Migration requires a readable legacy schema-1 token snapshot; unsupported majors need producer guidance");
+ if (!ownership || typeof ownership !== "object" || Array.isArray(ownership) || Object.keys(ownership).length !== source.sets.length || source.sets.some(set => !["adapter", "project"].includes(ownership[set.name] ?? "")) || new Set(source.sets.map(set => set.name)).size !== source.sets.length) throw new Error("Explicit adapter/project ownership is required for every legacy set, with no extra names");
+ for (const set of source.sets) {
+   if (!set || typeof set.name !== "string" || !Array.isArray(set.tokens)) throw new Error("Malformed legacy set");
+   const names = new Set<string>(); for (const token of set.tokens) { validateEditableToken(token); if (names.has(token.name)) throw new Error("Duplicate legacy token"); names.add(token.name); }
+ }
+ if (source.unmapped.some(value => typeof value !== "string") || source.themes.some(theme => !theme || typeof theme.group !== "string" || typeof theme.name !== "string" || !Array.isArray(theme.sets) || theme.sets.some(name => !source.sets.some(set => set.name === name)))) throw new Error("Malformed legacy themes/unmapped variables");
+ const migrated = { ...structuredClone(source), schemaVersion: 2 as const, ownership: structuredClone(ownership) };
+ const { marwesVersion, project, sets, themes, unmapped } = migrated;
+ migrated.hash = createHash("sha256").update(canonical({ marwesVersion, project, sets, themes, unmapped, ownership: migrated.ownership })).digest("hex");
+ return migrated;
+}
+
+export const tokenSnapshotSchema = {
+ $schema: "https://json-schema.org/draft/2020-12/schema", $id: "urn:penpair:schema:v2:adapter-token-snapshot", type: "object",
+ required: ["schemaVersion", "ownership", "marwesVersion", "generatedBy", "project", "hash", "sets", "themes", "unmapped"],
+ properties: { schemaVersion: { const: 2 }, ownership: { type: "object", additionalProperties: { enum: ["adapter", "project"] } }, marwesVersion: { type: "string" }, generatedBy: { type: "string" }, project: { type: "string" }, hash: { type: "string", pattern: "^[a-f0-9]{64}$" }, sets: { type: "array" }, themes: { type: "array" }, unmapped: { type: "array", items: { type: "string" } } }, additionalProperties: true,
+} as const;

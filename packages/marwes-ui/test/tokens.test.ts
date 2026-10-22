@@ -142,7 +142,7 @@ describe("the project's theme", () => {
 
 describe("the marwes settings in penpair.config.json", () => {
   it("have defaults, and a name taken from the instance", () => {
-    expect(readMarwesSettings({}, "acme")).toEqual({ name: "Acme", project: ".", themes: {}, snapshot: "design/marwes-tokens.snapshot.json" });
+    expect(readMarwesSettings({}, "acme")).toEqual({ name: "Acme", project: ".", themes: {}, snapshot: "design/marwes-tokens.snapshot.json", extras: [], themeLint: {} });
   });
 
   it.each([

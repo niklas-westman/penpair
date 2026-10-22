@@ -81,14 +81,14 @@ describe("the command line with an adapter", () => {
     expect(log).toHaveBeenCalledWith(`hello a,--flag,b in ${path.basename(root)} raw={"level":3}`);
   });
 
-  it("lists the adapter's commands in the help", async () => {
+  it("names configured extensions without loading their commands in help", async () => {
     const root = await folder();
     await writeFile(path.join(root, "penpair.config.json"), JSON.stringify({ ...hosted, adapters: ["./adapter.mjs"] }));
     await writeFile(path.join(root, "adapter.mjs"), adapterSource());
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(process, "cwd").mockReturnValue(root);
     expect(await runCli(["--help"])).toBe(0);
-    expect(String(log.mock.calls[0]?.[0])).toMatch(/Adapters \(listed under "adapters"[\s\S]*penpair hello <name>/);
+    expect(String(log.mock.calls[0]?.[0])).toMatch(/Configured executable extensions[\s\S]*adapter\.mjs/);
   });
 
   it("warns about an adapter that is not installed only when it matters", async () => {
@@ -100,6 +100,8 @@ describe("the command line with an adapter", () => {
     await runCli(["skills"]);
     expect(err).not.toHaveBeenCalled();
     await runCli(["--help"]);
+    expect(err).not.toHaveBeenCalled();
+    await runCli(["unknown-extension-command"]);
     expect(err.mock.calls.flat().join()).toMatch(/not installed in this project/);
   });
 });

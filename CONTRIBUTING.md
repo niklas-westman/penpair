@@ -7,3 +7,10 @@ penpair is early; issues and small pull requests are welcome.
 - The core stays neutral: it never names a project or a component library, and the Docker code stays apart from the connection (tests enforce both). Project knowledge belongs in an adapter or in the adopting project.
 - A change to how a Penpot file is written follows the protocol in `packages/core/skills/penpair-design/references/write-protocol.md`: look, write once, read back, look at an export.
 - Never put a real MCP key in an issue, a test or a log.
+
+Package or script changes include a new `pnpm changeset` note. Select the affected
+package and bump level; every package receives the highest pending bump together.
+For a change with no release impact use `pnpm changeset --empty`. Do not change
+versions in feature PRs. Automation collects notes into one reviewed **Release
+Penpair** PR; merging it authorizes whole-family publishing once owner activation
+is complete. See [releasing](docs/releasing.md).

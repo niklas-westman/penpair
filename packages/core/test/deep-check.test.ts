@@ -18,7 +18,7 @@ function editor(first: unknown, left: string[]): PenpotToolClient & { codes: str
     async close() {},
   };
 }
-const passing = { ok: true, penpotVersion: "2.18.3", cleanup: ["board: removed"], steps: [{ step: "create board", ok: true, ms: 12, detail: "320x200" }, { step: "export png", ok: true, ms: 80, detail: "900 bytes" }] };
+const passing = { ok: true, penpotVersion: "2.18.3", cleanup: ["board: removed"], steps: ["create board", "flex layout and children", "text content", "token set, token and binding", "component and swap", "clone", "export png"].map((step) => ({ step, ok: true, ms: 12, detail: "observed" })) };
 
 describe("the deep check's plugin code", () => {
   it("is valid and small, and names no project", () => {
@@ -45,6 +45,9 @@ describe("the deep check's plugin code", () => {
 });
 
 describe("running the deep check", () => {
+  it("does not pass without the complete required observations", async () => {
+    expect((await runDeepCheck(editor({ ok: true, steps: [], cleanup: [] }, []), { settleMs: 0 })).ok).toBe(false);
+  });
   it("passes when every step works and nothing is left behind", async () => {
     const client = editor(passing, []);
     const report = await runDeepCheck(client, { settleMs: 0 });
