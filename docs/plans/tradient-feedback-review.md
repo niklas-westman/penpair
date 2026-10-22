@@ -63,3 +63,20 @@ what each change resolves and the remaining formatter/review limits.
 - [ ] After owner review and acceptance decisions, prepare the release through Changesets and existing protected publication workflow.
 
 The [living execution guide](tradient-feedback-0.2.0.md) contains the per-phase Resolved / Changed / Validated / Risks / Next reports. Pending live items remain unchecked; this branch does not claim rollback, exactly-once writes, native component parity or human visual approval.
+
+## Release readiness check — 2026-10-22
+
+- [x] Working branch is based on current remote main (`57f9782`); no branch PR exists yet.
+- [x] Pending Changesets plan **0.3.0 for all six packages** without changing versions on this feature branch.
+- [x] GitHub has both release activation variables set to `true`, and `CHANGESETS_PR_TOKEN` is present. Both release workflows are active; recent version-PR workflow runs succeeded.
+- [x] `npm-release` allows the `main` branch and requires the owner as reviewer, with self-review allowed.
+- [x] The temporary `PENPAIR_RELEASE_EXCLUDE_PENPAIR=true` exception remains enabled: all six repository versions advance together, while the five scoped packages must publish and verify.
+- [x] Remove trailing whitespace from the added font license without changing its text, and replace stale hardcoded versions in the release guide. Branch whitespace checks and current style checks pass.
+- [ ] Push/open the feature PR and pass its remote CI before merging.
+- [ ] Review/merge the generated **Release Penpair** version PR, approve the environment and verify the five required registry versions/provenance.
+
+The code is ready for a feature PR with the live acceptance limits above visible.
+Its merge does not publish: it creates/updates the version PR. Publication runs
+after that separate PR is merged and the environment is approved. The recent
+publish workflows were skipped; this check verifies repository configuration,
+not a completed npm OIDC publication or npm account publisher permissions.
