@@ -6,7 +6,7 @@ import {
   composeProjectOf,
   endpointIsInstance,
   frontendUrl,
-  fileIdentityCheck,
+  doctorEditor,
   instancePaths,
   LifecycleError,
   type BackupManifest,
@@ -277,14 +277,7 @@ export async function doctor(c: Context, options: DoctorOptions = {}): Promise<D
   if (options.mcp && !endpointIsInstance(options.mcp.origin, c.config)) {
     add("editor and plugin", false, `the MCP endpoint points at ${options.mcp.origin}, which is not this instance (${frontendUrl(c.config)})`, "Put this instance's MCP URL (Account, Integrations, MCP Server) in this project's .env.local as PENPAIR_MCP_URL.");
   } else if (options.mcp) {
-    try {
-      const actual = await options.mcp.connect();
-      const { file } = actual;
-      add("editor and plugin", true, `connected to file "${file}"`);
-      if (c.config.file) out.push(fileIdentityCheck(c.config, actual));
-    } catch (error) {
-      add("editor and plugin", false, String((error as Error).message).split("\n")[0] ?? "not connected", "Open a file in Penpot, choose File, MCP Server, Connect, and keep the tab visible in a separate window if needed.");
-    }
+    out.push(...await doctorEditor(c.config, options));
   }
   return out;
 }

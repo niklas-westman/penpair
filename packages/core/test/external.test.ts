@@ -51,8 +51,8 @@ describe("an external Penpot as a project", () => {
   it("is checked by a doctor that does not ask for Docker", async () => {
     const config = validateProjectConfig(hosted) as Parameters<typeof doctorExternal>[0];
     const answering = (async () => ({ status: 200 })) as unknown as typeof fetch;
-    const up = await doctorExternal(config, { fetch: answering, mcp: { origin: "https://design.penpot.app", connect: async () => ({ file: "design-file" }) } });
-    expect(up.map((c) => [c.check, c.ok])).toEqual([["penpot", true], ["editor and plugin", true]]);
+    const up = await doctorExternal(config, { fetch: answering, mcp: { origin: "https://design.penpot.app", connect: async (request) => { request!.onTransport(); return { file: "design-file", fileId: "file", pageId: "page", challenge: request!.challenge }; } } });
+    expect(up.map((c) => [c.check, c.ok])).toEqual([["penpot", true], ["MCP transport", true], ["editor and plugin", true], ["file identity", true]]);
     const wrongKey = await doctorExternal(config, { fetch: answering, mcp: { origin: "http://localhost:9001", connect: async () => ({ file: "x" }) } });
     expect(wrongKey.at(-1)).toMatchObject({ ok: false });
     expect(wrongKey.at(-1)!.detail).toMatch(/not https:\/\/design\.penpot\.app/);

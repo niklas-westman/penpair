@@ -162,6 +162,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       note: { type: "string" }, by: { type: "string" }, "case": { type: "string" }, "force-reason": { type: "string" },
       from: { type: "string" }, map: { type: "string" }, frame: { type: "string" },
       inspect: { type: "string" }, readback: { type: "string" },
+      "timeout-ms": { type: "string" },
       layout: { type: "string" },
       page: { type: "string" },
       out: { type: "string" },
@@ -226,7 +227,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "run-file": ["layout", "include", "inspect", "readback", "page", "param", "apply", "resume", "checkpoint", "force-lock"],
     run: ["builtins-only", "param", "apply", "resume", "checkpoint", "force-lock"], baselines: ["apply", "update", "force-reason"], probe: ["deep", "write", "integrity", "kit"],
     skills: ["to", "only", "force", "agents", "dry-run"], snippets: ["builtins-only"], init: ["instance", "port", "gitignore", "external"], setup: ["agents", "web", "docker", "external", "instance", "port"],
-    connect: ["replace", "pin-file", "any-file"], doctor: [], up: [], down: [], open: ["print"], status: ["adapters"], backup: [], restore: ["yes"],
+    connect: ["replace", "pin-file", "any-file"], doctor: ["timeout-ms"], up: [], down: [], open: ["print"], status: ["adapters"], backup: [], restore: ["yes"],
   };
   const network = ["snapshot", "approve", "spec", "inspect", "pages", "tree", "audit", "tokens", "export", "shots", "archive", "run", "run-file", "baselines", "probe", "backup", "doctor"];
   const allowed = new Set(["help", "version", "json", ...(flags[command ?? ""] ?? []), ...(network.includes(command ?? "") ? ["any-instance", "any-file", "standalone"] : [])]);
@@ -239,6 +240,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   if (command === "export" && (rest.length !== (values.name ? 1 : 2) || values.name && !values.page)) throw new CommandArgumentError("Export requires an ID and output path, or --name with an explicit --page and one output path");
   if (command === "shots" && (!values.page || rest.length)) throw new CommandArgumentError("Shots requires --page and supports optional --prefix/--out");
   if (values.layout !== undefined && !["auto", "native", "geometry"].includes(values.layout)) throw new CommandArgumentError("--layout must be auto, native or geometry");
+  if (command === "doctor" && values["timeout-ms"] !== undefined && (!/^\d+$/.test(values["timeout-ms"]) || Number(values["timeout-ms"]) < 1000 || Number(values["timeout-ms"]) > 30000)) throw new CommandArgumentError("doctor --timeout-ms must be an integer from 1000 to 30000");
   let tokenEdit: TokenEdit | undefined;
   if (command === "tokens" && !["dump", "diff"].includes(rest[0] ?? "")) {
     const [kind, set, name] = rest;
@@ -345,21 +347,24 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 
   /** What `doctor` needs to look for the editor and plugin, or nothing when no endpoint is set yet. */
-  async function mcpProbeFor(): Promise<{ origin: string; connect: () => Promise<{ file: string; fileId?: string }> } | undefined> {
+  async function mcpProbeFor(): Promise<import("./instance/connection.js").DoctorOptions["mcp"]> {
     try {
       const endpoint = await projectEndpoint(root);
       commandRedactor(endpointRedactor(endpoint));
       return {
         origin: endpoint.description.origin,
-        connect: async () => {
-          const client = await connect(endpoint);
+        connect: async (request) => {
+          if (!request) throw new Error("Doctor requires a fresh challenge");
+          const started = Date.now();
+          const client = await connect(endpoint, { timeoutMs: request.timeoutMs, signal: request.signal });
           try {
-            const { result } = await executeCode(client, "return { file: penpot.currentFile.name, fileId: penpot.currentFile.id };", { retries: 0, effect: "read" });
-            const actual = result as { file?: string; fileId?: string };
-            return { file: String(actual.file ?? "?"), fileId: actual.fileId };
-          } finally {
-            await client.close();
-          }
+            request.signal.throwIfAborted(); request.onTransport();
+            const remaining = request.timeoutMs - (Date.now() - started);
+            if (remaining < 1) throw new Error("Doctor connection exhausted execution budget");
+            const { result } = await executeCode(client, `return { challenge: ${JSON.stringify(request.challenge)}, file: penpot.currentFile.name, fileId: penpot.currentFile.id, pageId: penpot.currentPage.id, apiVersion: typeof penpot.version === "string" ? penpot.version : undefined };`, { retries: 0, effect: "read", timeoutMs: remaining });
+            if (!result || typeof result !== "object") throw new Error("No fresh editor execution evidence");
+            return result as import("./instance/connection.js").DoctorObservation;
+          } finally { await client.close(); }
         },
       };
     } catch {
@@ -538,7 +543,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (isExternal(project) && command !== "doctor") requireLocal(project);
     if (isExternal(project)) {
       const mcp = await mcpProbeFor();
-      return report(await doctorExternal(project, { mcp }), mcp);
+      return report(await doctorExternal(project, { mcp, timeoutMs: Number(values["timeout-ms"] ?? 5000) }), mcp);
     }
     const local = requireLocalProfile(cli.local);
     const c: LocalContext = { root, config: requireLocal(project), runner: nodeRunner, log };
@@ -560,7 +565,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
     if (command === "doctor") {
       const mcp = await mcpProbeFor();
-      return report(await local.doctor(c, { mcp }), mcp);
+      return report(await local.doctor(c, { mcp, timeoutMs: Number(values["timeout-ms"] ?? 5000) }), mcp);
     }
     if (command === "backup") {
       if (rest[0] === "verify") {
@@ -900,8 +905,8 @@ async function runCliBound(argv: string[], options: CliOptions = {}): Promise<nu
   let invalidTimeout = false;
   if (timeoutAt !== -1) {
     const milliseconds = Number(args[timeoutAt + 1]);
-    invalidTimeout = !Number.isInteger(milliseconds) || milliseconds < 1 || milliseconds > 1_800_000 || args.indexOf("--timeout-ms", timeoutAt + 1) !== -1;
-    args.splice(timeoutAt, 2);
+    invalidTimeout = !Number.isInteger(milliseconds) || milliseconds < (args[0] === "doctor" ? 1000 : 1) || milliseconds > (args[0] === "doctor" ? 30000 : 1_800_000) || args.indexOf("--timeout-ms", timeoutAt + 1) !== -1;
+    if (args[0] !== "doctor") args.splice(timeoutAt, 2);
     if (!invalidTimeout) timer = setTimeout(() => controller.abort(new CommandInterruptedError("deadline")), milliseconds);
   }
   const json = args.includes("--json");

@@ -197,10 +197,10 @@ describe("doctor", () => {
 
   it("reports the editor and plugin through the supplied probe", async () => {
     const c = await context(fakeRunner((call) => (call.args[0] === "version" ? ok("28.3.2\n") : call.args.join(" ").includes("ps --all") ? ok("[]") : undefined)), { fetch: (async () => ({ status: 200 })) as unknown as typeof fetch });
-    const here = { origin: "http://127.0.0.1:9102", connect: async () => ({ file: "demo-file" }) };
+    const here = { origin: "http://127.0.0.1:9102", connect: async (request?: import("@penpair/core").DoctorProbeRequest) => { request!.onTransport(); return { file: "demo-file", fileId: "file", pageId: "page", challenge: request!.challenge }; } };
     const connected = await doctor(c, { mcp: here });
     expect(connected.find((check) => check.check === "editor and plugin")).toMatchObject({ ok: true });
     const missing = await doctor(c, { mcp: { ...here, connect: async () => { throw new Error("no plugin connected"); } } });
-    expect(missing.find((check) => check.check === "editor and plugin")!.remedy).toMatch(/MCP Server, Connect/);
+    expect(missing.find((check) => check.check === "editor and plugin")!.remedy).toMatch(/connect the MCP plugin/);
   });
 });

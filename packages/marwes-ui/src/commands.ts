@@ -45,6 +45,7 @@ export async function computeExpectation(root: string, rawConfig: Record<string,
 export interface SnapshotCheck {
   /** The committed snapshot equals what the installed Marwes and the themes give now. */
   current: boolean;
+  reasons: { code: "missing-snapshot" | "schema-migration" | "missing-ownership" | "content-drift" | "metadata-mismatch" | "package-mismatch"; message: string }[];
   committed?: TokenSnapshot;
   diff: SnapshotDiff;
   problems: string[];
@@ -55,9 +56,16 @@ export async function checkSnapshotFor(root: string, rawConfig: Record<string, u
   const expectation = await computeExpectation(root, rawConfig, instance);
   const committed = await readSnapshot(root, expectation.settings.snapshot);
   const diff = diffSnapshots(committed, expectation.fresh);
-  const problems = [...expectation.problems];
-  if (!committed) problems.push(`there is no snapshot yet at ${expectation.settings.snapshot}; run \`penpair marwes tokens snapshot --write\` and commit it`);
-  return { current: !!committed && diff.identical && committed.hash === expectation.fresh.hash && expectation.problems.length === 0, committed, diff, problems, expectation };
+  const reasons: SnapshotCheck["reasons"] = expectation.problems.map(message => ({ code: "package-mismatch", message }));
+  const migration = `Preview migration with \`penpair marwes tokens migrate --from ${expectation.settings.snapshot} --ownership ownership.json\`; explicitly classify every set as adapter or project, then use --out NEW_FILE to preserve the original.`;
+  if (!committed) reasons.push({ code: "missing-snapshot", message: `there is no snapshot yet at ${expectation.settings.snapshot}; run \`penpair marwes tokens snapshot --write\` and commit it` });
+  else {
+    if (committed.schemaVersion !== expectation.fresh.schemaVersion) reasons.push({ code: "schema-migration", message: `Snapshot schema ${committed.schemaVersion} needs migration to ${expectation.fresh.schemaVersion}. ${migration}` });
+    if (!committed.ownership) reasons.push({ code: "missing-ownership", message: `Legacy snapshot has no set ownership. ${migration}` });
+    if (!diff.identical) reasons.push({ code: "content-drift", message: "Snapshot values, sets, themes or installed package version changed; review the value diff before regenerating." });
+    if (committed.hash !== expectation.fresh.hash) reasons.push({ code: "metadata-mismatch", message: diff.identical ? "Token values are identical, but snapshot metadata/hash differs; review schema, ownership and provenance before replacing it." : "Snapshot hash differs from the current expectation." });
+  }
+  return { current: reasons.length === 0, committed, diff, reasons, problems: reasons.map(reason => reason.message), expectation };
 }
 
 /**
@@ -83,7 +91,7 @@ async function snapshotCommand(context: AdapterContext, args: string[]): Promise
   const { values } = flags(args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   const fresh = check.expectation.fresh;
-  if (values.json) print(context, JSON.stringify({ current: check.current, summary: summary(fresh), diff: check.diff, problems: check.problems }, null, 2));
+  if (values.json) print(context, JSON.stringify({ current: check.current, summary: summary(fresh), diff: check.diff, reasons: check.reasons, problems: check.problems }, null, 2));
   else {
     print(context, `Expected from the installed ${summary(fresh)}`);
     for (const line of formatDiff(check.diff)) print(context, `  ${line}`);
@@ -109,7 +117,7 @@ async function checkCommand(context: AdapterContext, args: string[]): Promise<nu
   const { values } = flags(args);
   const check = await checkSnapshotFor(context.root, context.rawConfig, context.config.instance);
   if (values.json) {
-    print(context, JSON.stringify({ current: check.current, installed: check.expectation.installed.versions, diff: check.diff, problems: check.problems }, null, 2));
+    print(context, JSON.stringify({ current: check.current, installed: check.expectation.installed.versions, diff: check.diff, reasons: check.reasons, problems: check.problems }, null, 2));
     return check.current ? 0 : check.expectation.problems.length > 0 ? 1 : 2;
   }
   if (check.current) {
@@ -118,7 +126,7 @@ async function checkCommand(context: AdapterContext, args: string[]): Promise<nu
   }
   for (const line of formatDiff(check.diff)) print(context, `  ${line}`);
   for (const problem of check.problems) print(context, `FAIL ${problem}`);
-  if (check.committed && check.expectation.problems.length === 0) {
+  if (check.committed && check.expectation.problems.length === 0 && !check.reasons.some(reason => reason.code === "schema-migration")) {
     const cause = check.committed.marwesVersion !== check.expectation.installed.version ? `it was made from Marwes ${check.committed.marwesVersion} and the installed Marwes is ${check.expectation.installed.version}` : "the installed Marwes or the project's theme has changed since it was made";
     print(context, `FAIL the committed snapshot is stale: ${cause}. ${staleAdvice}`);
   }

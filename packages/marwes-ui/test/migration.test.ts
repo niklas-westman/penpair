@@ -13,7 +13,7 @@ it("migrates a legacy token snapshot only with a complete explicit ownership dec
  expect(() => migrateTokenSnapshot({ ...old, schemaVersion: 99 }, fresh.ownership!)).toThrow(/unsupported majors/);
 });
 
-it.fails("PP-02: explains metadata-only legacy drift even when token values are identical", async () => {
+it("PP-02: explains metadata-only legacy drift even when token values are identical", async () => {
  const { writeSnapshot } = await import("../src/snapshot-file.js");
  const { checkSnapshotFor } = await import("../src/commands.js");
  const f = await fixture(), config = await readRawConfig(f.root), expectation = await computeExpectation(f.root, config, "acme");

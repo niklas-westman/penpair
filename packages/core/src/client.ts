@@ -25,19 +25,21 @@ export interface PenpotToolClient {
 /** Penpot's proxy refuses request bodies of about 110 KB; snippets stay under this. */
 export const maxSnippetBytes = 90 * 1024;
 
-export async function connect(endpoint: Endpoint): Promise<PenpotToolClient> {
+export async function connect(endpoint: Endpoint, options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<PenpotToolClient> {
   commandSignal()?.throwIfAborted();
+  const signal = options.signal ? AbortSignal.any([options.signal, ...(commandSignal() ? [commandSignal()!] : [])]) : commandSignal();
   const client = new Client({ name: "penpair", version: "0" });
   const transport = new StreamableHTTPClientTransport(new URL(endpoint.url));
   try {
-    await client.connect(transport, { signal: commandSignal(), timeout: 120_000 });
+    await client.connect(transport, { signal, timeout: options.timeoutMs ?? 120_000 });
   } catch (error) {
+    await client.close().catch(() => undefined);
     throw transportFailure(error, endpoint);
   }
   return {
     async callTool(name, args, options) {
       try {
-        const result = await client.callTool({ name, arguments: args }, undefined, { timeout: options?.timeoutMs ?? 120_000, signal: commandSignal() });
+        const result = await client.callTool({ name, arguments: args }, undefined, { timeout: options?.timeoutMs ?? 120_000, signal: signal && commandSignal() ? AbortSignal.any([signal, commandSignal()!]) : signal ?? commandSignal() });
         const content = Array.isArray(result.content) ? result.content : [];
         const text = content
           .flatMap((item: unknown) =>

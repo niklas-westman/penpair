@@ -69,10 +69,10 @@ Exit: core `native-api`, `settle-integration`, `kit`, `kit-integration`, `run-fi
 
 ### Phase 2 — explain upgrades and prove readiness (PP-02/03, P2)
 
-- [ ] Add additive snapshot-check reason codes for missing snapshot, schema migration, missing ownership, content drift and metadata/hash mismatch. A stale result must always include a reason, even when the value diff is identical. Preserve stale/error exit-code distinctions.
-- [ ] Reuse the existing `tokens migrate --from FILE --ownership FILE` preview and `--out NEW_FILE` write path. Diagnostics must point to that workflow, explain the schema change and request explicit classification of every legacy set. Do not invent ownership or regenerate away original provenance.
-- [ ] Strengthen the existing doctor execution read rather than creating a duplicate readiness command. Add `doctor --timeout-ms N`, default **5000 ms**, valid **1000–30000 ms**, bounding origin, connection and execution work with cancellation.
-- [ ] Generate a fresh challenge for the editor to echo with file/page identity. Report origin reachability, transport connection, fresh execution and file-pin match separately, with observed time/duration. Only measured layers may be healthy; unavailable heartbeat/version evidence stays unknown. Extend existing doctor JSON checks additively and keep endpoint redaction.
+- [x] Add additive snapshot-check reason codes for missing snapshot, schema migration, missing ownership, content drift and metadata/hash mismatch. A stale result must always include a reason, even when the value diff is identical. Preserve stale/error exit-code distinctions.
+- [x] Reuse the existing `tokens migrate --from FILE --ownership FILE` preview and `--out NEW_FILE` write path. Diagnostics must point to that workflow, explain the schema change and request explicit classification of every legacy set. Do not invent ownership or regenerate away original provenance.
+- [x] Strengthen the existing doctor execution read rather than creating a duplicate readiness command. Add `doctor --timeout-ms N`, default **5000 ms**, valid **1000–30000 ms**, bounding origin, connection and execution work with cancellation.
+- [x] Generate a fresh challenge for the editor to echo with file/page identity. Report origin reachability, transport connection, fresh execution and file-pin match separately, with observed time/duration. Only measured layers may be healthy; unavailable heartbeat/version evidence stays unknown. Extend existing doctor JSON checks additively and keep endpoint redaction.
 
 Tests: adapter `migration`, `commands`, `command-contract`; core `external`, `connect`, `http-client`, `command-result`. Include old schema with unchanged values, missing ownership, invalid map, preserved provenance, stale challenge, wrong file, sleeping editor, timeout and secret-bearing failure text. Migration must require no live connection.
 
@@ -148,7 +148,7 @@ If the scratch target is unavailable, code may be reviewed with live checks stil
 | --- | --- | --- | --- | --- |
 | 0 Baseline/reproducers | Complete offline | 587 tests; explicit expected-failure reproducers | Target pending | 2026-10-22 |
 | 1 Layout | Complete offline | 597 tests; six-package smoke pass | Pending | 2026-10-22 |
-| 2 Migration/readiness | Not started | Pending | Pending | — |
+| 2 Migration/readiness | Complete offline | 607 tests; six-package smoke pass | Pending | 2026-10-22 |
 | 3 Coordination/snapshots | Not started | Pending | Pending | — |
 | 4 Help/skills | Partial: companion discovery delivered | 583 tests + package smoke pass for docs/skills slice; runtime work pending | Browser/live acceptance pending | 2026-10-22 (slice) |
 | 5 Browser starter | Not started | Pending | Pending | — |
@@ -176,3 +176,7 @@ Append phase reports here during execution. Update the table and relevant `PLAN.
 ### Phase 1 report — 2026-10-22
 
 **Resolved:** idle native failure no longer blocks the default workflow when independent complete geometry settles. **Changed:** one static host/kit policy, bounded native attempts, three equal hierarchy-aware samples, diagnostics and CLI `--layout`; no write retry. **Validated:** native success/failure/hang, node overflow/cycles, target/transport refusal, kit binding and stable-render tests; `pnpm check` passes 597 tests and six-package smoke passes. **Risks:** geometry is neither visual approval nor font readiness; live CLI/kit build remains pending. **Next:** migration explanations and bounded doctor readiness. Commit: `feat: share bounded layout fallback across host and kit`.
+
+### Phase 2 report — 2026-10-22
+
+**Resolved:** metadata-only stale snapshots now explain schema/ownership/hash causes; transport connection alone cannot prove editor readiness. **Changed:** additive reason codes and existing migration guidance; bounded origin/transport/challenge execution/file-pin layers, timestamps and duration, default 5 s doctor with 1–30 s option. Docker uses the same fresh-read proof. **Validated:** 74 targeted tests, stale/missing challenges, wrong file, sleeping origin/editor, timeout validation and secret redaction; `pnpm check` 607 tests and six-package smoke pass. **Risks:** real background/disconnected editor tests remain pending; heartbeat/version are unknown unless observed. **Next:** coordination trace and serialized page sessions. Commit: `feat: explain migration drift and prove fresh doctor readiness`.
