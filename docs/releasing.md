@@ -166,8 +166,16 @@ package/provenance verification before counting the release complete.
 Finish an interrupted release before merging unrelated changes or a tooling fix
 with new pending Changesets. The manual release gate requires a reviewed version
 with no pending notes; merging another feature can prevent continuation until
-that release state is reconciled. Do not remove notes or weaken guards to force
-recovery through.
+that release state is reconciled. Do not discard pending package-release notes
+or weaken guards to force recovery through.
+
+An empty, tooling-only Changeset contains no package release entries. Changesets
+can consume that metadata without changing versions. If such a note blocks an
+interrupted release, handle it in a reviewed metadata-only cleanup, preserve its
+summary in the completion report and verify unchanged package/source versions
+plus the existing manual gate. This does not apply to notes requesting a package
+release. The [0.3.0 early-merge recovery](plans/registry-polling-fix.md#early-merge-recovery)
+records the concrete case and checks.
 
 ## A package npm will not accept yet
 
