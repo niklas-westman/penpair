@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Handoff"
+  short_description: "Implement a frontend from Penpot evidence"
+  default_prompt: "Use $penpair-handoff to implement the approved Penpot design with explicit component mappings and verification readiness."
+policy:
+  allow_implicit_invocation: true

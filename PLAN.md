@@ -15,7 +15,18 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Recover 0.3.0 after the early polling merge.** Merge the metadata-only empty-note cleanup, then dispatch the existing release workflow on main with `version=0.3.0` and `continue_release=true`. The [recovery report](docs/plans/registry-polling-fix.md#early-merge-recovery) records verified guards and unchanged versions; live Penpot acceptance remains pending below.
+- [ ] **Review the completed Codex skill branch.** All six implementation steps in the [living checklist](docs/plans/skill-workflow-readiness.md) are verified and committed on `codex/skill-workflow-readiness`. The owner has authorized pushing and opening its PR. Branch review and separately recorded fresh-session/live acceptance remain pending; publication requires owner approval.
+
+## Codex skill workflow readiness
+
+- [x] Prepare the living checklist, source evidence, acceptance criteria and a new branch from merged main.
+- [x] S1: actionable task routing in generated project instructions.
+- [x] S2: ordinary-language skill triggers and clear boundaries.
+- [x] S3: focused frontend comparison skill and connected handoff.
+- [x] S4: comparative evidence checkpoint before expanding a design family.
+- [x] S5: offline skill diagnostics and realistic invocation trials.
+- [x] S6: Codex metadata, visible selection and final validation.
+- [ ] Live consumer acceptance (left pending by owner instruction).
 
 ## Release registry polling
 
@@ -162,6 +173,14 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-23: owner authorized pushing `codex/skill-workflow-readiness` and opening its review PR. Implementation checks remain complete; remote CI, owner merge review and fresh-session/live acceptance remain pending. No version bump or publication is authorized by this handoff.
+- 2026-10-23: S6 completed all six skill workflow steps with Codex UI metadata, explicit prompts and visible selection guidance. Final validation: 680 package tests + 3 convention tests, all six package smoke installs and exact-base Changesets policy pass. Versions remain 0.3.0; branch review and fresh-model/live acceptance remain pending. Each implementation step has its own commit and completion report.
+- 2026-10-23: S5 added read-only `skills check` diagnostics, 14 functional/trust-boundary regressions and a realistic invocation-trial matrix. Full checks pass (679 package tests + 3 convention tests). Tradient's older routing and missing new skill were reported without changing consumer files; fresh-model/live trials remain pending.
+- 2026-10-23: S4 added a project-owned comparative evidence checkpoint before design-family expansion and across frontend handoffs. Full checks and an installation/forced-refresh preservation exercise pass; missing evidence and owner acceptance remain explicit pending states.
+- 2026-10-23: S3 shipped the sixth skill, `penpair-verify`, connected design/handoff routing and corrected stale starter guidance. Full checks and all six package smoke installs pass; real consumer comparison and owner review remain pending.
+- 2026-10-23: S2 clarified task triggers and added bounded YAML frontmatter parsing, valid identities and shipped-resource checks. Quoted/folded descriptions are supported without treating metadata as code. Full checks pass (665 package tests + 3 convention tests).
+- 2026-10-23: S1 added task-to-skill routing inside the installer-owned instruction block, retaining partial installs, relative links, dry-run/idempotence and owner-text preservation. Full checks pass (656 package tests + 3 convention tests); fresh-model selection remains pending.
+- 2026-10-23: started `codex/skill-workflow-readiness` from merged main and prepared the six-step living checklist. Tradient session evidence shows skills were loaded but guidance was underapplied. Each implementation step will be verified and committed separately; live trials remain pending.
 - 2026-10-22: made companion adapters visible across README, setup/handoff docs and shipped skills; added install/registration/readiness guidance and patch changesets. Verified 583 tests and all package smoke installs. Runtime feedback implementation still begins at phase 0.
 - 2026-10-22: prepared the Tradient 0.2.0 feedback execution guide and refreshed Now after the original improvement branch merged and 0.2.0 was published. All eight findings have phased tasks, tests, exit criteria and separate live gates; no implementation started.
 - 2026-10-22: R3 fixed the GitHub Changesets CI failure and consumed-note release-PR validation, added a main-only manual version-PR trigger and regression coverage; prepared for push to PR #1.

@@ -8,6 +8,7 @@ import {
 import { lstat, mkdir, readdir, readFile, symlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseSkillMetadata } from "./skill-metadata.js";
 
 /** The skills shipped inside the package (`skills/` next to `dist/`). */
 export const bundledSkillsDirectory = (): string =>
@@ -73,8 +74,7 @@ export async function describeSkill(skillDirectory: string): Promise<{
   summary: string;
 }> {
   const text = (await readIfExists(path.join(skillDirectory, "SKILL.md"))) ?? "";
-  const name = /^name:\s*(.+)$/m.exec(text)?.[1]?.trim() ?? path.basename(skillDirectory);
-  const description = /^description:\s*(.+)$/m.exec(text)?.[1]?.trim() ?? "";
+  const { name, description } = parseSkillMetadata(text, path.basename(skillDirectory));
   return {
     name,
     summary: description.split(/(?<=\.)\s/)[0] ?? description,

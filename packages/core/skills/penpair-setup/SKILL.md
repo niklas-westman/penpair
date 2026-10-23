@@ -1,6 +1,6 @@
 ---
 name: penpair-setup
-description: Set up penpair in a project and connect it to a Penpot, on the web (the default) or in Docker on this computer. Use when a project has no penpair.config.json, when `penpair doctor` reports a failure, when the user asks to install, start, connect, repair or move their Penpot connection, or when an agent is told "set up penpair". Do not use for editing a Penpot file (penpair-design) or deciding how a screen looks (design-judgment).
+description: Install Penpair or connect and repair a project's Penpot setup, including a failing doctor check, suspended plugin or missing configuration. Use for connection and setup work; use penpair-design to edit designs and design-judgment to choose their composition.
 metadata:
   version: "0.1.0"
   scope: setup and connection
@@ -13,6 +13,10 @@ compatibility: Node 22 and a terminal; a Penpot account on the web, or Docker De
 Two ways to run Penpot, one way to connect. **Web** (design.penpot.app, or a team's own Penpot) is the default: the package `@penpair/web`, nothing else to install. **Docker** (the package `@penpair/docker`, which includes everything in `@penpair/web`) puts a private Penpot on this computer: offline, own data, throwaway per project. Both end the same way: the person's personal key in `.env.local` as `PENPAIR_MCP_URL`, the Penpot file open in a visible browser tab with its plugin connected, and `penpair doctor` all `ok`.
 
 ## The key never passes through you
+
+For an existing installation, use its local command and reviewed version
+(`pnpm exec penpair` in pnpm projects) in place of the first-use `npx` examples
+below. Preserve its chosen command package and current profile.
 
 The MCP key is the person's password to their Penpot. Keep it out of chat, logs, commands and commits. The person pastes it themselves into a prompt that hides it (`penpair connect`), or pipes it from their clipboard (`pbpaste | npx @penpair/web connect`). Your shell cannot answer a hidden prompt, so hand that one step to the person with the exact words below.
 
@@ -39,7 +43,7 @@ The MCP key is the person's password to their Penpot. Keep it out of chat, logs,
    | editor and plugin: not connected or suspended | The tab is asleep or the plugin is not connected. Do step 4.4 again; keep the tab in front. |
    | key file: git would commit it | Add `.env.local` to `.gitignore`; `penpair connect` does it. |
 
-6. **Install the rules.** Run `npx @penpair/web skills install`, add the printed rows to the project's agent guide, then fill in `.skills/penpair-design/references/project-facts.md` with the person (the Penpot file, token sets, naming, who approves). Done when that file has no `<...>` placeholders left.
+6. **Install the rules.** Use the installed local command when available (`pnpm exec penpair` in pnpm projects). Preview `penpair skills install --agents AGENTS.md --dry-run`, then apply the reviewed update to the selected instruction file. Preserve project customizations and fill in the installed `penpair-design/references/project-facts.md` (file pin, token sets, naming, who approves); use the destination printed by the installer. Run `penpair skills check --json` for Codex discovery/routing diagnostics, selecting `--only` for intentional partial installs. A passing file check does not prove a session loaded or correctly applied a skill. Done when required project facts and diagnostics are ready, or their missing evidence is reported explicitly.
 
 7. **Recommend companions for the task.** Read the [adapter guide](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md). A library adapter brings the project's chosen component-library tokens and recipes into the workflow. When frontend implementation/comparison is in scope, recommend `@penpair/reflection-check`, installed at the same version as the command/core and merged into the existing `adapters` list. State the remaining requirements: approved baselines, explicit case mappings and a real browser provider. Record those as pending until configured and exercised; connection-ready does not mean comparison-ready. Design-only projects can defer comparison setup.
 

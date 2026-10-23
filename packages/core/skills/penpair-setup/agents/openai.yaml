@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Setup"
+  short_description: "Connect or repair a Penpot project"
+  default_prompt: "Use $penpair-setup to diagnose this project's Penpot connection and report the remaining setup steps."
+policy:
+  allow_implicit_invocation: true

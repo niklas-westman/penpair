@@ -39,10 +39,11 @@ First check your installed command version:
 pnpm exec penpair --version
 ```
 
-For a project already on **0.2.0**, install the matching companion:
+For example, a project whose command/core are **0.3.0** installs this matching
+companion. Use the actual installed version when it differs:
 
 ```sh
-pnpm add -D -E @penpair/reflection-check@0.2.0
+pnpm add -D -E @penpair/reflection-check@0.3.0
 ```
 
 Use the version printed above when it differs. In a pnpm workspace, use the existing dependency location (`-w` when installing at the workspace root). Upgrade directly installed Penpair packages together rather than mixing releases.
@@ -72,7 +73,13 @@ pnpm exec penpair reflection check --map design/implementation-cases.json --prov
 
 Use the [package reference](https://github.com/niklas-westman/penpair/blob/main/packages/reflection-check/README.md) for mapping/provider examples. Exit **0** means complete evidence within threshold, **2** means measured drift and **3** means missing/incomplete evidence. An install, a passing setup check or a stub provider is not a completed frontend comparison.
 
-The shared browser-provider starter is planned work. Until it ships, configure a real project provider or explicitly report that integration as pending. For simple legacy route/viewport checks, the existing generated `reflection-cases.json` and `visualSmoke` configuration remain available; richer cases require explicit setup and readback.
+The browser-provider starter ships with the command package; supply real project
+hooks or report integration as pending. The shipped
+[penpair-verify skill](../packages/core/skills/penpair-verify/SKILL.md) guides
+comparison, image inspection, implementation fixes and recapture. For simple
+legacy route/viewport checks, the existing generated `reflection-cases.json` and
+`visualSmoke` configuration remain available; richer cases require explicit setup
+and readback.
 
 ## Why explicit companions?
 

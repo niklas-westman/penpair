@@ -29,4 +29,9 @@ The provider module exports `async runCase(test)` and receives the immutable cas
 
 Observed context must come from browser readback, not copied test inputs. The adapter checks context/font evidence, independent screenshot path, PNG dimensions, byte hashes and unchanged baseline bytes. A trusted provider can lie: this interface is an evidence contract, not a sandbox or cryptographic attestation of browser work. Modules and transitive imports execute project code. Pixel ratios are checker evidence, never a visual verdict, accessibility assessment or owner approval. Exit 0 means complete evidence within thresholds; 2 means measured drift; 3 means missing/incomplete evidence. Every result still says `owner-review-required`.
 
-No real consumer was modified and no live implementation route was run here. The offline integration test uses a named stub; replace it with a real provider and record the I12 human trial before claiming adoption. Release/publishing is the owner's act and all six packages remain in lockstep.
+The shipped browser starter has been exercised against local fixture routes; the
+adapter's offline integration test uses a named stub. Neither establishes parity
+for a consumer's implementation. Use the shipped `penpair-verify` skill, run the
+consumer's real provider against approved references and retain the resulting
+images before claiming comparison readiness. Owner review remains separate.
+Release/publishing is the owner's act and all six packages remain in lockstep.
