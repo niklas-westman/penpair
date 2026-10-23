@@ -2,6 +2,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { resolveProjectOutput } from "./project-input.js";
 import { atomicWriteFile } from "./atomic-output.js";
+import { renderSkillRouting } from "./skill-routing.js";
 
 const start = "<!-- penpair:skills:start -->";
 const end = "<!-- penpair:skills:end -->";
@@ -93,6 +94,7 @@ export async function planSkillInstructions(
   );
   const block = [
     start,
+    ...renderSkillRouting(relativeRows),
     "| Skill | Purpose |",
     "| --- | --- |",
     ...relativeRows,

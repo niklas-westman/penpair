@@ -45,6 +45,48 @@ it("preserves all bytes outside an owned region, including CRLF", async () => {
   expect(text).not.toContain("old rows");
 });
 
+it("routes only selected skills and keeps their nested instruction links resolvable", async () => {
+  const root = await folder();
+  await installSkills({
+    root,
+    agents: "docs/AGENTS.md",
+    to: "agent skills",
+    only: [
+      "penpair-handoff",
+      "design-judgment",
+    ],
+  });
+  const text = await readFile(path.join(root, "docs/AGENTS.md"), "utf8");
+  const links = [
+    ...text.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g),
+  ];
+
+  expect(new Set(links.map((link) => link[1]))).toEqual(
+    new Set([
+      "penpair-handoff",
+      "design-judgment",
+    ]),
+  );
+  expect(links).toHaveLength(4);
+  for (const link of links) {
+    const target = path.resolve(root, "docs", decodeURIComponent(link[2]!));
+    expect(await readFile(target, "utf8")).toContain(`name: ${link[1]}`);
+  }
+  expect(text).not.toContain("penpair-setup");
+  expect(text).not.toContain("penpair-recipes");
+
+  const repeated = await installSkills({
+    root,
+    agents: "docs/AGENTS.md",
+    to: "agent skills",
+    only: [
+      "penpair-handoff",
+      "design-judgment",
+    ],
+  });
+  expect(repeated.instructions?.status).toBe("unchanged");
+});
+
 it("appends to a single existing instruction file without a skills table", async () => {
   const root = await folder();
   await writeFile(path.join(root, "CLAUDE.md"), "# Existing\nDo this first.\n");

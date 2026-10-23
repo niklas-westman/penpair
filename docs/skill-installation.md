@@ -11,6 +11,12 @@ Without `--agents`, exactly one existing AGENTS.md or CLAUDE.md is selected. If 
 
 The installer appends a skills section when needed or replaces only the contents between `<!-- penpair:skills:start -->` and `<!-- penpair:skills:end -->`. Existing text outside the owned region, including line endings, is preserved. Duplicate, reversed or unmatched markers stop installation before any skill files are written. An instruction file edited after planning is preserved; retry after reviewing its current contents. A repeat run with identical content is a no-op. Existing file permissions are retained.
 
+The owned block includes task-to-skill routing as well as a skill directory. It
+instructs the agent to read the relevant skill before tool work, and follows the
+selected skills when `--only` is used. Installation does not guarantee that a
+particular model will select or correctly apply a skill, and selecting a skill
+grants no additional write permission.
+
 Local outputs must remain inside the project after resolving existing symlinks. An instruction link escaping the project or a dangling link is refused. The resolved destination is shown so a project wrapper or shared in-project target is visible. These operations do not edit global agent configuration. Entry-point/output checks do not sandbox arbitrary extensions.
 
 Skill files modified by the project are kept unless `--force` is explicit. Project facts remain project-owned even with force, and rename migration preserves the prior facts. All writes are planned before execution, published as complete files, and instructions are written after skill copies/links. This is not a multi-file transaction: a filesystem failure or a concurrent owner edit can leave skill installation partly applied while preserving the instruction file. Review the report and rerun; unchanged files are skipped.

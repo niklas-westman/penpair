@@ -1,7 +1,7 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S1.
+Status: implementing. Current step: S2.
 
 ## Living document
 
@@ -50,7 +50,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
 
 ## Checklist and acceptance
 
-- [ ] **S1 · Route tasks from generated instructions (P1).** Add concise,
+- [x] **S1 · Route tasks from generated instructions (P1).** Add concise,
   actionable task-to-skill routing inside the owned instruction block. Include
   only installed/selected skills, preserve custom text and relative links, and
   load the applicable skill before tool work. Verify partial installs, nested
@@ -105,6 +105,14 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S1 completed · 2026-10-23.** Generated instructions now route matching tasks
+  to selected skills before tool work instead of presenting only a directory.
+  Partial installs emit no routes to unselected skills; nested encoded links
+  resolve, repeat installation is unchanged and owner text is preserved. Full
+  `pnpm check` passes: 656 package tests plus 3 convention tests. Selection and
+  correct application by a fresh model remain live acceptance, not a claim of
+  the installer.
 
 - **Plan prepared · 2026-10-23.** Created the branch from merged main and mapped
   all six proposed improvements to acceptance criteria and verification. The
