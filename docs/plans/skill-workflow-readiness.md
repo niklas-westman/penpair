@@ -1,7 +1,7 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S4.
+Status: implementing. Current step: S5.
 
 ## Living document
 
@@ -63,7 +63,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   real frontend comparison, screenshot inspection, bounded fixes and reruns.
   Route from design/handoff and retain separate readiness/approval stages. Fix
   contradictory starter guidance. Verify installation and package enumeration.
-- [ ] **S4 · Record comparative evidence before expansion (P1).** Add a reusable
+- [x] **S4 · Record comparative evidence before expansion (P1).** Add a reusable
   project-owned checkpoint format and skill workflow for source evidence,
   preserved/changed regions, a representative candidate, consequential findings,
   next action and review status. Missing evidence must remain pending. Whole-page
@@ -105,6 +105,16 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S4 completed · 2026-10-23.** Added a shared visual checkpoint template and
+  source/candidate review procedure, routed through design, recipes, handoff and
+  verification. It records preserved regions and intended changes, actual images,
+  consequential findings, readiness and next action. Missing evidence blocks
+  expansion in the skill workflow; no runtime command claims to measure taste or
+  attest that an image was seen. Full checks pass (665 package tests + 3 convention
+  tests), packaged links resolve, and a disposable install proved that a copied
+  project-owned checkpoint survives forced skill refresh. Live critique remains
+  pending.
 
 - **S3 completed · 2026-10-23.** Shipped `penpair-verify` as the sixth consumer
   skill, with ordinary parity/fix triggers and design/handoff routing. It records

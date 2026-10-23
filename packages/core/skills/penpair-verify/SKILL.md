@@ -9,6 +9,12 @@ Compare the real implementation with the exact approved design case. Use the
 project's configured browser provider and component library. A captured design,
 an installed adapter and a passing build each establish different facts.
 
+Continue the project's existing comparative checkpoint, or create a project-owned
+case report outside installed skill folders. Retain source/candidate identities,
+preserved and changed regions, actual image paths, observed setup, consequential
+findings and the next action. If `penpair-recipes` is installed, its
+`references/visual-checkpoint.md` and template supply the common format.
+
 1. **Establish readiness.** Inspect the installed command and adapter versions,
    the project's existing verification scripts, approved reference and explicit
    case mapping. Use the local command (`pnpm exec penpair` in pnpm projects).

@@ -15,6 +15,12 @@ Penpot supplies design evidence; the project's component library and declared to
 
 Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
 
+For an approved-reference variant, retain the actual source image and inspection,
+preserved regions and declared deviations. Use the project-owned comparative
+checkpoint from `penpair-recipes` when installed. Before expansion, record a
+source/candidate critique with consequential findings; missing evidence remains
+pending even when token and overflow audits pass.
+
 1. **Target.** Validate config and doctor's file identity; confirm the owner-authorized page/frame IDs. For project context, read [project-facts.md](references/project-facts.md). Done when the configured pin and live target agree.
 2. **Inspect.** Obtain complete structured evidence with `inspect ID --page PAGE --all` or the actual typed token catalog. Tree text and audit examples are bounded previews. Done when source revision, completeness and unknowns are explicit.
 3. **Change.** Follow [write-protocol.md](references/write-protocol.md): pinned inspection, one idempotent write and independent positive readback. Before the first script on an API version, read [plugin gotchas](references/penpot-plugin-gotchas.md). Done when actual geometry/text/bindings match the intended result.

@@ -8,3 +8,5 @@ Clarify ordinary-language task triggers and validate skill frontmatter with a
 bounded data-only YAML parser, including quoted and folded descriptions.
 Ship a focused frontend verification skill with real browser evidence, image
 inspection and repair guidance, and correct stale provider-starter documentation.
+Add a project-owned comparative checkpoint template so approved references,
+preserved regions, actual visual findings and next actions survive handoffs.

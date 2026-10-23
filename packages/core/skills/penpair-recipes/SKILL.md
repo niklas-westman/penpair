@@ -10,6 +10,13 @@ Use the existing project library and declared tokens as inputs. Work within the 
 
 Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
 
+For a substantial state variant or screen family, read
+[visual-checkpoint.md](references/visual-checkpoint.md) and create a project-owned
+evidence record. Carry the approved image/inspection, preserved regions and
+intentional deviations into the plan. Keep expansion pending until the first
+candidate has actual comparison evidence and its blocking findings are resolved.
+Do not infer critique from a passing mechanical audit.
+
 1. **Target.** Read the project's design facts and `penpair doctor --json`. Confirm the pinned file and exact page/frame IDs. Done when the connected target matches the authorized target and required APIs are observed.
 2. **Vocabulary.** Inspect the actual token catalog, theme selection and existing components. Select explicit token names/types and component IDs. Done when every recipe input resolves or is listed as an explicit missing dependency. Equal computed values alone establish candidate matches.
 3. **Preview.** Read [build-flow.md](references/build-flow.md) for file declarations, helper order and partial-root ownership. Prepare an idempotent operation with positive independent readback. Run inspection first. Done when source preconditions and the exact changed objects are reviewable.
