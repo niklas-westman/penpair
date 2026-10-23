@@ -45,7 +45,8 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   positive independent readback, immutable approved baselines and owner approval.
 - Diagnostics are offline and read-only. They cannot prove what a Codex session
   loaded, predict its selection, inspect credentials or certify design quality.
-- No version bumps, publication, push, merge or live Penpot writes in this work.
+- No version bumps, publication, merge or live Penpot writes in this work. The
+  owner authorized pushing the completed branch and opening its PR on 2026-10-23.
 - Writer-marker recovery, repeated archive flags, bounded state-variant runtime
   operations and performance instrumentation remain separate feedback work.
 
@@ -106,6 +107,11 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **PR handoff authorized · 2026-10-23.** Owner requested the branch push after
+  the final readiness review. Local validation remains complete and main's SHA
+  matches the reviewed base. Remote CI and owner merge review remain pending;
+  no publication or live acceptance is implied by opening the PR.
 
 - **S6 completed · 2026-10-23.** Added Codex names, concise UI descriptions and
   explicit starting prompts for all six skills, retaining implicit invocation.
