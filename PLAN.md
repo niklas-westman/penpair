@@ -24,7 +24,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] S2: ordinary-language skill triggers and clear boundaries.
 - [x] S3: focused frontend comparison skill and connected handoff.
 - [x] S4: comparative evidence checkpoint before expanding a design family.
-- [ ] S5: offline skill diagnostics and realistic invocation trials.
+- [x] S5: offline skill diagnostics and realistic invocation trials.
 - [ ] S6: Codex metadata, visible selection and final validation.
 - [ ] Live consumer acceptance (left pending by owner instruction).
 
@@ -173,6 +173,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-23: S5 added read-only `skills check` diagnostics, 14 functional/trust-boundary regressions and a realistic invocation-trial matrix. Full checks pass (679 package tests + 3 convention tests). Tradient's older routing and missing new skill were reported without changing consumer files; fresh-model/live trials remain pending.
 - 2026-10-23: S4 added a project-owned comparative evidence checkpoint before design-family expansion and across frontend handoffs. Full checks and an installation/forced-refresh preservation exercise pass; missing evidence and owner acceptance remain explicit pending states.
 - 2026-10-23: S3 shipped the sixth skill, `penpair-verify`, connected design/handoff routing and corrected stale starter guidance. Full checks and all six package smoke installs pass; real consumer comparison and owner review remain pending.
 - 2026-10-23: S2 clarified task triggers and added bounded YAML frontmatter parsing, valid identities and shipped-resource checks. Quoted/folded descriptions are supported without treating metadata as code. Full checks pass (665 package tests + 3 convention tests).

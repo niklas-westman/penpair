@@ -17,6 +17,12 @@ selected skills when `--only` is used. Installation does not guarantee that a
 particular model will select or correctly apply a skill, and selecting a skill
 grants no additional write permission.
 
+Run `penpair skills check --json` for read-only Codex discovery/routing diagnostics
+after a reviewed installation. Use repeated `--only NAME` for a partial install
+and `--agents PATH` for its selected instruction destination. See
+[skill validation](skill-validation.md) for results, limits and realistic model
+invocation trials. Filesystem readiness does not prove correct agent behavior.
+
 Local outputs must remain inside the project after resolving existing symlinks. An instruction link escaping the project or a dangling link is refused. The resolved destination is shown so a project wrapper or shared in-project target is visible. These operations do not edit global agent configuration. Entry-point/output checks do not sandbox arbitrary extensions.
 
 Skill files modified by the project are kept unless `--force` is explicit. Project facts remain project-owned even with force, and rename migration preserves the prior facts. All writes are planned before execution, published as complete files, and instructions are written after skill copies/links. This is not a multi-file transaction: a filesystem failure or a concurrent owner edit can leave skill installation partly applied while preserving the instruction file. Review the report and rerun; unchanged files are skipped.

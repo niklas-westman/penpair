@@ -1,7 +1,7 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S5.
+Status: implementing. Current step: S6.
 
 ## Living document
 
@@ -69,7 +69,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   next action and review status. Missing evidence must remain pending. Whole-page
   pixel equality is unsuitable for intentionally different states. Verify the
   example, reference paths and reuse through the installed skill pack.
-- [ ] **S5 · Diagnose discovery and exercise realistic requests (P2).** Add
+- [x] **S5 · Diagnose discovery and exercise realistic requests (P2).** Add
   read-only `skills check` diagnostics for discoverable files, metadata, links
   and project routing, with explicit limits. Cover missing, malformed, dangling,
   divergent and disabled implicit invocation cases. Supply a reproducible prompt
@@ -105,6 +105,18 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S5 completed · 2026-10-23.** Added offline `skills check` with versioned CLI
+  results: valid project discovery/routing returns 0; incomplete readiness returns
+  3. Fourteen regressions cover partial and nested installs, instruction symlinks,
+  missing/malformed/oversized inputs, dangling/external links, conflicting copies,
+  modified files, disabled policy, resources, stale routes, no writes/extension
+  execution and no raw link-content echo. Added a nine-request natural-language
+  trial matrix and retained observed baseline skill reads separately from pending
+  fresh-model trials. A read-only Tradient check correctly reports its older
+  catalog-only routing and absent verification skill; no consumer files changed.
+  Full checks pass (679 package tests + 3 convention tests). Session selection,
+  global configuration and live visual quality are explicitly outside diagnostics.
 
 - **S4 completed · 2026-10-23.** Added a shared visual checkpoint template and
   source/candidate review procedure, routed through design, recipes, handoff and

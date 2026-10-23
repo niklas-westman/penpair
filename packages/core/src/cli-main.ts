@@ -59,6 +59,7 @@ import { archiveOperation, runOnPage, runOperation } from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
 import { installSkills, listBundledSkills } from "./skills.js";
+import { checkSkills } from "./skill-check.js";
 import { checkProjectSnippets, loadProjectSnippets } from "./project-snippets.js";
 import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } from "./registry.js";
 import { runSnippet } from "./snippet.js";
@@ -159,6 +160,7 @@ Compare:
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
   penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]
+  penpair skills check [--only <name>] [--agents AGENTS.md] [--json]
   (built-in help lists configured extensions without importing their trusted code)
   (config-free inspection requires --standalone; writes require a project)
   penpair --version`;
@@ -924,14 +926,20 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     command === "skills" &&
     rest[0] !== "install" &&
     [
-      values.agents,
       values["dry-run"],
       values.to,
-      values.only,
       values.force,
     ].some((value) => value !== undefined)
   ) {
     throw new Error("Installation flags require skills install");
+  }
+  if (
+    command === "skills" &&
+    rest[0] !== "install" &&
+    rest[0] !== "check" &&
+    (values.agents !== undefined || values.only !== undefined)
+  ) {
+    throw new CommandArgumentError("--agents and --only require skills install or skills check");
   }
   if (
     (values.resume || values.checkpoint || values["force-lock"] || values.trace) &&
@@ -1390,6 +1398,26 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
 
   if (command === "skills") {
+    if (
+      rest.length > 1 ||
+      (rest[0] !== undefined &&
+        ![
+          "install",
+          "check",
+        ].includes(rest[0]))
+    ) {
+      throw new CommandArgumentError("Usage: skills [install | check]; see penpair --help");
+    }
+    if (rest[0] === "check") {
+      const report = await checkSkills({
+        root,
+        agents: values.agents,
+        only: values.only,
+      });
+      output.result(report);
+      output.log(JSON.stringify(report, null, 2));
+      return report.ready ? 0 : 3;
+    }
     if (rest[0] === "install") {
       const report = await installSkills({
         root,

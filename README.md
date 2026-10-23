@@ -55,6 +55,10 @@ Install one command package: `@penpair/web`, or `@penpair/docker` for a local in
 | [penpair-verify](packages/core/skills/penpair-verify/SKILL.md) | Compare the real frontend, inspect images and recheck fixes |
 | [design-judgment](packages/core/skills/design-judgment/SKILL.md) | Assess page structure and hierarchy |
 
+Check a consumer's Codex installation with `pnpm exec penpair skills check --json`.
+[Discovery diagnostics and behavior trials](docs/skill-validation.md) explain what
+that establishes and how to verify actual skill use.
+
 [Cookbook](docs/cookbook.md) · [MCP tools](docs/mcp.md) · [Format contracts](docs/formats.md) · [Compatibility](docs/compatibility.md) · [Recovery](docs/recovery.md) · [Living checklist](docs/improvements.md)
 
 See [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md), [release steps](docs/releasing.md), [CHANGELOG](CHANGELOG.md) and the [MIT licence](LICENSE). Comparison metrics supply evidence for review; they do not approve a design.

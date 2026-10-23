@@ -6,6 +6,10 @@ import { renderSkillRouting } from "./skill-routing.js";
 
 const start = "<!-- penpair:skills:start -->";
 const end = "<!-- penpair:skills:end -->";
+export const skillInstructionMarkers = {
+  start,
+  end,
+};
 export interface InstructionReport {
   path: string | null;
   status: "not-selected" | "choice-required" | "unchanged" | "preview" | "written";
