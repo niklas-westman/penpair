@@ -14,6 +14,10 @@ Two ways to run Penpot, one way to connect. **Web** (design.penpot.app, or a tea
 
 ## The key never passes through you
 
+For an existing installation, use its local command and reviewed version
+(`pnpm exec penpair` in pnpm projects) in place of the first-use `npx` examples
+below. Preserve its chosen command package and current profile.
+
 The MCP key is the person's password to their Penpot. Keep it out of chat, logs, commands and commits. The person pastes it themselves into a prompt that hides it (`penpair connect`), or pipes it from their clipboard (`pbpaste | npx @penpair/web connect`). Your shell cannot answer a hidden prompt, so hand that one step to the person with the exact words below.
 
 ## Steps

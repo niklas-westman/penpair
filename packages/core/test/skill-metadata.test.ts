@@ -1,10 +1,40 @@
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseSkillMetadata, parseSkillYaml } from "../src/skill-metadata.js";
-import { bundledSkillsDirectory, listBundledSkills } from "../src/skills.js";
+import { bundledSkillsDirectory, installSkills, listBundledSkills } from "../src/skills.js";
 
 describe("skill metadata", () => {
+  it("installs usable Codex metadata with explicit prompts and allowed implicit invocation", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-ui-metadata-"));
+    await installSkills({
+      root,
+      agents: "AGENTS.md",
+    });
+    for (const name of await listBundledSkills()) {
+      const bundled = await readFile(
+        path.join(bundledSkillsDirectory(), name, "agents/openai.yaml"),
+        "utf8",
+      );
+      const installed = await readFile(
+        path.join(root, ".agents/skills", name, "agents/openai.yaml"),
+        "utf8",
+      );
+      expect(installed).toBe(bundled);
+      const metadata = parseSkillYaml(installed);
+      const ui = metadata.interface as Record<string, unknown>;
+      expect(typeof ui.display_name).toBe("string");
+      expect(typeof ui.short_description).toBe("string");
+      expect(String(ui.short_description).length).toBeGreaterThanOrEqual(25);
+      expect(String(ui.short_description).length).toBeLessThanOrEqual(64);
+      expect(ui.default_prompt).toContain(`$${name}`);
+      expect(metadata.policy).toMatchObject({
+        allow_implicit_invocation: true,
+      });
+    }
+  });
+
   it("decodes quoted and folded descriptions instead of copying YAML syntax", () => {
     expect(
       parseSkillMetadata('---\nname: "example-skill"\ndescription: "Inspect: a design."\n---\n'),

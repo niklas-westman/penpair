@@ -1,7 +1,8 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S6.
+Status: offline implementation complete. Current step: owner branch review and
+the separately pending acceptance trials below.
 
 ## Living document
 
@@ -75,7 +76,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   divergent and disabled implicit invocation cases. Supply a reproducible prompt
   trial matrix and record actual results separately from unevaluated fresh-model
   trials. Test CLI results and ensure no connection/adapter execution or writes.
-- [ ] **S6 · Make selected skills visible and finish review (P2).** Add useful
+- [x] **S6 · Make selected skills visible and finish review (P2).** Add useful
   Codex display metadata/example prompts and a concise selection announcement.
   Keep implicit invocation enabled. Validate metadata and installed copies; run
   full checks and all package smoke installs. Record final results and limits.
@@ -105,6 +106,19 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S6 completed · 2026-10-23.** Added Codex names, concise UI descriptions and
+  explicit starting prompts for all six skills, retaining implicit invocation.
+  Generated instructions ask for a brief selection announcement without treating
+  it as verification. Metadata parsing and installation checks pass; final package
+  smoke proves that metadata, checkpoint assets and `skills check` work from real
+  installed tarballs. Reviewed scope, neutral boundaries, preservation, approval
+  rules, local-command guidance and release notes. Final `pnpm check` passes
+  **680 package tests + 3 convention tests**; all six package smoke installs,
+  whitespace and exact-base PR release-note checks pass. Changesets proposes a
+  patch for all six packages; every actual version remains **0.3.0**. No push,
+  version bump, merge, publication, consumer modification or live Penpot write
+  occurred. Fresh-model and live acceptance remain unchecked above.
 
 - **S5 completed · 2026-10-23.** Added offline `skills check` with versioned CLI
   results: valid project discovery/routing returns 0; incomplete readiness returns

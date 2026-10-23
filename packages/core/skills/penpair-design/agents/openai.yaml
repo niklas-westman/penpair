@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Design"
+  short_description: "Inspect and safely update Penpot designs"
+  default_prompt: "Use $penpair-design to inspect the authorized Penpot frame and verify any scoped changes independently."
+policy:
+  allow_implicit_invocation: true

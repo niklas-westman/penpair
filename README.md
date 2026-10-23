@@ -51,7 +51,7 @@ Install one command package: `@penpair/web`, or `@penpair/docker` for a local in
 | [penpair-setup](packages/core/skills/penpair-setup/SKILL.md) | Connect or repair project setup |
 | [penpair-design](packages/core/skills/penpair-design/SKILL.md) | Inspect and operate on a design file |
 | [penpair-recipes](packages/core/skills/penpair-recipes/SKILL.md) | Compose a page with reviewed recipes |
-| [penpair-handoff](packages/core/skills/penpair-handoff/SKILL.md) | Implement from design evidence and compare |
+| [penpair-handoff](packages/core/skills/penpair-handoff/SKILL.md) | Map components and implement from design evidence |
 | [penpair-verify](packages/core/skills/penpair-verify/SKILL.md) | Compare the real frontend, inspect images and recheck fixes |
 | [design-judgment](packages/core/skills/design-judgment/SKILL.md) | Assess page structure and hierarchy |
 

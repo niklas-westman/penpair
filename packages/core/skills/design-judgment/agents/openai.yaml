@@ -1,0 +1,6 @@
+interface:
+  display_name: "Design Judgment"
+  short_description: "Review screen hierarchy, density and states"
+  default_prompt: "Use $design-judgment to critique this screen's hierarchy and density against the project's approved design direction."
+policy:
+  allow_implicit_invocation: true

@@ -252,6 +252,22 @@ check(
 );
 await penpair(web, "skills", "install", "--agents", "AGENTS.md");
 check(
+  JSON.parse(await penpair(web, "skills", "check", "--json")).data.ready === true,
+  "offline Codex discovery and routing checks pass from installed tarballs",
+);
+check(
+  (await readFile(join(web, ".agents/skills/penpair-verify/agents/openai.yaml"), "utf8")).includes(
+    "$penpair-verify",
+  ),
+  "Codex UI metadata ships with the explicit verification prompt",
+);
+check(
+  (
+    await readFile(join(web, ".agents/skills/penpair-recipes/assets/visual-checkpoint.md"), "utf8")
+  ).includes("Visual evidence checkpoint"),
+  "the comparative checkpoint template ships through discoverable skill links",
+);
+check(
   (await readFile(join(web, ".agents/skills/penpair-verify/SKILL.md"), "utf8")).includes(
     "name: penpair-verify",
   ),

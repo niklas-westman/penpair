@@ -12,3 +12,5 @@ Add a project-owned comparative checkpoint template so approved references,
 preserved regions, actual visual findings and next actions survive handoffs.
 Add offline Codex skill discovery/routing diagnostics and a realistic invocation
 trial matrix without connecting to Penpot, executing providers or changing files.
+Include Codex display metadata and explicit starting prompts for all six skills,
+with implicit invocation enabled and visible workflow-selection guidance.

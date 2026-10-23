@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Verify"
+  short_description: "Compare browser UI with approved designs"
+  default_prompt: "Use $penpair-verify to compare this running frontend with its approved design, inspect the images and recheck scoped fixes."
+policy:
+  allow_implicit_invocation: true

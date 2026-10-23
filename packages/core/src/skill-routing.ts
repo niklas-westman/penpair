@@ -30,6 +30,7 @@ export function renderSkillRouting(rows: string[]): string[] {
 
   return [
     "Before working on a matching task, read the linked SKILL.md and follow its relevant workflow before running design or implementation tools.",
+    "Briefly name the selected skill and its purpose when starting or changing workflow; report actual evidence separately from the intention to use a skill.",
     "Use the smallest applicable set of skills; follow a linked companion only when the task reaches that stage. Skill selection does not authorize additional writes or replace owner approval.",
     "",
     "| Task | Read first |",

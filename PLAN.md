@@ -15,7 +15,7 @@ Living checklist. Source of the first draft: Sourcer's `design-governance/docs/p
 Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own instance and is the first test of the Marwes adapter. Sourcer moves onto the kit afterwards, so it stops depending on Tradient's untracked `penpot-poc/` folder.
 
 ## Now
-- [ ] **Improve Codex skill workflow readiness.** Execute the [living six-step checklist](docs/plans/skill-workflow-readiness.md) on `codex/skill-workflow-readiness`; verify and commit each completed step. Live Penpot and fresh-session acceptance remain separate pending work.
+- [ ] **Review the completed Codex skill branch.** All six implementation steps in the [living checklist](docs/plans/skill-workflow-readiness.md) are verified and committed on `codex/skill-workflow-readiness`. Owner branch review and separately recorded fresh-session/live acceptance remain pending; nothing has been pushed or published.
 
 ## Codex skill workflow readiness
 
@@ -25,7 +25,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] S3: focused frontend comparison skill and connected handoff.
 - [x] S4: comparative evidence checkpoint before expanding a design family.
 - [x] S5: offline skill diagnostics and realistic invocation trials.
-- [ ] S6: Codex metadata, visible selection and final validation.
+- [x] S6: Codex metadata, visible selection and final validation.
 - [ ] Live consumer acceptance (left pending by owner instruction).
 
 ## Release registry polling
@@ -173,6 +173,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-23: S6 completed all six skill workflow steps with Codex UI metadata, explicit prompts and visible selection guidance. Final validation: 680 package tests + 3 convention tests, all six package smoke installs and exact-base Changesets policy pass. Versions remain 0.3.0; branch review and fresh-model/live acceptance remain pending. Each implementation step has its own commit and completion report.
 - 2026-10-23: S5 added read-only `skills check` diagnostics, 14 functional/trust-boundary regressions and a realistic invocation-trial matrix. Full checks pass (679 package tests + 3 convention tests). Tradient's older routing and missing new skill were reported without changing consumer files; fresh-model/live trials remain pending.
 - 2026-10-23: S4 added a project-owned comparative evidence checkpoint before design-family expansion and across frontend handoffs. Full checks and an installation/forced-refresh preservation exercise pass; missing evidence and owner acceptance remain explicit pending states.
 - 2026-10-23: S3 shipped the sixth skill, `penpair-verify`, connected design/handoff routing and corrected stale starter guidance. Full checks and all six package smoke installs pass; real consumer comparison and owner review remain pending.

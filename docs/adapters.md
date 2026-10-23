@@ -39,10 +39,11 @@ First check your installed command version:
 pnpm exec penpair --version
 ```
 
-For a project already on **0.2.0**, install the matching companion:
+For example, a project whose command/core are **0.3.0** installs this matching
+companion. Use the actual installed version when it differs:
 
 ```sh
-pnpm add -D -E @penpair/reflection-check@0.2.0
+pnpm add -D -E @penpair/reflection-check@0.3.0
 ```
 
 Use the version printed above when it differs. In a pnpm workspace, use the existing dependency location (`-w` when installing at the workspace root). Upgrade directly installed Penpair packages together rather than mixing releases.
