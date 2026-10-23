@@ -1,7 +1,7 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S2.
+Status: implementing. Current step: S3.
 
 ## Living document
 
@@ -55,7 +55,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   only installed/selected skills, preserve custom text and relative links, and
   load the applicable skill before tool work. Verify partial installs, nested
   destinations, dry-run, repeated updates and existing preservation tests.
-- [ ] **S2 · Improve skill selection descriptions (P1).** Use ordinary Penpot,
+- [x] **S2 · Improve skill selection descriptions (P1).** Use ordinary Penpot,
   approved-design, state-variant and frontend requests with clear boundaries.
   Validate frontmatter, names, packaged references and neutral content. Do not
   claim that metadata validation proves model behavior.
@@ -105,6 +105,14 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S2 completed · 2026-10-23.** Front-loaded everyday task descriptions now
+  distinguish design operations, state construction, design judgment and frontend
+  implementation. Replaced the installer's line regex with bounded YAML data
+  parsing so quoted/folded descriptions work and malformed or mismatched metadata
+  fails clearly. Reused the workspace's pinned YAML version as a core dependency.
+  Full checks pass: 665 package tests plus 3 convention tests, including 9 metadata
+  and packaged-resource checks. No fresh-model selection claim is made.
 
 - **S1 completed · 2026-10-23.** Generated instructions now route matching tasks
   to selected skills before tool work instead of presenting only a directory.

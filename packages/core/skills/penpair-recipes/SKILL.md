@@ -1,6 +1,6 @@
 ---
 name: penpair-recipes
-description: Build or update a Penpot page through reviewed penpair recipes, active tokens and an idempotent script, then verify the resulting objects and export.
+description: Build a Penpot screen or create loading, empty or error variants from an approved frame using the existing library and tokens. Use for design construction and state variants in Penpot; frontend implementation belongs to penpair-handoff.
 ---
 
 # Page recipes

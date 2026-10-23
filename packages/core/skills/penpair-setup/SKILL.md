@@ -1,6 +1,6 @@
 ---
 name: penpair-setup
-description: Set up penpair in a project and connect it to a Penpot, on the web (the default) or in Docker on this computer. Use when a project has no penpair.config.json, when `penpair doctor` reports a failure, when the user asks to install, start, connect, repair or move their Penpot connection, or when an agent is told "set up penpair". Do not use for editing a Penpot file (penpair-design) or deciding how a screen looks (design-judgment).
+description: Install Penpair or connect and repair a project's Penpot setup, including a failing doctor check, suspended plugin or missing configuration. Use for connection and setup work; use penpair-design to edit designs and design-judgment to choose their composition.
 metadata:
   version: "0.1.0"
   scope: setup and connection

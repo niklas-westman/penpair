@@ -1,6 +1,6 @@
 ---
 name: design-judgment
-description: Decide how a screen is structured, filled and judged before it is built. Use when designing or redesigning a page or flow (list, detail, queue, dashboard, admin), choosing a composition or density, deciding what fills a card or panel, defining loading, empty and error states, mapping status or feedback to components, comparing layout options, or critiquing a design or a rendered screen. Do not use for writing to Penpot (penpair-design) or for picking and verifying components of a specific library.
+description: Choose or critique a screen's hierarchy, density, content and loading, empty or error states. Use for composition decisions and visual critique while respecting approved designs; use penpair-design for Penpot operations and the project's library guidance for component APIs.
 metadata:
   version: "0.1.0"
   scope: design reasoning

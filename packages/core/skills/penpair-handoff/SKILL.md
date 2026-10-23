@@ -1,6 +1,6 @@
 ---
 name: penpair-handoff
-description: Turn a complete Penpot frame inspection into an implementation handoff, explicit component mappings and baseline comparison evidence; retain exact owner approvals and unresolved semantics.
+description: Implement a frontend from an approved Penpot design, or prepare its design-to-code handoff. Use for component mapping, responsive behavior and design evidence; retain unknown semantics, approved references and comparison requirements.
 ---
 
 # Design handoff

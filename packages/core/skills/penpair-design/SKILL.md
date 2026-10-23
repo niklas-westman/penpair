@@ -1,6 +1,6 @@
 ---
 name: penpair-design
-description: Inspect, edit, audit or export a Penpot design through penpair with a pinned target, recoverable writes and independent verification. Use for plugin execution and design-file operations.
+description: Inspect, edit, audit or export a Penpot design with Penpair. Use for Penpot frames, tokens, components, plugin scripts and design screenshots; use penpair-handoff when implementing the design in frontend code.
 metadata:
   version: "0.1.0"
   scope: penpot
