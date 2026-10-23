@@ -12,13 +12,14 @@ import {
 const project = async (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-skills-"));
 
 describe("the shipped skills", () => {
-  it("ship focused setup, operations, recipes, handoff and judgment with self-identifying entrypoints", async () => {
+  it("ship focused setup, operations, recipes, handoff, verification and judgment with self-identifying entrypoints", async () => {
     expect(await listBundledSkills()).toEqual([
       "design-judgment",
       "penpair-design",
       "penpair-handoff",
       "penpair-recipes",
       "penpair-setup",
+      "penpair-verify",
     ]);
     for (const name of await listBundledSkills()) {
       const { name: declared, summary } = await describeSkill(

@@ -1,7 +1,7 @@
 # Codex skill workflow readiness
 
 Created and last updated: 2026-10-23. Branch: `codex/skill-workflow-readiness`.
-Status: implementing. Current step: S3.
+Status: implementing. Current step: S4.
 
 ## Living document
 
@@ -59,7 +59,7 @@ a prerequisite. Official reference: [Codex skills](https://developers.openai.com
   approved-design, state-variant and frontend requests with clear boundaries.
   Validate frontmatter, names, packaged references and neutral content. Do not
   claim that metadata validation proves model behavior.
-- [ ] **S3 · Ship a focused verification skill (P1).** Add `penpair-verify` for
+- [x] **S3 · Ship a focused verification skill (P1).** Add `penpair-verify` for
   real frontend comparison, screenshot inspection, bounded fixes and reruns.
   Route from design/handoff and retain separate readiness/approval stages. Fix
   contradictory starter guidance. Verify installation and package enumeration.
@@ -105,6 +105,14 @@ Live trials remain pending by owner instruction. No extra agents or API-backed
 evaluation will be started without the required authorization.
 
 ## Completion reports
+
+- **S3 completed · 2026-10-23.** Shipped `penpair-verify` as the sixth consumer
+  skill, with ordinary parity/fix triggers and design/handoff routing. It records
+  actual browser readiness, inspects images and recaptures scoped fixes without
+  changing references or granting approval. Corrected both stale claims that the
+  browser starter was still planned. Full checks pass (665 package tests + 3
+  convention tests); all six package smoke installs pass and the installed Codex
+  link resolves the new skill. Consumer browser/owner acceptance remains pending.
 
 - **S2 completed · 2026-10-23.** Front-loaded everyday task descriptions now
   distinguish design operations, state construction, design judgment and frontend

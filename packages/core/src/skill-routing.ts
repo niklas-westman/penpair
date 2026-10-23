@@ -4,6 +4,7 @@ const tasksBySkill: Record<string, string> = {
   "penpair-recipes": "Build a Penpot screen or derive a state variant from an approved frame",
   "design-judgment": "Choose or critique hierarchy, density and screen states",
   "penpair-handoff": "Implement a frontend from an approved Penpot design",
+  "penpair-verify": "Compare a frontend with its approved design or recheck visual fixes",
 };
 
 /** Instruction links have already been made relative to their destination. */

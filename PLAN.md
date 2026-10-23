@@ -22,7 +22,7 @@ Tradient (pnpm monorepo, trading journal on `@marwes-ui/react`) gets its own ins
 - [x] Prepare the living checklist, source evidence, acceptance criteria and a new branch from merged main.
 - [x] S1: actionable task routing in generated project instructions.
 - [x] S2: ordinary-language skill triggers and clear boundaries.
-- [ ] S3: focused frontend comparison skill and connected handoff.
+- [x] S3: focused frontend comparison skill and connected handoff.
 - [ ] S4: comparative evidence checkpoint before expanding a design family.
 - [ ] S5: offline skill diagnostics and realistic invocation trials.
 - [ ] S6: Codex metadata, visible selection and final validation.
@@ -173,6 +173,7 @@ Connection profile, library adapter, snippet registry, verification provider, sk
 - Backup destination and who owns the master `.penpot` file
 
 ## Change log
+- 2026-10-23: S3 shipped the sixth skill, `penpair-verify`, connected design/handoff routing and corrected stale starter guidance. Full checks and all six package smoke installs pass; real consumer comparison and owner review remain pending.
 - 2026-10-23: S2 clarified task triggers and added bounded YAML frontmatter parsing, valid identities and shipped-resource checks. Quoted/folded descriptions are supported without treating metadata as code. Full checks pass (665 package tests + 3 convention tests).
 - 2026-10-23: S1 added task-to-skill routing inside the installer-owned instruction block, retaining partial installs, relative links, dry-run/idempotence and owner-text preservation. Full checks pass (656 package tests + 3 convention tests); fresh-model selection remains pending.
 - 2026-10-23: started `codex/skill-workflow-readiness` from merged main and prepared the six-step living checklist. Tradient session evidence shows skills were loaded but guidance was underapplied. Each implementation step will be verified and committed separately; live trials remain pending.
