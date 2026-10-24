@@ -1,5 +1,17 @@
 # @penpair/core
 
+## 0.3.3
+
+### Patch Changes
+
+- 6f26260: Offer recommended assistant-guided and manual installation routes with the same
+  readiness checks. Teach setup skills to honor the chosen route, preserve progress
+  when switching and keep manual instructions separate from executed verification.
+- 6f26260: Consolidate installation and repair into one canonical setup skill. Preserve the
+  old guide URL as a redirect, report legacy copies for safe migration, reuse existing
+  Copilot skill folders and support host-specific offline discovery checks for Codex,
+  Claude Code and GitHub Copilot without duplicating the installed skill pack.
+
 ## 0.3.2
 
 No changes in this release.
