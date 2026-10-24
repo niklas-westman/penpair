@@ -1,5 +1,12 @@
 # @penpair/reflection-check
 
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies [7ce3748]
+  - @penpair/core@0.3.5
+
 ## 0.3.4
 
 ### Patch Changes
