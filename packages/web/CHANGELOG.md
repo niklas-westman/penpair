@@ -1,5 +1,19 @@
 # @penpair/web
 
+## 0.3.3
+
+### Patch Changes
+
+- 6f26260: Restore the README logo and explain installation, agent skills, companion adapters
+  and first tasks in a clear introduction. Clarify contribution setup and verification,
+  and use public source links so the README remains navigable on npm.
+- 6f26260: Offer recommended assistant-guided and manual installation routes with the same
+  readiness checks. Teach setup skills to honor the chosen route, preserve progress
+  when switching and keep manual instructions separate from executed verification.
+- Updated dependencies [6f26260]
+- Updated dependencies [6f26260]
+  - @penpair/core@0.3.3
+
 ## 0.3.2
 
 ### Patch Changes
