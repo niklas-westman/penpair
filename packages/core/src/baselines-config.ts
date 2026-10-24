@@ -26,8 +26,10 @@ export interface CoverageConfig {
 
 /** One frame of a Penpot page that becomes an approved reference image. */
 export interface BaselineFrame {
-  /** The exact name of a top-level frame on the page. */
-  frame: string;
+  /** Exact top-level frame name, or an expected name when frameId is supplied. */
+  frame?: string;
+  /** Stable board UUID, resolved at any depth on the configured page. */
+  frameId?: string;
   /** Names the image file (`<id>.png`) and the check that uses it. Lowercase letters, digits, hyphens and underscores. */
   id: string;
   /** The route in the implementation this frame is the design of. Frames without one are exported but not given a check. */
@@ -45,6 +47,8 @@ export interface BaselinesConfig {
   threshold?: number;
   coverage?: CoverageConfig;
 }
+
+const frameIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const idPattern = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
@@ -71,13 +75,27 @@ export function validateBaselines(
     fail("baselines.frames must list at least one frame, at most 1000");
   }
   const seen = new Set<string>();
+  const seenFrameIds = new Set<string>();
   for (const entry of v.frames as unknown[]) {
     const f = entry as Record<string, unknown>;
     if (typeof f !== "object" || f === null) {
       fail("every entry in baselines.frames must be an object");
     }
-    if (typeof f.frame !== "string" || f.frame.length === 0) {
-      fail("every baselines.frames entry needs a frame name");
+    if (f.frame === undefined && f.frameId === undefined) {
+      fail("every baselines.frames entry needs frame or frameId");
+    }
+    if (f.frame !== undefined && (typeof f.frame !== "string" || f.frame.length === 0)) {
+      fail("baselines.frames frame must be a non-empty name");
+    }
+    if (f.frameId !== undefined) {
+      if (typeof f.frameId !== "string" || !frameIdPattern.test(f.frameId)) {
+        fail("baselines.frames frameId must be a UUID");
+      }
+      const frameId = (f.frameId as string).toLowerCase();
+      if (seenFrameIds.has(frameId)) {
+        fail(`baselines.frames frameId ${JSON.stringify(f.frameId)} is used twice`);
+      }
+      seenFrameIds.add(frameId);
     }
     if (typeof f.id !== "string" || !idPattern.test(f.id)) {
       fail(

@@ -334,8 +334,19 @@ export const projectConfigSchema = {
           items: {
             type: "object",
             required: [
-              "frame",
               "id",
+            ],
+            anyOf: [
+              {
+                required: [
+                  "frame",
+                ],
+              },
+              {
+                required: [
+                  "frameId",
+                ],
+              },
             ],
             dependentRequired: {
               case: [
@@ -346,6 +357,11 @@ export const projectConfigSchema = {
               frame: {
                 type: "string",
                 minLength: 1,
+              },
+              frameId: {
+                type: "string",
+                pattern:
+                  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               },
               id: {
                 type: "string",

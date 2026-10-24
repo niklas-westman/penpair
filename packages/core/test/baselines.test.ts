@@ -61,7 +61,16 @@ const png = (width: number, height: number, tag = ""): Buffer => {
   ]);
 };
 
+interface FakeShape {
+  id: string;
+  name: string;
+  type: string;
+  width: number;
+  height: number;
+  children?: FakeShape[];
+}
 interface Fake {
+  roots?: FakeShape[];
   activeThemeIds?: string[];
   revision?: number;
   fileId?: string;
@@ -104,6 +113,29 @@ function penpot(fake: Fake): PenpotToolClient {
           ],
           truncated: false,
         });
+      }
+      if (fake.roots && code.includes("const boards = []")) {
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+        const page = {
+          id: "page",
+          name: "Candidate",
+          root: {
+            children: fake.roots,
+          },
+        };
+        return reply(
+          await new AsyncFunction("penpot", code)({
+            currentPage: page,
+            currentFile: {
+              id: fake.fileId ?? "file",
+              name: "Brand",
+              revn: fake.revision ?? 7,
+              pages: [
+                page,
+              ],
+            },
+          }),
+        );
       }
       const id = /"id":"([^"]+)"/.exec(code)?.[1];
       if (id && code.includes("export({")) {
@@ -1161,5 +1193,366 @@ describe("explicit baseline case provenance", () => {
       ),
     ).rejects.toThrow(/outside/);
     expect(await readdir(outside)).toEqual([]);
+  });
+});
+
+describe("baseline frame IDs", () => {
+  const frameId = "10216397-acdf-805e-8008-d69b71f841d4";
+  const secondId = "20216397-acdf-805e-8008-d69b71f841d4";
+  const nested = [
+    {
+      id: frameId,
+      name: "Desktop",
+      width: 1512,
+      height: 982,
+      type: "board",
+    },
+    {
+      id: secondId,
+      name: "Tablet",
+      width: 834,
+      height: 1194,
+      type: "board",
+    },
+  ];
+  const roots = [
+    {
+      id: "section",
+      name: "Section",
+      type: "board",
+      width: 2000,
+      height: 2000,
+      children: nested,
+    },
+  ];
+  const fixture = (): Fake => ({
+    roots,
+    frames: [
+      ...nested,
+    ],
+    images: {
+      [frameId]: images.a1,
+      [secondId]: images.b2,
+    },
+  });
+  const byId = {
+    ...config,
+    frames: [
+      {
+        id: "desktop",
+        frameId,
+      },
+      {
+        id: "tablet",
+        frameId: secondId,
+        frame: "Tablet",
+      },
+    ],
+  };
+
+  it("accepts name, ID or both and rejects missing, invalid and duplicate IDs", () => {
+    expect(validateBaselines(byId, fail)).toEqual(byId);
+    for (const entry of [
+      {
+        id: "x",
+      },
+      {
+        id: "x",
+        frameId: "bad",
+      },
+      {
+        id: "x",
+        frame: "",
+        frameId,
+      },
+    ]) {
+      expect(() =>
+        validateBaselines(
+          {
+            ...config,
+            frames: [
+              entry,
+            ],
+          },
+          fail,
+        ),
+      ).toThrow();
+    }
+    expect(() =>
+      validateBaselines(
+        {
+          ...config,
+          frames: [
+            {
+              id: "a",
+              frameId,
+            },
+            {
+              id: "b",
+              frameId: frameId.toUpperCase(),
+            },
+          ],
+        },
+        fail,
+      ),
+    ).toThrow(/used twice/);
+    expect(() =>
+      validateBaselines(
+        {
+          ...config,
+          frames: Array.from(
+            {
+              length: 1001,
+            },
+            (_, index) => ({
+              id: `f-${index}`,
+              frame: "Desktop",
+            }),
+          ),
+        },
+        fail,
+      ),
+    ).toThrow(/1000/);
+  });
+
+  it("captures every configured nested board by ID through the real listing snippet", async () => {
+    const root = await project();
+    const report = await exportBaselines(penpot(fixture()), root, byId, {
+      ...fast,
+      apply: true,
+    });
+    expect(report.complete).toBe(true);
+    expect(
+      report.results.map((result) => [
+        result.frameId,
+        result.frame,
+        result.written,
+      ]),
+    ).toEqual([
+      [
+        frameId,
+        "Desktop",
+        true,
+      ],
+      [
+        secondId,
+        "Tablet",
+        true,
+      ],
+    ]);
+    const manifest = JSON.parse(
+      await readFile(path.join(root, config.root, "penpair-baselines.json"), "utf8"),
+    );
+    expect(manifest.frames.map((entry: { frameId: string }) => entry.frameId)).toEqual([
+      frameId,
+      secondId,
+    ]);
+  });
+
+  it("reports a stale expected name as renamed without exporting or writing", async () => {
+    const root = await project();
+    const fake = fixture();
+    fake.onExport = () => {
+      throw new Error("must not export renamed frame");
+    };
+    const report = await exportBaselines(
+      penpot(fake),
+      root,
+      {
+        ...config,
+        frames: [
+          {
+            id: "desktop",
+            frameId,
+            frame: "Old name",
+          },
+        ],
+      },
+      {
+        ...fast,
+        apply: true,
+      },
+    );
+    expect(report).toMatchObject({
+      complete: false,
+      wrote: [],
+      results: [
+        {
+          frameId,
+          status: "renamed",
+          written: false,
+          problems: [
+            expect.stringContaining("Desktop"),
+          ],
+        },
+      ],
+    });
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it("does not fall back to a name for a missing ID or select a nested name-only frame", async () => {
+    const report = await exportBaselines(
+      penpot(fixture()),
+      await project(),
+      {
+        ...config,
+        frames: [
+          {
+            id: "missing-id",
+            frameId: "30216397-acdf-805e-8008-d69b71f841d4",
+            frame: "Desktop",
+          },
+          {
+            id: "nested-name",
+            frame: "Tablet",
+          },
+        ],
+      },
+      fast,
+    );
+    expect(report.results.map((entry) => entry.status)).toEqual([
+      "missing",
+      "missing",
+    ]);
+  });
+
+  it("keeps name-only matching top-level even in a mixed ID configuration", async () => {
+    const fake = fixture();
+    fake.roots = [
+      ...roots,
+      {
+        ...nested[0]!,
+        id: "top",
+        children: [],
+      },
+    ];
+    fake.frames.push({
+      ...nested[0]!,
+      id: "top",
+    });
+    fake.images.top = images.a1;
+    const report = await exportBaselines(
+      penpot(fake),
+      await project(),
+      {
+        ...config,
+        frames: [
+          {
+            id: "by-name",
+            frame: "Desktop",
+          },
+          byId.frames[1]!,
+        ],
+      },
+      fast,
+    );
+    expect(report.results.map((entry) => entry.frameId)).toEqual([
+      "top",
+      secondId,
+    ]);
+  });
+
+  it("rejects truncated listings before capture and preserves publication after a truncated recheck", async () => {
+    const root = await project();
+    const fake = fixture();
+    fake.roots = Array.from(
+      {
+        length: 10001,
+      },
+      (_, index) => ({
+        ...roots[0]!,
+        id: `section-${index}`,
+        children: [],
+      }),
+    );
+    await expect(
+      exportBaselines(penpot(fake), root, byId, {
+        ...fast,
+        apply: true,
+      }),
+    ).rejects.toThrow(/truncated/);
+    expect(await readdir(root)).toEqual([]);
+    const client = penpot(fixture());
+    const call = client.callTool.bind(client);
+    let listings = 0;
+    client.callTool = async (name, args) => {
+      if (String(args.code).includes("const boards = []") && ++listings === 2) {
+        return reply({
+          ok: true,
+          truncated: true,
+        });
+      }
+      return call(name, args);
+    };
+    await expect(
+      exportBaselines(client, root, byId, {
+        ...fast,
+        apply: true,
+      }),
+    ).rejects.toThrow(/source changed/);
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it("matches owner approval for a nested frame by exact capture identity", async () => {
+    const root = await project();
+    const designCase = {
+      viewport: {
+        width: 1512,
+        height: 982,
+      },
+      theme: "light",
+      state: "default",
+      fixture: "nested",
+    };
+    const rich = {
+      ...config,
+      frames: [
+        {
+          id: "desktop",
+          frameId,
+          route: "login",
+          case: designCase,
+        },
+      ],
+      coverage: {
+        required: [
+          {
+            route: "login",
+            ...designCase,
+          },
+        ],
+      },
+    };
+    await exportBaselines(penpot(fixture()), root, rich, {
+      ...fast,
+      apply: true,
+    });
+    const changed = fixture();
+    changed.images[frameId] = settled(1512, 982, "changed");
+    await recordApproval(
+      root,
+      await exportShapePng(penpot(changed), frameId, {
+        ...fast,
+        page: config.page,
+        stable: true,
+      }),
+      {
+        note: "Approved nested frame (offline fixture)",
+        by: "Fixture owner",
+      },
+      designCase,
+    );
+    const report = await exportBaselines(penpot(changed), root, rich, {
+      ...fast,
+      apply: true,
+      update: true,
+    });
+    expect(report.results[0]?.approved).toMatchObject({
+      frameId,
+      approval: {
+        kind: "owner-words",
+      },
+    });
+    expect(report.coverage.designCasesComplete).toBe(true);
   });
 });

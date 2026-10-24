@@ -28,15 +28,42 @@ return { ok: true, switched: true };`,
 
 export interface FramesParams {
   page: string;
+  /** Include nested boards with a bounded whole-page search. */
+  recursive?: boolean;
 }
 
-/** The top-level frames of a page: id, name and size, so they can be found by name and exported. */
+/** List top-level frames by default; opt in to a bounded search of every board on the page. */
 export function frames(params: FramesParams): Snippet {
   return readSnippet(
     "frames",
     `${requirePage}
+if (!CFG.recursive) {
+  return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
+    frames: penpot.currentPage.root.children.filter((shape) => shape.type === "board").map((shape) => ({ id: shape.id, name: shape.name, width: Math.round(shape.width), height: Math.round(shape.height) })) };
+}
+const boards = [];
+const budget = 10000;
+const stack = [];
+let visited = 0;
+let truncated = false;
+const enqueue = (children, parentBoardId, topLevel) => {
+  const take = Math.min(children.length, Math.max(0, budget - visited - stack.length));
+  if (take < children.length) { truncated = true; }
+  for (let index = take - 1; index >= 0; index--) {
+    stack.push({ shape: children[index], parentBoardId, topLevel });
+  }
+};
+enqueue(penpot.currentPage.root.children, null, true);
+while (stack.length) {
+  const { shape, parentBoardId, topLevel } = stack.pop();
+  visited++;
+  if (shape.type === "board") {
+    boards.push({ id: shape.id, name: shape.name, width: Math.round(shape.width), height: Math.round(shape.height), parentBoardId, topLevel });
+  }
+  enqueue(shape.children || [], shape.type === "board" ? shape.id : parentBoardId, false);
+}
 return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
-  frames: penpot.currentPage.root.children.filter((c) => c.type === "board").map((c) => ({ id: c.id, name: c.name, width: Math.round(c.width), height: Math.round(c.height) })) };`,
+  frames: boards, visited, truncated, complete: !truncated };`,
     params,
   );
 }

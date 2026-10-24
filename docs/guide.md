@@ -104,8 +104,11 @@ For registered writes, supply an explicit `verify({ inspect, apply, readback })`
 ```
 
 - `frame` is the exact name of a top-level frame on the page; two frames with the same name is an error, so the reference is never ambiguous.
+- Each entry requires `frame` or `frameId` (or both). `frameId` is a board UUID, unique across entries, resolved anywhere on the configured page. Frames inside boards, such as release frames inside section boards, need `frameId`. Name-only entries still match top-level frames only.
+- With both fields, `frame` is an expected name: a changed name reports `renamed` and captures nothing for that entry. Review and update the expected name before retrying. ID-only entries use the board's current name in reports. A truncated page search (10,000 shapes) stops the capture instead of using a partial listing.
+- For example: `{ "frameId": "10216397-acdf-805e-8008-d69b71f841d4", "frame": "Login / Empty", "id": "login-empty", "route": "login" }`.
 - `id` names the image (`<id>.png`) and the check. `route` is the route in your app this frame is the design of; a frame without a route is exported but gets no check.
-- Without `--apply` the command only looks and reports each frame as `new`, `same`, `changed`, `unstable` (the export never settled) or `missing`. `--apply` writes new images, `penpair-baselines.json` (file, revision, sizes, hashes) and `reflection-cases.json`. A `changed` image is replaced only with `--apply --update`: that is the act of approving the new design, and the owner's call. The exit code is 2 when a design differs from its image, 1 when a frame is missing or unstable.
+- Without `--apply` the command only looks and reports each frame as `new`, `same`, `changed`, `unstable` (the export never settled) or `missing`/`renamed`. `--apply` writes new images, `penpair-baselines.json` (file, revision, sizes, hashes) and `reflection-cases.json`. A `changed` image is replaced only with `--apply --update`: that is the act of approving the new design, and the owner's call. The exit code is 2 when a design differs from its image, 3 when a frame is missing, renamed or unstable.
 
 The generated `reflection-cases.json` holds, per route, the viewports (the image's exact size) and the `visualSmoke` cases (review-only, `strict: false`). A Reflection config uses it like this; only the route's own expectations are written by hand:
 

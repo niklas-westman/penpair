@@ -104,6 +104,7 @@ export function baselineCoverage(
         evidence?.approval?.kind !== "forced-reference" &&
         ![
           "missing",
+          "renamed",
           "unstable",
           "case-mismatch",
         ].includes(result.status) &&
@@ -263,6 +264,7 @@ export async function readBaselineCoverage(
         "same",
         "changed",
         "missing",
+        "renamed",
         "unstable",
         "case-mismatch",
       ].includes(value.status) ||

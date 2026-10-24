@@ -27,8 +27,10 @@ export type BaselineStatus =
   | "changed"
   /** The export never settled (two identical renders in a row), so it is not trusted. */
   | "unstable"
-  /** The page has no top-level frame with that name. */
+  /** No board matches the configured ID, or no top-level frame matches the name. */
   | "missing"
+  /** An ID-resolved board no longer has its configured expected name. */
+  | "renamed"
   | "case-mismatch";
 
 export interface ArtifactProvenance extends CaptureIdentity {
@@ -139,6 +141,7 @@ export async function exportBaselines(
     client,
     frames({
       page: config.page,
+      recursive: config.frames.some((entry) => entry.frameId !== undefined),
     }),
     config.page,
     options,
@@ -154,11 +157,17 @@ export async function exportBaselines(
   ) {
     throw new Error("Baseline listing lacks file/page/revision evidence");
   }
+  if (listing.truncated === true) {
+    throw new Error(
+      "Baseline frame search truncated at the page shape budget; nothing was captured",
+    );
+  }
   const found = listing.frames as {
     id: string;
     name: string;
     width: number;
     height: number;
+    topLevel?: boolean;
   }[];
   const results: BaselineResult[] = [];
   const wrote: string[] = [];
@@ -191,7 +200,11 @@ export async function exportBaselines(
     if (path.isAbsolute(file) || file.split(/[\\/]/).includes("..")) {
       throw new Error("Existing baseline path leaves its folder");
     }
-    const matches = found.filter((f) => f.name === wanted.frame);
+    const matches = found.filter((frame) =>
+      wanted.frameId
+        ? frame.id.toLowerCase() === wanted.frameId.toLowerCase()
+        : frame.topLevel !== false && frame.name === wanted.frame,
+    );
     if (!matches.length) {
       results.push({
         ...(wanted.case
@@ -200,7 +213,8 @@ export async function exportBaselines(
             }
           : {}),
         id: wanted.id,
-        frame: wanted.frame,
+        frame: wanted.frame ?? wanted.frameId!,
+        frameId: wanted.frameId,
         file,
         status: "missing",
         written: false,
@@ -213,7 +227,22 @@ export async function exportBaselines(
       );
     }
     const frame = matches[0]!;
-    options.onStep?.(`exporting ${wanted.frame}`);
+    if (wanted.frameId && wanted.frame !== undefined && wanted.frame !== frame.name) {
+      results.push({
+        id: wanted.id,
+        frame: wanted.frame,
+        frameId: frame.id,
+        case: wanted.case,
+        file,
+        status: "renamed",
+        problems: [
+          `Expected frame name ${JSON.stringify(wanted.frame)}; current name is ${JSON.stringify(frame.name)}`,
+        ],
+        written: false,
+      });
+      continue;
+    }
+    options.onStep?.(`exporting ${frame.name}`);
     const exported = await exportShapePng(client, frame.id, {
       ...options,
       page: config.page,
@@ -226,7 +255,7 @@ export async function exportBaselines(
           }
         : {}),
       id: wanted.id,
-      frame: wanted.frame,
+      frame: frame.name,
       frameId: frame.id,
       width: frame.width,
       height: frame.height,
@@ -394,6 +423,7 @@ export async function exportBaselines(
     client,
     frames({
       page: config.page,
+      recursive: config.frames.some((entry) => entry.frameId !== undefined),
     }),
     config.page,
     options,
@@ -404,7 +434,11 @@ export async function exportBaselines(
     revision: value.revn,
     frames: value.frames,
   });
-  if (observationHash(source(listing)) !== observationHash(source(after))) {
+  if (
+    after.ok !== true ||
+    after.truncated === true ||
+    observationHash(source(listing)) !== observationHash(source(after))
+  ) {
     throw new Error(
       "Baseline source changed before publication; previous artifacts were preserved",
     );
@@ -414,6 +448,7 @@ export async function exportBaselines(
     results.every(
       (result) =>
         result.status !== "missing" &&
+        result.status !== "renamed" &&
         result.status !== "unstable" &&
         result.status !== "case-mismatch",
     );
