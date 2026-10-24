@@ -87,6 +87,7 @@ export interface ProviderEvidence {
   fontsReady: boolean;
   baselineHash: string;
   capture?: BrowserCaptureMetadata;
+  /** Independently captured static lossless WebP (preferred) or legacy PNG evidence. */
   screenshot: string;
   diffPixelRatio: number;
   provider: {

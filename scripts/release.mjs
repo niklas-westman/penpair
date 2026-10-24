@@ -5,8 +5,10 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { confirmReleaseVersion, trustedPublishingContext } from "./lib/release-auth.mjs";
 import { releaseTargets } from "./lib/release-exclusions.mjs";
-import { waitForRegistryVisibility } from "./lib/registry-polling.mjs";
-// The only way to publish. All packages of this repository are released together, at one version, in dependency order.
+import { publishPackageBatch, verifyPackageVisibility } from "./lib/publication-batch.mjs";
+import { assertReleaseSnapshot } from "./lib/release-snapshot.mjs";
+import { assertVersionIncrease } from "./lib/release-pr.mjs";
+// The only way to publish. All packages of this repository are released together, at one version, with bounded concurrent uploads.
 //   pnpm release                      checks everything and prints the plan; publishes nothing
 //   pnpm release --publish            does it (npm asks for your one-time code; or pass --otp <code>)
 //   pnpm release --publish --continue finishes a release that stopped half way: publishes only what is missing at this version
@@ -15,7 +17,12 @@ import { waitForRegistryVisibility } from "./lib/registry-polling.mjs";
 import { execFile, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { checkVersions, isPublished, publishOrder } from "./lib/versions.mjs";
+import {
+  checkVersions,
+  isPublished,
+  latestPublishedVersion,
+  publishOrder,
+} from "./lib/versions.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -34,6 +41,10 @@ const excepted = args.flatMap((arg, i) =>
 const otp = option("--otp");
 const trusted = flag("--trusted-publishing");
 const confirmedVersion = option("--confirm-version");
+const releaseSha = option("--release-sha");
+if (trusted && !releaseSha) {
+  throw new Error("Trusted publishing requires an explicitly reviewed --release-sha");
+}
 if (trusted && (otp || excepted.length)) {
   throw new Error(
     "Trusted publishing uses OIDC and the complete package family; OTP/except options belong to the local recovery path",
@@ -69,6 +80,7 @@ const inherit = (command, commandArgs, cwd, env = {}) =>
         ...env,
       },
     });
+    child.on("error", () => resolve(1));
     child.on("close", (code) => resolve(code ?? 1));
   });
 
@@ -92,15 +104,7 @@ if (excluded.length) {
   );
 }
 
-// 2. Released from what is on GitHub: main, clean, pushed.
-const branch = await sh("git", [
-  "rev-parse",
-  "--abbrev-ref",
-  "HEAD",
-]);
-if (branch !== "main") {
-  stop(`release from main, not ${branch}`);
-}
+// 2. Publish the reviewed snapshot even when newer feature commits have reached main.
 if (
   (await sh("git", [
     "status",
@@ -114,30 +118,65 @@ await sh("git", [
   "origin",
   "main",
 ]);
-if (
-  (await sh("git", [
+if (releaseSha) {
+  if (!trusted) {
+    stop("--release-sha belongs to the protected trusted-publishing workflow");
+  }
+  assertReleaseSnapshot(root, releaseSha);
+  say(`ok  reviewed release snapshot ${releaseSha} belongs to main`);
+} else {
+  const branch = await sh("git", [
     "rev-parse",
+    "--abbrev-ref",
     "HEAD",
-  ])) !==
-  (await sh("git", [
-    "rev-parse",
-    "origin/main",
-  ]))
-) {
-  stop(
-    "main is not the same as origin/main; push (or pull) first, so what is published is what is on GitHub",
-  );
+  ]);
+  if (branch !== "main") {
+    stop(`release from main, not ${branch}`);
+  }
+  if (
+    (await sh("git", [
+      "rev-parse",
+      "HEAD",
+    ])) !==
+    (await sh("git", [
+      "rev-parse",
+      "origin/main",
+    ]))
+  ) {
+    stop(
+      "main is not the same as origin/main; push (or pull) first, so what is published is what is on GitHub",
+    );
+  }
+  say("ok  main is clean and equal to origin/main");
 }
-say("ok  main is clean and equal to origin/main");
+
+function assertLatestDoesNotAdvance(name, latest) {
+  if (latest === undefined || latest === version) {
+    return;
+  }
+  try {
+    assertVersionIncrease(latest, version);
+  } catch {
+    throw new Error(
+      `${name}@${latest} is newer than ${version}; refusing to move latest backward. Inspect the newer release before recovering this snapshot.`,
+    );
+  }
+}
 
 // 3. What npm already has at this version: all or nothing, unless this continues an interrupted release.
-const state = [];
-for (const p of required) {
-  state.push({
-    ...p,
-    published: await isPublished(p.name, version),
-  });
-}
+const state = await Promise.all(
+  required.map(async (pkg) => {
+    const [published, latest] = await Promise.all([
+      isPublished(pkg.name, version),
+      latestPublishedVersion(pkg.name),
+    ]);
+    assertLatestDoesNotAdvance(pkg.name, latest);
+    return {
+      ...pkg,
+      published,
+    };
+  }),
+);
 const already = state.filter((p) => p.published);
 if (already.length === state.length) {
   stop(
@@ -195,7 +234,7 @@ if (!publish) {
   process.exit(0);
 }
 
-// 5. Publish, in order, each with the guard's permission, and look each one up afterwards.
+// 5. Bounded concurrent uploads followed by one family visibility barrier.
 let confirmation = confirmedVersion;
 if (!confirmation && process.stdin.isTTY) {
   const prompt = createInterface({
@@ -240,67 +279,100 @@ if (trusted) {
   }
   say(`\nPublishing as ${login}`);
 }
-for (const p of todo) {
-  say(`\n=== ${p.name}@${version}`);
-  let code;
-  if (trusted) {
-    const artifact = await publishTrustedPackage({
-      root,
-      packDirectory,
-      package: p,
-      run: inherit,
-    }).catch((error) => stop(error.message));
-    say(`packed ${p.name}: sha256 ${artifact.sha256}`);
-    code = artifact.code;
-  } else {
-    code = await inherit(
-      "pnpm",
-      [
-        "publish",
-        "--access",
-        "public",
-        ...(otp
-          ? [
-              "--otp",
-              otp,
-            ]
-          : []),
-      ],
-      p.directory,
-      {
-        PENPAIR_RELEASE: "1",
-      },
-    );
-  }
-  if (code !== 0) {
-    stop(
-      `publishing ${p.name} failed. Nothing after it was published. Fix the cause, then run \`pnpm release --publish --continue\`.`,
-      2,
-    );
-  }
-  const visible = await waitForRegistryVisibility(p.name, version, {
+// Recheck after validation and approval, immediately before any irreversible upload.
+await Promise.all(
+  required.map(async (pkg) => {
+    assertLatestDoesNotAdvance(pkg.name, await latestPublishedVersion(pkg.name));
+  }),
+);
+const uploads = await publishPackageBatch(
+  todo,
+  async (pkg) => {
+    say(`\n=== ${pkg.name}@${version}`);
+    let code;
+    if (trusted) {
+      const artifact = await publishTrustedPackage({
+        root,
+        packDirectory,
+        package: pkg,
+        run: inherit,
+        sourceSha: releaseSha,
+      });
+      say(`packed ${pkg.name}: sha256 ${artifact.sha256}`);
+      code = artifact.code;
+    } else {
+      code = await inherit(
+        "pnpm",
+        [
+          "publish",
+          "--access",
+          "public",
+          ...(otp
+            ? [
+                "--otp",
+                otp,
+              ]
+            : []),
+        ],
+        pkg.directory,
+        {
+          PENPAIR_RELEASE: "1",
+        },
+      );
+    }
+    if (code !== 0) {
+      throw new Error(`publishing ${pkg.name} failed`);
+    }
+  },
+  {
+    concurrency: trusted ? 3 : 1,
+  },
+);
+for (const upload of uploads) {
+  say(
+    `${upload.status.toUpperCase()} ${upload.package.name}@${version}${upload.error ? `: ${upload.error.message ?? upload.error}` : ""}`,
+  );
+}
+const uploadFailed = uploads.some((upload) => upload.status !== "accepted");
+const acceptedNames = new Set(
+  uploads.filter((upload) => upload.status === "accepted").map((upload) => upload.package.name),
+);
+// One concurrent visibility barrier. Never re-upload an accepted but not yet visible version.
+const verification = await verifyPackageVisibility(
+  required.filter(
+    (pkg) => acceptedNames.has(pkg.name) || already.some((entry) => entry.name === pkg.name),
+  ),
+  version,
+  {
     log: say,
-  });
-
-  if (!visible) {
-    stop(
-      `${p.name}@${version} was published but npm did not expose it within 10 minutes. Inspect the registry before explicitly continuing this release with \`pnpm release --publish --continue\`.`,
-      2,
-    );
+  },
+);
+const byName = new Map(
+  verification.map((entry) => [
+    entry.package.name,
+    entry,
+  ]),
+);
+const final = required.map((pkg) => ({
+  name: pkg.name,
+  published: byName.get(pkg.name)?.visible === true,
+  error: byName.get(pkg.name)?.error,
+}));
+for (const entry of verification) {
+  if (entry.error) {
+    say(`UNKNOWN ${entry.package.name}@${version}: ${entry.error.message ?? entry.error}`);
   }
 }
-
-// 6. Verify every required package; report the owner-configured omission separately.
-const final = [];
-for (const p of required) {
-  final.push({
-    name: p.name,
-    published: await isPublished(p.name, version),
-  });
+if (uploadFailed) {
+  stop(
+    "Some uploads failed or were not started. All in-flight uploads have finished; inspect the results and registry before explicit recovery with --continue. Accepted uploads were not replayed.",
+    2,
+  );
 }
+
 say("");
 for (const p of final) {
-  say(`${p.published ? "ok  " : "MISSING"} ${p.name}@${version}`);
+  say(`${p.error ? "UNKNOWN" : p.published ? "ok  " : "MISSING"} ${p.name}@${version}`);
 }
 if (final.some((p) => !p.published)) {
   console.error(

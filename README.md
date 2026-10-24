@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/assets/logo.png" alt="Penpair: a pen nib between blue code brackets" width="120" height="120">
+  <img src="https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/assets/banner.png" alt="Penpair: Design together. Build together. A shared workflow from design and contracts to build, verification and human review." width="100%">
 </p>
 
 # penpair

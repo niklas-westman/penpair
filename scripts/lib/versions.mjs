@@ -209,3 +209,46 @@ export async function isPublished(name, version, { timeoutMs = 30_000 } = {}) {
     );
   }
 }
+
+/** Latest tag is checked separately so recovery cannot move it back to an older release. */
+export async function latestPublishedVersion(name, { timeoutMs = 30_000 } = {}) {
+  let stdout;
+  try {
+    ({ stdout } = await execFileAsync(
+      "npm",
+      [
+        "view",
+        name,
+        "dist-tags.latest",
+        "--json",
+        "--fetch-retries=0",
+        `--fetch-timeout=${timeoutMs}`,
+      ],
+      {
+        timeout: timeoutMs,
+      },
+    ));
+  } catch (error) {
+    if (error.killed || error.code === "ETIMEDOUT") {
+      throw new Error(`npm latest lookup for ${name} timed out after ${timeoutMs}ms`);
+    }
+    if (
+      /E404|404 Not Found|is not in this registry/.test(
+        `${error.stdout ?? ""}${error.stderr ?? ""}`,
+      )
+    ) {
+      return undefined;
+    }
+    throw new Error(
+      `could not ask npm about latest ${name}: ${String(error.stderr ?? error.message).split("\n")[0]}`,
+    );
+  }
+  if (!stdout.trim()) {
+    return undefined;
+  }
+  const version = JSON.parse(stdout);
+  if (typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error(`npm latest for ${name} is not a stable version; inspect before publishing`);
+  }
+  return version;
+}

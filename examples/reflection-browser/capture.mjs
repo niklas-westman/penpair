@@ -264,12 +264,12 @@ export async function captureCase(page, test, hooks, { timeoutMs = 10000 } = {})
 }
 
 /** Exact decoded RGBA pixel difference, without resizing or threshold-based approval. */
-export async function comparePng(page, baseline, screenshot) {
+export async function compareImages(page, baseline, screenshot) {
   return page.evaluate(
     async (images) => {
-      const decode = async (base64) => {
+      const decode = async ({ mime, base64 }) => {
         const image = new Image();
-        image.src = "data:image/png;base64," + base64;
+        image.src = "data:" + mime + ";base64," + base64;
         await image.decode();
         return image;
       };
@@ -304,8 +304,26 @@ export async function comparePng(page, baseline, screenshot) {
       return changed / (canvas.width * canvas.height);
     },
     [
-      baseline.toString("base64"),
-      screenshot.toString("base64"),
+      imageData(baseline),
+      imageData(screenshot),
     ],
   );
 }
+
+function imageData(bytes) {
+  const png = bytes.length >= 8 && bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a";
+  const webp =
+    bytes.length >= 12 &&
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP";
+  if (!png && !webp) {
+    throw new Error("Comparison requires PNG or WebP bytes");
+  }
+  return {
+    mime: png ? "image/png" : "image/webp",
+    base64: bytes.toString("base64"),
+  };
+}
+
+/** Existing PNG callers retain the same decoded-pixel comparison. */
+export const comparePng = compareImages;

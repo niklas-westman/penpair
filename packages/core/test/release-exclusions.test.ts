@@ -89,12 +89,17 @@ describe("owner-approved short-name exception", () => {
     await mkdir(bin);
     const registry = join(root, "registry.json");
     const queries = join(root, "queries.jsonl");
-    await writeFile(registry, "[]");
-    const common = `const fs=require('node:fs'),path=require('node:path'); const args=process.argv.slice(2); const registry=process.env.FAKE_REGISTRY;`;
+    await writeFile(registry, "");
+    const registryState = async () =>
+      (await readFile(registry, "utf8"))
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line));
+    const common = `const fs=require('node:fs'),path=require('node:path'); const args=process.argv.slice(2); const registry=process.env.FAKE_REGISTRY; const names=()=>fs.readFileSync(registry,'utf8').split(String.fromCharCode(10)).filter(Boolean).map(line=>JSON.parse(line));`;
     const tools: Record<string, string> = {
-      git: `if(args[0]==='rev-parse')console.log(args.includes('--abbrev-ref')?'main':'same-sha');`,
+      git: `if(args[0]==='show')console.log(JSON.stringify({version:1}));else if(args[0]==='rev-parse')console.log(args.includes('--abbrev-ref')?'main':'a'.repeat(40));`,
       pnpm: `if(args[0]==='pack'){const folder=args[args.indexOf('--pack-destination')+1];const pkg=JSON.parse(fs.readFileSync('package.json'));fs.writeFileSync(path.join(folder,'fixture.tgz'),JSON.stringify(pkg));}else if(args[0]==='release'){const child=require('node:child_process').spawnSync(process.execPath,[path.join(process.cwd(),'scripts/release.mjs'),...args.slice(1)],{stdio:'inherit',env:process.env});process.exitCode=child.status??1;}`,
-      npm: `if(args[0]==='--version')console.log('11.5.1');else if(args[0]==='view'){fs.appendFileSync(process.env.FAKE_QUERIES,JSON.stringify(args[1])+'\\n');const names=JSON.parse(fs.readFileSync(registry));if(names.some(name=>args[1]===name+'@'+process.env.FAKE_VERSION))console.log(JSON.stringify(process.env.FAKE_VERSION));else{console.error('E404');process.exitCode=1;}}else if(args[0]==='publish'){const pkg=JSON.parse(fs.readFileSync(args[1]));const names=JSON.parse(fs.readFileSync(registry));names.push(pkg.name);fs.writeFileSync(registry,JSON.stringify(names));}`,
+      npm: `if(args[0]==='--version')console.log('11.5.1');else if(args[0]==='view'){fs.appendFileSync(process.env.FAKE_QUERIES,JSON.stringify(args[1])+String.fromCharCode(10));const published=names();const latest=args[2]==='dist-tags.latest';if(published.some(name=>args[1]===(latest?name:name+'@'+process.env.FAKE_VERSION)))console.log(JSON.stringify(latest?(process.env.FAKE_LATEST_VERSION||process.env.FAKE_VERSION):process.env.FAKE_VERSION));else{console.error('E404');process.exitCode=1;}}else if(args[0]==='publish'){const pkg=JSON.parse(fs.readFileSync(args[1]));if(pkg.name===process.env.FAKE_FAIL_PACKAGE){console.error('offline publish rejection');process.exitCode=1;}else fs.appendFileSync(registry,JSON.stringify(pkg.name)+String.fromCharCode(10));}`,
     };
     for (const [name, script] of Object.entries(tools)) {
       await writeFile(join(bin, name), `#!${process.execPath}\n${common}\n${script}\n`, {
@@ -108,6 +113,8 @@ describe("owner-approved short-name exception", () => {
       FAKE_REGISTRY: registry,
       FAKE_QUERIES: queries,
       FAKE_VERSION: version,
+      FAKE_LATEST_VERSION: "",
+      FAKE_FAIL_PACKAGE: "",
       GITHUB_ACTIONS: "true",
       GITHUB_EVENT_NAME: "workflow_dispatch",
       GITHUB_REF: "refs/heads/main",
@@ -116,6 +123,7 @@ describe("owner-approved short-name exception", () => {
       PENPAIR_RELEASE_ENVIRONMENT: "npm-release",
       PENPAIR_RELEASE_EXCLUDE_PENPAIR: "true",
       PENPAIR_EXPECTED_VERSION: version,
+      PENPAIR_RELEASE_SHA: "a".repeat(40),
       PENPAIR_CONTINUE_RELEASE: "false",
       GITHUB_STEP_SUMMARY: summary,
       NODE_AUTH_TOKEN: "",
@@ -129,6 +137,8 @@ describe("owner-approved short-name exception", () => {
           join(root, "scripts/release.mjs"),
           "--publish",
           "--trusted-publishing",
+          "--release-sha",
+          "a".repeat(40),
           "--confirm-version",
           version,
           ...extra,
@@ -152,7 +162,7 @@ describe("owner-approved short-name exception", () => {
       },
     );
     expect(await readFile(summary, "utf8")).toContain("All required packages verified");
-    const published = JSON.parse(await readFile(registry, "utf8"));
+    const published = await registryState();
     expect(published).toHaveLength(5);
     expect(published).not.toContain("penpair");
     expect(first.stdout).toContain("full family is not complete");
@@ -163,12 +173,7 @@ describe("owner-approved short-name exception", () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line)),
     ).not.toContain(`penpair@${version}`);
-    await writeFile(
-      registry,
-      JSON.stringify([
-        published[0],
-      ]),
-    );
+    await writeFile(registry, JSON.stringify(published[0]) + "\n");
     await expect(publish()).rejects.toMatchObject({
       stderr: expect.stringContaining("interrupted release"),
     });
@@ -203,7 +208,39 @@ describe("owner-approved short-name exception", () => {
       ],
       "false",
     );
-    expect(JSON.parse(await readFile(registry, "utf8"))).toHaveLength(6);
+    expect(await registryState()).toHaveLength(6);
     expect(restored.stdout).toContain("All 6 packages are published");
+    env.FAKE_LATEST_VERSION = "999.0.0";
+    await expect(
+      publish(
+        [
+          "--continue",
+        ],
+        "false",
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining("refusing to move latest backward"),
+    });
+    expect(await registryState()).toHaveLength(6);
+    env.FAKE_LATEST_VERSION = "";
+    env.FAKE_FAIL_PACKAGE = "@penpair/core";
+    await writeFile(registry, "");
+    await expect(publish()).rejects.toMatchObject({
+      stderr: expect.stringContaining("All in-flight uploads have finished"),
+    });
+    const partial = await registryState();
+    expect(partial).not.toContain("@penpair/core");
+    expect(partial.length).toBeGreaterThanOrEqual(2);
+    expect(partial.length).toBeLessThanOrEqual(4);
+    env.FAKE_FAIL_PACKAGE = "";
+    await expect(publish()).rejects.toMatchObject({
+      stderr: expect.stringContaining("interrupted release"),
+    });
+    await publish([
+      "--continue",
+    ]);
+    const recovered = await registryState();
+    expect(recovered).toHaveLength(5);
+    expect(new Set(recovered).size).toBe(5);
   }, 30000);
 });

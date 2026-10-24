@@ -14,6 +14,7 @@ describe("trusted publish artifact path with fake commands only", () => {
     }> = [];
     const result = await publishTrustedPackage({
       root,
+      sourceSha: "a".repeat(40),
       packDirectory: root,
       package: {
         name: "@example/one",
@@ -47,14 +48,37 @@ describe("trusted publish artifact path with fake commands only", () => {
         "--provenance",
       ],
     });
+    expect(calls[1]!.env).toBeUndefined();
+    expect(calls[2]!.env).toEqual({
+      PENPAIR_RELEASE: "1",
+      GITHUB_SHA: "a".repeat(40),
+    });
     expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
   });
+  it("rejects missing or malformed provenance source before running any command", async () => {
+    const run = async () => {
+      throw new Error("must not run");
+    };
+    await expect(
+      publishTrustedPackage({
+        sourceSha: "main",
+        run,
+      }),
+    ).rejects.toThrow(/40-character/);
+    await expect(
+      publishTrustedPackage({
+        run,
+      }),
+    ).rejects.toThrow(/40-character/);
+  });
+
   it("does not pack or publish after guard refusal", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "penpair-release-fixture-"));
     let calls = 0;
     await expect(
       publishTrustedPackage({
         root,
+        sourceSha: "a".repeat(40),
         packDirectory: root,
         package: {
           name: "one",

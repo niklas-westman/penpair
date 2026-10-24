@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { captureCase, comparePng } from "./capture.mjs";
+import { captureCase, compareImages } from "./capture.mjs";
 
 /** Pass a browser from the adopting project's pinned Playwright; this example installs nothing. */
 export function createBrowserProvider({
@@ -12,9 +12,24 @@ export function createBrowserProvider({
   deviceScaleFactor = 1,
   timeoutMs = 10000,
   io,
+  imageFormat = "webp",
+  encodeLosslessWebp,
 }) {
   if (!browser || !projectRoot || !baseURL || typeof hooks?.route !== "function") {
     throw new Error("Browser, project root, app origin and explicit route hook required");
+  }
+  if (
+    ![
+      "webp",
+      "png",
+    ].includes(imageFormat)
+  ) {
+    throw new Error("Evidence imageFormat must be webp or png");
+  }
+  if (imageFormat === "webp" && typeof encodeLosslessWebp !== "function") {
+    throw new Error(
+      "Lossless WebP evidence requires encodeLosslessWebp from the project's pinned image codec",
+    );
   }
   return {
     async runCase(test) {
@@ -48,12 +63,27 @@ export function createBrowserProvider({
         if (page.url() !== target.href) {
           throw new Error("Application navigated away from the intended route");
         }
-        const diffPixelRatio = await comparePng(page, before, capture.screenshot);
+        const diffPixelRatio = await compareImages(page, before, capture.screenshot);
+        const imageBytes =
+          imageFormat === "webp"
+            ? Buffer.from(await encodeLosslessWebp(capture.screenshot))
+            : capture.screenshot;
+        if (imageFormat === "webp") {
+          if (
+            imageBytes.toString("ascii", 0, 4) !== "RIFF" ||
+            imageBytes.toString("ascii", 8, 12) !== "WEBP"
+          ) {
+            throw new Error("Lossless WebP encoder returned a different image format");
+          }
+          if ((await compareImages(page, capture.screenshot, imageBytes)) !== 0) {
+            throw new Error("Lossless WebP encoding changed captured pixels");
+          }
+        }
         const screenshot = path.join(
           ".penpair/reflection",
           createHash("sha256")
             .update(test.id + ":" + test.setup)
-            .digest("hex") + ".png",
+            .digest("hex") + `.${imageFormat}`,
         );
         const output = await resolveProjectOutput(projectRoot, screenshot);
         if (output === (await resolveProjectInput(projectRoot, test.baseline.path))) {
@@ -62,7 +92,7 @@ export function createBrowserProvider({
         await mkdir(path.dirname(output), {
           recursive: true,
         });
-        await atomicWriteFile(output, capture.screenshot, {
+        await atomicWriteFile(output, imageBytes, {
           replace: true,
         });
         return {
@@ -79,7 +109,7 @@ export function createBrowserProvider({
           capture: capture.capture,
           provider: {
             name: "penpair-browser-starter-rgba-exact",
-            version: "1",
+            version: "2",
           },
         };
       } finally {
