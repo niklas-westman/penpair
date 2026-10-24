@@ -1,5 +1,11 @@
 # @penpair/marwes-ui
 
+## 0.3.2
+
+### Patch Changes
+
+- @penpair/core@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes
