@@ -26,6 +26,31 @@ function anchors(markdown: string): Set<string> {
   }
   return found;
 }
+
+async function markdownFiles(directory: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(path.join(root, directory), {
+    withFileTypes: true,
+  })) {
+    if (
+      [
+        "node_modules",
+        "dist",
+        ".working-docs",
+      ].includes(entry.name)
+    ) {
+      continue;
+    }
+    const relative = path.posix.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await markdownFiles(relative)));
+    } else if (entry.name.endsWith(".md")) {
+      files.push(relative);
+    }
+  }
+  return files;
+}
+
 describe("documentation navigation and repair inventory", () => {
   it("keeps every core error remedy in the generated troubleshooting page", async () => {
     expect(await readFile(path.join(root, "docs/troubleshooting.md"), "utf8")).toBe(
@@ -35,9 +60,10 @@ describe("documentation navigation and repair inventory", () => {
   it("resolves local README/docs links and Markdown anchors", async () => {
     const files = [
       "README.md",
-      ...(await readdir(path.join(root, "docs")))
-        .filter((f) => f.endsWith(".md"))
-        .map((f) => `docs/${f}`),
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "SECURITY.md",
+      ...(await markdownFiles("docs")),
     ];
     const problems: string[] = [];
     for (const file of files) {
@@ -62,6 +88,10 @@ describe("documentation navigation and repair inventory", () => {
         const absolute = target
           ? path.resolve(path.dirname(path.join(root, file)), decodeURIComponent(target))
           : path.join(root, file);
+        if (path.relative(root, absolute).split(path.sep).includes(".working-docs")) {
+          problems.push(`${file}: public link depends on a local working document`);
+          continue;
+        }
         try {
           await access(absolute);
           if (

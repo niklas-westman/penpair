@@ -1,15 +1,18 @@
 # Guide
 
-Choose a workflow below, starting with [companion adapters](adapters.md) when connecting a component library or verifying frontend code. Use the [review guide](branch-review.md) for the original improvement delivery; live checks are identified separately.
+Choose a workflow below, starting with [companion adapters](adapters.md) when
+connecting a component library or verifying frontend code. The
+[validation guide](validation.md) distinguishes automated, scratch and actual
+consumer evidence.
 
 ## Documentation map
 
 | Path | Documents |
 | --- | --- |
-| First run / shared file | [Getting started](getting-started.md), [team](team.md), [trial runbook](trials.md) |
+| First run / shared file | [Getting started](getting-started.md), [team](team.md), [validation](validation.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
-| Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md), [upstream draft](upstream/marwes-requests.md) |
+| Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md) |
 | Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |
 
 ## Extension points
@@ -21,11 +24,12 @@ Choose a workflow below, starting with [companion adapters](adapters.md) when co
 | Verification provider | what "matches the design" means | `penpair baselines` (images and Reflection cases, below), a page-verify gate |
 | Skill pack | rules the agent follows | the Penpot skill, design judgment |
 
-## Live documentation checks still pending
+## Verification limits
 
-- Follow the first-run guide on a clean machine with real participants.
-- Capture owner-reviewed screenshots of actual browser steps and a hosted large-file run.
-- Record the [human trial findings](trials.md) rather than treating offline fixtures as usability evidence.
+Offline fixtures do not establish first-run usability, hosted large-file behavior
+or multi-person coordination. Validate those in the actual target environment and
+retain observed results separately from unknowns; see [validation](validation.md)
+and the [compatibility matrix](compatibility.md).
 
 ## Configuration checks and standalone inspection
 

@@ -1,11 +1,18 @@
 # Agent instructions
 
-## Project plan
+## Working documents
 
-Read `PLAN.md` first in every session. It is the living checklist: what the product is, what is done, what is "Now", what is next, and what is undecided.
+Read this file and the maintained guides relevant to the task. Keep internal
+plans, execution checklists, session reports and private evidence in
+`.working-docs/`, which is git-ignored and is not part of published packages.
+Existing local work is tracked in `.working-docs/PLAN.md` when present; a fresh
+clone must not depend on that file. Promote durable behavior and limitations into
+the maintained documentation before archiving working notes.
 
-- Check a box in the same change that finishes the work, and add a line to its change log. A box is checked only when the step is built and verified.
-- Keep exactly one item as "Now". New work goes into the area it belongs to as an unchecked box.
+- For an active local plan, check a box only when the step is built and verified,
+  and add a completion note. Keep one "Now" item and record new work unchecked.
+- Never force-add `.working-docs/` or link public documentation to local-only
+  notes. Keep reusable guides, conventions, skills and examples tracked.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
 ## Code conventions

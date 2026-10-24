@@ -32,6 +32,7 @@ This skill develops Penpair; its consumer-facing design skills live separately i
    validation or orchestration. Run `pnpm smoke:package` for package boundary or
    packaging changes. Keep checked templates in sync when contracts change.
 7. Review the resulting diff for meaningful names, cohesive modules, stable public
-   imports and unchanged evidence/approval rules. Update `PLAN.md` checkboxes and
-   its change log only for work that is built and verified. Report what changed,
+   imports and unchanged evidence/approval rules. Keep internal plans and completion
+   notes in ignored `.working-docs/`; check local plan boxes only for work that is
+   built and verified. Keep durable behavior in maintained documentation. Report what changed,
    what was validated and any remaining limits.

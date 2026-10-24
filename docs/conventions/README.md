@@ -4,9 +4,6 @@ Start with the row matching the change. Copy the relevant pattern, then use the
 nearest production module's domain vocabulary. The examples compile and run in
 `pnpm conventions:check`; production code never imports them.
 
-The [completion report](completion-2026-10-22.md) records the initial rollout,
-resolved problems, verification and limits.
-
 | Work | Read | Checked example |
 | --- | --- | --- |
 | Choose a package, folder or module boundary | [Structure](structure.md) | [Comparison adapter](../../packages/reflection-check/src/index.ts) |
@@ -49,7 +46,8 @@ Penpair with their designs.
 
 - Generated `dist/`, dependencies, ignored local artifacts and data fixtures are
   outside formatting. Keep captured evidence unchanged.
-- `docs/trials/` and `docs/upstream/` preserve external evidence.
+- Internal completion reports, trial evidence and upstream drafts belong in
+  git-ignored `.working-docs/`; maintained guides must work without those files.
 - Raw plugin bodies in `examples/hello-card/`, `examples/theme-preview/` and
   `examples/trials/` may contain a top-level `return`, which Biome's module parser
   rejects. Their existing sandbox tests compile them as async function bodies.

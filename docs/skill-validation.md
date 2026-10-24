@@ -65,22 +65,12 @@ selection; authorized scratch trials establish mutation and visual behavior.
 Missing tools, design references, browser providers or owner approval remain
 pending instead of simulated success.
 
-## Results retained for this branch
+## Retain the observed results
 
-- Baseline evidence: the earlier consumer conversations **Investigate Coinbase
-  futures setup** and **Upgrade Penpair and run trial** contain actual reads of
-  design/recipe/handoff skills and selection announcements after ordinary user
-  requests. This establishes prior use, not correct application or new-version
-  performance. No raw private conversation logs are copied into the repository.
-- Automated tests cover successful and partial discovery, nested links, absent
-  files, malformed/oversized metadata, dangling/external links, conflicting copies,
-  preserved customization, disabled policy, missing resources and stale routing.
-  CLI results retain versioned envelopes and extension code remains unexecuted.
-- [ ] Fresh-session trials of the changed skill pack: pending.
-- [ ] Authorized live variant critique and real consumer browser comparison:
-  pending by owner instruction.
+Keep trial results in the project's own review folder. Retain actual loaded
+skills, resulting artifacts, failures and unresolved evidence separately from
+expected behavior. Source/package checks and real consumer trials are described
+in the [validation guide](validation.md).
 
-The [living implementation checklist](plans/skill-workflow-readiness.md) records
-completed implementation, commands and remaining acceptance work. See
-[official Codex skill documentation](https://developers.openai.com/codex/skills/)
+See [official Codex skill documentation](https://developers.openai.com/codex/skills/)
 for supported discovery locations, implicit selection and optional metadata.

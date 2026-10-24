@@ -294,6 +294,21 @@ check(
   (await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("getting-started.md"),
   "the docs ship",
 );
+const installedDocumentation = await readdir(join(web, "node_modules/@penpair/web/docs"), {
+  recursive: true,
+});
+check(
+  !installedDocumentation.some(
+    (file) =>
+      /(?:^|[\\/])(?:\.working-docs|node_modules|plans|upstream|trials|fixtures)(?:[\\/]|$)/.test(
+        file,
+      ) ||
+      /(?:^|[\\/])(?:improvements|branch-review|pr-improvements|tradient-followups|completion-2026-10-22)\.md$/.test(
+        file,
+      ),
+  ),
+  "published documentation excludes working reports and local dependency caches",
+);
 check(
   (await readdir(join(web, "node_modules/@penpair/web/docs"))).includes("adapters.md"),
   "the companion adapter setup guide ships with the command package",

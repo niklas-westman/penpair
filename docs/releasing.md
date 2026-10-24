@@ -174,8 +174,8 @@ can consume that metadata without changing versions. If such a note blocks an
 interrupted release, handle it in a reviewed metadata-only cleanup, preserve its
 summary in the completion report and verify unchanged package/source versions
 plus the existing manual gate. This does not apply to notes requesting a package
-release. The [0.3.0 early-merge recovery](plans/registry-polling-fix.md#early-merge-recovery)
-records the concrete case and checks.
+release. Retain the reviewed cleanup rationale and unchanged-version checks with
+the release's own evidence; never relax the existing release guards.
 
 ## A package npm will not accept yet
 
@@ -205,7 +205,11 @@ The core ships `dist`, `skills`, `LICENSE` and a short `README.md`. The web pack
 
 ## After publishing
 
-Update the version in `PLAN.md` and add the change log line. A problem found in a published version is answered with a new version of **all** packages, never by changing a published one.
+Record registry versions, provenance and any explicit publishing exception in
+the release evidence. Keep temporary release/recovery notes in `.working-docs/`
+and lasting operational guidance in this document. A problem found in a published
+version is answered with a new version of **all** packages, never by changing a
+published one.
 
 ## Authentication and limits
 

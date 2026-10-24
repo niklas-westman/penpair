@@ -1,6 +1,6 @@
 # Measured component pilot
 
-`penpair marwes components snapshot [--write]`, `check [--measure]` and `diff` compare Button, Card and StatTile in explicit light/dark contexts. This is a pilot, not a generated native library. `build` refuses until a live pinned-API experiment proves text/style instance overrides survive updates. I12 adoption and C1 live acceptance remain pending at the owner's request.
+`penpair marwes components snapshot [--write]`, `check [--measure]` and `diff` compare Button, Card and StatTile in explicit light/dark contexts. This is a pilot, not a generated native library. `build` refuses until a live pinned-API experiment proves text/style instance overrides survive updates. Measurement snapshots alone do not establish that native behavior.
 
 The adopting project owns a stable fixture rendering its installed components with its actual theme, state and fonts. Use explicit selectors and named `data-pilot-part` anatomy nodes. React component names are not inferred from the DOM. Start with six cases (three components, two modes) and add actual states as needed, up to 60. Add this adapter-owned block under `marwes`:
 
