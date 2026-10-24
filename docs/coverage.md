@@ -48,3 +48,17 @@ Ordinary `baselines` can publish a coherent capture of its configured frames whi
 Legacy route/viewport cases continue generating their existing Reflection entries. Rich case metadata moves to `pendingCases`, including its approved provenance and capture scale, until an implementation provider explicitly maps theme setup, fixture/data loading, fonts and state entry. It does not silently generate several copies of a default-state screenshot under different labels. D4 supplies that provider integration.
 
 Browser interaction, keyboard and accessibility checks remain separate requirements. A board's dimensions do not establish that it is clickable or WCAG-compliant. The [WCAG target-size guidance](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) includes exceptions and spacing rules that need actual target semantics. [Playwright's visual comparison guidance](https://playwright.dev/docs/test-snapshots) also explains why stable rendering environments matter; a screenshot alone does not establish behavior.
+
+Baseline entries require `frame` or `frameId`, or both. `frameId` is a unique board UUID and resolves at any depth on the configured page; use it for frames inside section boards on a release page. Name-only entries keep top-level exact-name matching and reject ambiguous names. For example:
+
+```json
+{
+  "frameId": "10216397-acdf-805e-8008-d69b71f841d4",
+  "frame": "Login / Empty",
+  "id": "login-empty"
+}
+```
+
+When both are supplied, a different current board name reports `renamed` and the entry is never captured under its stale name. Review the rename and update the expected name before retrying. ID-only entries follow the ID and report its current name. Page searches stop with an explicit error if the 10,000-shape budget truncates the listing.
+
+`approve --case CASE_ID --page PAGE --frame ID` compares `--frame` directly with a configured `frameId`; name-only cases retain the unique-name check. Nested frames use the same exact frame-ID capture identity for approval matching. The baseline manifest continues to record `frameId`; Reflection case format is unchanged.

@@ -2267,9 +2267,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
             "Approval case must reference an explicitly configured frame on this page",
           );
         }
-        const found = await findShapesByName(client, wanted.frame, values.page);
-        if (found.matches.length !== 1 || found.matches[0]!.id !== values.frame) {
-          throw new Error("Approval frame ID does not match the configured case");
+        if (wanted.frameId) {
+          if (wanted.frameId.toLowerCase() !== values.frame.toLowerCase()) {
+            throw new Error("Approval frame ID does not match the configured case");
+          }
+        } else {
+          const found = await findShapesByName(client, wanted.frame!, values.page);
+          if (found.matches.length !== 1 || found.matches[0]!.id !== values.frame) {
+            throw new Error("Approval frame ID does not match the configured case");
+          }
         }
         intent = wanted.case;
       }
