@@ -1,6 +1,6 @@
 ---
 name: penpair-setup-guide
-description: Guide a person, step by step and in conversation, from nothing to a working penpair setup, then into a first proof-of-concept design. Covers getting a Penpot account, choosing Penpot on the web or in Docker, installing penpair, where the personal MCP link goes (and how it stays secret), connecting the plugin, the optional Marwes UI adapter, installing the agent rules, and a small test POC that shows what is possible. Use this whenever someone wants to start with penpair or Penpot plus an AI assistant, says "set up penpair", "install penpair", "connect my assistant to Penpot", "how do I get started", "onboard me", or has just discovered penpair and does not know where to begin, even if they do not name this guide. Works from this file alone, linked into a chat in any project. Do not use it to repair one failing check in a project that already works (use penpair-setup if installed), or for design work in a connected file (use penpair-design).
+description: Guide first-time Penpair installation through recommended assisted setup or user-run manual steps. Use when someone wants to install Penpair, connect an assistant to Penpot or choose an installation route. Use penpair-setup for a focused repair of an existing connection and penpair-design for work in a connected design file.
 metadata:
   version: "0.1.0"
   audience: any AI coding assistant (Claude Code, Codex, GitHub Copilot) guiding a person through a first setup
@@ -11,7 +11,18 @@ compatibility: Node 22 or later and a terminal. A Penpot account on the web, or 
 
 You are the person's guide from "I have heard of penpair" to "my assistant just designed something in my Penpot file". penpair connects an AI assistant to a [Penpot](https://penpot.app) design file, with tested operations and written rules, so the assistant can build and check real pages. The person may be a designer who rarely opens a terminal, or a developer who has never used Penpot; read the cues and adjust your words.
 
-Work as a guide, not an installer: **one step at a time, one question at a time**. Say what you are about to do and why in a sentence, do it, show the result, and move on. Ask only the questions listed below, at the moment they matter. Wait for the person whenever a step needs their browser or their key; never guess that they are done.
+## Choose how the person wants to install
+
+Installation route and Penpot hosting are separate choices. Web is the default hosting choice in either route; Docker remains optional.
+
+- **Assisted — recommended:** use the guided steps below. Explain each action, run permitted project commands and hand browser/key steps to the person.
+- **Manual:** when the person asks to install it themselves, read https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/getting-started.md and give them the relevant commands and expected results. Do not execute installation, initialization, skill writes or connection commands for them. Run diagnostics only if they ask you to. Wait for their result when guiding one step at a time.
+
+Honor a route already stated. For an otherwise unspecified first installation, recommend assisted setup and offer manual; do not add this choice to a focused repair request. Read https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/installation.md when explaining the alternatives, including the person-operated terminal wizard. If a reference cannot be read, say so and use the steps in this skill as the manual instructions without executing them.
+
+When switching routes, keep the chosen command package, package manager, config, credentials and completed steps. Inspect progress before running a new initialization; do not reset a working setup. Both routes need the same file pin, healthy doctor/pages checks and reviewed skill/instruction installation. Connection-ready is separate from comparison-ready. Manual instructions or a user-reported result are not checks you performed yourself.
+
+For the assisted route, work as a guide, not an installer: **one step at a time, one question at a time**. Say what you are about to do and why in a sentence, do it, show the result, and move on. Ask only the questions listed below, at the moment they matter. Wait for the person whenever a step needs their browser or their key; never guess that they are done.
 
 ## You may only have this file
 
@@ -50,7 +61,7 @@ So one command package, the library companion when that library is used, and the
 | `penpair connect [--replace]` | Takes the person's MCP link through a hidden prompt (or a pipe), saves it in `.env.local`, then waits up to five minutes for the plugin |
 | `penpair doctor [--json]` | Every check, `ok` or not, each with a `remedy`. `--json` is for you |
 | `penpair pages` | The open file and its pages: the quickest proof the connection works |
-| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `penpair-recipes`, `penpair-handoff`, `design-judgment`) into the project and links them for Claude Code and Codex |
+| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `penpair-recipes`, `penpair-handoff`, `penpair-verify`, `design-judgment`) into the project and links them for Claude Code and Codex |
 | `penpair marwes tokens snapshot --write`, `push [--apply]` | Marwes only: build the expected tokens, then make Penpot match (looks first; `--apply` writes) |
 | `penpair setup` | The same path as a guided terminal wizard, for a person who prefers to do it alone. It asks questions you cannot answer for them, so you use the steps below instead |
 
@@ -136,6 +147,8 @@ The link goes into `.env.local` in the project, as `PENPAIR_MCP_URL=…`. `penpa
 - **Their own terminal**, in this project folder: `npx penpair connect`, paste, Enter. Nothing appears as they paste; that is on purpose.
 - **In Claude Code**, without leaving the chat (macOS): type `! pbpaste | npx penpair connect`. It reads the clipboard, so the key never enters the conversation. (Linux: `xclip -selection clipboard -o` instead of `pbpaste`.)
 
+When `connect` offers to pin the file, have the person check its name and ID before accepting. If they skipped it, verify the correct file is open before asking them to run `npx penpair connect --pin-file`; that flag accepts without another confirmation.
+
 It ends with "Connected to the file …" and the file's pages. If it says it did not see the editor, the key is already saved: redo step 5.2 and 5.3, then run `npx penpair connect` again (it reuses the saved key). By hand, that single line in `.env.local` is all it is; the file must stay out of git.
 
 ### 7. Verify
@@ -170,17 +183,19 @@ When the requested workflow includes frontend implementation and visual checking
 
 Use the adapter guide for the matching-version install and append `"@penpair/reflection-check"` to the existing `adapters` array. Keep the project's package manager and dependency location. Record installed/registered separately from references approved, cases mapped, provider configured and browser verified. The package does not bundle a browser or configure the application's states. A design-only setup can defer it; a frontend handoff should explicitly recommend it and record missing integration work rather than leave the companion invisible.
 
-Continue to the handoff skill once installed; a reusable browser starter is planned, so a real project provider is currently required. No owner approval or browser result may be inferred from a successful install.
+Continue to the handoff skill once installed. A reusable browser starter is available at https://github.com/niklas-westman/penpair/blob/main/examples/reflection-browser/README.md; project-specific state hooks and a real provider are still required. No owner approval or browser result may be inferred from a successful install.
 
 ### 9. Install the rules the assistant follows
 
-**Just trying it?** In a throwaway trial folder, run only the install below and go to step 10; `AGENTS.md`, the project facts and the commit can wait until penpair goes into a real project.
+**Just trying it?** Use a throwaway project folder, install the skills with an explicit instruction destination below and keep unknown project facts marked as pending. A commit can wait; the first design trial remains optional.
 
 ```bash
-npx penpair skills install
+npx penpair skills install --agents AGENTS.md --dry-run
+npx penpair skills install --agents AGENTS.md
+npx penpair skills check --agents AGENTS.md --json
 ```
 
-This puts the rules for working in Penpot (`penpair-design`) and for judging a screen (`design-judgment`) in the project's skills folder, visible to Claude Code and Codex. It prints rows for the project's agent guide: add them to `AGENTS.md` (create it if there is none; Codex and GitHub Copilot read it) and, if the project has a `CLAUDE.md`, point it at `AGENTS.md` or add them there too.
+Review the preview before applying. This installs setup, design, recipe, handoff, verification and judgment skills, creates discovery links and adds task routing to the selected instruction file. Use `CLAUDE.md` instead if that is the project's chosen file. Existing text outside the owned section is preserved. Discovery checks do not prove actual skill use in a session. Even in a trial folder, select the instruction destination explicitly so routing can be verified.
 
 Then fill in `penpair-design/references/project-facts.md` (in the skills folder the install named) together with them: which Penpot file, the token sets, the names they use, who approves a design. Ask; do not invent. Placeholders they cannot answer yet can stay, marked as open.
 

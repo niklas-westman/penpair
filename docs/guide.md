@@ -9,7 +9,7 @@ consumer evidence.
 
 | Path | Documents |
 | --- | --- |
-| First run / shared file | [Getting started](getting-started.md), [team](team.md), [validation](validation.md) |
+| First run / shared file | [Choose an installation route](installation.md), [manual installation](getting-started.md), [team](team.md), [validation](validation.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
 | Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md) |
