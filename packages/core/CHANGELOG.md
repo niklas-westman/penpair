@@ -1,5 +1,11 @@
 # @penpair/core
 
+## 0.3.4
+
+### Patch Changes
+
+- 9c91bfd: Support baseline frameId UUIDs for frames nested inside section boards, with bounded page searches, expected-name rename protection and direct frame-ID case approval. Preserve top-level name-only matching.
+
 ## 0.3.3
 
 ### Patch Changes
