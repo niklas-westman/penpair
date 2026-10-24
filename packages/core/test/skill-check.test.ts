@@ -355,3 +355,182 @@ describe("offline Codex skill diagnostics", () => {
     ).rejects.toThrow(/bundled/);
   });
 });
+
+describe("cross-host skill discovery", () => {
+  it.each([
+    [
+      "codex",
+      "AGENTS.md",
+      ".agents/skills",
+    ],
+    [
+      "claude",
+      "CLAUDE.md",
+      ".claude/skills",
+    ],
+    [
+      "copilot",
+      "AGENTS.md",
+      ".agents/skills",
+    ],
+  ] as const)(
+    "checks %s using its project entrypoint without copying skills",
+    async (agent, agents, hub) => {
+      const root = await folder();
+      await installSkills({
+        root,
+        agents,
+      });
+      const before = await snapshot(root);
+      const report = await checkSkills({
+        root,
+        agent,
+      });
+      expect(report.agent).toBe(agent);
+      expect(report.ready).toBe(true);
+      expect(report.instructions.path).toBe(agents);
+      expect(report.skills.every((skill) => skill.path.startsWith(hub))).toBe(true);
+      expect(await snapshot(root)).toEqual(before);
+    },
+  );
+
+  it("uses only the selected host's invocation policy", async () => {
+    const root = await installed();
+    await installSkills({
+      root,
+      only: selected,
+      agents: "CLAUDE.md",
+    });
+    await writeFile(
+      path.join(root, ".skills/penpair-design/agents/openai.yaml"),
+      "policy:\n  allow_implicit_invocation: false\n",
+    );
+    expect(
+      (
+        await checkSkills({
+          root,
+          only: selected,
+        })
+      ).ready,
+    ).toBe(false);
+    expect(
+      (
+        await checkSkills({
+          root,
+          only: selected,
+          agent: "claude",
+        })
+      ).ready,
+    ).toBe(true);
+    expect(
+      (
+        await checkSkills({
+          root,
+          only: selected,
+          agent: "copilot",
+        })
+      ).ready,
+    ).toBe(true);
+    const file = path.join(root, ".skills/penpair-design/SKILL.md");
+    await writeFile(
+      file,
+      (await readFile(file, "utf8")).replace("---\n", "---\ndisable-model-invocation: true\n"),
+    );
+    expect(
+      (
+        await checkSkills({
+          root,
+          only: selected,
+          agent: "claude",
+        })
+      ).ready,
+    ).toBe(false);
+  });
+
+  it("reports a duplicate old setup guide without deleting customizations", async () => {
+    const root = await folder();
+    const legacy = path.join(root, ".claude/skills/penpair-setup-guide");
+    await mkdir(legacy, {
+      recursive: true,
+    });
+    await writeFile(path.join(legacy, "SKILL.md"), "Owner's customized setup guide");
+    const install = await installSkills({
+      root,
+      agents: "AGENTS.md",
+    });
+    expect(install.legacy).toContainEqual({
+      folder: ".claude/skills/penpair-setup-guide",
+      renamedTo: "penpair-setup",
+      carriedFacts: false,
+    });
+    const report = await checkSkills({
+      root,
+    });
+    expect(report.ready).toBe(false);
+    expect(report.legacy).toContain(".claude/skills/penpair-setup-guide");
+    expect(await readFile(path.join(legacy, "SKILL.md"), "utf8")).toBe(
+      "Owner's customized setup guide",
+    );
+  });
+
+  it("accepts a host selector in the CLI and refuses invalid or misplaced selectors", async () => {
+    const root = await folder();
+    await installSkills({
+      root,
+      only: selected,
+      agents: "CLAUDE.md",
+    });
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    const report = await runCommand([
+      "skills",
+      "check",
+      "--agent",
+      "claude",
+      "--only",
+      "penpair-design",
+      "--json",
+    ]);
+    expect(report).toMatchObject({
+      exitCode: 0,
+      data: {
+        agent: "claude",
+        ready: true,
+      },
+    });
+    expect(
+      (
+        await runCommand([
+          "skills",
+          "check",
+          "--agent",
+          "unknown",
+        ])
+      ).exitCode,
+    ).toBe(1);
+    expect(
+      (
+        await runCommand([
+          "skills",
+          "install",
+          "--agent",
+          "claude",
+        ])
+      ).exitCode,
+    ).toBe(1);
+  });
+});
+
+it("reports independent identical copies instead of treating them as shared discovery links", async () => {
+  const root = await installed();
+  const link = path.join(root, ".claude/skills/penpair-design");
+  await unlink(link);
+  await cp(path.join(root, ".skills/penpair-design"), link, {
+    recursive: true,
+  });
+  const report = await checkSkills({
+    root,
+    only: selected,
+  });
+  expect(report.ready).toBe(false);
+  expect(report.skills[0]?.problems.join()).toMatch(/Independent skill copies/);
+});

@@ -12,12 +12,12 @@ Two ways to get the same Penpair setup. Choose who drives the steps; you can swi
 Open the project that will use Penpair in your coding assistant. Paste:
 
 ```text
-Read https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md
+Read https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-setup/SKILL.md
 and follow its recommended assisted route to set up Penpair in this project.
 Keep my MCP key out of chat and check with me before changing a design file.
 ```
 
-The [setup guide skill](https://github.com/niklas-westman/penpair/blob/main/skills/penpair-setup-guide/SKILL.md) works before Penpair is installed. If your assistant cannot open the URL, give it that file's contents, or use the manual route. Linking a skill asks the assistant to read it; it does not install it globally.
+The [setup skill](https://github.com/niklas-westman/penpair/blob/main/packages/core/skills/penpair-setup/SKILL.md) works before Penpair is installed. If your assistant cannot open the URL, give it that file's contents, or use the manual route. Linking a skill asks the assistant to read it; it does not install it globally.
 
 Your assistant will:
 

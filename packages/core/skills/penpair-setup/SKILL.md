@@ -1,16 +1,15 @@
 ---
 name: penpair-setup
-description: Help with assisted or manual Penpair installation, or connect and repair a project's Penpot setup, including a failing doctor check, suspended plugin or missing configuration. Use for connection and setup work; use penpair-design to edit designs and design-judgment to choose their composition.
+description: Install Penpair through assisted or manual steps, connect an assistant to Penpot, or repair a failing doctor check, suspended plugin or missing configuration. Use for first setup and connection repair; use penpair-design for work in a connected design file.
 metadata:
   version: "0.1.0"
-  scope: setup and connection
-  audience: any AI agent helping a person get from nothing to a working Penpot connection
-compatibility: Node 22 and a terminal; a Penpot account on the web, or Docker Desktop for the on-computer variant.
+  audience: any AI coding assistant (Claude Code, Codex, GitHub Copilot) guiding a person through a first setup
+compatibility: Node 22 or later and a terminal. A Penpot account on the web, or Docker Desktop for Penpot on this computer. The person does the browser steps and pastes their own key.
 ---
 
-# penpair-setup
+# Penpair setup
 
-Two ways to run Penpot, one way to connect. **Web** (design.penpot.app, or a team's own Penpot) is the default: the package `@penpair/web`, nothing else to install. **Docker** (the package `@penpair/docker`, which includes everything in `@penpair/web`) puts a private Penpot on this computer: offline, own data, throwaway per project. Both end the same way: the person's personal key in `.env.local` as `PENPAIR_MCP_URL`, the Penpot file open in a visible browser tab with its plugin connected, and `penpair doctor` all `ok`.
+You are the person's guide from "I have heard of penpair" to "my assistant just designed something in my Penpot file". penpair connects an AI assistant to a [Penpot](https://penpot.app) design file, with tested operations and written rules, so the assistant can build and check real pages. The person may be a designer who rarely opens a terminal, or a developer who has never used Penpot; read the cues and adjust your words.
 
 ## Choose how the person wants to install
 
@@ -23,52 +22,260 @@ Honor a route already stated. For an otherwise unspecified first installation, r
 
 When switching routes, keep the chosen command package, package manager, config, credentials and completed steps. Inspect progress before running a new initialization; do not reset a working setup. Both routes need the same file pin, healthy doctor/pages checks and reviewed skill/instruction installation. Connection-ready is separate from comparison-ready. Manual instructions or a user-reported result are not checks you performed yourself.
 
-## The key never passes through you
+For the assisted route, work as a guide, not an installer: **one step at a time, one question at a time**. Say what you are about to do and why in a sentence, do it, show the result, and move on. Ask only the questions listed below, at the moment they matter. Wait for the person whenever a step needs their browser or their key; never guess that they are done.
 
-For an existing installation, use its local command and reviewed version
-(`pnpm exec penpair` in pnpm projects) in place of the first-use `npx` examples
-below. Preserve its chosen command package and current profile.
+## Repair an existing connection
 
-The MCP key is the person's password to their Penpot. Keep it out of chat, logs, commands and commits. The person pastes it themselves into a prompt that hides it (`penpair connect`), or pipes it from their clipboard (`pbpaste | npx @penpair/web connect`). Your shell cannot answer a hidden prompt, so hand that one step to the person with the exact words below.
+For a focused repair, skip first-install route and hosting questions. Keep the
+installed version, package manager, profile and private credential reference.
+Run the local `penpair doctor --json` only when execution is in scope; inspect
+`data.ok` and `data.checks`, follow the first relevant remedy, then recheck. Do not
+reinitialize a working config or replace credentials for an unrelated failure.
+Once connected, check skill routing and relevant companion readiness separately.
+For a manual request, give the diagnostic commands and interpret the person's
+results without claiming to have run them.
 
-## Steps
+## You may only have this file
 
-1. **Look.** If `penpair.config.json` exists, run `npx @penpair/web doctor --json` and read its versioned envelope: `data.ok`, then `data.checks`. Done when you can name the first failing check, or say all pass. If all pass, skip connection repair and continue with skill/instruction checks in step 6 and companions in step 7 before reporting setup complete.
-2. **Choose where Penpot runs.** Recommend web. Choose Docker when the person asks for offline work, data that stays on this computer, or a disposable instance. Ask once, in one sentence, and take the answer. Done when the choice is stated. The decision table and what is checked: [references/web-or-docker.md](references/web-or-docker.md).
-3. **Initialise.**
-   - Web: `npx @penpair/web init --external https://design.penpot.app --gitignore` (a team's own Penpot: its address instead).
-   - Docker: `npm i -D @penpair/docker` (the same command as `@penpair/web` with the Docker commands added; install it instead of `@penpair/web`, not beside it), then `npx penpair init --gitignore` and `npx penpair up` (the first start downloads about 2 GB; Docker Desktop must be running). Done when `up` says Penpot is up. For a person at a terminal, `npx @penpair/docker setup --docker` does it in one go.
-   - The terminal wizard is person-operated: use `npx @penpair/web setup --web --agents AGENTS.md`, or the Docker package's `setup --docker --agents AGENTS.md`. Do not pass `--docker` to the web package. Prefer the installed local command for repeat use.
-4. **Hand the browser steps to the person**, in these words, adapted to the choice:
-   1. Open Penpot (the address `init` or `up` printed), log in or create an account, create a design file.
-   2. Account, Integrations, MCP Server: switch it on and copy the address.
-   3. In your own terminal, in this folder, run `npx @penpair/web connect` and paste the address (nothing is shown as you paste).
-   4. In the design file: File, then MCP Server, then Connect. Keep that tab in front while we work.
-5. **Verify.** When connecting, ask the person to check the file name and ID before accepting the pin. If pinning was skipped, verify the intended file before `penpair connect --pin-file`; the flag accepts without another confirmation. Run `npx @penpair/web doctor --json` after the person says they are done. Done when `data.ok` is true and the check named `editor and plugin` says it is connected. A failing check carries a `remedy`; say it in plain words and let the person act. Common ones:
+The person may have linked this file into a chat in their own project, with no copy of penpair anywhere. Everything you need to guide them is on this page; nothing has to be cloned. penpair is open source at https://github.com/niklas-westman/penpair and installs from npm. When you need more than this page, read these raw files (plain Markdown, fetchable):
 
-   | Check says | Meaning and fix |
-   | --- | --- |
-   | docker: not answering | Docker Desktop is not running. Start it, wait until it says running. |
-   | containers / backend not ready | Docker projects only: run `npx penpair up`; wait ten seconds; check again. |
-   | editor and plugin: points at another instance | The key in `.env.local` belongs to a different Penpot. Run `npx @penpair/web connect --replace` and paste this Penpot's key. |
-   | editor and plugin: not connected or suspended | The tab is asleep or the plugin is not connected. Do step 4.4 again; keep the tab in front. |
-   | key file: git would commit it | Add `.env.local` to `.gitignore`; `penpair connect` does it. |
+| Read it for | URL |
+| --- | --- |
+| The overview, every package and command | https://raw.githubusercontent.com/niklas-westman/penpair/main/README.md |
+| The same setup by hand, with browser steps | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/getting-started.md |
+| Web or Docker, the full comparison | https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-setup/references/web-or-docker.md |
+| Companion adapters: why, installation, registration and browser readiness | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/adapters.md |
+| Extension points, snippets, instances | https://raw.githubusercontent.com/niklas-westman/penpair/main/docs/guide.md |
 
-6. **Install the rules.** Use the installed local command when available (`pnpm exec penpair` in pnpm projects). Preview `penpair skills install --agents AGENTS.md --dry-run`, then apply the reviewed update to the selected instruction file. Preserve project customizations and fill in the installed `penpair-design/references/project-facts.md` (file pin, token sets, naming, who approves); use the destination printed by the installer. Run `penpair skills check --agents AGENTS.md --json` (using the chosen instruction destination) for Codex discovery/routing diagnostics, selecting `--only` for intentional partial installs. A passing file check does not prove a session loaded or correctly applied a skill. Done when required project facts and diagnostics are ready, or their missing evidence is reported explicitly.
+`npx penpair --help` lists every command of the installed version, and `npx penpair --version` says which one that is. The version on npm can be older than the repository; when this page and `--help` differ, `--help` is right for the person's install.
 
-7. **Recommend companions for the task.** Read the [adapter guide](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md). A library adapter brings the project's chosen component-library tokens and recipes into the workflow. When frontend implementation/comparison is in scope, recommend `@penpair/reflection-check`, installed at the same version as the command/core and merged into the existing `adapters` list. State the remaining requirements: approved baselines, explicit case mappings and a real browser provider. Record those as pending until configured and exercised; connection-ready does not mean comparison-ready. Design-only projects can defer comparison setup.
+### Which packages exist, and which to install
 
-## Moving between web and Docker
+| Package | Install it when | What it gives |
+| --- | --- | --- |
+| `@penpair/web` | Penpot runs on the web (design.penpot.app or a team's server). The default | The `penpair` command and the library |
+| `@penpair/docker` | Penpot should run in Docker on this computer | Everything in `@penpair/web`, plus `up`, `down`, `status`, `backup`, `restore`. Install it **instead of** `@penpair/web`, never beside it: both provide the `penpair` command |
+| Library adapter from the companion guide | The project already uses a supported component library | Library-aware tokens, drift checks and recipes alongside the chosen command package |
+| `@penpair/reflection-check` | Recommended when implementing a frontend from Penpot and verifying it in a browser | Approved design cases mapped to real browser/provider comparison evidence; install next to one command package at the same version |
+| `@penpair/core` | Not for setup. Only for someone writing their own tooling on the library | Comes with the two command packages anyway |
+| `penpair` (no scope) | Never: the name is not on npm yet | Nothing |
 
-A project has one profile. To switch, keep the old `penpair.config.json` aside, run `init` again for the other kind, then `penpair connect --replace` with the new Penpot's key (keys belong to one Penpot; a key for the other one is refused). Designs do not move on their own: export from the old Penpot (the File menu's export, as `.penpot`) and import into the new one.
+So one command package, the library companion when that library is used, and the recommended Reflection Check companion for frontend verification. Adapter installation and registration are separate from approved-baseline and browser-provider readiness. Install them as dev dependencies; then `npx penpair <command>` runs the project's own copy. **Without a local install, bare `npx penpair` fails** (that name is not on npm): use `npx @penpair/web <command>` (or `npx @penpair/docker <command>`) instead.
+
+### The commands this guide uses
+
+| Command | What it does |
+| --- | --- |
+| `penpair init --external <address> --gitignore` | Web: writes `penpair.config.json` for that Penpot, keeps `.env.local` out of git |
+| `penpair init --gitignore [--port 9002]` then `penpair up` | Docker: writes the config and a private `.penpair/` folder, then starts Penpot (about 2 GB the first time) |
+| `penpair connect [--replace]` | Takes the person's MCP link through a hidden prompt (or a pipe), saves it in `.env.local`, then waits up to five minutes for the plugin |
+| `penpair doctor [--json]` | Every check, `ok` or not, each with a `remedy`. `--json` is for you |
+| `penpair pages` | The open file and its pages: the quickest proof the connection works |
+| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `penpair-recipes`, `penpair-handoff`, `penpair-verify`, `design-judgment`) into the project and links them for Claude Code and Codex |
+| `penpair setup` | The same path as a guided terminal wizard, for a person who prefers to do it alone. It asks questions you cannot answer for them, so you use the steps below instead |
+
+Everything that changes a Penpot file looks first and writes only with `--apply`.
+
+## The key is the person's password
+
+The MCP link Penpot gives the person contains a personal key. Anyone with it can edit their Penpot files. So:
+
+- It never goes through you: not in chat, not in a command you run, not in a file you write, not in a commit.
+- The person pastes it into `penpair connect`, which hides it and saves it to `.env.local` as `PENPAIR_MCP_URL` (readable only by them, git-ignored).
+- If they paste it into the chat anyway, tell them plainly that it is now exposed and ask them to get a new key in Penpot (switch the MCP server off and on, or regenerate it if Penpot offers that, and check the address changed), then connect with `npx penpair connect --replace`. Do not repeat the link back.
+
+This matters more than speed; a guide that leaks the key has failed even if everything else works.
+
+## The path
+
+Keep a short checklist in your replies so the person sees where they are:
+
+```
+1 Check  2 Web or Docker  3 Account  4 Install  5 Plugin  6 MCP link  7 Verify  8 Companions  9 Rules  10 First POC
+```
+
+### 1. Check where things stand
+
+- `node -v`: penpair needs 22 or later. If it is missing or older, point them to https://nodejs.org (the LTS installer) and wait.
+- **Find the right folder.** penpair is set up per project, in the root of the project whose design it will hold. Look at where you are:
+  - **A project of theirs** (a `package.json`, an app): the normal case. Confirm it is the one they mean.
+  - **A clone of the penpair repository itself** (root `package.json` named `penpair-workspace`, a `packages/core` folder): that is penpair's source, not a place to set it up. Ask which project it is for, and work there. Installing from npm in that project is right even if they cloned penpair; linking the clone is only for people changing penpair.
+  - **No project at all** (an empty folder, or a designer who just wants to try it): offer to make one, for example `mkdir penpair-trial && cd penpair-trial && npm init -y`. A `package.json` is all penpair needs.
+  - **A monorepo:** install at the workspace root (pnpm needs `-w`, Yarn 1 needs `-W`), unless they want it in one package.
+- Pick the package manager from the lockfile (`pnpm-lock.yaml`, `yarn.lock`, else npm) and use it in every install command. The commands here are written for npm.
+- **Already started?** If `penpair.config.json` exists, install the project's dependencies first (`npm install`), then run `npx penpair doctor --json` (no local package in `package.json`? use `npx @penpair/web doctor --json`). All `ok` means penpair is set up: say so and jump to step 8. A failing check names a `remedy`; the usual ones are in step 7. Fix it and continue from the step it belongs to.
+
+### 2. Ask: Penpot on the web, or in Docker?
+
+Ask once, recommend web, take the answer:
+
+> Where should Penpot run? **On the web** (recommended): a free account at design.penpot.app or your team's own Penpot, nothing else to install, easy to share. **In Docker on this computer**: works offline and keeps the data on your machine, but needs Docker Desktop and a 2 GB download.
+
+If they have a team Penpot, use its address everywhere this guide says `https://design.penpot.app`. The full comparison is in the web-or-Docker file listed above.
+
+While they decide, set one expectation early: penpair works through the Penpot tab in their browser, so that tab has to stay open and visible while the assistant works. It cannot design unattended overnight.
+
+### 3. A Penpot account and a design file
+
+- **Web:** they open https://design.penpot.app, sign up (with email or one of the sign-in buttons), confirm the email if asked, then create a project and a design file for this work. A fresh file is best for the first try.
+- **Docker:** do step 4 first, because Penpot has to be running. Then they create the account on the local address `up` prints (no email confirmation there), and a project and a design file.
+
+Wait until they say they have a design file open.
+
+### 4. Install penpair and write the config
+
+Install it as a dev dependency so the whole team gets the same version. Install one command package, never both.
+
+- **Web:**
+  ```bash
+  npm i -D @penpair/web
+  npx penpair init --external https://design.penpot.app --gitignore
+  ```
+- **Docker:** Docker Desktop must be running (`docker info` answers).
+  ```bash
+  npm i -D @penpair/docker
+  npx penpair init --gitignore      # add --port 9002 if 9001 is taken
+  npx penpair up                    # the first start downloads about 2 GB
+  ```
+  When `up` prints the address (for example http://127.0.0.1:9001), do step 3 there.
+
+`init` writes `penpair.config.json` (no secrets, meant to be committed; `instance` is just a name, from the folder) and adds `.env.local` to `.gitignore`. Show them the config in a sentence or two. Some versions print `next: penpair connect` here; do step 5 first anyway, because `connect` waits for the plugin.
+
+### 5. Switch on MCP and connect the plugin
+
+The plugin comes first because `penpair connect` (step 6) waits for it, and then confirms right away.
+
+1. In Penpot, open your **account menu** (your name or avatar), then **Integrations**, then **MCP Server**. Switch it on and **copy the address** it shows. It is your personal key; treat it like a password, and do not paste it here.
+2. Open the design file. Choose **File**, then **MCP Server**, then **Connect**. A small window may appear; leave it.
+3. **Keep this browser tab visible** while the assistant works. A tab in the background goes to sleep and the connection pauses; bringing it to the front resumes it.
+
+### 6. Where the MCP link goes
+
+The link goes into `.env.local` in the project, as `PENPAIR_MCP_URL=…`. `penpair connect` puts it there for them: it takes the link through a hidden prompt, refuses one that belongs to a different Penpot, makes the file readable only by them and keeps it out of git. You cannot answer a hidden prompt, and you should not see the key anyway, so the person runs it, with the link from step 5.1 still on their clipboard:
+
+- **Their own terminal**, in this project folder: `npx penpair connect`, paste, Enter. Nothing appears as they paste; that is on purpose.
+- **In Claude Code**, without leaving the chat (macOS): type `! pbpaste | npx penpair connect`. It reads the clipboard, so the key never enters the conversation. (Linux: `xclip -selection clipboard -o` instead of `pbpaste`.)
+
+When `connect` offers to pin the file, have the person check its name and ID before accepting. If they skipped it, verify the correct file is open before asking them to run `npx penpair connect --pin-file`; that flag accepts without another confirmation.
+
+It ends with "Connected to the file …" and the file's pages. If it says it did not see the editor, the key is already saved: redo step 5.2 and 5.3, then run `npx penpair connect` again (it reuses the saved key). By hand, that single line in `.env.local` is all it is; the file must stay out of git.
+
+### 7. Verify
+
+Run `npx penpair doctor --json` and read `data.ok` and each `data.checks` entry (the exit code is non-zero while anything fails). Done when `data.ok` is `true` and the `editor and plugin` check says connected. Then run `npx penpair pages` and read the page names back to them: proof that you can see their file.
+
+A failing check carries a `remedy`; say it in plain words and let them act. The usual ones: Docker not running (start Docker Desktop), containers not running (`npx penpair up`), the key belongs to another Penpot (`npx penpair connect --replace` with this Penpot's link), plugin not connected or the tab is asleep (redo step 5.2 and 5.3).
+
+**An address that is not theirs, before `connect` has run.** Until `.env.local` exists, penpair borrows a Penpot MCP server from the assistant's own configuration (`~/.codex/config.toml` or `~/.claude.json`, a server named `penpot`), and `doctor` names it: `(from codex-config)` or `(from claude-config)`. That is often an old local Penpot, for example `http://localhost:9001`, and the check fails with "points at … which is not …". It is not their mistake and nothing needs deleting: the order is environment, then `.env.local`, then those configurations, so step 6 fixes it. Its remedy says to put the address in `.env.local`; that is what `connect` does, so do not edit the file for them.
+
+### 8. Choose companion adapters
+
+Explain the library and implementation-checking roles using the adapter guide above. Keep existing adapter entries and align directly installed versions with `npx penpair --version`.
+
+**Library companion**
+
+Inspect the application's actual dependencies and declared theme. Read the
+companion guide above for an adapter matching the library already in use; follow
+its maintained package/configuration instructions rather than inventing library
+defaults. Explain the available integration and ask whether it belongs in the
+setup. A library change is a separate project decision, not a prerequisite for
+Penpair installation.
+
+If selected, align the adapter version with the command/core, append its entry
+without replacing the existing `adapters` list, and preserve project theme choices.
+Preview token operations before writes and obtain authorization for the intended
+Penpot target. Review ownership and designer-edit conflicts rather than silently
+replacing intentional values. Record unsupported libraries or missing adapter
+inputs as pending, then continue to frontend verification below.
+
+**Frontend-verification companion**
+
+When the requested workflow includes frontend implementation and visual checking, recommend `@penpair/reflection-check`. Explain: approved Penpot references plus explicit case mappings and a real project browser provider let the agent compare the implemented route/theme/state with the intended design. It can be used with or without the library companion.
+
+Use the adapter guide for the matching-version install and append `"@penpair/reflection-check"` to the existing `adapters` array. Keep the project's package manager and dependency location. Record installed/registered separately from references approved, cases mapped, provider configured and browser verified. The package does not bundle a browser or configure the application's states. A design-only setup can defer it; a frontend handoff should explicitly recommend it and record missing integration work rather than leave the companion invisible.
+
+Continue to the handoff skill once installed. A reusable browser starter is available at https://github.com/niklas-westman/penpair/blob/main/examples/reflection-browser/README.md; project-specific state hooks and a real provider are still required. No owner approval or browser result may be inferred from a successful install.
+
+### 9. Install the rules the assistant follows
+
+Choose the instruction file the active host reads: `AGENTS.md` for Codex,
+`CLAUDE.md` for Claude Code, or `.github/copilot-instructions.md` for Copilot's
+native repository instructions. Preserve an existing shared-instruction strategy.
+The commands below use Codex as an example; substitute both the destination and
+`--agent claude` or `--agent copilot` for the active host. These are discovery
+links to one skill pack, not separate host-specific copies. Use the project's
+package manager and installed local command (`pnpm exec penpair` for pnpm).
+
+**Just trying it?** Use a throwaway project folder, install the skills with an explicit instruction destination below and keep unknown project facts marked as pending. A commit can wait; the first design trial remains optional.
+
+```bash
+npx penpair skills install --agents AGENTS.md --dry-run
+npx penpair skills install --agents AGENTS.md
+npx penpair skills check --agent codex --agents AGENTS.md --json
+```
+
+Review the preview before applying. This installs setup, design, recipe, handoff, verification and judgment skills, creates discovery links and adds task routing to the selected instruction file. Use `CLAUDE.md` instead if that is the project's chosen file. Existing text outside the owned section is preserved. Discovery checks do not prove actual skill use in a session. Even in a trial folder, select the instruction destination explicitly so routing can be verified.
+
+Then fill in `penpair-design/references/project-facts.md` (in the skills folder the install named) together with them: which Penpot file, the token sets, the names they use, who approves a design. Ask; do not invent. Placeholders they cannot answer yet can stay, marked as open.
+
+In a git repository, offer to commit the setup (ask first; they may want to review it). No repository: skip this, or offer `git init` if they want one.
+
+```bash
+git add penpair.config.json .gitignore AGENTS.md .skills .agents .claude   # whichever exist; never .env.local
+git commit -m "Add penpair"
+```
+
+Teammates later run only `npm install` and `npx penpair connect` with their own key: the key belongs to a person, not to the repo.
+
+### 10. Optional first design trial
+
+Offer a small proof of concept only after connection setup is complete and the person authorizes a scratch page and task. Setup alone does not authorize a design write. Otherwise stop at the readiness summary.
+
+1. **They make the page.** penpair works only on the page that is open in the editor, so ask them to add a page called **penpair POC** (the + next to Pages, in the left sidebar), click it so it is the open page, and keep the tab visible.
+2. **They pick what to build.** Offer two or three prompts; they should be able to say it in their own words next time:
+   - "Do a test POC: a sign-in screen for phone on the page penpair POC, with a small token set for its colours. Then export it and show me."
+   - "Do a test POC: a small dashboard with a header, three stat cards and a table. Audit it for off-scale spacing and show me the export."
+   - With a configured library adapter: "Do a test POC: a settings page that uses only our declared library tokens. Export it and show me."
+3. **Learn the rules first.** Read the installed `penpair-design` skill (`.skills/penpair-design/SKILL.md`, or https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-design/SKILL.md if step 9 was skipped) and its plugin gotchas before your first script. In short: every change to Penpot is a **project snippet**, a `.mjs` file whose default export has `inspect` (looks and returns what would change), `apply` (writes once, safe to run again) and `readback` (checks from scratch and returns `problems: []`). Each part is plain Penpot plugin code, under 90 KB.
+4. **Start from the example.** https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/references/poc-snippet.mjs is a phone sign-in board with a small colour token set and a button component. Save it as `snippets/poc-sign-in.mjs` in the project. Its `page` constant must be the exact name of the page they opened; change it if they named it differently. Adapt the content to what they picked (and rename the snippet's `name` if it is no longer a sign-in).
+5. **Register it.** Add one key to `penpair.config.json`, keeping the JSON valid:
+   ```json
+   "snippets": ["snippets"]
+   ```
+   Then `npx penpair snippets check` should say `ok every snippet is valid plugin code and small enough`, and `npx penpair snippets` lists it as `[project]`.
+6. **Run it, look, then write.**
+   ```bash
+   npx penpair run poc-sign-in                 # looks only: what would change
+   npx penpair run poc-sign-in --apply         # writes once, then reads back; problems must be empty
+   npx penpair tree --page "penpair POC"       # find the board's id
+   npx penpair export <boardId> poc.png --page "penpair POC"
+   npx penpair audit --page "penpair POC" --prefix POC
+   ```
+   Export twice and look at the second image; the first after a write can be stale. The audit lists unbound colours, off-scale spacing, overflow and empty text: on this first POC, unbound colours are expected and make a good next step.
+7. **Show and explain.** Show the image and name what it proved: you read the real file, wrote in one verified step, made tokens and a component, checked your own work. Then what they can ask for next: bind the colours to the tokens, a tablet variant, an audit of an existing page, or Reflection baselines to check the coded page against the design (`penpair baselines`, in the README).
+
+## Wrapping up
+
+Close with a short summary: where Penpot runs, what was installed, where the key lives (`.env.local`, never committed), which library companion is connected, if any, and the daily routine:
+
+1. Open the design file in Penpot, **File, MCP Server, Connect**, keep the tab visible.
+2. (Docker only) `npx penpair up` if the computer was restarted; `npx penpair down` to stop.
+3. When something feels off: `npx penpair doctor`.
+
+Say plainly which steps were skipped or not verified, if any.
 
 ## Rules
 
-- Never run `up`, `down`, `restore` or `init` outside the project folder the person named.
-- Never run `penpair probe --deep --write` on a file the person has not called a scratch file; it creates and removes a temporary board.
-- Read `penpair --help` for the current commands; this skill names only the setup ones.
-- Report each check you did not run.
+- Run commands only in the project folder the person confirmed. Never run `up`, `down`, `restore` or `init` anywhere else.
+- Writes to their Penpot (a token push, the POC) happen only after they said yes, and the POC goes on its own new page.
+- Never run `penpair probe --deep --write` unless they call the file a scratch file.
+- If a command or menu here does not match what they see, trust what they see, check `npx penpair --help`, and tell them the guide is out of date at that point.
 
 ## Private references and rotation
 
 A person can configure `PENPAIR_MCP_URL_FILE` or a `connection.credential` file/macOS Keychain reference. Resolve it only at connection time and keep returned values out of messages. Connect reuses the reference without copying its URL into `.env.local`. Rotate that value in private storage, reconnect the intended visible editor and confirm the same public file pin with doctor. The legacy hidden `connect --replace` flow handles pasted URLs. Treat permission/history warnings as owner review tasks; retain historical metadata without printing old keys or rewriting history automatically.
+
+## Hosting reference
+
+Read [web or Docker](references/web-or-docker.md) when comparing hosting choices.
+The same assisted/manual installation routes apply to both.

@@ -92,7 +92,7 @@ export interface InstallOptions {
   only?: string[];
   /** Replace files that differ from the shipped ones (never the project-owned ones). */
   force?: boolean;
-  /** Make the skills discoverable for Codex and Claude Code with relative links (default true). */
+  /** Make one shared copy discoverable for Codex, Claude Code and Copilot (default true). */
   links?: boolean;
   /** For tests. */
   source?: string;
@@ -101,6 +101,7 @@ export interface InstallOptions {
 /** Skills that changed name. Installing the new one leaves the old folder behind, which `installSkills` then reports. */
 export const renamedSkills: Record<string, string> = {
   "penpot-design": "penpair-design",
+  "penpair-setup-guide": "penpair-setup",
 };
 
 export interface InstallReport {
@@ -127,19 +128,26 @@ export interface InstallReport {
 
 /** Where the penpair skills already live in a project as real folders (not links), so a later install goes to the same place. */
 export async function existingSkillsFolder(root: string): Promise<string | undefined> {
-  for (const folder of [
+  const folders = [
     ".skills",
     ".claude/skills",
     ".agents/skills",
-  ]) {
-    for (const name of [
+    ".github/skills",
+  ];
+  // Prefer an existing canonical pack over a legacy bootstrap in another host.
+  for (const names of [
+    [
       "penpair-design",
       "penpair-setup",
-      ...Object.keys(renamedSkills),
-    ]) {
-      const found = await lstat(path.join(root, folder, name)).catch(() => undefined);
-      if (found?.isDirectory()) {
-        return folder;
+    ],
+    Object.keys(renamedSkills),
+  ]) {
+    for (const folder of folders) {
+      for (const name of names) {
+        const found = await lstat(path.join(root, folder, name)).catch(() => undefined);
+        if (found?.isDirectory()) {
+          return folder;
+        }
       }
     }
   }
@@ -274,6 +282,28 @@ export async function installSkills(options: InstallOptions): Promise<InstallRep
       renamedTo: newName,
       carriedFacts: carriedFacts && !options.dryRun,
     });
+  }
+  // A standalone bootstrap guide may have been installed in a host's own folder.
+  // Report those copies for review; never delete a user's customized skill.
+  if (chosen.includes("penpair-setup")) {
+    for (const folder of [
+      ".skills",
+      ".agents/skills",
+      ".claude/skills",
+      ".github/skills",
+    ]) {
+      const legacyFolder = path.posix.join(folder, "penpair-setup-guide");
+      if (
+        !report.legacy.some((entry) => entry.folder === legacyFolder) &&
+        (await exists(path.join(options.root, legacyFolder)))
+      ) {
+        report.legacy.push({
+          folder: legacyFolder,
+          renamedTo: "penpair-setup",
+          carriedFacts: false,
+        });
+      }
+    }
   }
   if (options.dryRun) {
     report.wouldInstall = [

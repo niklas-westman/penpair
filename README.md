@@ -39,7 +39,7 @@ Choose how you want to get started. Both routes set up the same project and agen
 For the recommended route, open your application's project in your coding assistant and paste:
 
 ```text
-Read https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/SKILL.md
+Read https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-setup/SKILL.md
 and follow its recommended assisted route to set up Penpair in this project.
 Keep my MCP key out of chat and check with me before changing a design file.
 ```
