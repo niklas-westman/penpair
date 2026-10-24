@@ -1,5 +1,11 @@
 # @penpair/core
 
+## 0.3.5
+
+### Patch Changes
+
+- 7ce3748: Remove host-side function-constructor evaluation from layout settling and parse snippet syntax without executing it. Require all four behavior hints on each MCP tool definition, mark offline evidence tools as closed-world, and verify annotations through MCP tool discovery in both write modes.
+
 ## 0.3.4
 
 ### Patch Changes
