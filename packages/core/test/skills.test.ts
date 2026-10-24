@@ -213,3 +213,44 @@ describe("a renamed skill", () => {
     ).toEqual([]);
   });
 });
+
+it("reuses an existing Copilot skill folder instead of installing a second physical copy", async () => {
+  const root = await project();
+  await installSkills({
+    root,
+    to: ".github/skills",
+    links: false,
+  });
+  const report = await installSkills({
+    root,
+  });
+  expect(report.to).toBe(".github/skills");
+  expect(report.installed).toEqual([]);
+  await expect(readdir(path.join(root, ".skills"))).rejects.toThrow();
+  expect(await readFile(path.join(root, ".agents/skills/penpair-setup/SKILL.md"), "utf8")).toBe(
+    await readFile(path.join(root, ".github/skills/penpair-setup/SKILL.md"), "utf8"),
+  );
+});
+
+it("prefers a canonical pack over a legacy setup guide in another host folder", async () => {
+  const root = await project();
+  await installSkills({
+    root,
+    to: ".github/skills",
+    links: false,
+  });
+  const legacy = path.join(root, ".claude/skills/penpair-setup-guide");
+  await mkdir(legacy, {
+    recursive: true,
+  });
+  await writeFile(path.join(legacy, "SKILL.md"), "Customized old guide");
+  const report = await installSkills({
+    root,
+  });
+  expect(report.to).toBe(".github/skills");
+  expect(report.installed).toEqual([]);
+  expect((await lstat(path.join(root, ".claude/skills/penpair-setup"))).isSymbolicLink()).toBe(
+    true,
+  );
+  expect(await readFile(path.join(legacy, "SKILL.md"), "utf8")).toBe("Customized old guide");
+});

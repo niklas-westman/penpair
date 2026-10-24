@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseSkillMetadata, parseSkillYaml } from "./skill-metadata.js";
 import { readSkillFile } from "./skill-file.js";
 import { resolveSkillLink, type SkillInstructionCheck } from "./skill-check-instructions.js";
+import { skillHosts, type SkillAgent } from "./skill-hosts.js";
 
 export interface SkillDiagnostic {
   name: string;
@@ -15,6 +16,7 @@ export interface SkillDiagnostic {
 
 interface EntryOptions {
   root: string;
+  agent: SkillAgent;
   name: string;
   bundledDirectory: string;
   instructions: SkillInstructionCheck;
@@ -48,8 +50,8 @@ async function invocationAllowed(root: string, skillPath: string): Promise<boole
 }
 
 export async function checkSkillEntry(options: EntryOptions): Promise<SkillDiagnostic> {
-  const { root, name, bundledDirectory, instructions } = options;
-  const skillPath = path.posix.join(".agents/skills", name, "SKILL.md");
+  const { root, agent, name, bundledDirectory, instructions } = options;
+  const skillPath = path.posix.join(skillHosts[agent].folder, name, "SKILL.md");
   const report: SkillDiagnostic = {
     name,
     path: skillPath,
@@ -84,22 +86,41 @@ export async function checkSkillEntry(options: EntryOptions): Promise<SkillDiagn
       await resolveSkillLink(root, skillPath, target);
     }
 
-    report.implicitInvocation = await invocationAllowed(root, skillPath);
-    if (!report.implicitInvocation) {
+    if (agent === "codex") {
+      report.implicitInvocation = await invocationAllowed(root, skillPath);
+    } else if (agent === "claude") {
+      const frontmatter = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/.exec(source);
+      const disabled = parseSkillYaml(frontmatter![1]!)["disable-model-invocation"];
+      if (disabled !== undefined && typeof disabled !== "boolean") {
+        throw new Error("Invalid Claude invocation policy");
+      }
+      report.implicitInvocation = disabled !== true;
+    }
+    if (report.implicitInvocation === false) {
       report.problems.push(
-        "Implicit invocation is disabled in openai.yaml; explicit invocation remains available.",
+        "Implicit invocation is disabled by this host's skill policy; explicit invocation remains available.",
       );
     }
 
     for (const folder of [
       ".skills",
       ".claude/skills",
+      ".agents/skills",
+      ".github/skills",
     ]) {
       const otherPath = path.posix.join(folder, name, "SKILL.md");
       const other = await readSkillFile(root, otherPath).catch(() => undefined);
       if (other !== undefined && other !== source) {
         report.problems.push(
-          "Codex and another installed skill copy differ; review the conflicting copies before refreshing.",
+          "Discoverable skill copies differ; review the conflicting copies before refreshing.",
+        );
+      } else if (
+        other !== undefined &&
+        (await realpath(path.join(root, otherPath))) !==
+          (await realpath(path.join(root, skillPath)))
+      ) {
+        report.problems.push(
+          "Independent skill copies require consolidation even when their contents match; preserve customizations before removing duplicates.",
         );
       }
     }

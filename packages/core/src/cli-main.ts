@@ -78,6 +78,7 @@ import { init } from "./instance/init.js";
 import { ConnectError, connectProject, keyFileCheck, type ConnectIo } from "./instance/connect.js";
 import { hostedOrigin, setup, type SetupWhere } from "./instance/setup.js";
 import { askHidden, askLine, openInBrowser } from "./instance/tty.js";
+import { validateSkillAgent } from "./skill-hosts.js";
 import {
   loadAdapters,
   readRawConfig,
@@ -160,7 +161,7 @@ Compare:
 @@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
   penpair skills                                       list them
   penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]
-  penpair skills check [--only <name>] [--agents AGENTS.md] [--json]
+  penpair skills check [--agent codex|claude|copilot] [--only <name>] [--agents <file>] [--json]
   (built-in help lists configured extensions without importing their trusted code)
   (config-free inspection requires --standalone; writes require a project)
   penpair --version`;
@@ -425,6 +426,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       agents: {
         type: "string",
       },
+      agent: {
+        type: "string",
+      },
       "dry-run": {
         type: "boolean",
       },
@@ -630,6 +634,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "kit",
     ],
     skills: [
+      "agent",
       "to",
       "only",
       "force",
@@ -932,6 +937,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ].some((value) => value !== undefined)
   ) {
     throw new Error("Installation flags require skills install");
+  }
+  if (values.agent !== undefined && (command !== "skills" || rest[0] !== "check")) {
+    throw new CommandArgumentError("--agent requires skills check");
   }
   if (
     command === "skills" &&
@@ -1411,6 +1419,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (rest[0] === "check") {
       const report = await checkSkills({
         root,
+        agent: validateSkillAgent(values.agent),
         agents: values.agents,
         only: values.only,
       });
@@ -1466,7 +1475,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       }
       for (const old of report.legacy) {
         output.log(
-          `\nnote ${old.folder} is the old name of ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Delete the old folder and its links (.agents/skills/${path.posix.basename(old.folder)}, .claude/skills/${path.posix.basename(old.folder)}) and update its row in your AGENTS.md.`,
+          `\nnote ${old.folder} is replaced by ${old.renamedTo}. ${old.carriedFacts ? "Your project-facts.md was copied to the new folder. " : ""}Review and migrate custom guidance before removing the old folder, its discovery links and stale instruction rows. No legacy files were deleted.`,
         );
       }
       output.log(

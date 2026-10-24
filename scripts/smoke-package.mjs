@@ -1,7 +1,7 @@
 // Packs the three packages, installs the tarballs in empty projects, and runs what a new user would run, so that what is tested
 // is what is published. Two projects: the web way (core and the short name only) and the Docker way (plus @penpair/docker).
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -255,6 +255,30 @@ check(
   JSON.parse(await penpair(web, "skills", "check", "--json")).data.ready === true,
   "offline Codex discovery and routing checks pass from installed tarballs",
 );
+for (const [agent, instructions] of [
+  [
+    "claude",
+    "CLAUDE.md",
+  ],
+  [
+    "copilot",
+    ".github/copilot-instructions.md",
+  ],
+]) {
+  await penpair(web, "skills", "install", "--agents", instructions);
+  const report = JSON.parse(
+    await penpair(web, "skills", "check", "--agent", agent, "--agents", instructions, "--json"),
+  );
+  check(
+    report.data.agent === agent && report.data.ready,
+    `${agent} discovery and routing pass from installed tarballs`,
+  );
+}
+check(
+  (await realpath(join(web, ".agents/skills/penpair-setup"))) ===
+    (await realpath(join(web, ".claude/skills/penpair-setup"))),
+  "the hosts share one physical setup skill",
+);
 check(
   (await readFile(join(web, ".agents/skills/penpair-verify/agents/openai.yaml"), "utf8")).includes(
     "$penpair-verify",
@@ -287,7 +311,8 @@ check(
   "skills install writes the setup skill",
 );
 check(
-  /Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")),
+  (await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")) ===
+    (await readFile(join(repo, "README.md"), "utf8")),
   "the npm page's README is the repository's",
 );
 check(

@@ -1,27 +1,33 @@
 # Validate skill discovery and behavior
 
 Installation, selection, workflow application, browser evidence and owner
-acceptance are separate checks. Codex can load a skill without showing the
+acceptance are separate checks. A host can load a skill without showing the
 selection in the way a person expects, and can read a skill but underapply it.
 
 ## Offline discovery
 
 ```sh
-pnpm exec penpair skills check --json
+pnpm exec penpair skills check --agent codex --json
+pnpm exec penpair skills check --agent claude --agents CLAUDE.md --json
+pnpm exec penpair skills check --agent copilot --agents .github/copilot-instructions.md --json
 pnpm exec penpair skills check --only penpair-verify --agents AGENTS.md --json
 ```
 
 Exit 0 means the selected bundled skills have valid discoverable entrypoints,
-allowed implicit invocation, resolvable local entrypoint resources and matching
+an enabled host invocation policy where evaluated, resolvable local entrypoint resources and matching
 links in the installer-owned task routes. Exit 3 means readiness is incomplete;
 exit 1 indicates invalid arguments or an execution/configuration error. `--only`
 can be repeated. Default selection is all bundled skills; partial installs should
 select their intended subset explicitly.
 
 The report distinguishes entrypoints matching the bundle from valid local
-customizations. Different independent installed copies require review. Missing
+customizations. Different independent installed copies require review. For Codex, missing
 optional `agents/openai.yaml` means implicit invocation is allowed by default;
-an explicit false policy leaves explicit invocation available. The check reads
+an explicit false policy leaves explicit invocation available. Claude's
+`disable-model-invocation` is checked independently. Copilot's invocation policy
+is not evaluated (`implicitInvocation: null`); Codex metadata does not disable
+other hosts. Legacy setup-guide folders make readiness incomplete and require
+review. `--agent` selects the host; it does not change the installation. The check reads
 bounded regular project files, follows in-project links and refuses escapes.
 It does not load adapters/providers, connect to Penpot, read credentials, write
 repairs or inspect global agent settings.
@@ -34,7 +40,7 @@ override owner choices or silently enable disabled skills.
 
 ## Realistic invocation trials
 
-Run these in fresh Codex sessions in an authorized disposable consumer project.
+Run these separately in fresh Claude Code, Copilot and Codex sessions in an authorized disposable consumer project.
 Do not append skill names to the natural request. Supply actual reference IDs,
 images, approved scope and case files where the task needs them. For a negative
 case, keep Penpot/provider work out of scope. Each trial uses the same fixture and
@@ -42,6 +48,9 @@ records the actual outcome, including missing skills or unavailable tools.
 
 | Natural request | Expected primary skill | Observable result |
 | --- | --- | --- |
+| Set up Penpair with me, step by step. | penpair-setup | Assisted setup preserves the chosen package manager; private browser/key steps handed to the person. |
+| Give me manual installation steps; do not run them. | penpair-setup | Commands and expected results only; no installation or connection commands executed. |
+| I installed the package manually; help me finish with your assistance. | penpair-setup | Inspects existing progress and continues without resetting the config. |
 | Connect this project to Penpot; doctor cannot reach the editor. | penpair-setup | Diagnose the failed check; preserve personal credentials. |
 | Inspect this Penpot frame and export its current design. | penpair-design | Pinned target, complete inspection and actual export. |
 | Create an empty state from this approved Penpot screen. | penpair-recipes | Source evidence, declared regions, representative candidate and critique before expansion. |
@@ -56,7 +65,7 @@ For each case retain: request/context, visible skill catalog if available, actua
 SKILL.md reads, selection announcement, relevant output/checkpoint, command
 results and missing evidence. Record correct selection and correct application
 separately. A badge, a stated intention, a keyword match or valid YAML proves
-neither. If natural selection fails, repeat with explicit `$skill-name` to
+neither. If natural selection fails, repeat with explicit invocation (`$skill-name` in Codex, `/skill-name` in Claude Code, or a skill name/path request in Copilot) to
 distinguish discovery/selection from problems following the workflow. Record the
 installed skill version; compare before/after under the same conditions.
 
