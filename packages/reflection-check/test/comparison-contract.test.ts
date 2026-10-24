@@ -2,6 +2,8 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ArtifactProvenance } from "@penpair/core";
+import { hashImageBytes } from "../src/image-evidence.js";
+import { losslessWebp, lossyWebp } from "./helpers/image-fixture.js";
 import {
   type ImplementationProvider,
   planImplementationCases,
@@ -17,6 +19,119 @@ import {
 } from "./helpers/reflection-fixture.js";
 
 describe("comparison contracts across module boundaries", () => {
+  it.each([
+    "png",
+    "webp",
+  ])("accepts a %s baseline with an independent lossless WebP screenshot", async (format) => {
+    const root = await createProjectFixture();
+    const results = structuredClone(baselineResults);
+    if (format === "webp") {
+      const result = results[0]!;
+      result.file = "empty.webp";
+      for (const provenance of [
+        result.approved!,
+        result.captured!,
+      ]) {
+        provenance.file = "empty.webp";
+        provenance.sha256 = hashImageBytes(losslessWebp);
+      }
+      await writeFile(path.join(root, "design/empty.webp"), losslessWebp);
+    }
+    const plan = planImplementationCases(baselineConfig, results, implementationMapping);
+    await writeFile(path.join(root, "implementation.webp"), losslessWebp);
+
+    const report = await runImplementationCases(root, plan, {
+      runCase: async () => ({
+        ...providerEvidence,
+        baselineHash: plan.cases[0]!.baseline.sha256,
+        screenshot: "implementation.webp",
+      }),
+    });
+
+    expect(report).toMatchObject({
+      complete: true,
+      cases: [
+        {
+          complete: true,
+          screenshotHash: hashImageBytes(losslessWebp),
+        },
+      ],
+    });
+  });
+
+  it("rejects a lossy screenshot even when named PNG", async () => {
+    const root = await createProjectFixture();
+    const plan = planImplementationCases(baselineConfig, baselineResults, implementationMapping);
+    await writeFile(path.join(root, "implementation.png"), lossyWebp);
+
+    expect(
+      await runImplementationCases(root, plan, {
+        runCase: async () => providerEvidence,
+      }),
+    ).toMatchObject({
+      complete: false,
+      cases: [
+        {
+          reason: "Provider evidence must reference PNG or static lossless WebP bytes",
+        },
+      ],
+    });
+  });
+
+  it("rejects incorrectly scaled lossless WebP screenshots", async () => {
+    const root = await createProjectFixture();
+    const plan = planImplementationCases(baselineConfig, baselineResults, implementationMapping);
+    const oversized = Buffer.from(losslessWebp);
+    oversized.writeUInt32LE(1, 21);
+    await writeFile(path.join(root, "implementation.webp"), oversized);
+
+    expect(
+      await runImplementationCases(root, plan, {
+        runCase: async () => ({
+          ...providerEvidence,
+          screenshot: "implementation.webp",
+        }),
+      }),
+    ).toMatchObject({
+      complete: false,
+      cases: [
+        {
+          reason: "Provider image scale/viewport differs from the design case",
+        },
+      ],
+    });
+  });
+
+  it("detects mutation of approved WebP bytes during capture", async () => {
+    const root = await createProjectFixture();
+    const plan = planImplementationCases(baselineConfig, baselineResults, implementationMapping);
+    const baseline = plan.cases[0]!.baseline;
+    baseline.path = "design/empty.webp";
+    baseline.sha256 = hashImageBytes(losslessWebp);
+    await writeFile(path.join(root, baseline.path), losslessWebp);
+    const mutated = Buffer.from(losslessWebp);
+    mutated[mutated.length - 2] = mutated[mutated.length - 2]! ^ 1;
+
+    expect(
+      await runImplementationCases(root, plan, {
+        async runCase() {
+          await writeFile(path.join(root, baseline.path), mutated);
+          return {
+            ...providerEvidence,
+            baselineHash: baseline.sha256,
+          };
+        },
+      }),
+    ).toMatchObject({
+      complete: false,
+      cases: [
+        {
+          reason: "Baseline changed during provider execution",
+        },
+      ],
+    });
+  });
+
   it.each([
     "sha256",
     "fileId",
@@ -157,7 +272,7 @@ describe("comparison contracts across module boundaries", () => {
       complete: false,
       cases: [
         {
-          reason: "Provider PNG scale/viewport differs from the design case",
+          reason: "Provider image scale/viewport differs from the design case",
         },
       ],
     });

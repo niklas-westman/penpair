@@ -8,12 +8,13 @@ In your trusted project provider:
 
 ```js
 import { chromium } from 'playwright'; // the adopter's pinned version
+import sharp from 'sharp'; // declare the adopter's reviewed, pinned codec
 import { createBrowserProvider } from './provider.mjs';
 import { hooks } from './project-hooks.mjs';
 export async function runCase(test) {
   const browser = await chromium.launch();
   try {
-    return await createBrowserProvider({ browser, baseURL: 'http://127.0.0.1:5173', projectRoot: process.cwd(), hooks }).runCase(test);
+    return await createBrowserProvider({ browser, baseURL: 'http://127.0.0.1:5173', projectRoot: process.cwd(), hooks, encodeLosslessWebp: (bytes) => sharp(bytes).webp({ lossless: true, exact: true, effort: 6 }).toBuffer() }).runCase(test);
   } finally { await browser.close(); }
 }
 ```
@@ -47,3 +48,19 @@ From this repository, run `pnpm smoke:browser` using a locally installed pinned 
 The script starts/stops a loopback fixture, captures desktop/mobile × light/dark × loaded/empty, tests wrong theme, missing face/weight, delayed font loading, scale mismatch, hover and sticky occlusion, and verifies unchanged baseline bytes. Its browser references are deliberately **unapproved synthetic fixtures**. They exercise plumbing; they are not Penpot acceptance or owner-approved design baselines.
 
 The fixture's Abel Regular font is redistributed under [SIL OFL](fixture/OFL.txt), retrieved from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/abel), SHA-256 `8809dcad25318225052f88333e208c5aad4adcb7b2c934c135735ec19aa410b4`. Browser APIs follow [Playwright screenshot documentation](https://playwright.dev/docs/api/class-page#page-screenshot) and [font-loading evidence](https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet).
+
+The starter captures a temporary PNG through Playwright and writes static lossless
+WebP evidence by default. `encodeLosslessWebp` is an explicit project-owned codec
+hook; declare Sharp directly in the adopting project when using the example above.
+`lossless: true, exact: true` preserves image pixels, including RGB under transparent
+pixels; `quality: 100` alone does not select lossless WebP. The provider compares
+the encoded image with the capture before saving and refuses changed decoded pixels.
+See [Sharp WebP output options](https://sharp.pixelplumbing.com/api-output#webp).
+
+Comparison reads both PNG and WebP references by content. Existing approved PNG
+references keep their original hashes. `imageFormat: "png"` explicitly selects the
+legacy output path without requiring an encoder. Browser capture metadata, exact
+scale/viewport checks, independent evidence paths and owner review remain unchanged.
+The adapter rejects lossy/animated WebP and validates container metadata without
+adding a native decoder dependency. The repository's pinned Sharp dev dependency
+exists only for smoke validation; it is not shipped as an adapter runtime dependency.
