@@ -1,4 +1,5 @@
 import { recordApproval } from "../src/approvals.js";
+import { readBaselineCoverage } from "../src/baseline-coverage.js";
 import { exportShapePng } from "../src/export.js";
 import { mkdir, mkdtemp, readFile, readdir, symlink } from "node:fs/promises";
 import os from "node:os";
@@ -1555,4 +1556,210 @@ describe("baseline frame IDs", () => {
     });
     expect(report.coverage.designCasesComplete).toBe(true);
   });
+});
+
+describe("subpixel baseline case geometry", () => {
+  const sizes = [
+    {
+      width: 1512,
+      height: 984,
+      observedWidth: 1511.9999999999995,
+      observedHeight: 984,
+    },
+    {
+      width: 834,
+      height: 1194,
+      observedWidth: 834.0000000000001,
+      observedHeight: 1194,
+    },
+    {
+      width: 834,
+      height: 1194,
+      observedWidth: 833.9999999999995,
+      observedHeight: 1194,
+    },
+    {
+      width: 393,
+      height: 845,
+      observedWidth: 393,
+      observedHeight: 844.9999999999964,
+    },
+    {
+      width: 393,
+      height: 1191,
+      observedWidth: 393,
+      observedHeight: 1190.999999999999,
+    },
+    {
+      width: 393,
+      height: 1268,
+      observedWidth: 393,
+      observedHeight: 1267.999999999999,
+    },
+  ];
+
+  it("publishes all six noisy cases while retaining raw geometry and complete coverage", async () => {
+    const root = await project();
+    const entries = sizes.map((size, index) => ({
+      id: `case-${index}`,
+      frame: `Frame ${index}`,
+      route: "login",
+      case: {
+        viewport: {
+          width: size.width,
+          height: size.height,
+        },
+        theme: "light",
+        state: "default",
+        fixture: `fixture-${index}`,
+      },
+    }));
+    const noisyConfig = {
+      ...config,
+      frames: entries,
+      coverage: {
+        required: entries.map((entry) => ({
+          route: entry.route,
+          ...entry.case,
+        })),
+      },
+    };
+    const report = await exportBaselines(
+      penpot({
+        frames: entries.map((entry, index) => ({
+          id: entry.id,
+          name: entry.frame,
+          width: sizes[index]!.observedWidth,
+          height: sizes[index]!.observedHeight,
+        })),
+        images: Object.fromEntries(
+          entries.map((entry, index) => [
+            entry.id,
+            settled(sizes[index]!.width, sizes[index]!.height, entry.id),
+          ]),
+        ),
+      }),
+      root,
+      noisyConfig,
+      {
+        ...fast,
+        apply: true,
+      },
+    );
+
+    expect(report.complete).toBe(true);
+    expect(report.coverage.designCasesComplete).toBe(true);
+    expect((await readBaselineCoverage(root, noisyConfig)).designCasesComplete).toBe(true);
+    expect(report.results.every((result) => result.written && result.status === "new")).toBe(true);
+    const manifest = JSON.parse(
+      await readFile(path.join(root, config.root, "penpair-baselines.json"), "utf8"),
+    );
+    expect(
+      manifest.frames.map(
+        (entry: {
+          captured: {
+            designSize: {
+              width: number;
+              height: number;
+            };
+          };
+        }) => entry.captured.designSize,
+      ),
+    ).toEqual(
+      sizes.map((size) => ({
+        width: size.observedWidth,
+        height: size.observedHeight,
+      })),
+    );
+  });
+
+  it.each([
+    {
+      width: 1513,
+      height: 984,
+      pngWidth: 1512,
+      pngHeight: 984,
+      problem: "Observed frame dimensions",
+    },
+    {
+      width: 1512,
+      height: 985,
+      pngWidth: 1512,
+      pngHeight: 984,
+      problem: "Observed frame dimensions",
+    },
+    {
+      width: 1511.9999999999995,
+      height: 984,
+      pngWidth: 1513,
+      pngHeight: 984,
+      problem: "PNG dimensions",
+    },
+    {
+      width: 1511.9999999999995,
+      height: 984,
+      pngWidth: 1512,
+      pngHeight: 985,
+      problem: "PNG dimensions",
+    },
+  ])(
+    "rejects real geometry or image mismatches: $width x $height / $pngWidth x $pngHeight",
+    async (size) => {
+      const root = await project();
+      const report = await exportBaselines(
+        penpot({
+          frames: [
+            {
+              id: "frame",
+              name: "Desktop",
+              width: size.width,
+              height: size.height,
+            },
+          ],
+          images: {
+            frame: settled(size.pngWidth, size.pngHeight, "mismatch"),
+          },
+        }),
+        root,
+        {
+          ...config,
+          frames: [
+            {
+              id: "desktop",
+              frame: "Desktop",
+              route: "login",
+              case: {
+                viewport: {
+                  width: 1512,
+                  height: 984,
+                },
+                theme: "light",
+                state: "default",
+                fixture: "mismatch",
+              },
+            },
+          ],
+        },
+        {
+          ...fast,
+          apply: true,
+        },
+      );
+
+      expect(report).toMatchObject({
+        complete: false,
+        wrote: [],
+        results: [
+          {
+            status: "case-mismatch",
+            written: false,
+            problems: [
+              expect.stringContaining(size.problem),
+            ],
+          },
+        ],
+      });
+      expect(await readdir(root)).toEqual([]);
+    },
+  );
 });

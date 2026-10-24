@@ -1,4 +1,5 @@
 import { matchingApproval } from "./approvals.js";
+import { matchesDesignViewport } from "./design-viewport.js";
 import { pngSize } from "./png.js";
 export { pngSize } from "./png.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -309,11 +310,7 @@ export async function exportBaselines(
     if (wanted.case) {
       const viewport = wanted.case.viewport;
       const size = pngSize(exported.png)!;
-      if (
-        !exported.capture.designSize ||
-        exported.capture.designSize.width !== viewport.width ||
-        exported.capture.designSize.height !== viewport.height
-      ) {
+      if (!matchesDesignViewport(exported.capture.designSize, viewport)) {
         caseProblems.push("Observed frame dimensions do not match the declared viewport");
       }
       if (
