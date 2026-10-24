@@ -26,6 +26,23 @@ function virtualClock() {
 }
 
 describe("post-publish npm visibility", () => {
+  it("honors a shared deadline instead of granting a fresh ten-minute window", async () => {
+    const clock = virtualClock();
+    clock.advance(570_000);
+    const query = vi.fn<RegistryQuery>().mockResolvedValue(false);
+
+    expect(
+      await waitForRegistryVisibility("@penpair/core", "0.3.0", {
+        ...clock,
+        query,
+        deadline: 600_000,
+      }),
+    ).toBe(false);
+    expect(clock.now()).toBe(600_000);
+    expect(clock.wait).toHaveBeenCalledExactlyOnceWith(30_000);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it("accepts immediate visibility without waiting", async () => {
     const clock = virtualClock();
     const query = vi.fn<RegistryQuery>().mockResolvedValue(true);

@@ -14,7 +14,7 @@ vi.mock("node:child_process", async () => {
 });
 
 // @ts-expect-error Release tooling remains executable JavaScript.
-import { isPublished } from "../../../scripts/lib/versions.mjs";
+import { isPublished, latestPublishedVersion } from "../../../scripts/lib/versions.mjs";
 
 beforeEach(() => {
   executeNpm.mockReset();
@@ -95,5 +95,66 @@ describe("bounded registry metadata queries", () => {
         timeoutMs: 100,
       }),
     ).rejects.toThrow("timed out after 100ms");
+  });
+});
+
+describe("latest-version rollback protection", () => {
+  it("reads the latest tag with bounded network and subprocess time", async () => {
+    executeNpm.mockResolvedValue({
+      stdout: '"0.4.0"',
+    });
+    expect(
+      await latestPublishedVersion("@penpair/core", {
+        timeoutMs: 12000,
+      }),
+    ).toBe("0.4.0");
+    expect(executeNpm).toHaveBeenCalledExactlyOnceWith(
+      "npm",
+      [
+        "view",
+        "@penpair/core",
+        "dist-tags.latest",
+        "--json",
+        "--fetch-retries=0",
+        "--fetch-timeout=12000",
+      ],
+      {
+        timeout: 12000,
+      },
+    );
+  });
+
+  it("allows a package that is absent or has no latest tag", async () => {
+    executeNpm.mockRejectedValueOnce({
+      stderr: "E404",
+    });
+    expect(await latestPublishedVersion("@penpair/core")).toBeUndefined();
+    executeNpm.mockResolvedValueOnce({
+      stdout: "",
+    });
+    expect(await latestPublishedVersion("@penpair/core")).toBeUndefined();
+  });
+
+  it.each([
+    '"invalid"',
+    '"1.0.0-beta.1"',
+    "{}",
+  ])("refuses unexpected latest metadata %s", async (stdout) => {
+    executeNpm.mockResolvedValue({
+      stdout,
+    });
+    await expect(latestPublishedVersion("@penpair/core")).rejects.toThrow(/stable version/);
+  });
+
+  it("refuses network uncertainty and killed queries even with 404 output", async () => {
+    executeNpm.mockRejectedValueOnce({
+      stderr: "E401",
+    });
+    await expect(latestPublishedVersion("@penpair/core")).rejects.toThrow(/could not ask npm/);
+    executeNpm.mockRejectedValueOnce({
+      killed: true,
+      stderr: "E404",
+    });
+    await expect(latestPublishedVersion("@penpair/core")).rejects.toThrow(/timed out/);
   });
 });

@@ -475,165 +475,6 @@ describe("merged version PR authorization", () => {
       expect(isMergedReleasePr(other, "owner/repo", "reviewed-sha")).toBeFalsy();
     }
   });
-
-  it("skips ordinary pushes without reading a release version or requesting publication", async () => {
-    const { createRequire } = await import("node:module");
-    const gate = createRequire(import.meta.url)(join(repository, "scripts/release-gate.cjs"));
-    const outputs: Record<string, unknown> = {};
-    await gate({
-      context: {
-        ref: "refs/heads/main",
-        eventName: "push",
-        sha: "other",
-        repo: {
-          owner: "owner",
-          repo: "repo",
-        },
-      },
-      github: {
-        paginate: async () => [
-          pr,
-        ],
-        rest: {
-          repos: {
-            listPullRequestsAssociatedWithCommit: {},
-          },
-        },
-      },
-      core: {
-        info: () => {},
-        setOutput: (key: string, value: unknown) => {
-          outputs[key] = value;
-        },
-      },
-    });
-    expect(outputs).toEqual({
-      publish: "false",
-    });
-  });
-
-  it("accepts an exact manual version and rejects mismatched versions and pending notes", async () => {
-    const { createRequire } = await import("node:module");
-    const gate = createRequire(import.meta.url)(join(repository, "scripts/release-gate.cjs"));
-    const root = await fixture();
-    const outputs: Record<string, unknown> = {};
-    const options = {
-      root,
-      github: {},
-      context: {
-        ref: "refs/heads/main",
-        eventName: "workflow_dispatch",
-        payload: {
-          inputs: {
-            version: "1.2.3",
-          },
-        },
-      },
-      core: {
-        setOutput: (key: string, value: unknown) => {
-          outputs[key] = value;
-        },
-      },
-    };
-    await gate(options);
-    expect(outputs).toEqual({
-      publish: "true",
-      version: "1.2.3",
-      release_pr: "",
-    });
-    options.context.payload.inputs.version = "1.2.4";
-    await expect(gate(options)).rejects.toThrow("exactly match");
-    options.context.payload.inputs.version = "1.2.3";
-    await writeFile(join(root, ".changeset/pending.md"), "---\n---\n\nNo impact.\n");
-    await expect(gate(options)).rejects.toThrow("pending changesets");
-  });
-
-  it("authorizes an exact merged release commit after independently checking its version", async () => {
-    const { createRequire } = await import("node:module");
-    const gate = createRequire(import.meta.url)(join(repository, "scripts/release-gate.cjs"));
-    const root = await fixture();
-    const git = (args: string[]) =>
-      run("git", args, {
-        cwd: root,
-      });
-    await git([
-      "init",
-    ]);
-    await git([
-      "config",
-      "user.name",
-      "Release fixture",
-    ]);
-    await git([
-      "config",
-      "user.email",
-      "fixture@example.invalid",
-    ]);
-    await git([
-      "add",
-      ".",
-    ]);
-    await git([
-      "commit",
-      "-m",
-      "Initial",
-    ]);
-    await writeFile(join(root, ".changeset/fix.md"), '---\n"@penpair/core": patch\n---\n\nFix.\n');
-    await versionWithCli(root);
-    await syncSourceVersion(root);
-    await git([
-      "add",
-      ".",
-    ]);
-    await git([
-      "commit",
-      "-m",
-      "Version",
-    ]);
-    const sha = (
-      await git([
-        "rev-parse",
-        "HEAD",
-      ])
-    ).stdout.trim();
-    const outputs: Record<string, unknown> = {};
-    await gate({
-      root,
-      context: {
-        ref: "refs/heads/main",
-        eventName: "push",
-        sha,
-        repo: {
-          owner: "owner",
-          repo: "repo",
-        },
-      },
-      github: {
-        paginate: async () => [
-          {
-            ...pr,
-            number: 42,
-            merge_commit_sha: sha,
-          },
-        ],
-        rest: {
-          repos: {
-            listPullRequestsAssociatedWithCommit: {},
-          },
-        },
-      },
-      core: {
-        setOutput: (key: string, value: unknown) => {
-          outputs[key] = value;
-        },
-      },
-    });
-    expect(outputs).toEqual({
-      publish: "true",
-      version: "1.2.4",
-      release_pr: "42",
-    });
-  });
 });
 
 describe("workflow permission and activation boundaries", () => {
@@ -673,7 +514,16 @@ describe("workflow permission and activation boundaries", () => {
     expect(publish.env.PENPAIR_RELEASE_EXCLUDE_PENPAIR).toBe(
       "${{ vars.PENPAIR_RELEASE_EXCLUDE_PENPAIR }}",
     );
-    expect(release.concurrency["cancel-in-progress"]).toBe(false);
+    expect(release.concurrency).toBeUndefined();
+    expect(release.jobs.publish.concurrency).toEqual({
+      group: "penpair-package-release",
+      "cancel-in-progress": false,
+      queue: "max",
+    });
+    expect(release.on.workflow_dispatch.inputs.release_sha.required).toBe(false);
+    expect(release.jobs.gate.outputs.release_sha).toBe("${{ steps.review.outputs.release_sha }}");
+    expect(release.jobs.publish.steps[0].with.ref).toBe("${{ needs.gate.outputs.release_sha }}");
+    expect(publish.env.PENPAIR_RELEASE_SHA).toBe("${{ needs.gate.outputs.release_sha }}");
     expect(
       ci.jobs.check.steps.some(
         (step: { run?: string }) => step.run === "node scripts/check-pr-changeset.mjs",

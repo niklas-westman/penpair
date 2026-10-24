@@ -2,6 +2,10 @@
 import { spawn } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { releaseExclusions } from "./lib/release-exclusions.mjs";
+import { assertReleaseSha } from "./lib/release-snapshot.mjs";
+
+const releaseSha = process.env.PENPAIR_RELEASE_SHA;
+assertReleaseSha(releaseSha);
 const version = process.env.PENPAIR_EXPECTED_VERSION;
 if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
   throw new Error("Supply the exact checked release version");
@@ -21,6 +25,8 @@ const args = [
   "release",
   "--publish",
   "--trusted-publishing",
+  "--release-sha",
+  releaseSha,
   "--confirm-version",
   version,
   ...(resume === "true"

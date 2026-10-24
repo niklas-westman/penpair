@@ -14,13 +14,13 @@ on:
         required: true
         default: false
         type: boolean
+      release_sha:
+        description: Optional full reviewed release commit SHA for historical recovery
+        required: false
+        type: string
 
 permissions:
   contents: read
-
-concurrency:
-  group: penpair-package-release
-  cancel-in-progress: false
 
 jobs:
   gate:
@@ -33,6 +33,7 @@ jobs:
       publish: ${{ steps.review.outputs.publish }}
       version: ${{ steps.review.outputs.version }}
       release_pr: ${{ steps.review.outputs.release_pr }}
+      release_sha: ${{ steps.review.outputs.release_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -54,6 +55,10 @@ jobs:
     needs: gate
     if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: penpair-package-release
+      cancel-in-progress: false
+      queue: max
     environment: npm-release
     permissions:
       contents: read
@@ -61,13 +66,13 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: main
+          ref: ${{ needs.gate.outputs.release_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Refuse a moved main branch
+      - name: Verify the pinned release checkout
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
         env:
-          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_SHA: ${{ needs.gate.outputs.release_sha }}
       - run: corepack enable
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -77,6 +82,7 @@ jobs:
         run: node scripts/ci-release.mjs
         env:
           PENPAIR_EXPECTED_VERSION: ${{ needs.gate.outputs.version }}
+          PENPAIR_RELEASE_SHA: ${{ needs.gate.outputs.release_sha }}
           PENPAIR_CONTINUE_RELEASE: ${{ inputs.continue_release || 'false' }}
           PENPAIR_RELEASE_PR: ${{ needs.gate.outputs.release_pr }}
           PENPAIR_RELEASE_ENVIRONMENT: npm-release
