@@ -1,5 +1,7 @@
 # penpair
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/niklas-westman-penpair-637i3e?v=4c3a3cf6e76f527306a6b8d2974a4cdb)](https://m8ven.ai/mcp/niklas-westman-penpair-637i3e?s=readme)
+
 **Design together. Build together.** Connect people and agents to the same Penpot design, with pinned targets, recoverable writes and independent readback.
 
 Inspect structure and tokens, compose reviewed recipes, capture references and hand design evidence to the implementation. Penpot holds the design; Git holds declarations, snapshots and review records.
@@ -40,7 +42,9 @@ pnpm exec penpair skills install --dry-run
 
 Confirm the owner-authorized file ID, then follow the [skill installation preview](docs/skill-installation.md). Each teammate uses their own key. Prefer a team/web Penpot; [Docker is an alternative](packages/core/skills/penpair-setup/references/web-or-docker.md).
 
-Use the installed version's `--help` to confirm available commands. For an unreleased source trial, install the complete matching package set described in the [trial runbook](docs/trials.md). Live/human acceptance gates remain explicit.
+Use the installed version's `--help` to confirm available commands. For source
+builds and authorized scratch checks, follow the [validation guide](docs/validation.md).
+Automated fixtures do not establish live compatibility or human acceptance.
 
 ## Packages and workflows
 
@@ -59,6 +63,6 @@ Check a consumer's Codex installation with `pnpm exec penpair skills check --jso
 [Discovery diagnostics and behavior trials](docs/skill-validation.md) explain what
 that establishes and how to verify actual skill use.
 
-[Cookbook](docs/cookbook.md) · [MCP tools](docs/mcp.md) · [Format contracts](docs/formats.md) · [Compatibility](docs/compatibility.md) · [Recovery](docs/recovery.md) · [Living checklist](docs/improvements.md)
+[Cookbook](docs/cookbook.md) · [MCP tools](docs/mcp.md) · [Format contracts](docs/formats.md) · [Compatibility](docs/compatibility.md) · [Recovery](docs/recovery.md) · [Validation](docs/validation.md)
 
 See [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md), [release steps](docs/releasing.md), [CHANGELOG](CHANGELOG.md) and the [MIT licence](LICENSE). Comparison metrics supply evidence for review; they do not approve a design.

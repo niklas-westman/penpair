@@ -2,7 +2,7 @@
 
 penpair is early; issues and small pull requests are welcome.
 
-- Read `AGENTS.md` (the rules that do not bend) and `PLAN.md` (what is done and what is next).
+- Read `AGENTS.md` and the maintained guides relevant to your change. Keep internal plans, session reports and draft handoffs in git-ignored `.working-docs/`; fresh clones and published packages must not depend on those files.
 - Read [code conventions](docs/conventions/README.md) before adding or restructuring files. Use `pnpm format` and kebab-case code paths; split independent responsibilities while keeping public imports stable.
 - `pnpm install`, then `pnpm check` (style/path checks, checked examples, typecheck, tests, build, and that every package has the same version) and `pnpm smoke:package` (packs every package and runs them in empty projects) before a pull request.
 - The core stays neutral: it never names a project or a component library, and the Docker code stays apart from the connection (tests enforce both). Project knowledge belongs in an adapter or in the adopting project.

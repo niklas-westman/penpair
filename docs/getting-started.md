@@ -76,7 +76,7 @@ Open the file in Penpot, choose **File, MCP Server, Connect**, keep the tab visi
 ### Your safety net
 See the [hosted backup and scratch-restore guide](backup.md). `penpair backup file <new.penpot>` can try a bounded file export; it never replaces an existing archive and does not claim restore proof. Larger/failing exports use the manual UI route. Optional backup-note reminders are disabled unless configured.
 
-`up`, `down`, Docker `status`, instance `backup` and instance `restore` belong to the Docker alternative; `backup file` is the separate hosted-file export candidate described above. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether a `.penpot` export restores everything (components, token sets, themes) is not proven yet; see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md).
+`up`, `down`, Docker `status`, instance `backup` and instance `restore` belong to the Docker alternative; `backup file` is the separate hosted-file export candidate described above. Your safety net is Penpot's own version history and the `.penpot` export in the File menu. Whether an archive restores all required components, token sets and themes must be established with the [scratch restore checklist](backup.md#prove-the-restore-on-scratch).
 
 ## What it will not do
 It needs the Penpot tab open and visible while the assistant works, so it cannot run on its own overnight. It changes one Penpot at a time and only the page you have open.
@@ -101,10 +101,6 @@ npx penpair up
 | backend: not ready yet | Wait ten seconds and run `doctor` again |
 
 Every day: `npx penpair up` (if Docker was restarted) and `npx penpair down` to stop; your designs stay. Back up before big changes with `npx penpair backup`, and prove a backup works with `npx penpair backup verify <the folder it printed>`. The backup contains account data, so never put it in git.
-
-## Still to make easier (see the [plan](https://github.com/niklas-westman/penpair/blob/main/PLAN.md))
-- A short illustrated version with a screenshot of each browser step.
-- A shared Penpot for a team, so designers need no setup.
 
 ## Rotate or move a personal key
 

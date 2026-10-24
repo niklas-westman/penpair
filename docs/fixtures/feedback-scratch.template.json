@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 1,
-  "authorized": false,
-  "fileId": null,
-  "pages": [{ "role": "build", "id": null }, { "role": "preservation", "id": null }],
-  "build": { "ownedPrefix": "penpair-feedback/", "flex": true, "text": true, "tokenBindings": ["typography", "fill", "rowGap"] },
-  "preserve": ["unrelated shape IDs and values", "token definitions and order", "global theme selections", "original visible page"],
-  "cases": ["desktop/light/loaded", "desktop/light/empty", "desktop/dark/loaded", "desktop/dark/empty", "mobile/light/loaded", "mobile/light/empty", "mobile/dark/loaded", "mobile/dark/empty"]
-}

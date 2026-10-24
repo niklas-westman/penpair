@@ -49,6 +49,11 @@ Set `restoreVerified` to true only after the owner completes the scratch compari
 
 ## Current verification limits
 
-The bounded exporter, target/revision guards, refusal to overwrite, error/budget handling and reminder behavior are tested with fake clients and local files. The first live archive export/import round trip on hosted Penpot 2.18.4 remains outstanding. Structural snapshots (D3) will provide review evidence and remain distinct from archives. G3 stays open until its required live restore evidence is recorded.
+The bounded exporter, target/revision guards, refusal to overwrite, error/budget
+handling and reminder behavior are tested with fake clients and local files.
+Those checks do not establish archive restoration on a live hosted instance;
+record the required export/import and visual comparison before relying on that
+recovery path. Structural snapshots provide review evidence and remain distinct
+from archives.
 
 [Structural snapshots and diffs](snapshots.md) provide bounded review evidence alongside archives; they cannot replace an export/import restore trial.

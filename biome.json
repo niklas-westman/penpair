@@ -13,8 +13,7 @@
       "!!**/dist",
       "!!**/.local",
       "!**/fixtures/**",
-      "!docs/trials/**",
-      "!docs/upstream/**",
+      "!!**/.working-docs",
       "!examples/hello-card/**",
       "!examples/theme-preview/**",
       "!examples/trials/**"
