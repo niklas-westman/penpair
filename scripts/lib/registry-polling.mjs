@@ -15,16 +15,23 @@ export const registryQueryTimeoutMs = 30_000;
  *   now?: () => number,
  *   wait?: (delayMs: number) => Promise<void>,
  *   log?: (message: string) => void,
+ *   deadline?: number,
  * }} [options]
  * @returns {Promise<boolean>}
  */
 export async function waitForRegistryVisibility(
   name,
   version,
-  { query = isPublished, now = () => performance.now(), wait = sleep, log = () => {} } = {},
+  {
+    query = isPublished,
+    now = () => performance.now(),
+    wait = sleep,
+    log = () => {},
+    deadline: sharedDeadline,
+  } = {},
 ) {
   const startedAt = now();
-  const deadline = startedAt + registryVisibilityTimeoutMs;
+  const deadline = sharedDeadline ?? startedAt + registryVisibilityTimeoutMs;
   let nextPollAt = startedAt;
 
   while (now() < deadline) {
@@ -55,7 +62,7 @@ export async function waitForRegistryVisibility(
           : `visibility deadline in ${delaySeconds}s`;
 
       log(
-        `Waiting for npm to expose ${name}@${version}: ${elapsedSeconds}s elapsed; ${nextStep} (10-minute limit per package).`,
+        `Waiting for npm to expose ${name}@${version}: ${elapsedSeconds}s elapsed; ${nextStep} (${sharedDeadline === undefined ? "10-minute limit per package" : "shared visibility deadline"}).`,
       );
 
       await wait(delayMs);

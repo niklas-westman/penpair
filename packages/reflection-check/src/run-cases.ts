@@ -1,6 +1,6 @@
 import { resolveProjectInput } from "@penpair/core";
 import { validateProviderEvidence } from "./evidence-validation.js";
-import { hashPngBytes, readPngEvidence } from "./png-evidence.js";
+import { hashImageBytes, readImageEvidence } from "./image-evidence.js";
 import type {
   CasePlan,
   ImplementationCase,
@@ -20,16 +20,16 @@ async function collectCaseEvidence(
     throw new Error("Missing capture scale");
   }
 
-  const baselineImage = await readPngEvidence(root, implementationCase.baseline.path);
+  const baselineImage = await readImageEvidence(root, implementationCase.baseline.path);
 
-  if (hashPngBytes(baselineImage.bytes) !== implementationCase.baseline.sha256) {
+  if (hashImageBytes(baselineImage.bytes) !== implementationCase.baseline.sha256) {
     throw new Error("Approved baseline bytes changed");
   }
 
   const evidence = await provider.runCase(structuredClone(implementationCase));
   validateProviderEvidence(evidence, implementationCase);
 
-  const implementationImage = await readPngEvidence(root, evidence.screenshot);
+  const implementationImage = await readImageEvidence(root, evidence.screenshot);
   const screenshotPath = await resolveProjectInput(root, evidence.screenshot);
   const baselinePath = await resolveProjectInput(root, implementationCase.baseline.path);
 
@@ -46,12 +46,12 @@ async function collectCaseEvidence(
     baselineImage.width !== implementationImage.width ||
     baselineImage.height !== implementationImage.height
   ) {
-    throw new Error("Provider PNG scale/viewport differs from the design case");
+    throw new Error("Provider image scale/viewport differs from the design case");
   }
 
-  const baselineAfterCapture = await readPngEvidence(root, implementationCase.baseline.path);
+  const baselineAfterCapture = await readImageEvidence(root, implementationCase.baseline.path);
 
-  if (hashPngBytes(baselineAfterCapture.bytes) !== implementationCase.baseline.sha256) {
+  if (hashImageBytes(baselineAfterCapture.bytes) !== implementationCase.baseline.sha256) {
     throw new Error("Baseline changed during provider execution");
   }
 
@@ -60,7 +60,7 @@ async function collectCaseEvidence(
     complete: true,
     withinThreshold: evidence.diffPixelRatio <= implementationCase.threshold,
     evidence,
-    screenshotHash: hashPngBytes(implementationImage.bytes),
+    screenshotHash: hashImageBytes(implementationImage.bytes),
   };
 }
 

@@ -15,7 +15,7 @@ browser dependency and working provider are still required in the project.
 
 Before claiming a comparison, retain the case ID, approved reference/hash, setup
 name, provider identity/version and actual browser observation. Check viewport,
-theme, state, fixture, loaded fonts, PNG dimensions and scale. Missing state
+theme, state, fixture, loaded fonts, image dimensions and scale (PNG or static lossless WebP). Missing state
 hooks, placeholder routes or echoed test inputs leave verification pending.
 Inspect pointer/hover, scroll/sticky behavior, occlusion and capture-root bounds
 when they can explain a mismatch. Do not hide them by changing the reference.

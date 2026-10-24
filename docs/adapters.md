@@ -87,4 +87,4 @@ The design-only workflow can start with one command package. Frontend projects s
 
 The shipped setup/handoff skills should recommend the appropriate companion, preserve existing adapter configuration and report readiness at each stage. They must keep missing references or provider work visible and never invent owner approval.
 
-Use the shipped [real-browser provider starter](../examples/reflection-browser/README.md) to supply capture plumbing while keeping route/theme/state/fixture hooks project-owned. It includes measured font, pointer, scroll and crop evidence; a browser dependency is not added to the core.
+Use the shipped [real-browser provider starter](../examples/reflection-browser/README.md) to supply capture plumbing while keeping route/theme/state/fixture hooks project-owned. It includes measured font, pointer, scroll and crop evidence; a browser dependency is not added to the core. The starter saves static lossless WebP with a project-supplied encoder; the adapter also reads legacy PNG evidence without converting approved references.

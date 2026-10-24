@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
+import sharp from "sharp";
 import { captureCase, outwardClip } from "../examples/reflection-browser/capture.mjs";
 import { createBrowserProvider } from "../examples/reflection-browser/provider.mjs";
 import { hooks } from "../examples/reflection-browser/fixture-hooks.mjs";
@@ -106,13 +107,22 @@ try {
       }
     }
   }
-  const provider = createBrowserProvider({
+  const providerOptions = {
     browser,
     baseURL,
     projectRoot: root,
     hooks,
     io,
-  });
+    encodeLosslessWebp: (bytes) =>
+      sharp(bytes)
+        .webp({
+          lossless: true,
+          exact: true,
+          effort: 6,
+        })
+        .toBuffer(),
+  };
+  const provider = createBrowserProvider(providerOptions);
   const plan = {
     schemaVersion: 1,
     kind: "implementation-case-plan",
@@ -125,6 +135,11 @@ try {
   assert.equal(report.complete, true, JSON.stringify(report));
   assert.equal(report.verdict, "owner-review-required");
   assert(report.cases.every((row) => row.withinThreshold));
+  for (const row of report.cases) {
+    assert(row.evidence.screenshot.endsWith(".webp"));
+    const bytes = await readFile(path.join(root, row.evidence.screenshot));
+    assert.equal(bytes.toString("ascii", 8, 12), "WEBP");
+  }
   for (const test of cases) {
     assert.equal(
       createHash("sha256")
@@ -133,6 +148,67 @@ try {
       test.baseline.sha256,
     );
   }
+  const firstCase = cases[0];
+  const webpReference = await sharp(await readFile(path.join(root, firstCase.baseline.path)))
+    .webp({
+      lossless: true,
+      exact: true,
+      effort: 6,
+    })
+    .toBuffer();
+  const webpBaselineCase = {
+    ...firstCase,
+    baseline: {
+      ...firstCase.baseline,
+      path: "lossless-reference.webp",
+      sha256: createHash("sha256").update(webpReference).digest("hex"),
+    },
+  };
+  await writeFile(path.join(root, webpBaselineCase.baseline.path), webpReference);
+  const webpReport = await runImplementationCases(
+    root,
+    {
+      ...plan,
+      cases: [
+        webpBaselineCase,
+      ],
+    },
+    provider,
+  );
+  assert.equal(webpReport.complete, true, JSON.stringify(webpReport));
+  assert.equal(webpReport.cases[0].withinThreshold, true);
+
+  const pngProvider = createBrowserProvider({
+    ...providerOptions,
+    imageFormat: "png",
+    encodeLosslessWebp: undefined,
+  });
+  const pngEvidence = await pngProvider.runCase(firstCase);
+  assert(pngEvidence.screenshot.endsWith(".png"));
+  await assert.rejects(
+    createBrowserProvider({
+      ...providerOptions,
+      encodeLosslessWebp: async (bytes) => bytes,
+    }).runCase(firstCase),
+    /different image format/,
+  );
+  await assert.rejects(
+    createBrowserProvider({
+      ...providerOptions,
+      encodeLosslessWebp: (bytes) =>
+        sharp(bytes)
+          .negate({
+            alpha: false,
+          })
+          .webp({
+            lossless: true,
+            exact: true,
+          })
+          .toBuffer(),
+    }).runCase(firstCase),
+    /changed captured pixels/,
+  );
+
   assert.deepEqual(
     outwardClip({
       x: 0.25,

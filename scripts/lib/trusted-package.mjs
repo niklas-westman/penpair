@@ -1,8 +1,10 @@
 import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { assertReleaseSha } from "./release-snapshot.mjs";
 /** Called only after the release entrypoint's complete preflight and owner confirmation. Injectable executor never prints env. */
-export async function publishTrustedPackage({ root, packDirectory, package: pkg, run }) {
+export async function publishTrustedPackage({ root, packDirectory, package: pkg, run, sourceSha }) {
+  assertReleaseSha(sourceSha);
   const permission = {
     PENPAIR_RELEASE: "1",
   };
@@ -55,7 +57,11 @@ export async function publishTrustedPackage({ root, packDirectory, package: pkg,
       "--provenance",
     ],
     root,
-    permission,
+    {
+      ...permission,
+      // npm records this as the source dependency; workflow identity and invocation stay unchanged.
+      GITHUB_SHA: sourceSha.toLowerCase(),
+    },
   );
   return {
     code,

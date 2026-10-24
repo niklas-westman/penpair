@@ -8,7 +8,7 @@ All packages in this repository are released **together, at one version, even a 
 | `pnpm version-packages` | One Changesets fixed group versions every package, synchronizes `version.ts` and refreshes the lockfile |
 | `pnpm check:versions` | Missing, duplicate, ignored or separately grouped release packages, including packages added later |
 | `prepublishOnly` in every package | `pnpm publish` inside one package: it refuses unless `pnpm release` started it, and checks the versions again |
-| `pnpm release` | A half release: it checks, publishes the whole set in dependency order, looks each one up on npm, and reports anything missing |
+| `pnpm release` | A half release: it checks, uploads the whole set with at most three workers, verifies registry visibility concurrently, and reports anything missing |
 
 Publishing cannot be undone: a version, once published, cannot be replaced. Check first, publish once.
 
@@ -34,10 +34,11 @@ Publishing cannot be undone: a version, once published, cannot be replaced. Chec
    publishing. The protected `npm-release` environment may require an additional
    owner approval, depending on its configured protection.
 5. The existing `pnpm release` entrypoint reruns checks and all package smoke
-   installs, publishes packed tarballs in dependency order with npm OIDC and
-   provenance, and verifies every required registry version (all six by default). A moved main branch stops
-   the job instead of publishing a different commit. Do not merge another main
-   change until a release finishes; use manual recovery if it has moved.
+   installs, uploads packed tarballs with at most three workers using npm OIDC and
+   provenance, then verifies every required registry version concurrently (all six by default).
+   It checks out the exact reviewed release SHA and verifies that it belongs to main's
+   history. Feature PRs may merge while that immutable snapshot publishes; newer
+   feature commits and their pending Changesets cannot alter the release artifacts.
 
 Automation is opt-in through the activation switches below. Merging a feature PR
 creates or updates the version PR; publishing starts only after that reviewed
@@ -134,20 +135,36 @@ pnpm release                          # dry run; publishes nothing
 pnpm release --publish --confirm-version X.Y.Z
 ```
 
+Local OTP publication uploads one package at a time to keep interactive prompts
+separate, then uses the same concurrent family visibility barrier.
+
 The manual GitHub **Publish reviewed Penpair release** dispatch also remains:
-enter the exact version already on main. It rejects mismatches or pending notes;
-set `continue_release` only after inspecting an interrupted release. The dispatch
-still passes through the protected environment and all unchanged release guards.
+enter the exact reviewed version. Optionally enter its full 40-character `release_sha`
+when main has advanced; omitting it selects the dispatch commit. Both automatic
+and manual releases require the selected SHA to match a merged, same-repository
+release PR, contain the increased shared version, and have no pending Changesets
+in that snapshot. Set `continue_release` only after inspecting an interrupted
+release. The dispatch still passes through the protected environment and release guards.
+Historical recovery requires the selected commit's `scripts/release-protocol.json`
+to declare the controller's supported protocol (currently version 1). Missing or
+unsupported protocols are rejected before checkout or publication approval; releases
+predating this tooling must use their original recovery process. Incompatible future
+publisher safeguards must increment both the marker and the supported protocol so
+older publisher scripts cannot bypass them.
 
 ## If a release stops half way
 
 After a successful upload, npm may still be processing the version. The release
-checks registry visibility immediately and then once per minute within a
-ten-minute deadline **for each uploaded package**, printing progress while it
-waits. Each metadata query has a 30-second maximum (or the remaining deadline,
+does not block the remaining uploads on that package's registry visibility.
+Up to three uploads run together. After all started uploads settle, every accepted
+upload and already published required package is checked concurrently under one
+shared ten-minute visibility deadline, with immediate checks followed by minute
+polls. Each metadata query has a 30-second maximum (or the remaining deadline,
 whichever is smaller), with npm's internal retries disabled. Query time counts
-toward the deadline. A registry error still stops the release; only an actual
-not-found result waits for propagation. The visibility wait never republishes.
+toward the deadline. Registry errors remain unknown failures rather than evidence
+of absence. Visibility checks never republish. A failed upload stops new scheduling;
+already started uploads finish and their results are retained before the command exits.
+A partial release still requires explicit recovery.
 
 A publish can fail after some packages are out (a network error, a wrong one-time code, a name npm refuses). The version is then on npm for some packages and not for others, which must not stay that way. Fix the cause and run:
 
@@ -158,18 +175,26 @@ pnpm release --publish --continue    # publishes only what is missing at this ve
 Without `--continue`, `pnpm release` refuses to run while only some packages are at the version, so a partial release cannot be forgotten.
 
 For GitHub recovery, run **Publish reviewed Penpair release** on `main`, enter
-the exact interrupted version and set `continue_release=true`. Approve
-`npm-release` when requested. This checks the registry again, skips versions
-already present and publishes only missing required packages. Inspect the final
-package/provenance verification before counting the release complete.
+the exact interrupted version, its full `release_sha` when main has advanced, and
+set `continue_release=true`. Approve `npm-release` when requested. This checks
+the registry again, skips versions already present and publishes only missing
+required packages from that reviewed snapshot. If an accepted upload is still
+propagating, wait and independently inspect the registry before requesting recovery.
+A newer published `latest` version on any required package refuses the older
+release rather than moving that tag backward. Tags are checked both during
+preflight and immediately before uploads. Inspect final package/provenance
+verification before counting the release complete.
 
-Finish an interrupted release before merging unrelated changes or a tooling fix
-with new pending Changesets. The manual release gate requires a reviewed version
-with no pending notes; merging another feature can prevent continuation until
-that release state is reconciled. Do not discard pending package-release notes
-or weaken guards to force recovery through.
+Feature merges may continue during publication or recovery: pending Changesets
+on newer main commits do not change the reviewed release snapshot. Keep release
+versions in sequence and inspect a failed family before approving a newer release.
+Only actual publish jobs enter the `penpair-package-release` concurrency group;
+`queue: max` retains up to 100 pending jobs rather than replacing the previous one.
+Queue arrival order can differ from version order, so the latest-version rollback
+check remains required. See [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+Do not discard pending package-release notes or weaken guards to force recovery through.
 
-An empty, tooling-only Changeset contains no package release entries. Changesets
+For legacy releases predating snapshot-aware recovery, an empty, tooling-only Changeset contains no package release entries. Changesets
 can consume that metadata without changing versions. If such a note blocks an
 interrupted release, handle it in a reviewed metadata-only cleanup, preserve its
 summary in the completion report and verify unchanged package/source versions
@@ -185,7 +210,7 @@ the release's own evidence; never relax the existing release guards.
 pnpm release --publish --except penpair
 ```
 
-The release is then reported as `INCOMPLETE` (exit code 3) on purpose, and `pnpm release --publish --continue` finishes it the day npm allows the name. Nothing else can be left out, and only by naming it.
+The release is then reported as `INCOMPLETE` (exit code 3) on purpose. Recovery at that version requires explicit continuation and refuses if a newer required package version has already taken `latest`. Nothing else can be left out, and only by naming it.
 
 ## Verify
 
@@ -217,10 +242,15 @@ See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
 [provenance requirements](https://docs.npmjs.com/generating-provenance-statements/).
 Publishing validates the workflow context and rejects long-lived npm token
 fallback, packs with pnpm to rewrite `workspace:*` to exact versions, and publishes
-single tarballs with npm and provenance. These local checks are operational guards;
+single tarballs with npm and provenance. For SHA-selected recovery, only the npm
+publish subprocess receives `GITHUB_SHA` set to the verified source SHA, so npm's
+provenance source digest identifies the artifact checkout. Workflow identity/ref,
+OIDC issuance and run invocation retain the actual dispatch context. These local checks are operational guards;
 npm authenticates the actual identity against owner-managed publisher settings.
 
-npm cannot atomically publish multiple packages. A network/permission failure can
+npm cannot atomically publish multiple packages. With concurrent uploads a dependent
+package may briefly appear before its exact dependency has propagated. Consumers
+should use a version after final family verification succeeds. A network/permission failure can
 leave some published and others missing; the release reports failure and requires
 explicit continuation at the same version. A rerun never silently resumes.
 
