@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { atomicWriteFile } from "./atomic-output.js";
+import { matchesDesignViewport } from "./design-viewport.js";
 import type { CaptureIdentity, ExportResult } from "./export.js";
 import { observationHash } from "./journal.js";
 import { resolveProjectInput, resolveProjectOutput } from "./project-input.js";
@@ -142,7 +143,8 @@ export async function recordApproval(
   words = {
     ...words,
   };
-  if (!exported.stable || !pngSize(exported.png)) {
+  const imageSize = pngSize(exported.png);
+  if (!exported.stable || !imageSize) {
     throw new Error("Approval requires a stable independently exported PNG");
   }
   if (
@@ -161,9 +163,9 @@ export async function recordApproval(
   const fingerprint = approvalFingerprint(exported.capture, sha256, intent);
   if (
     intent &&
-    (!exported.capture.designSize ||
-      exported.capture.designSize.width !== intent.viewport.width ||
-      exported.capture.designSize.height !== intent.viewport.height ||
+    (!matchesDesignViewport(exported.capture.designSize, intent.viewport) ||
+      imageSize.width !== Math.round(intent.viewport.width * exported.capture.scale) ||
+      imageSize.height !== Math.round(intent.viewport.height * exported.capture.scale) ||
       (intent.activeThemeIds &&
         observationHash(
           [

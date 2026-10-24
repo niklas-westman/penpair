@@ -3,6 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { resolveProjectOutput } from "./project-input.js";
 import { pngSize } from "./png.js";
+import { matchesDesignViewport } from "./design-viewport.js";
 import {
   validateBaselines,
   type BaselineCase,
@@ -116,8 +117,7 @@ export function baselineCoverage(
         (!result.captured ||
           (evidence.fileId === result.captured.fileId &&
             evidence.pageId === result.captured.pageId)) &&
-        evidence.designSize?.width === frame.case!.viewport.width &&
-        evidence.designSize?.height === frame.case!.viewport.height &&
+        matchesDesignViewport(evidence.designSize, frame.case!.viewport) &&
         result.imageWidth === Math.round(frame.case!.viewport.width * evidence.scale) &&
         result.imageHeight === Math.round(frame.case!.viewport.height * evidence.scale) &&
         (!frame.case!.activeThemeIds ||

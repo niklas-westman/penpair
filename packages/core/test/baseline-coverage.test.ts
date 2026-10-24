@@ -428,3 +428,65 @@ describe("explicit design-case matrix", () => {
     ).rejects.toThrow(/outside/);
   });
 });
+
+it.each([
+  {
+    width: 1439.9999999999995,
+    height: 900.0000000000001,
+    imageWidth: 2880,
+    imageHeight: 1800,
+    covered: true,
+  },
+  {
+    width: 1441,
+    height: 900,
+    imageWidth: 2880,
+    imageHeight: 1800,
+    covered: false,
+  },
+  {
+    width: 1440,
+    height: 901,
+    imageWidth: 2880,
+    imageHeight: 1800,
+    covered: false,
+  },
+  {
+    width: 1439.9999999999995,
+    height: 900,
+    imageWidth: 2881,
+    imageHeight: 1800,
+    covered: false,
+  },
+  {
+    width: 1440,
+    height: 900.0000000000001,
+    imageWidth: 2880,
+    imageHeight: 1801,
+    covered: false,
+  },
+])(
+  "coverage tolerates only geometry noise and keeps scaled pixels exact: $width x $height / $imageWidth x $imageHeight",
+  (size) => {
+    const { config } = matrix();
+    const capture = result();
+    const evidence = {
+      ...capture.captured!,
+      designSize: {
+        width: size.width,
+        height: size.height,
+      },
+      scale: 2,
+    };
+    capture.captured = evidence;
+    capture.approved = evidence;
+    capture.imageWidth = size.imageWidth;
+    capture.imageHeight = size.imageHeight;
+
+    expect(
+      baselineCoverage(config, [
+        capture,
+      ]).rows[0]?.status,
+    ).toBe(size.covered ? "approved-design-intent" : "unapproved-metadata");
+  },
+);
