@@ -1,6 +1,6 @@
 {
   "name": "@penpair/web",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "The penpair command for Penpot on the web (design.penpot.app or your team's own): guided setup, a safe write protocol, skills for AI agents. Includes everything in @penpair/core.",
   "license": "MIT",
   "repository": {

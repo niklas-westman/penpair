@@ -1,5 +1,12 @@
 # penpair
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [1abd96a]
+  - @penpair/web@0.3.7
+
 ## 0.3.6
 
 ### Patch Changes
