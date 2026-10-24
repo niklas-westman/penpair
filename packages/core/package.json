@@ -1,6 +1,6 @@
 {
   "name": "@penpair/core",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Design together. Build together. The library and engine behind penpair: connect AI agents and people to a Penpot design file, safely. Install @penpair/web or @penpair/docker for the command.",
   "license": "MIT",
   "repository": {
