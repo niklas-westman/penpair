@@ -1,7 +1,11 @@
 import { recordApproval } from "../src/approvals.js";
+import sharp from "sharp";
+import { inspectImageEvidence } from "../src/image-evidence.js";
+import { readBaselineCoverage } from "../src/baseline-coverage.js";
+import { resolveBaselineImageFormat } from "../src/baselines.js";
 import { readBaselineCoverage } from "../src/baseline-coverage.js";
 import { exportShapePng } from "../src/export.js";
-import { mkdir, mkdtemp, readFile, readdir, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -179,6 +183,7 @@ function penpot(fake: Fake): PenpotToolClient {
   };
 }
 const fast = {
+  format: "png" as const,
   sleep: async () => undefined,
   settleMs: 0,
 };
@@ -1762,4 +1767,270 @@ describe("subpixel baseline case geometry", () => {
       expect(await readdir(root)).toEqual([]);
     },
   );
+});
+
+describe("baseline image formats", () => {
+  const imageConfig = {
+    page: "Candidate",
+    root: "design",
+    frames: [
+      {
+        id: "first",
+        frame: "First",
+      },
+    ],
+  };
+  const imageFrames = [
+    {
+      id: "frame",
+      name: "First",
+      width: 2,
+      height: 2,
+    },
+  ];
+  const captureOptions = {
+    sleep: async () => undefined,
+    settleMs: 0,
+  };
+  const image = () =>
+    sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 4,
+        background: "red",
+      },
+    })
+      .png()
+      .toBuffer();
+  const imageClient = (bytes: Buffer) =>
+    penpot({
+      frames: imageFrames,
+      images: {
+        frame: [
+          bytes,
+          bytes,
+        ],
+      },
+    });
+
+  it("defaults new references to lossless WebP and keeps repeated byte identity", async () => {
+    const root = await project();
+    const pngBytes = await image();
+    const first = await exportBaselines(imageClient(pngBytes), root, imageConfig, {
+      ...captureOptions,
+      apply: true,
+    });
+    expect(first.results[0]!.file).toMatch(/\.webp$/);
+    const bytes = await readFile(path.join(root, "design", first.results[0]!.file));
+    expect(inspectImageEvidence(bytes)).toEqual({
+      format: "webp",
+      width: 2,
+      height: 2,
+    });
+    expect(await resolveBaselineImageFormat(root, imageConfig, "first")).toBe("webp");
+    const again = await exportBaselines(imageClient(pngBytes), root, imageConfig, captureOptions);
+    expect(again.results[0]).toMatchObject({
+      status: "same",
+      sha256: first.results[0]!.sha256,
+    });
+  });
+
+  it("preserves existing PNG while adding new WebP references to the same generation", async () => {
+    const root = await project();
+    const pngBytes = await image();
+    await exportBaselines(imageClient(pngBytes), root, imageConfig, {
+      ...captureOptions,
+      format: "png",
+      apply: true,
+    });
+    const mixedConfig = {
+      ...imageConfig,
+      frames: [
+        ...imageConfig.frames,
+        {
+          id: "second",
+          frame: "Second",
+        },
+      ],
+    };
+    const report = await exportBaselines(
+      penpot({
+        frames: [
+          ...imageFrames,
+          {
+            id: "second-frame",
+            name: "Second",
+            width: 2,
+            height: 2,
+          },
+        ],
+        images: {
+          frame: [
+            pngBytes,
+            pngBytes,
+          ],
+          "second-frame": [
+            pngBytes,
+            pngBytes,
+          ],
+        },
+      }),
+      root,
+      mixedConfig,
+      {
+        ...captureOptions,
+        apply: true,
+        update: true,
+      },
+    );
+    expect(report.results.map((result) => path.extname(result.captured!.file))).toEqual([
+      ".png",
+      ".webp",
+    ]);
+    expect(report.results[0]!.status).toBe("same");
+    expect(
+      await resolveBaselineImageFormat(root, mixedConfig, "first", {
+        format: "webp",
+      }),
+    ).toBe("png");
+  });
+
+  it("requires update and exact target-byte approval for migration, preserving old PNG evidence", async () => {
+    const root = await project();
+    const pngBytes = await image();
+    const original = await exportBaselines(imageClient(pngBytes), root, imageConfig, {
+      ...captureOptions,
+      format: "png",
+      apply: true,
+    });
+    const manifest = path.join(root, "design/penpair-baselines.json");
+    const before = await readFile(manifest);
+    const capture = await exportShapePng(imageClient(pngBytes), "frame", captureOptions);
+    await recordApproval(root, capture, {
+      note: "Approve PNG fixture",
+      by: "Fixture owner",
+    });
+    await expect(
+      exportBaselines(imageClient(pngBytes), root, imageConfig, {
+        ...captureOptions,
+        format: "webp",
+        migrateFormat: true,
+        apply: true,
+      }),
+    ).rejects.toThrow(/requires update/);
+    await expect(
+      exportBaselines(imageClient(pngBytes), root, imageConfig, {
+        ...captureOptions,
+        format: "webp",
+        migrateFormat: true,
+        apply: true,
+        update: true,
+        forceReason: "cannot waive migration",
+      }),
+    ).rejects.toThrow(/matching exact-artifact/);
+    expect(await readFile(manifest)).toEqual(before);
+    expect(
+      await resolveBaselineImageFormat(root, imageConfig, "first", {
+        format: "webp",
+        migrateFormat: true,
+      }),
+    ).toBe("webp");
+    const approval = await recordApproval(
+      root,
+      capture,
+      {
+        note: "Approve exact WebP fixture",
+        by: "Fixture owner",
+      },
+      undefined,
+      undefined,
+      {
+        format: "webp",
+      },
+    );
+    const migrated = await exportBaselines(imageClient(pngBytes), root, imageConfig, {
+      ...captureOptions,
+      format: "webp",
+      migrateFormat: true,
+      apply: true,
+      update: true,
+    });
+    expect(migrated.results[0]).toMatchObject({
+      status: "changed",
+      sha256: approval.sha256,
+      approved: {
+        approval: {
+          id: approval.id,
+        },
+      },
+    });
+    expect(migrated.results[0]!.file).toMatch(/\.webp$/);
+    expect(await readFile(path.join(root, "design", original.results[0]!.file))).toEqual(pngBytes);
+  });
+
+  it("leaves the current generation unchanged when target encoding fails", async () => {
+    const root = await project();
+    const pngBytes = await image();
+    await exportBaselines(imageClient(pngBytes), root, imageConfig, {
+      ...captureOptions,
+      format: "png",
+      apply: true,
+    });
+    const manifest = path.join(root, "design/penpair-baselines.json");
+    const before = await readFile(manifest);
+    const captures = await readdir(path.join(root, "design/captures"));
+    await expect(
+      exportBaselines(imageClient(png(2, 2)), root, imageConfig, {
+        ...captureOptions,
+        format: "webp",
+        migrateFormat: true,
+        apply: true,
+        update: true,
+      }),
+    ).rejects.toThrow();
+    expect(await readFile(manifest)).toEqual(before);
+    expect(await readdir(path.join(root, "design/captures"))).toEqual(captures);
+  });
+
+  it("validates approved WebP bytes in offline coverage and detects hash mutation", async () => {
+    const root = await project();
+    const intent = {
+      viewport: {
+        width: 2,
+        height: 2,
+      },
+      theme: "light",
+      state: "default",
+      fixture: "fixture",
+    };
+    const rich = {
+      ...imageConfig,
+      frames: [
+        {
+          ...imageConfig.frames[0]!,
+          route: "/",
+          case: intent,
+        },
+      ],
+      coverage: {
+        required: [
+          {
+            route: "/",
+            ...intent,
+          },
+        ],
+      },
+    };
+    const report = await exportBaselines(imageClient(await image()), root, rich, {
+      ...captureOptions,
+      apply: true,
+    });
+    expect((await readBaselineCoverage(root, rich)).rows[0]!.status).toBe("approved-design-intent");
+    const file = path.join(root, "design", report.results[0]!.file);
+    const bytes = await readFile(file);
+    bytes[bytes.length - 2] = bytes[bytes.length - 2]! ^ 1;
+    await writeFile(file, bytes);
+    expect((await readBaselineCoverage(root, rich)).rows[0]!.status).toBe("unapproved-metadata");
+  });
 });

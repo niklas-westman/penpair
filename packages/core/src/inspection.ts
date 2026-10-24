@@ -170,6 +170,7 @@ const clone = (value, unknowns, key) => {
   } catch { unknowns.push(key); return null; }
 };
 const read = (object,key,unknowns,label=key) => { try { return clone(object[key],unknowns,label); } catch { unknowns.push(label); return null; } };
+const optional = (object,key,unknowns,label=key) => { try { const value=object[key]; return value===undefined?null:clone(value,unknowns,label); } catch {unknowns.push(label);return null;} };
 const pick = (object,keys,unknowns,prefix) => Object.fromEntries(keys.map(key=>[key,read(object,key,unknowns,prefix+"."+key)]));
 let estimatedBytes = 1024;
 if (CFG.kind === "shape") {
@@ -188,11 +189,11 @@ if (CFG.kind === "shape") {
     if (item.depth <= CFG.depth) {
       const unknowns = [], row = {id:s.id,parentId:item.parentId,index:item.index,depth:item.depth,type:read(s,"type",unknowns),name:read(s,"name",unknowns),childIds:children.slice(0,CFG.maxNodes).map(c=>c.id),childrenTotal:children.length,unknowns};
       if (children.length > CFG.maxNodes) reasons.add("node-budget");
-      if (CFG.fields.includes("geometry")) row.geometry = pick(s,["x","y","width","height","rotation","hidden","blocked"],unknowns,"geometry");
-      if (CFG.fields.includes("text")) row.text = s.type === "text" ? {characters:read(s,"characters",unknowns),typography:pick(s,["fontId","fontFamily","fontVariantId","fontSize","fontWeight","fontStyle","lineHeight","letterSpacing","growType","direction","align","verticalAlign"],unknowns,"typography")} : null;
+      if (CFG.fields.includes("geometry")) row.geometry = pick(s,["x","y","width","height","rotation","hidden","blocked","flipX","flipY","proportionLock"],unknowns,"geometry");
+      if (CFG.fields.includes("text")) row.text = s.type === "text" ? {characters:read(s,"characters",unknowns),typography:pick(s,["fontId","fontFamily","fontVariantId","fontSize","fontWeight","fontStyle","lineHeight","letterSpacing","growType","direction","align","verticalAlign","textTransform","textDecoration"],unknowns,"typography")} : null;
       if (row.text && Object.values(row.text.typography).includes("mixed")) unknowns.push("text.mixedRangeStyles");
       if (CFG.fields.includes("layout")) {
-        row.layout = {};
+        row.layout = {constraints:pick(s,["constraintsHorizontal","constraintsVertical","fixedWhenScrolling"],unknowns,"layout.constraints")};
         for (const [key,keys] of [["flex",["dir","wrap","alignItems","alignContent","justifyContent","rowGap","columnGap","topPadding","rightPadding","bottomPadding","leftPadding","horizontalSizing","verticalSizing"]],["layoutChild",["absolute","zIndex","horizontalSizing","verticalSizing","alignSelf","topMargin","rightMargin","bottomMargin","leftMargin","minWidth","maxWidth","minHeight","maxHeight"]]]) {
           try { row.layout[key] = s[key] ? pick(s[key],keys,unknowns,"layout."+key) : null; } catch { row.layout[key]=null; unknowns.push("layout."+key); }
         }
@@ -202,10 +203,17 @@ if (CFG.kind === "shape") {
           if(grid)for(const key of ["rows","columns"])row.layout.grid[key]=(grid[key]||[]).map((track,index)=>pick(track,["type","value"],unknowns,"layout.grid."+key+"."+index));
         } catch {row.layout.grid=null;unknowns.push("layout.grid");}
         try {row.layout.cell=s.layoutCell?pick(s.layoutCell,["row","rowSpan","column","columnSpan","areaName","position"],unknowns,"layout.cell"):null;} catch {row.layout.cell=null;unknowns.push("layout.cell");}
-        row.layout.clipContent = read(s,"clipContent",unknowns,"layout.clipContent");
+        row.layout.clipContent = s.type === "board" ? read(s,"clipContent",unknowns,"layout.clipContent") : null;
+        row.layout.showInViewMode = s.type === "board" ? read(s,"showInViewMode",unknowns,"layout.showInViewMode") : null;
+        row.layout.boardSizing = s.type === "board" ? Object.fromEntries(["horizontalSizing","verticalSizing"].map(key=>[key,optional(s,key,unknowns,"layout.boardSizing."+key)])) : null;
       }
       if (CFG.fields.includes("tokens")) row.tokens = read(s,"tokens",unknowns);
-      if (CFG.fields.includes("style")) row.style = pick(s,["fills","strokes","shadows","opacity","blendMode","borderRadiusTopLeft","borderRadiusTopRight","borderRadiusBottomRight","borderRadiusBottomLeft"],unknowns,"style");
+      if (CFG.fields.includes("style")) {
+        row.style = pick(s,["fills","strokes","shadows","opacity","blendMode","borderRadiusTopLeft","borderRadiusTopRight","borderRadiusBottomRight","borderRadiusBottomLeft"],unknowns,"style");
+        for (const key of ["blur","backgroundBlur"]) {
+          row.style[key]=optional(s,key,unknowns,"style."+key);
+        }
+      }
       if (CFG.fields.includes("component")) {
         row.component = {};
         for (const key of ["isComponentInstance","isComponentMainInstance","isComponentCopyInstance","isComponentRoot"]) {

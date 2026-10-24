@@ -8,6 +8,8 @@ import { observationHash } from "./journal.js";
 import { resolveProjectInput, resolveProjectOutput } from "./project-input.js";
 import { validateBaselineCase, type BaselineCase } from "./baselines-config.js";
 import { pngSize } from "./png.js";
+import { encodeBaselineImage } from "./image-codec.js";
+import type { BaselineImageFormat } from "./image-evidence.js";
 
 export interface ApprovalRecord {
   schemaVersion: 1;
@@ -133,6 +135,9 @@ export async function recordApproval(
   },
   intent?: BaselineCase,
   redact?: (text: string) => string,
+  options: {
+    format?: BaselineImageFormat;
+  } = {},
 ): Promise<ApprovalRecord> {
   exported = {
     ...exported,
@@ -159,7 +164,9 @@ export async function recordApproval(
       "Supply the owner's exact nonempty words and identity; an agent cannot invent approval",
     );
   }
-  const sha256 = artifactSha(exported.png);
+  const format = options.format ?? "png";
+  const imageBytes = await encodeBaselineImage(exported.png, format);
+  const sha256 = artifactSha(imageBytes);
   const fingerprint = approvalFingerprint(exported.capture, sha256, intent);
   if (
     intent &&
@@ -194,7 +201,7 @@ export async function recordApproval(
         }
       : {}),
     sha256,
-    image: `design/approvals/${sha256}.png`,
+    image: `design/approvals/${sha256}.${format}`,
     fingerprint,
   };
   const record = {
@@ -220,7 +227,7 @@ export async function recordApproval(
       recursive: true,
     });
     try {
-      await atomicWriteFile(image, exported.png);
+      await atomicWriteFile(image, imageBytes);
     } catch (error) {
       if (
         (error as NodeJS.ErrnoException).code !== "EEXIST" ||

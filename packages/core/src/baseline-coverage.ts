@@ -2,7 +2,7 @@ import { open } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { resolveProjectOutput } from "./project-input.js";
-import { pngSize } from "./png.js";
+import { inspectImageEvidence } from "./image-evidence.js";
 import { matchesDesignViewport } from "./design-viewport.js";
 import {
   validateBaselines,
@@ -295,7 +295,7 @@ export async function readBaselineCoverage(
       }
       const target = await resolveProjectOutput(root, path.join(config.root, result.file));
       const bytes = await boundedRead(target, 64 * 1024 * 1024);
-      const size = pngSize(bytes);
+      const size = inspectImageEvidence(bytes);
       if (
         !size ||
         size.width < 1 ||
@@ -303,7 +303,7 @@ export async function readBaselineCoverage(
         createHash("sha256").update(bytes).digest("hex") !== result.approved.sha256 ||
         result.sha256 !== result.approved.sha256
       ) {
-        throw new Error("Approved PNG bytes do not match their manifest");
+        throw new Error("Approved image bytes do not match their manifest");
       }
       result.imageWidth = size.width;
       result.imageHeight = size.height;

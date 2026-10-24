@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Diagrams"
+  short_description: "Render and reconcile editable native maps"
+  default_prompt: "Use $penpair-diagrams to render reviewed map contracts as readable Mermaid and managed native Penpot diagrams, then review native edits as proposals."
+policy:
+  allow_implicit_invocation: true

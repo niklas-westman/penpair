@@ -9,6 +9,13 @@ Compare the real implementation with the exact approved design case. Use the
 project's configured browser provider and component library. A captured design,
 an installed adapter and a passing build each establish different facts.
 
+Read the current integration-map or finalized design-release context when one
+exists. Reconcile actual routes, state and behavior with stable requirement IDs,
+and report missing implementation or unintended behavior alongside visual drift.
+Use `penpair-integration-map` for proposed contract changes; do not rewrite
+reviewed intent or a finalized release to make a failing implementation pass.
+Design finalization, image approval and implementation acceptance are separate.
+
 Continue the project's existing comparative checkpoint, or create a project-owned
 case report outside installed skill folders. Retain source/candidate identities,
 preserved and changed regions, actual image paths, observed setup, consequential

@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey-map",
+  "id": "reset-password-journey",
+  "title": "Reset password: illustrative journey",
+  "goal": "Request password-reset instructions and understand the next step.",
+  "sources": [
+    {
+      "id": "sample-brief",
+      "kind": "other",
+      "path": "examples/design-release-maps/sample-source.md",
+      "sha256": "ab97f0a30f066e9a9f2689d1624608ea91287751cbc6a613542c0e97de187a96"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "address-entry",
+      "label": "Address entry screen",
+      "kind": "screen",
+      "origin": "observed",
+      "sourceIds": [
+        "sample-brief"
+      ],
+      "requirementIds": [
+        "reset-entry"
+      ]
+    },
+    {
+      "id": "confirmation",
+      "label": "Confirmation screen",
+      "kind": "screen",
+      "origin": "observed",
+      "sourceIds": [
+        "sample-brief"
+      ],
+      "requirementIds": [
+        "reset-confirmation"
+      ]
+    },
+    {
+      "id": "recoverable-error",
+      "label": "Recoverable error; address retained",
+      "kind": "state",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry"
+      ]
+    },
+    {
+      "id": "expiry-policy",
+      "label": "Unknown: expiry and repeat-request policy",
+      "kind": "decision",
+      "origin": "unknown",
+      "requirementIds": [
+        "reset-expiry"
+      ]
+    },
+    {
+      "id": "focus-recovery",
+      "label": "Proposed keyboard and announced recovery",
+      "kind": "behavior",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-focus"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "request-success",
+      "from": "address-entry",
+      "to": "confirmation",
+      "label": "Proposed: successful request",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-confirmation"
+      ]
+    },
+    {
+      "id": "request-failure",
+      "from": "address-entry",
+      "to": "recoverable-error",
+      "label": "Proposed: request fails",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry"
+      ]
+    },
+    {
+      "id": "retry",
+      "from": "recoverable-error",
+      "to": "address-entry",
+      "label": "Proposed: retry without retyping",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry"
+      ]
+    },
+    {
+      "id": "expiry-decision",
+      "from": "address-entry",
+      "to": "expiry-policy",
+      "label": "Requires product/security decision",
+      "origin": "unknown",
+      "requirementIds": [
+        "reset-expiry"
+      ]
+    },
+    {
+      "id": "focus-requirement",
+      "from": "recoverable-error",
+      "to": "focus-recovery",
+      "label": "Proposed accessible feedback",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-focus"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "reset-entry",
+      "text": "The synthetic source includes an address-entry screen.",
+      "origin": "observed",
+      "sourceIds": [
+        "sample-brief"
+      ]
+    },
+    {
+      "id": "reset-confirmation",
+      "text": "The synthetic source includes a confirmation screen; its actual transition is proposed.",
+      "origin": "observed",
+      "sourceIds": [
+        "sample-brief"
+      ]
+    },
+    {
+      "id": "reset-error-retry",
+      "text": "Proposed: preserve the entered address after a failed request and allow retry.",
+      "origin": "proposed"
+    },
+    {
+      "id": "reset-expiry",
+      "text": "Unknown: expiry policy and treatment of repeated requests require a product/security decision.",
+      "origin": "unknown"
+    },
+    {
+      "id": "reset-focus",
+      "text": "Proposed: focus and announced errors must support keyboard and screen-reader recovery.",
+      "origin": "proposed"
+    }
+  ],
+  "findings": [
+    {
+      "id": "decide-request-contract",
+      "message": "No actual API contract or account-disclosure policy has been supplied.",
+      "severity": "blocking",
+      "status": "open"
+    },
+    {
+      "id": "design-error-state",
+      "message": "Recovery and accessible error presentation are proposals; no inspected frame supports them.",
+      "severity": "warning",
+      "status": "open"
+    }
+  ],
+  "presentation": {
+    "fontFamily": "Inter"
+  }
+}

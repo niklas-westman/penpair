@@ -16,7 +16,11 @@ describe("the shipped skills", () => {
     expect(await listBundledSkills()).toEqual([
       "design-judgment",
       "penpair-design",
+      "penpair-design-release",
+      "penpair-diagrams",
       "penpair-handoff",
+      "penpair-integration-map",
+      "penpair-journey-map",
       "penpair-recipes",
       "penpair-setup",
       "penpair-verify",

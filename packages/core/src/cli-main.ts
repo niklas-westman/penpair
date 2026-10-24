@@ -54,7 +54,9 @@ import { resolveProjectOutput } from "./project-input.js";
 import { mkdir } from "node:fs/promises";
 import { captureShots, exportShapeByName, findShapesByName } from "./shots.js";
 import { exportShapePng } from "./export.js";
-import { exportBaselines } from "./baselines.js";
+import { exportBaselines, resolveBaselineImageFormat } from "./baselines.js";
+import { encodeBaselineImage } from "./image-codec.js";
+import type { BaselineImageFormat } from "./image-evidence.js";
 import { archiveOperation, runOnPage, runOperation } from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
@@ -104,6 +106,11 @@ import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
 
 const usageHead = `penpair ${version}
+Design agreements and release pages:
+  penpair journey-map check|render|publish|import|accept|approve|context --from FILE
+  penpair integration-map check|render|publish|import|accept|approve|context --from FILE
+  penpair design-release plan|assemble|verify|finalize|check|context --from FILE
+  (publication previews by default; --apply writes Penpot, --write records local acceptance/review)
 Start here (guided, plain language; safe to run again):
   penpair setup                                        asks where your Penpot is (web is the default), sets everything up and checks it
   penpair setup --web [--external <address>]           Penpot on the web: design.penpot.app, or your team's address; no questions about it
@@ -287,6 +294,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       },
       case: {
         type: "string",
+      },
+      format: {
+        type: "string",
+      },
+      "migrate-format": {
+        type: "boolean",
       },
       "force-reason": {
         type: "string",
@@ -522,6 +535,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "by",
       "case",
       "write",
+      "format",
     ],
     spec: [
       "from",
@@ -626,6 +640,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "apply",
       "update",
       "force-reason",
+      "format",
+      "migrate-format",
     ],
     probe: [
       "deep",
@@ -715,6 +731,14 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     if (!allowed.has(key)) {
       throw new Error(`--${key} is not supported by ${command || "this command"}`);
     }
+  }
+  if (values.format && values.format !== "png" && values.format !== "webp") {
+    throw new CommandArgumentError("--format must be png or webp");
+  }
+  if (values["migrate-format"] && (!values.format || (values.apply && !values.update))) {
+    throw new CommandArgumentError(
+      "--migrate-format requires --format; applying it requires --update",
+    );
   }
   for (const [key, min, max, integer] of [
     [
@@ -2106,6 +2130,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         apply: values.apply === true,
         update: values.update === true,
         forceReason: values["force-reason"],
+        format: values.format as BaselineImageFormat | undefined,
+        migrateFormat: values["migrate-format"],
       });
       output.result(report);
       for (const r of report.results) {
@@ -2259,6 +2285,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         );
       }
       let intent: import("./baselines-config.js").BaselineCase | undefined;
+      let imageFormat: BaselineImageFormat =
+        (values.format as BaselineImageFormat | undefined) ?? "webp";
       if (values.case) {
         const baseline = projectConfig?.baselines;
         const wanted = baseline?.frames.find((f) => f.id === values.case);
@@ -2278,6 +2306,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           }
         }
         intent = wanted.case;
+        imageFormat = values.format
+          ? (values.format as BaselineImageFormat)
+          : await resolveBaselineImageFormat(root, baseline!, wanted.id);
       }
       const captured = await exportShapePng(client, values.frame, {
         ...options,
@@ -2287,7 +2318,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (!captured.stable) {
         throw new Error("Approval export did not stabilize");
       }
-      const sha256 = artifactSha(captured.png);
+      const approvalImage = await encodeBaselineImage(captured.png, imageFormat);
+      const sha256 = artifactSha(approvalImage);
       const report = values.write
         ? await recordApproval(
             root,
@@ -2298,12 +2330,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
             },
             intent,
             endpointRedactor(endpoint),
+            {
+              format: imageFormat,
+            },
           )
         : {
             schemaVersion: 1,
             kind: "approval-candidate",
             capture: captured.capture,
             sha256,
+            imageFormat,
             fingerprint: approvalFingerprint(captured.capture, sha256, intent),
             recorded: false,
           };
@@ -2539,6 +2575,37 @@ async function runAdapterCommand(
 async function runCliInternal(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = projectRoot();
+    if (
+      argv[0] === "journey-map" ||
+      argv[0] === "integration-map" ||
+      argv[0] === "design-release"
+    ) {
+      const { runDesignCommand } = await import("./design-commands/index.js");
+      let designRedactor = (text: string) => redactEndpoint(text);
+      return await runDesignCommand(argv[0], argv.slice(1), {
+        root,
+        output,
+        redact: (text) => designRedactor(text),
+        async withPenpot(work) {
+          const config = await loadCommandConfig(root);
+          if (!config.file?.id) {
+            throw new Error("Live design commands require an explicitly pinned Penpot file");
+          }
+          const endpoint = await projectEndpoint(root);
+          designRedactor = endpointRedactor(endpoint);
+          commandRedactor(endpointRedactor(endpoint));
+          assertEndpointIsInstance(endpoint.description, config);
+          const client = guardFile(await connect(endpoint), config.file, {
+            mode: "strict",
+          });
+          try {
+            return await work(client);
+          } finally {
+            await client.close();
+          }
+        },
+      });
+    }
     if (argv[0] === "onboard") {
       if (argv.slice(1).some((arg) => arg !== "--json")) {
         throw new Error("usage: penpair onboard [--json]");

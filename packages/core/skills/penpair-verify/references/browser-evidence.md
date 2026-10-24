@@ -31,3 +31,13 @@ Keep the result and screenshots in a project-owned report. Distinguish measured
 drift, a visual finding, behavior/accessibility checks and owner acceptance.
 Design-to-design state variants need a source/candidate critique, not an
 implementation parity score against intentionally different content.
+
+New design baseline references default to static lossless WebP; legacy PNG
+references and approvals keep their original bytes and hashes. Read exact paths
+from the manifest rather than assuming a `.png` or `.webp` suffix. Changing config
+or `--format` alone does not migrate an existing reference. Explicit baseline
+migration needs `--format webp --migrate-format`, and applying it needs
+`--apply --update` plus matching exact new-format owner review. Use
+`approve --format webp` for that encoding; equal decoded pixels do not make an
+old PNG approval cover new WebP bytes. Never migrate a reference merely to make
+a failing comparison pass. Public Penpot exports and shots remain PNG.

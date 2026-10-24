@@ -37,6 +37,7 @@ async function approvalProject(selector: Pick<BaselineFrame, "frame" | "frameId"
         origin: "https://example.test",
       },
       baselines: {
+        format: "png",
         page: "Page",
         root: "design/baselines",
         frames: [
@@ -98,7 +99,7 @@ async function approvalProject(selector: Pick<BaselineFrame, "frame" | "frameId"
       penpotApiVersion: "fixture",
       renderEnvironment: "fixture",
     },
-    png: Buffer.from("stable approval preview bytes"),
+    png: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB", "base64"),
     stable: true,
     exports: 2,
   });

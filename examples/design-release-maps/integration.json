@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "kind": "integration-map",
+  "id": "reset-password-integration",
+  "title": "Reset password: illustrative integration",
+  "goal": "Connect the proposed reset flow to implementation responsibilities without inventing existing code.",
+  "sources": [
+    {
+      "id": "sample-brief",
+      "kind": "other",
+      "path": "examples/design-release-maps/sample-source.md",
+      "sha256": "ab97f0a30f066e9a9f2689d1624608ea91287751cbc6a613542c0e97de187a96"
+    }
+  ],
+  "journey": {
+    "path": "examples/design-release-maps/journey.json",
+    "sha256": "9f2dad53db20cce516771c674c99f188eefe46824216fb011fcd9f74d2f5d315"
+  },
+  "nodes": [
+    {
+      "id": "reset-route",
+      "label": "Proposed route: /reset-password",
+      "kind": "route",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-entry"
+      ]
+    },
+    {
+      "id": "reset-form",
+      "label": "Proposed reusable reset form",
+      "kind": "component",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-entry",
+        "reset-error-retry"
+      ]
+    },
+    {
+      "id": "reset-mutation",
+      "label": "Unknown: reset-request API contract",
+      "kind": "data",
+      "origin": "unknown",
+      "requirementIds": [
+        "reset-request",
+        "reset-expiry"
+      ]
+    },
+    {
+      "id": "reset-feedback",
+      "label": "Proposed confirmation/error states",
+      "kind": "state",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry",
+        "reset-confirmation",
+        "reset-focus"
+      ]
+    },
+    {
+      "id": "browser-case",
+      "label": "Pending browser and keyboard evidence",
+      "kind": "verification",
+      "origin": "unknown",
+      "requirementIds": [
+        "reset-error-retry",
+        "reset-confirmation",
+        "reset-focus",
+        "reset-expiry"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "route-form",
+      "from": "reset-route",
+      "to": "reset-form",
+      "label": "Proposed composition",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-entry"
+      ]
+    },
+    {
+      "id": "form-request",
+      "from": "reset-form",
+      "to": "reset-mutation",
+      "label": "Request contract unresolved",
+      "origin": "unknown",
+      "requirementIds": [
+        "reset-request"
+      ]
+    },
+    {
+      "id": "request-feedback",
+      "from": "reset-mutation",
+      "to": "reset-feedback",
+      "label": "Proposed result handling",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry"
+      ]
+    },
+    {
+      "id": "feedback-evidence",
+      "from": "reset-feedback",
+      "to": "browser-case",
+      "label": "Requires observed state and recovery evidence",
+      "origin": "proposed",
+      "requirementIds": [
+        "reset-error-retry"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "reset-entry",
+      "text": "Proposed: map the entry screen to the project route and existing form conventions after inspecting code.",
+      "origin": "proposed"
+    },
+    {
+      "id": "reset-request",
+      "text": "Unknown: endpoint, validation and response policy require the actual project contract.",
+      "origin": "unknown"
+    },
+    {
+      "id": "reset-error-retry",
+      "text": "Proposed: retain the entered address on failure; verify retry and accessible feedback in the real browser.",
+      "origin": "proposed"
+    },
+    {
+      "id": "reset-confirmation",
+      "text": "Proposed: render confirmation only after the agreed response; final request policy remains unknown.",
+      "origin": "proposed"
+    },
+    {
+      "id": "reset-expiry",
+      "text": "Unknown: expiry/repeated request behavior must follow the agreed product/security contract.",
+      "origin": "unknown"
+    },
+    {
+      "id": "reset-focus",
+      "text": "Proposed: implement and verify keyboard focus and announced error recovery.",
+      "origin": "proposed"
+    }
+  ],
+  "findings": [
+    {
+      "id": "code-not-inspected",
+      "message": "No application code, route or component identity has been inspected for this synthetic example.",
+      "severity": "blocking",
+      "status": "open"
+    },
+    {
+      "id": "provider-pending",
+      "message": "No approved design cases, actual provider or browser evidence are supplied.",
+      "severity": "blocking",
+      "status": "open"
+    }
+  ],
+  "presentation": {
+    "fontFamily": "Inter"
+  }
+}

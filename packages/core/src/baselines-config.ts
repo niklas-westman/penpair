@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { BaselineImageFormat } from "./image-evidence.js";
 
 /** Declared design intent. It does not switch themes or establish browser behavior. */
 export interface BaselineCase {
@@ -39,6 +40,8 @@ export interface BaselineFrame {
 
 /** What `penpair baselines` exports: the frames of one page, as images in a folder of the project. */
 export interface BaselinesConfig {
+  /** Encoding for new references; existing approved formats require explicit migration. */
+  format?: BaselineImageFormat;
   page: string;
   /** Folder for the images, relative to the project. */
   root: string;
@@ -60,6 +63,9 @@ export function validateBaselines(
     return fail("baselines must be an object");
   }
   const v = value as Record<string, unknown>;
+  if (v.format !== undefined && v.format !== "png" && v.format !== "webp") {
+    fail("baselines.format must be png or webp");
+  }
   if (typeof v.page !== "string" || v.page.length === 0) {
     fail("baselines.page must be the name of a page");
   }
