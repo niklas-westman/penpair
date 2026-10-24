@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { parse } from "acorn";
 import {
   executeCode,
   maxSnippetBytes,
@@ -50,10 +51,25 @@ export function snippet(
 /** Whether the plugin source is valid JavaScript for an async function. Catches typos without a Penpot connection. */
 export function compiles(code: string): string | undefined {
   try {
-    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (
-      ...args: string[]
-    ) => unknown;
-    new AsyncFunction("penpot", code);
+    const prefix = "(async function (penpot) {\n";
+    const source = `${prefix}${code}\n})`;
+    const parsed = parse(source, {
+      ecmaVersion: "latest",
+      sourceType: "script",
+    });
+    const statement = parsed.body[0];
+
+    // Keep the input inside the function body, even when it contains closing braces.
+    if (
+      parsed.body.length !== 1 ||
+      statement?.type !== "ExpressionStatement" ||
+      statement.expression.type !== "FunctionExpression" ||
+      statement.expression.body.start !== prefix.indexOf("{") ||
+      statement.expression.body.end !== source.length - 1
+    ) {
+      return "Snippet must be a single async function body";
+    }
+
     return undefined;
   } catch (error) {
     return String((error as Error).message);

@@ -35,6 +35,12 @@ interface Definition {
   description: string;
   properties: Record<string, object>;
   required: string[];
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
   command: (a: Record<string, unknown>) => string[];
   write?: boolean;
   localWrite?: boolean;
@@ -42,6 +48,12 @@ interface Definition {
 const definitions: Definition[] = [
   {
     name: "pages",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "List pages in the pinned project file",
     properties: {},
     required: [],
@@ -51,6 +63,12 @@ const definitions: Definition[] = [
   },
   {
     name: "tree",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Bounded tree preview; omitted nodes are explicit",
     properties: {
       page: string,
@@ -69,6 +87,12 @@ const definitions: Definition[] = [
   },
   {
     name: "audit",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Inspect layout/token findings with documented heuristic limits",
     properties: {
       page: string,
@@ -84,6 +108,12 @@ const definitions: Definition[] = [
   },
   {
     name: "inspect",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "One bounded structured inspection chunk; use returned cursor for continuation",
     properties: {
       page: string,
@@ -109,6 +139,12 @@ const definitions: Definition[] = [
   },
   {
     name: "tokens_dump",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Bounded token capture; completeness is explicit",
     properties: {},
     required: [],
@@ -121,6 +157,12 @@ const definitions: Definition[] = [
   },
   {
     name: "run_status",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     description: "Inspect an explicit local recovery journal",
     properties: {
       id: string,
@@ -135,6 +177,12 @@ const definitions: Definition[] = [
   },
   {
     name: "baselines_status",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     description: "Offline coverage/evidence status; no capture or approval",
     properties: {},
     required: [],
@@ -145,6 +193,12 @@ const definitions: Definition[] = [
   },
   {
     name: "project_status",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Project health with explicit unknowns; no adapter imports",
     properties: {},
     required: [],
@@ -154,6 +208,12 @@ const definitions: Definition[] = [
   },
   {
     name: "doctor",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Project connection/file identity diagnostics",
     properties: {},
     required: [],
@@ -163,6 +223,12 @@ const definitions: Definition[] = [
   },
   {
     name: "design_spec",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     description: "Derived handoff for an exact frame ID; unknown semantics remain explicit",
     properties: {
       page: string,
@@ -182,6 +248,12 @@ const definitions: Definition[] = [
   },
   {
     name: "export",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     description: "Capture stable PNG to a relative path inside the project; creates a local file",
     properties: {
       page: string,
@@ -204,6 +276,12 @@ const definitions: Definition[] = [
   },
   {
     name: "run_registered",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     description:
       "Execute a trusted registered operation: inspect by default, explicit apply and recovery for writes. Not a sandbox.",
     properties: {
@@ -365,12 +443,7 @@ export async function createMcpServer(options: McpOptions): Promise<Server> {
       required: d.required,
       additionalProperties: false,
     },
-    annotations: {
-      readOnlyHint: !d.write && !d.localWrite,
-      destructiveHint: Boolean(d.write || d.localWrite),
-      idempotentHint: !d.write && !d.localWrite,
-      openWorldHint: true,
-    },
+    annotations: d.annotations,
   }));
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools,
