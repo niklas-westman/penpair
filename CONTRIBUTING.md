@@ -1,17 +1,75 @@
-# Contributing
+# Contributing to Penpair
 
-penpair is early; issues and small pull requests are welcome.
+Documentation fixes, reproducible bug reports and focused pull requests are welcome. You can contribute without connecting to a live Penpot file.
 
-- Read `AGENTS.md` and the maintained guides relevant to your change. Keep internal plans, session reports and draft handoffs in git-ignored `.working-docs/`; fresh clones and published packages must not depend on those files.
-- Read [code conventions](docs/conventions/README.md) before adding or restructuring files. Use `pnpm format` and kebab-case code paths; split independent responsibilities while keeping public imports stable.
-- `pnpm install`, then `pnpm check` (style/path checks, checked examples, typecheck, tests, build, and that every package has the same version) and `pnpm smoke:package` (packs every package and runs them in empty projects) before a pull request.
-- The core stays neutral: it never names a project or a component library, and the Docker code stays apart from the connection (tests enforce both). Project knowledge belongs in an adapter or in the adopting project.
-- A change to how a Penpot file is written follows the protocol in `packages/core/skills/penpair-design/references/write-protocol.md`: look, write once, read back, look at an export.
-- Never put a real MCP key in an issue, a test or a log.
+## Report a problem
 
-Package or script changes include a new `pnpm changeset` note. Select the affected
-package and bump level; every package receives the highest pending bump together.
-For a change with no release impact use `pnpm changeset --empty`. Do not change
-versions in feature PRs. Automation collects notes into one reviewed **Release
-Penpair** PR; merging it authorizes whole-family publishing once owner activation
-is complete. See [releasing](docs/releasing.md).
+[Open an issue](https://github.com/niklas-westman/penpair/issues) with:
+
+- What you expected and what happened.
+- The smallest reproduction, including the command or workflow.
+- Penpair, Node.js and Penpot versions, and whether you use web or Docker.
+- Redacted diagnostics or screenshots when useful.
+
+Your MCP address contains a personal key. Keep it, private connection files and account data out of issues, screenshots and logs. Use [SECURITY](SECURITY.md) for vulnerability reports.
+
+## Run the source
+
+Fork and clone the repository, then work from its root. Use Node.js 22 or newer and the pnpm version declared in `package.json`.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+```
+
+`pnpm check` runs formatting/path checks, the build, typechecking, executable convention examples, tests and package-version consistency. It does not require a live Penpot connection. Read [AGENTS.md](AGENTS.md) and the maintained guides relevant to your change before editing.
+
+## Find the right place
+
+| Change | Location |
+| --- | --- |
+| Shared engine, CLI behavior and shipped skills | `packages/core` |
+| Web command entry point | `packages/web` |
+| Local Penpot and Docker lifecycle | `packages/docker` |
+| Component-library integration | `packages/marwes-ui` |
+| Frontend comparison contract | `packages/reflection-check` |
+| Short-name web wrapper | `packages/penpair` |
+| Maintained guides and reusable examples | `docs` and `examples` |
+
+The core stays independent of projects and component libraries. Project-specific knowledge belongs in an adapter or the adopting project. Docker lifecycle code stays separate from the web connection. Tests enforce these boundaries.
+
+Read [code conventions](docs/conventions/README.md) before adding or restructuring files. Use kebab-case paths, descriptive names and focused modules. Keep public imports and persisted schemas stable when moving code.
+
+Internal plans, session reports and draft handoffs belong in git-ignored `.working-docs/`. Fresh clones and packages must not depend on those files. Keep reusable instructions and limitations in maintained documentation.
+
+## Verify your change
+
+Run the relevant tests while working. Before opening a pull request:
+
+```sh
+pnpm format
+pnpm check
+pnpm smoke:package
+```
+
+The package smoke check packs all six packages, installs them in temporary projects and runs them. It checks what users actually install; it does not publish anything. See [validation](docs/validation.md) for source builds and additional browser or live checks.
+
+If your change writes to Penpot, follow the [write protocol](packages/core/skills/penpair-design/references/write-protocol.md): inspect, pin a snapshot, write once, independently read back and inspect an export. Use an explicitly authorized scratch target for live trials. Report live checks as pending when you have not run them; automated fixtures do not prove live compatibility.
+
+## Add a release note
+
+Package or script changes need a Changeset:
+
+```sh
+pnpm changeset
+```
+
+Select the affected package and bump level. For a change with no release impact, use `pnpm changeset --empty`. All packages receive the highest pending bump together. Do not edit versions or generated changelogs in feature PRs.
+
+Automation collects notes into a reviewed **Release Penpair** PR. Merging that PR authorizes publication through the protected release workflow when owner activation is complete. Individual packages cannot be published separately. See [releasing](docs/releasing.md).
+
+## Open the pull request
+
+Explain the problem, what changes for the user, how you verified it and any remaining limitations. Keep the diff focused and include relevant documentation. Do not include keys, private trial evidence or generated local package copies.
+
+You do not need to publish a package or make changes to a production Penpot file to contribute.

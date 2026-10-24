@@ -64,9 +64,13 @@ If you want to know what your Penpot offers before you start, `npx @penpair/web 
 
 ### 5. Give the assistant its rules (once)
 ```
-npx @penpair/web skills install
+npx @penpair/web skills install --agents AGENTS.md --dry-run
+npx @penpair/web skills install --agents AGENTS.md
+npx @penpair/web skills check --agents AGENTS.md --json
 ```
-This copies the rules the assistant follows (how to work safely in Penpot, and how to judge a screen) into `.skills/` and makes them visible to Codex and Claude Code. It prints a line for each to add to your `AGENTS.md`. Then fill in `.skills/penpair-design/references/project-facts.md` (your file, never replaced): the Penpot file, the token sets, the names you use, who approves.
+Review the preview before applying it. This copies the rules the assistant follows into the project's skill folder, creates discovery links and adds task routing to `AGENTS.md`. Use `CLAUDE.md` instead if that is your instruction file. Existing project text outside the owned section is preserved. The final command checks discovery and routing; observe actual skill use separately.
+
+Then fill in `penpair-design/references/project-facts.md` in the skill folder printed by the installer (your file, never replaced): the Penpot file, the token sets, the names you use, who approves. See [skill installation](skill-installation.md) for destination choices and existing setups.
 
 ### Every day
 Before moving into frontend implementation, choose the [companion adapters](adapters.md): use the library adapter for library-aware tokens/recipes and the recommended Reflection Check adapter for comparing the running frontend with approved designs. Installation and registration are the first steps; browser setup/provider evidence is a separate readiness stage.

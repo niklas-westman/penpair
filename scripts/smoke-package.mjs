@@ -287,7 +287,8 @@ check(
   "skills install writes the setup skill",
 );
 check(
-  /Quick start/.test(await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")),
+  (await readFile(join(web, "node_modules/@penpair/web/README.md"), "utf8")) ===
+    (await readFile(join(repo, "README.md"), "utf8")),
   "the npm page's README is the repository's",
 );
 check(
