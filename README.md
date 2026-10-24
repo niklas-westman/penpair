@@ -1,5 +1,7 @@
 # penpair
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/niklas-westman-penpair-637i3e?v=4c3a3cf6e76f527306a6b8d2974a4cdb)](https://m8ven.ai/mcp/niklas-westman-penpair-637i3e?s=readme)
+
 **Design together. Build together.** Connect people and agents to the same Penpot design, with pinned targets, recoverable writes and independent readback.
 
 Inspect structure and tokens, compose reviewed recipes, capture references and hand design evidence to the implementation. Penpot holds the design; Git holds declarations, snapshots and review records.
