@@ -1,5 +1,12 @@
 # @penpair/reflection-check
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [9c91bfd]
+  - @penpair/core@0.3.4
+
 ## 0.3.3
 
 ### Patch Changes
