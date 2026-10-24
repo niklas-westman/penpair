@@ -1,5 +1,7 @@
-/** Trusted, dependency-free sandbox policy shared by the host observer and shipped kit. */
-export const layoutPolicySource = String.raw`
+import { settleLayout } from "./layout-settling.js";
+
+/** Trusted, dependency-free observation source for the Penpot sandbox. */
+const layoutObservationSource = String.raw`
 const observeLayout = async (penpot, root, options) => {
  if (!Number.isInteger(options.maxNodes === undefined ? 10000 : options.maxNodes) || (options.maxNodes !== undefined && (options.maxNodes < 1 || options.maxNodes > 10000))) throw new Error("Invalid settling node budget");
  const fileId = penpot.currentFile.id, pageId = penpot.currentPage.id;
@@ -38,49 +40,6 @@ const observeLayout = async (penpot, root, options) => {
  validTarget();
  return { ok: true, fileId, pageId, native: nativeOutcome === "completed", nativeOutcome, nativeError, geometry, truncated: false };
 };
-const settleLayout = async (observe, options) => {
- const { timeoutMs, intervalMs, strategy = "auto", sleep } = options;
- if (!["auto", "native", "geometry"].includes(strategy) || !Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000 || !Number.isFinite(intervalMs) || intervalMs <= 0 || Math.ceil(timeoutMs / intervalMs) + 1 > 1000) throw new Error("Invalid layout strategy or settling budgets");
- const started = Date.now(), deadline = started + timeoutMs;
- let samples = 0, nativeOutcome = "skipped", fallbackReason, identity, previous, equal = 0;
- const result = (stable, method, reason) => ({ stable, method, samples, strategy, nativeOutcome, ...(fallbackReason ? { fallbackReason } : {}), elapsedMs: Date.now() - started, ...(reason ? { reason } : {}) });
- for (let count = 0; count < Math.ceil(timeoutMs / intervalMs) + 1; count++) {
-  const remaining = deadline - Date.now();
-  if (remaining <= 0) return result(false, strategy === "native" ? "native" : "geometry", "Layout observation exceeded its deadline");
-  const nativeMs = count === 0 && strategy !== "geometry" ? strategy === "native" ? remaining : Math.max(1, Math.min(500, Math.floor(remaining / 4))) : 0;
-  const state = await observe(nativeMs, remaining);
-  samples++;
-  if (!state || state.ok !== true || typeof state.fileId !== "string" || !state.fileId || typeof state.pageId !== "string" || !state.pageId) throw new Error("Layout returned no target identity evidence");
-  if (typeof state.native !== "boolean" || typeof state.truncated !== "boolean" || state.nativeOutcome !== undefined && !["skipped", "unsupported", "completed", "failed"].includes(state.nativeOutcome)) throw new Error("Malformed layout attempt evidence");
-  const nextIdentity = JSON.stringify([state.fileId, state.pageId, state.geometry?.[0]?.[0]]);
-  if (identity && identity !== nextIdentity) throw new Error("Layout target changed between samples");
-  identity = nextIdentity;
-  if (state.truncated || !Array.isArray(state.geometry) || !state.geometry.length || state.geometry.length > 10000) throw new Error("Incomplete layout geometry evidence");
-  const ids = new Set(), childIndices = new Map();
-  for (const row of state.geometry) {
-   if (!Array.isArray(row) || row.length !== 7 || typeof row[0] !== "string" || !row[0] || ids.has(row[0]) || !row.slice(1,5).every(value => typeof value === "number" && Number.isFinite(value)) ||  ((row[5] !== null && !ids.has(row[5])) || !Number.isInteger(row[6]) || row[6] < 0)) throw new Error("Layout API returned no geometry evidence or malformed hierarchy");
-   if (!ids.size ? row[5] !== null || row[6] !== 0 : row[5] === null || typeof row[5] !== "string") throw new Error("Malformed layout root hierarchy");
-   if (row[5] !== null) {
-    const expectedIndex = childIndices.get(row[5]) || 0;
-    if (row[6] !== expectedIndex) throw new Error("Malformed layout sibling order");
-    childIndices.set(row[5], expectedIndex + 1);
-   }
-   ids.add(row[0]);
-  }
-  if (count === 0) {
-   nativeOutcome = state.nativeOutcome || (state.native ? state.error ? "failed" : "completed" : strategy === "geometry" ? "skipped" : "unsupported");
-   if (Date.now() >= deadline) return result(false, strategy === "native" || state.native ? "native" : "geometry", "Layout observation exceeded its deadline");
-   if (nativeOutcome === "completed") return result(true, "native");
-   if (strategy === "native") return result(false, "native", state.nativeError || state.error || "Native layout API unavailable");
-   if (strategy === "auto") fallbackReason = state.nativeError || state.error || "Native layout API unavailable";
-  }
-  if (Date.now() >= deadline) return result(false, "geometry", "Layout observation exceeded its deadline");
-  const current = JSON.stringify(state.geometry);
-  equal = current === previous ? equal + 1 : 1;
-  if (equal >= 3) return result(true, "geometry");
-  previous = current;
-  await sleep(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
- }
- return result(false, "geometry", "Layout did not settle within its bounded samples");
-};
 `;
+
+export const layoutPolicySource = `${layoutObservationSource}\nconst settleLayout = ${settleLayout.toString()};`;

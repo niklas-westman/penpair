@@ -98,6 +98,60 @@ describe("project-pinned typed MCP server", () => {
       await s.close();
     }
   });
+  it.each([
+    false,
+    true,
+  ])(
+    "declares all four behavior hints on every advertised tool (writes=%s)",
+    async (allowWrites) => {
+      const { root } = await project("annotations");
+      const connection = await session(root, allowWrites);
+      try {
+        const tools = (await connection.client.listTools()).tools;
+        expect(tools.map((tool) => tool.name).sort()).toEqual(
+          [
+            "pages",
+            "tree",
+            "audit",
+            "inspect",
+            "tokens_dump",
+            "run_status",
+            "baselines_status",
+            "project_status",
+            "doctor",
+            "design_spec",
+            "export",
+            ...(allowWrites
+              ? [
+                  "run_registered",
+                ]
+              : []),
+          ].sort(),
+        );
+        for (const tool of tools) {
+          const changesEnvironment = tool.name === "export" || tool.name === "run_registered";
+          const offline = tool.name === "run_status" || tool.name === "baselines_status";
+          expect(tool.annotations, tool.name).toEqual({
+            readOnlyHint: !changesEnvironment,
+            destructiveHint: changesEnvironment,
+            idempotentHint: !changesEnvironment,
+            openWorldHint: !offline,
+          });
+          for (const hint of [
+            "readOnlyHint",
+            "destructiveHint",
+            "idempotentHint",
+            "openWorldHint",
+          ] as const) {
+            expect(typeof tool.annotations?.[hint], `${tool.name}.${hint}`).toBe("boolean");
+          }
+        }
+      } finally {
+        await connection.close();
+      }
+    },
+  );
+
   it("keeps concurrent roots separate without changing cwd and refuses target changes after startup", async () => {
     const a = await project("alpha");
     const b = await project("beta");

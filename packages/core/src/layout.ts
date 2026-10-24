@@ -3,6 +3,7 @@ import { commandSleep } from "./command-result.js";
 import type { PenpotToolClient } from "./client.js";
 import { runSnippet, snippet } from "./snippet.js";
 import { layoutPolicySource } from "./layout-policy.js";
+import { settleLayout } from "./layout-settling.js";
 
 export type LayoutStrategy = "auto" | "native" | "geometry";
 export interface LayoutOptions {
@@ -22,11 +23,6 @@ export interface LayoutResult {
   fallbackReason?: string;
   elapsedMs?: number;
 }
-// This evaluates only the static policy above, never project or transport content.
-const settle = new Function(`${layoutPolicySource}\nreturn settleLayout;`)() as (
-  observe: (nativeMs: number, remaining: number) => Promise<unknown>,
-  options: Required<Pick<LayoutOptions, "timeoutMs" | "intervalMs" | "strategy" | "sleep">>,
-) => Promise<LayoutResult>;
 
 /** Layout evidence is independent of render equality and visual approval. Transport failures propagate without fallback. */
 export async function waitForStableLayout(
@@ -41,7 +37,7 @@ export async function waitForStableLayout(
     shapeId,
   } = options;
   try {
-    return await settle(
+    return await settleLayout(
       async (nativeMs, remaining) =>
         runSnippet(
           client,

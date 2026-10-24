@@ -74,6 +74,31 @@ describe("wrapping", () => {
     expect(compiles("const x = ;")).toBeDefined();
   });
 
+  it("accepts async function bodies with await and return", () => {
+    expect(compiles("const result = await penpot.read(); return result;")).toBeUndefined();
+    expect(compiles("return { ok: true }; // trailing comment")).toBeUndefined();
+  });
+
+  it("validates source without executing side effects", () => {
+    const sentinel = "__penpairSnippetValidationExecuted";
+
+    expect(
+      compiles(`globalThis.${sentinel} = true; throw new Error('must not execute');`),
+    ).toBeUndefined();
+    expect(Reflect.has(globalThis, sentinel)).toBe(false);
+  });
+
+  it("rejects syntax outside the async function body", () => {
+    expect(compiles("import value from 'module';")).toBeDefined();
+    expect(compiles("await ;")).toBeDefined();
+    expect(compiles("} function other(){")).toBeDefined();
+    expect(compiles("}, async function(){")).toBeDefined();
+    expect(
+      compiles("}); globalThis.__penpairSnippetValidationExecuted = true; (async function(){"),
+    ).toBeDefined();
+    expect(Reflect.has(globalThis, "__penpairSnippetValidationExecuted")).toBe(false);
+  });
+
   it("refuses a snippet over the size limit", () => {
     expect(() => snippet("big", `return "${"x".repeat(maxSnippetBytes)}";`)).toThrow(/bytes/);
   });
