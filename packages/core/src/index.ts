@@ -127,3 +127,10 @@ export * from "./audit-rules.js";
 export * from "./credentials.js";
 
 export * from "./token-projection.js";
+
+export * from "./image-evidence.js";
+export * from "./image-codec.js";
+
+export * from "./maps/index.js";
+export * from "./map-penpot/index.js";
+export * from "./design-releases/index.js";

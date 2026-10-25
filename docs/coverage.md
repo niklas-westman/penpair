@@ -20,9 +20,9 @@ A baseline frame may declare an explicit viewport, theme label, UI state, fixtur
 
 `theme`, `state` and `fixture` are declared design intent. A label alone does not prove actual theme activation, application state or data loading. Optional `activeThemeIds` asserts the complete exact active native theme-ID set at capture; omit it for a manually styled frame and retain that uncertainty. Baseline capture remains read-only toward the Penpot document: it never switches themes. Use the separate [mode trial](mode-verification.md) for temporary theme switching.
 
-Frame geometry must match the declared CSS viewport within less than 0.01 CSS px per axis, allowing floating-point noise from Penpot transforms and auto sizing. Baseline capture, case approval and offline coverage use the same tolerance. Exported PNG dimensions must still exactly equal the declared viewport multiplied by the observed export scale and rounded to whole pixels; the geometry tolerance never applies to PNG dimensions. A failed viewport/theme assertion marks `case-mismatch`, exits incomplete and preserves the previous generation. New provenance retains raw, unrounded design dimensions, active native theme IDs where available, API/tool version, renderer description and capture time. Font names are declarations; loaded font versions remain unobserved.
+Frame geometry must match the declared CSS viewport within less than 0.01 CSS px per axis, allowing floating-point noise from Penpot transforms and auto sizing. Baseline capture, case approval and offline coverage use the same tolerance. Encoded image dimensions (PNG or static lossless WebP) must still exactly equal the declared viewport multiplied by the observed export scale and rounded to whole pixels; the geometry tolerance never applies to image dimensions. A failed viewport/theme assertion marks `case-mismatch`, exits incomplete and preserves the previous generation. New provenance retains raw, unrounded design dimensions, active native theme IDs where available, API/tool version, renderer description and capture time. Font names are declarations; loaded font versions remain unobserved.
 
-Case metadata is part of approval identity. Changing a fixture/state/theme/viewport declaration requires `--apply --update` even if the PNG bytes happen to match. Moving a matching image to a different file/page/frame identity also requires review. Recapture preserves the original approval until that explicit update. Metadata is pinned before asynchronous capture.
+Case metadata is part of approval identity. Changing a fixture/state/theme/viewport declaration requires `--apply --update` even if the image bytes happen to match. Moving a matching image to a different file/page/frame identity also requires review. Recapture preserves the original approval until that explicit update. Metadata is pinned before asynchronous capture.
 
 ## Required matrix
 
@@ -30,7 +30,7 @@ Add `baselines.coverage.required` as an explicit list of route/viewport/theme/st
 
 See [an example matrix](../examples/coverage-matrix.json) spanning desktop/mobile, light/dark and an empty state. Only request combinations the product intends to support; no matrix is inferred from frame sizes or names.
 
-`penpair baselines coverage --json` runs offline. It loads the version-2 manifest, checks the configured file pin, validates project-bound artifact paths, independently hashes approved PNG bytes and reports:
+`penpair baselines coverage --json` runs offline. It loads the version-2 manifest, checks the configured file pin, validates project-bound artifact paths, independently hashes approved PNG or static lossless WebP bytes and reports:
 
 - `missing-case`: no configured frame for the required tuple.
 - `missing-capture`: a frame is configured but has no approved capture.
@@ -41,7 +41,7 @@ See [an example matrix](../examples/coverage-matrix.json) spanning desktop/mobil
 
 `designCasesComplete` means all requested design slots have matching approved intent. `browserVerification: not-run` and `accessibility: not-assessed` remain separate, even when every design slot is complete. Unknown font loading, absent activation assertions and missing renderer metadata are listed. The offline report exits 3 for gaps; it never connects to Penpot or loads project extensions.
 
-Ordinary `baselines` can publish a coherent capture of its configured frames while the broader required matrix still has gaps; that command returns incomplete when configured requirements remain uncovered. The manifest distinguishes capture completeness from matrix coverage. An incomplete capture itself still publishes nothing. Manifest reads are bounded to 16 MiB and each approved PNG check to 64 MiB; exceeding those bounds cannot produce covered evidence.
+Ordinary `baselines` can publish a coherent capture of its configured frames while the broader required matrix still has gaps; that command returns incomplete when configured requirements remain uncovered. The manifest distinguishes capture completeness from matrix coverage. An incomplete capture itself still publishes nothing. Manifest reads are bounded to 16 MiB and each approved image check to 64 MiB; exceeding those bounds cannot produce covered evidence.
 
 ## Browser integration
 
@@ -62,3 +62,19 @@ Baseline entries require `frame` or `frameId`, or both. `frameId` is a unique bo
 When both are supplied, a different current board name reports `renamed` and the entry is never captured under its stale name. Review the rename and update the expected name before retrying. ID-only entries follow the ID and report its current name. Page searches stop with an explicit error if the 10,000-shape budget truncates the listing.
 
 `approve --case CASE_ID --page PAGE --frame ID` compares `--frame` directly with a configured `frameId`; name-only cases retain the unique-name check. Nested frames use the same exact frame-ID capture identity for approval matching. The baseline manifest continues to record `frameId`; Reflection case format is unchanged.
+
+## Image encoding
+
+New baseline references default to static lossless WebP. Existing PNG references
+and approvals retain their exact original bytes, paths and hashes during normal
+capture/update. Neither `baselines.format` nor `--format` alone migrates an
+existing reference. Use explicit `--format webp --migrate-format` for a preview;
+application also requires `--apply --update` and matching exact new-format image
+approval. A PNG approval does not cover equivalent WebP pixels. See
+[approval and migration](approvals.md#image-format-and-migration).
+
+WebP conversion preserves exact dimensions, decoded RGBA pixels including RGB
+under transparency, and the source ICC profile. Unsupported animated/16-bit
+input or failed conversion verification leaves the prior generation intact.
+The conversion budget is 64 megapixels; geometry tolerance never relaxes image
+pixel-size or pixel-identity checks.

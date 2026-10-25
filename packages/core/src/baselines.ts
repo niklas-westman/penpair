@@ -1,9 +1,11 @@
 import { matchingApproval } from "./approvals.js";
 import { matchesDesignViewport } from "./design-viewport.js";
 import { pngSize } from "./png.js";
+import { encodeBaselineImage } from "./image-codec.js";
+import { inspectImageEvidence, type BaselineImageFormat } from "./image-evidence.js";
 export { pngSize } from "./png.js";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { PenpotToolClient } from "./client.js";
 import { baselineCoverage, type BaselineCoverage } from "./baseline-coverage.js";
@@ -92,6 +94,10 @@ export interface BaselinesReport {
 }
 
 export interface BaselinesOptions extends ExportOptions {
+  /** Encoding for new references, or the explicit migration target. */
+  format?: BaselineImageFormat;
+  /** Change an existing reference's encoding; apply also requires update and exact-artifact approval. */
+  migrateFormat?: boolean;
   signal?: AbortSignal;
   /** Write images that are new. Without it nothing is written, whatever is found. */
   apply?: boolean;
@@ -103,15 +109,108 @@ export interface BaselinesOptions extends ExportOptions {
 
 const sha = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
 
-async function readIfExists(file: string): Promise<Buffer | undefined> {
+async function readIfExists(file: string, maximum = 64 * 1024 * 1024): Promise<Buffer | undefined> {
   try {
-    return await readFile(file);
+    if ((await stat(file)).size > maximum) {
+      throw new Error("Baseline artifact exceeds its read budget");
+    }
+    const bytes = await readFile(file);
+    if (bytes.length > maximum) {
+      throw new Error("Baseline artifact exceeds its read budget");
+    }
+    return bytes;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return undefined;
     }
     throw error;
   }
+}
+
+async function existingBaseline(
+  projectRoot: string,
+  config: BaselinesConfig,
+  id: string,
+  old?: BaselineResult,
+): Promise<{
+  file?: string;
+  bytes?: Buffer;
+  format?: BaselineImageFormat;
+}> {
+  const candidates = old
+    ? [
+        old.file,
+      ]
+    : [
+        `${id}.png`,
+        `${id}.webp`,
+      ];
+  let found: {
+    file?: string;
+    bytes?: Buffer;
+    format?: BaselineImageFormat;
+  } = {};
+  for (const file of candidates) {
+    if (typeof file !== "string" || path.isAbsolute(file) || file.split(/[\\/]/).includes("..")) {
+      throw new Error("Existing baseline path leaves its folder");
+    }
+    const bytes = await readIfExists(
+      await resolveProjectOutput(projectRoot, path.join(config.root, file)),
+    );
+    if (!bytes) {
+      continue;
+    }
+    if (found.bytes) {
+      throw new Error("Existing baseline candidates are ambiguous; inspect before capture");
+    }
+    found = {
+      file,
+      bytes,
+      format: inspectImageEvidence(bytes).format,
+    };
+  }
+  if (
+    old &&
+    (!found.bytes ||
+      old.sha256 !== sha(found.bytes) ||
+      (old.approved && old.approved.sha256 !== old.sha256))
+  ) {
+    throw new Error(
+      "Approved baseline bytes no longer match their manifest; inspect before replacing",
+    );
+  }
+  return found;
+}
+
+/** Resolve the exact encoding used by both approval and baseline capture. */
+export async function resolveBaselineImageFormat(
+  projectRoot: string,
+  config: BaselinesConfig,
+  baselineId: string,
+  options: Pick<BaselinesOptions, "format" | "migrateFormat"> = {},
+): Promise<BaselineImageFormat> {
+  const target = options.format ?? config.format ?? "webp";
+  if (target !== "png" && target !== "webp") {
+    throw new Error("Baseline format must be png or webp");
+  }
+  const manifestPath = await resolveProjectOutput(
+    projectRoot,
+    path.join(config.root, "penpair-baselines.json"),
+  );
+  const bytes = await readIfExists(manifestPath, 16 * 1024 * 1024);
+  const previous = bytes ? JSON.parse(bytes.toString("utf8")) : undefined;
+  if (
+    previous &&
+    ((previous.schemaVersion !== undefined && previous.schemaVersion !== 2) ||
+      !Array.isArray(previous.frames) ||
+      previous.frames.length > 1000)
+  ) {
+    throw new Error("Existing baseline manifest is invalid; preserve and inspect it");
+  }
+  const old = previous?.frames?.find((entry: BaselineResult) => entry.id === baselineId);
+  const existing = await existingBaseline(projectRoot, config, baselineId, old);
+
+  return existing.format && !options.migrateFormat ? existing.format : target;
 }
 
 /**
@@ -125,6 +224,12 @@ export async function exportBaselines(
   config: BaselinesConfig,
   options: BaselinesOptions = {},
 ): Promise<BaselinesReport> {
+  if (options.format !== undefined && options.format !== "png" && options.format !== "webp") {
+    throw new Error("Baseline format must be png or webp");
+  }
+  if (options.migrateFormat && options.apply && !options.update) {
+    throw new Error("Applying a baseline format migration requires update");
+  }
   if (
     options.forceReason !== undefined &&
     (!options.update ||
@@ -177,7 +282,7 @@ export async function exportBaselines(
     projectRoot,
     path.join(config.root, "penpair-baselines.json"),
   );
-  const previousBytes = await readIfExists(manifestPath);
+  const previousBytes = await readIfExists(manifestPath, 16 * 1024 * 1024);
   const previous = previousBytes
     ? (JSON.parse(previousBytes.toString("utf8")) as {
         schemaVersion?: number;
@@ -197,7 +302,14 @@ export async function exportBaselines(
   for (const wanted of config.frames) {
     options.signal?.throwIfAborted();
     const old = previous?.frames?.find((entry) => entry.id === wanted.id);
-    const file = old?.file ?? `${wanted.id}.png`;
+    const existingEvidence = await existingBaseline(projectRoot, config, wanted.id, old);
+    const format =
+      existingEvidence.format && !options.migrateFormat
+        ? existingEvidence.format
+        : (options.format ?? config.format ?? "webp");
+    const migrating = Boolean(existingEvidence.format && existingEvidence.format !== format);
+    const existing = existingEvidence.bytes;
+    const file = existingEvidence.file ?? `${wanted.id}.${format}`;
     if (path.isAbsolute(file) || file.split(/[\\/]/).includes("..")) {
       throw new Error("Existing baseline path leaves its folder");
     }
@@ -280,19 +392,7 @@ export async function exportBaselines(
     if (!pngSize(exported.png)) {
       throw new Error("Baseline export is not a PNG with dimensions");
     }
-    const existing = await readIfExists(
-      await resolveProjectOutput(projectRoot, path.join(config.root, file)),
-    );
-    if (
-      old &&
-      (!existing ||
-        old.sha256 !== sha(existing) ||
-        (old.approved && old.approved.sha256 !== old.sha256))
-    ) {
-      throw new Error(
-        "Approved baseline bytes no longer match their manifest; inspect before replacing",
-      );
-    }
+    const encoded = await encodeBaselineImage(exported.png, format);
     const captured: ArtifactProvenance = {
       ...(wanted.case
         ? {
@@ -301,10 +401,10 @@ export async function exportBaselines(
         : {}),
       layout: exported.layout,
       ...exported.capture,
-      sha256: sha(exported.png),
+      sha256: sha(encoded),
       capturedAt: new Date().toISOString(),
       toolVersion: version,
-      file: `${generation}/${wanted.id}.png`,
+      file: `${generation}/${wanted.id}.${format}`,
     };
     const caseProblems: string[] = [];
     if (wanted.case) {
@@ -379,7 +479,7 @@ export async function exportBaselines(
           id: record.id,
           recordHash: record.hash,
         };
-      } else if (options.forceReason) {
+      } else if (options.forceReason && !migrating) {
         captured.approval = {
           kind: "forced-reference",
           reason: options.forceReason,
@@ -400,8 +500,8 @@ export async function exportBaselines(
           legacy: true as const,
           sha256: sha(existing!),
         });
-    const image = approve ? exported.png : existing!;
-    const size = pngSize(image);
+    const image = approve ? encoded : existing!;
+    const size = inspectImageEvidence(image);
     results.push({
       ...base,
       file: approve && options.apply ? captured.file : file,
@@ -414,7 +514,7 @@ export async function exportBaselines(
       imageWidth: size?.width,
       imageHeight: size?.height,
     });
-    captures.set(wanted.id, exported.png);
+    captures.set(`${wanted.id}.${format}`, encoded);
   }
   const after = await runOnPage(
     client,
@@ -473,10 +573,10 @@ export async function exportBaselines(
     const staged = path.join(folder, `.stage-${runId}`);
     await mkdir(staged);
     try {
-      for (const [id, bytes] of captures) {
+      for (const [file, bytes] of captures) {
         options.signal?.throwIfAborted();
-        await atomicWriteFile(path.join(staged, `${id}.png`), bytes);
-        options.onStep?.(`staging ${id}`);
+        await atomicWriteFile(path.join(staged, file), bytes);
+        options.onStep?.(`staging ${path.parse(file).name}`);
       }
       const cases = reflectionCases(config, results);
       await writeFile(

@@ -62,6 +62,9 @@ export const defineAdapter = <T extends Adapter>(adapter: T): T => adapter;
 
 /** The commands of the core itself; an adapter cannot take one of these names. */
 export const reservedCommands = [
+  "journey-map",
+  "integration-map",
+  "design-release",
   "formats",
   "snapshot",
   "approve",

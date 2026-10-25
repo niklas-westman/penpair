@@ -27,7 +27,7 @@ Use it when your application uses Marwes UI. Follow the [adapter overview](marwe
 5. Run a project provider to open that state, read it back, capture the browser and compare the image.
 6. Review the screenshots and differences; record human approval separately.
 
-The adapter checks that the returned evidence identifies the requested case and expected state, references the correct unchanged baseline, and has matching PNG dimensions/scale and font evidence. A complete result within the configured difference threshold is technical evidence, not visual approval or an accessibility assessment.
+The adapter checks that the returned evidence identifies the requested case and expected state, references the correct unchanged baseline, and has matching image dimensions/scale (PNG or static lossless WebP) and font evidence. A complete result within the configured difference threshold is technical evidence, not visual approval or an accessibility assessment.
 
 The provider is project code with an `async runCase(test)` export. It supplies actual route/theme/state/fixture setup, browser readback, screenshot capture and image comparison through the project's pinned tools. It can integrate the project's existing Reflection/browser checker. The adapter itself does not install a browser or execute a particular Reflection engine automatically.
 

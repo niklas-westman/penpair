@@ -40,8 +40,9 @@ Evidence formats are detected from bytes, not filenames: PNG and static lossless
 WebP (`VP8L`, including a matching `VP8X` canvas) are accepted. Lossy or animated
 WebP and malformed/truncated containers are rejected. The adapter inspects image
 metadata and hashes; the project provider owns actual decoding and pixel comparison.
-Existing PNG baseline approvals retain their exact bytes and hashes. Penpot's core
-export/approval workflow remains PNG; no approved reference is silently converted.
+Existing PNG baseline approvals retain their exact bytes and hashes. New core
+baseline/approval images default to lossless WebP; public Penpot PNG exports remain
+PNG. Existing approved references are never silently converted.
 
 The browser starter saves `.webp` evidence by default. Supply `encodeLosslessWebp`
 from the project's pinned codec, for example Sharp with `lossless: true` and

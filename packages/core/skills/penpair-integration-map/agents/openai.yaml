@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Integration Map"
+  short_description: "Connect reviewed design intent to implementation"
+  default_prompt: "Use $penpair-integration-map to map reviewed user requirements to routes, components, data responsibilities and verification work."
+policy:
+  allow_implicit_invocation: true

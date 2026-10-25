@@ -12,6 +12,13 @@ including requests to check parity or fix visual mismatches in an existing route
 That skill owns the browser comparison and repair loop; this skill owns source
 inspection, component mapping and implementation handoff.
 
+Before implementing a mapped feature, read its current reviewed journey and
+integration context, or its finalized design-release context when present. Use
+`penpair-journey-map` and `penpair-integration-map` when intent or integration
+choices need review; use `penpair-design-release` for versioned native screen
+assembly. Stale inputs, truncated context and blocking findings remain explicit.
+Design release finalization does not verify or accept the implementation.
+
 Carry the project's visual checkpoint into the handoff when one exists. Otherwise
 record the source image/inspection and identity, preserved/changed regions, case
 intent, candidate evidence, findings and next action in the project's review

@@ -382,7 +382,7 @@ describe("explicit design-case matrix", () => {
     await writeFile(path.join(root, config.root, evidence.file), "corrupt");
     expect((await readBaselineCoverage(root, config, "file")).rows[0]).toMatchObject({
       status: "unapproved-metadata",
-      reason: expect.stringMatching(/PNG bytes/),
+      reason: expect.stringMatching(/PNG or static lossless WebP/),
     });
     await expect(readBaselineCoverage(root, config, "another-file")).rejects.toThrow(
       /different pinned file/,

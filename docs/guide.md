@@ -10,6 +10,7 @@ consumer evidence.
 | Path | Documents |
 | --- | --- |
 | First run / shared file | [Choose an installation route](installation.md), [manual installation](getting-started.md), [team](team.md), [validation](validation.md) |
+| Intent / release | [Journey maps](journey-maps.md), [integration maps](integration-maps.md), [design releases](design-releases.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
 | Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md) |
@@ -95,6 +96,7 @@ For registered writes, supply an explicit `verify({ inspect, apply, readback })`
 "baselines": {
   "page": "Candidate",
   "root": "tests/baselines",
+  "format": "webp",
   "threshold": 0.05,
   "frames": [
     { "frame": "F / candidates", "id": "candidates-desktop", "route": "candidates" },
@@ -107,8 +109,23 @@ For registered writes, supply an explicit `verify({ inspect, apply, readback })`
 - Each entry requires `frame` or `frameId` (or both). `frameId` is a board UUID, unique across entries, resolved anywhere on the configured page. Frames inside boards, such as release frames inside section boards, need `frameId`. Name-only entries still match top-level frames only.
 - With both fields, `frame` is an expected name: a changed name reports `renamed` and captures nothing for that entry. Review and update the expected name before retrying. ID-only entries use the board's current name in reports. A truncated page search (10,000 shapes) stops the capture instead of using a partial listing.
 - For example: `{ "frameId": "10216397-acdf-805e-8008-d69b71f841d4", "frame": "Login / Empty", "id": "login-empty", "route": "login" }`.
-- `id` names the image (`<id>.png`) and the check. `route` is the route in your app this frame is the design of; a frame without a route is exported but gets no check.
-- Without `--apply` the command only looks and reports each frame as `new`, `same`, `changed`, `unstable` (the export never settled) or `missing`/`renamed`. `--apply` writes new images, `penpair-baselines.json` (file, revision, sizes, hashes) and `reflection-cases.json`. A `changed` image is replaced only with `--apply --update`: that is the act of approving the new design, and the owner's call. The exit code is 2 when a design differs from its image, 3 when a frame is missing, renamed or unstable.
+- `id` names the image (`<id>.webp` for a new default reference; existing PNG references retain `.png`) and the check. `route` is the route in your app this frame is the design of; a frame without a route is exported but gets no check.
+- Without `--apply` the command only looks and reports each frame as `new`, `same`, `changed`, `unstable` (the export never settled) or `missing`/`renamed`. `--apply` writes new images, `penpair-baselines.json` (file, revision, sizes, hashes) and `reflection-cases.json`. A `changed` image is replaced only with `--apply --update` and matching exact-artifact owner approval (or an explicitly recorded waiver); see [approval records](approvals.md). The exit code is 2 when a design differs from its image, 3 when a frame is missing, renamed or unstable.
+
+New references default to static lossless WebP. `baselines.format` accepts
+`"webp"` or `"png"`; a command's `--format` overrides that choice for new
+references. Existing approved images keep their original encoding during ordinary
+captures and updates, even when config or `--format` selects another format.
+Approved byte hashes are never silently converted.
+
+To preview an explicit migration, run `penpair baselines --format webp
+--migrate-format`. After reviewing and recording matching new-format approval,
+apply it with `penpair baselines --format webp --migrate-format --apply --update`.
+`--migrate-format` requires explicit `--format`, and applying it requires
+`--update`. Use `approve --format webp` (plus the intended `--case`, when present)
+to review/record the same encoding; PNG approval cannot approve WebP bytes.
+See [approval and migration details](approvals.md#image-format-and-migration).
+Public `export` and `shots` remain PNG.
 
 The generated `reflection-cases.json` holds, per route, the viewports (the image's exact size) and the `visualSmoke` cases (review-only, `strict: false`). A Reflection config uses it like this; only the route's own expectations are written by hand:
 
@@ -169,6 +186,6 @@ Use `inspect <shape-id> --page <name> --all` for bounded structured evidence wit
 
 ## State, theme and responsive coverage
 
-Add explicit `frames[].case` metadata and a required matrix under `baselines.coverage`. Case geometry allows less than 0.01 CSS px of Penpot floating-point noise per axis; exported PNG dimensions remain exact at the capture scale, and raw geometry stays in provenance. `baselines coverage --json` validates approved images offline and exposes missing/unsupported slots. Rich cases remain pending browser setup mappings; see [coverage semantics and approval](coverage.md).
+Add explicit `frames[].case` metadata and a required matrix under `baselines.coverage`. Case geometry allows less than 0.01 CSS px of Penpot floating-point noise per axis; encoded image dimensions (PNG or lossless WebP) remain exact at the capture scale, and raw geometry stays in provenance. `baselines coverage --json` validates approved images offline and exposes missing/unsupported slots. Rich cases remain pending browser setup mappings; see [coverage semantics and approval](coverage.md).
 
 For project-specific agent tools, use the [explicit-root stdio server and client examples](mcp.md). It exposes typed guarded services and defaults to omitting design-write tools.

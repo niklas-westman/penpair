@@ -281,6 +281,14 @@ export const projectConfigSchema = {
         "frames",
       ],
       properties: {
+        format: {
+          enum: [
+            "png",
+            "webp",
+          ],
+          description:
+            "Format for new references; existing approved formats are preserved unless explicitly migrated.",
+        },
         page: {
           type: "string",
           minLength: 1,
