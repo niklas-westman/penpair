@@ -1,5 +1,12 @@
 # @penpair/web
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [e4a5061]
+  - @penpair/core@0.5.0
+
 ## 0.4.1
 
 ### Patch Changes

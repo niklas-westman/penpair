@@ -1,5 +1,11 @@
 # @penpair/core
 
+## 0.5.0
+
+### Minor Changes
+
+- e4a5061: Add an experimental native board-copy workflow for new or existing Penpot release pages. Preview direct page/frame selections, then explicitly apply through a local browser debugging connection with paste fencing, source preservation, independent readback and stable render evidence. Expose the same bounded operation through the write-enabled MCP toolset and document CLI/MCP package discovery.
+
 ## 0.4.1
 
 ### Patch Changes
