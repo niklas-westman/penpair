@@ -55,3 +55,5 @@ args = ["mcp", "--root", "/absolute/path/to/project"]
 ```
 
 Restart/reconnect after reviewed target or tool-capability changes. Keep the actual Penpot editor visible. SDK in-memory tests establish discovery, typed input refusal, explicit write opt-in, root isolation and target-change refusal; actual agent/editor compatibility remains a pending I12 trial.
+
+For explicit tab activation, heartbeat diagnostics and the limits of background operation, see [recovering a suspended Penpot tab](browser-sessions.md). The CLI `wake` action is separate from the read-only doctor tool.

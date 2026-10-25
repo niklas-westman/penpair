@@ -32,7 +32,7 @@ export const errorRemedies: Readonly<Record<PenpairErrorCode, string>> = Object.
   "plugin-disconnected":
     "In the open Penpot file choose File, MCP Server, Connect, and keep that tab visible, then run the command again.",
   "plugin-suspended":
-    "The browser put the Penpot tab to sleep. Bring it to the foreground and keep it visible while a command runs. A suspended-tab error does not mean nothing was written: read the page before running a write again.",
+    "The browser put the Penpot tab to sleep. Bring it to the foreground, or use penpair wake --debug-port PORT with a dedicated debugging browser, then run penpair doctor. Waking is temporary recovery. A suspended-tab error does not mean nothing was written: read the page and reconcile the run before explicitly replaying a write.",
   "tool-failed": "Penpot's tool reported a failure; the message above says what.",
   "snippet-too-large":
     "Split the snippet. Penpot's proxy refuses request bodies of about 110 KB, so snippets stay under 90 KB.",

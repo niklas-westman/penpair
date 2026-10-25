@@ -1,6 +1,7 @@
 import type { LayoutResult, LayoutStrategy } from "./layout.js";
 
 interface LayoutSettlingOptions {
+  maxNodes?: number;
   timeoutMs: number;
   intervalMs: number;
   strategy: LayoutStrategy;
@@ -27,6 +28,7 @@ interface LayoutObservation {
   error?: string;
   geometry?: GeometryRow[];
   truncated?: boolean;
+  rootIds?: string[];
 }
 
 /** Self-contained policy: its JavaScript source also runs inside the Penpot sandbox. */
@@ -34,9 +36,12 @@ export async function settleLayout(
   observe: (nativeMs: number, remaining: number) => Promise<unknown>,
   options: LayoutSettlingOptions,
 ): Promise<LayoutResult> {
-  const { timeoutMs, intervalMs, strategy = "auto", sleep } = options;
+  const { timeoutMs, intervalMs, strategy = "auto", maxNodes = 10000, sleep } = options;
 
   if (
+    !Number.isInteger(maxNodes) ||
+    maxNodes < 1 ||
+    maxNodes > 100000 ||
     ![
       "auto",
       "native",
@@ -55,6 +60,9 @@ export async function settleLayout(
   const started = Date.now();
   const deadline = started + timeoutMs;
   let samples = 0;
+  let nodeCount = 0;
+  let rootIds: string[] = [];
+  let truncated = false;
   let nativeOutcome: LayoutResult["nativeOutcome"] = "skipped";
   let fallbackReason: string | undefined;
   let targetIdentity: string | undefined;
@@ -67,8 +75,12 @@ export async function settleLayout(
     reason?: string,
   ): LayoutResult => ({
     stable,
-    method,
+    method: truncated ? "partial" : method,
     samples,
+    rootIds,
+    nodeCount,
+    maxNodes,
+    truncated,
     strategy,
     nativeOutcome,
     ...(fallbackReason
@@ -77,9 +89,11 @@ export async function settleLayout(
         }
       : {}),
     elapsedMs: Date.now() - started,
-    ...(reason
+    ...(reason || truncated
       ? {
-          reason,
+          reason:
+            reason ??
+            "Only the bounded layout sample was observed; independent readback is required",
         }
       : {}),
   });
@@ -129,23 +143,39 @@ export async function settleLayout(
     const nextTargetIdentity = JSON.stringify([
       observation.fileId,
       observation.pageId,
-      observation.geometry?.[0]?.[0],
+      observation.rootIds ?? [
+        observation.geometry?.[0]?.[0],
+      ],
     ]);
     if (targetIdentity && targetIdentity !== nextTargetIdentity) {
       throw new Error("Layout target changed between samples");
     }
     targetIdentity = nextTargetIdentity;
     if (
-      observation.truncated ||
       !Array.isArray(observation.geometry) ||
       !observation.geometry.length ||
-      observation.geometry.length > 10000
+      observation.geometry.length > maxNodes
     ) {
       throw new Error("Incomplete layout geometry evidence");
     }
 
+    const observedRoots = observation.rootIds ?? [
+      observation.geometry[0]![0],
+    ];
+    if (
+      !Array.isArray(observedRoots) ||
+      !observedRoots.length ||
+      observedRoots.some((id) => typeof id !== "string" || !id) ||
+      new Set(observedRoots).size !== observedRoots.length
+    ) {
+      throw new Error("Malformed layout root evidence");
+    }
+    rootIds = observedRoots;
+    nodeCount = observation.geometry.length;
+    truncated = observation.truncated;
     const observedShapeIds = new Set<string>();
     const siblingCountByParent = new Map<string, number>();
+    let rootIndex = 0;
     for (const geometryRow of observation.geometry) {
       if (
         !Array.isArray(geometryRow) ||
@@ -162,11 +192,11 @@ export async function settleLayout(
       ) {
         throw new Error("Layout API returned no geometry evidence or malformed hierarchy");
       }
-      if (
-        !observedShapeIds.size
-          ? geometryRow[5] !== null || geometryRow[6] !== 0
-          : geometryRow[5] === null || typeof geometryRow[5] !== "string"
-      ) {
+      if (geometryRow[5] === null) {
+        if (geometryRow[0] !== rootIds[rootIndex++] || geometryRow[6] !== 0) {
+          throw new Error("Malformed layout root hierarchy");
+        }
+      } else if (typeof geometryRow[5] !== "string") {
         throw new Error("Malformed layout root hierarchy");
       }
       if (geometryRow[5] !== null) {
@@ -177,6 +207,10 @@ export async function settleLayout(
         siblingCountByParent.set(geometryRow[5], expectedIndex + 1);
       }
       observedShapeIds.add(geometryRow[0]);
+    }
+
+    if (!truncated && rootIndex !== rootIds.length) {
+      throw new Error("Incomplete layout root evidence");
     }
 
     if (sampleIndex === 0) {
@@ -215,7 +249,10 @@ export async function settleLayout(
       return createResult(false, "geometry", "Layout observation exceeded its deadline");
     }
 
-    const currentGeometry = JSON.stringify(observation.geometry);
+    const currentGeometry = JSON.stringify([
+      observation.geometry,
+      observation.truncated,
+    ]);
     matchingSamples = currentGeometry === previousGeometry ? matchingSamples + 1 : 1;
     if (matchingSamples >= 3) {
       return createResult(true, "geometry");

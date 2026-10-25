@@ -93,6 +93,7 @@ export const reservedCommands = [
   "open",
   "status",
   "doctor",
+  "wake",
   "backup",
   "restore",
   "baselines",
