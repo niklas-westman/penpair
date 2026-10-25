@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { commandSignal, withCommandSignal } from "../command-result.js";
 import { redactEndpoint } from "../endpoint.js";
 import {
+  pluginHealthFromError,
+  responsivePluginHealth,
+  type PluginHealth,
+} from "../plugin-health.js";
+import {
   isExternal,
   type ExternalConfig,
   type InstanceConfig,
@@ -30,6 +35,7 @@ export interface DoctorCheck extends Check {
     pageId?: string;
     apiVersion?: string;
     heartbeat?: "unknown";
+    pluginHealth?: PluginHealth;
   };
   remedy?: string;
   file?: {
@@ -189,7 +195,7 @@ export async function doctorEditor(
       check: "editor and plugin",
       layer: "execution",
       ok: true,
-      detail: `Fresh read from file "${actual.file}"`,
+      detail: `Fresh read from file "${actual.file}"; heartbeat age unavailable; keep-alive unknown`,
       observedAt: new Date().toISOString(),
       durationMs: Date.now() - started,
       evidence: {
@@ -201,10 +207,17 @@ export async function doctorEditor(
             }
           : {}),
         heartbeat: "unknown",
+        pluginHealth: responsivePluginHealth(),
       },
     });
     out.push(fileIdentityCheck(config, actual));
   } catch (error) {
+    const pluginHealth = pluginHealthFromError(error);
+    const heartbeatDetail =
+      pluginHealth.heartbeatAgeMs === null
+        ? "heartbeat age unavailable"
+        : `last heartbeat ${pluginHealth.heartbeatAgeMs / 1000}s ago (reported by upstream)`;
+
     if (!connected) {
       out.push({
         check: "MCP transport",
@@ -219,11 +232,17 @@ export async function doctorEditor(
       check: "editor and plugin",
       layer: "execution",
       ok: false,
-      detail: redactEndpoint(error instanceof Error ? error.message : String(error)),
+      detail: `${redactEndpoint(error instanceof Error ? error.message : String(error))}; ${heartbeatDetail}; keep-alive unknown`,
       observedAt: new Date().toISOString(),
       durationMs: Date.now() - started,
+      evidence: {
+        heartbeat: "unknown",
+        pluginHealth,
+      },
       remedy:
-        "Open the intended file, connect the MCP plugin and keep the editor responsive; rerun doctor for a fresh read.",
+        pluginHealth.state === "suspended"
+          ? "Bring the intended Penpot tab to the foreground, then rerun doctor for a fresh read. Reconcile any uncertain run before replaying a write."
+          : "Open the intended file, connect the MCP plugin and keep the editor responsive; rerun doctor for a fresh read.",
     });
   }
   finished = true;

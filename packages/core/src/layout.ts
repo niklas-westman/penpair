@@ -8,6 +8,8 @@ import { settleLayout } from "./layout-settling.js";
 export type LayoutStrategy = "auto" | "native" | "geometry";
 export interface LayoutOptions {
   shapeId?: string;
+  shapeIds?: string[];
+  maxNodes?: number;
   strategy?: LayoutStrategy;
   timeoutMs?: number;
   intervalMs?: number;
@@ -15,7 +17,11 @@ export interface LayoutOptions {
 }
 export interface LayoutResult {
   stable: boolean;
-  method: "native" | "geometry" | "unavailable";
+  method: "native" | "geometry" | "partial" | "unavailable";
+  rootIds?: string[];
+  nodeCount?: number;
+  maxNodes?: number;
+  truncated?: boolean;
   samples: number;
   reason?: string;
   strategy?: LayoutStrategy;
@@ -35,7 +41,26 @@ export async function waitForStableLayout(
     strategy = "auto",
     sleep = commandSleep,
     shapeId,
+    shapeIds,
+    maxNodes = 10000,
   } = options;
+  const roots =
+    shapeIds ??
+    (shapeId
+      ? [
+          shapeId,
+        ]
+      : []);
+  if (
+    !Array.isArray(roots) ||
+    roots.some((id) => typeof id !== "string" || !id.trim()) ||
+    new Set(roots).size !== roots.length
+  ) {
+    throw new Error("Layout roots must be distinct nonempty shape IDs");
+  }
+  if (!Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 100000) {
+    throw new Error("Layout node budget must be an integer from 1 to 100000");
+  }
   try {
     return await settleLayout(
       async (nativeMs, remaining) =>
@@ -43,9 +68,10 @@ export async function waitForStableLayout(
           client,
           snippet(
             "layout-state",
-            `${layoutPolicySource}\nconst shape = CFG.shapeId ? penpot.currentPage.getShapeById(CFG.shapeId) : penpot.currentPage.root;\nreturn await observeLayout(penpot, shape, CFG);`,
+            `${layoutPolicySource}\nconst roots = CFG.shapeIds.length ? CFG.shapeIds.map(id => penpot.currentPage.getShapeById(id)) : [penpot.currentPage.root];\nreturn await observeLayout(penpot, roots, CFG);`,
             {
-              shapeId,
+              shapeIds: roots,
+              maxNodes,
               nativeMs,
             },
             "read",
@@ -59,6 +85,7 @@ export async function waitForStableLayout(
         timeoutMs,
         intervalMs,
         strategy,
+        maxNodes,
         sleep,
       },
     );

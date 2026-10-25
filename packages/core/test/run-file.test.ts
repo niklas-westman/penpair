@@ -7,6 +7,7 @@ import type { PenpotToolClient } from "../src/client.js";
 import * as transport from "../src/client.js";
 import * as endpoint from "../src/endpoint.js";
 import { runCommand } from "../src/cli-main.js";
+import { readJournal } from "../src/journal.js";
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 async function fixture() {
@@ -20,7 +21,7 @@ async function fixture() {
       y: 0,
       width: 0,
       height: 0,
-      children: [],
+      children: [] as unknown[],
     },
   };
   const penpot = {
@@ -325,6 +326,32 @@ describe("explicit trusted script files", () => {
       ).exitCode,
     ).toBe(1);
     expect(connect).not.toHaveBeenCalled();
+    const board = {
+      ...f.penpot.currentPage.root,
+      id: "board",
+      children: [],
+    };
+    const otherBoard = {
+      ...board,
+      id: "other-board",
+    };
+    f.penpot.currentPage.root.children = [
+      board,
+      otherBoard,
+      ...Array.from(
+        {
+          length: 11000,
+        },
+        (_, index) => ({
+          ...board,
+          id: `archive-${index}`,
+        }),
+      ),
+    ];
+    Object.assign(f.penpot.currentPage, {
+      getShapeById: (id: string) =>
+        id === "board" ? board : id === "other-board" ? otherBoard : null,
+    });
     const applied = await runCommand([
       "run-file",
       "write.js",
@@ -336,12 +363,43 @@ describe("explicit trusted script files", () => {
       "value=7",
       "--page",
       "P",
+      "--layout-root",
+      "board",
+      "--layout-root",
+      "other-board",
+      "--layout-max-nodes",
+      "20",
       "--apply",
     ]);
     expect(applied).toMatchObject({
       exitCode: 0,
       data: {
         verified: true,
+        layout: {
+          rootIds: [
+            "board",
+            "other-board",
+          ],
+          nodeCount: 2,
+          maxNodes: 20,
+          truncated: false,
+        },
+      },
+    });
+    const data = applied.data as {
+      journal: {
+        runId: string;
+      };
+    };
+    const record = await readJournal(f.root, data.journal.runId);
+    expect(record.steps[0]!.after).toMatchObject({
+      layout: {
+        rootIds: [
+          "board",
+          "other-board",
+        ],
+        nodeCount: 2,
+        maxNodes: 20,
       },
     });
   });

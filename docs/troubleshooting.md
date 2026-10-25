@@ -11,7 +11,7 @@ Generated from the core error remedy inventory. Regenerate with `pnpm docs:gener
 | `incomplete-output` | Required output is missing, truncated or unstable. Narrow the scope or resolve the capture problem before accepting it as complete. |
 | `mcp-unavailable` | Start the Penpot instance and check the MCP URL. Run `penpair probe` to see what answers. |
 | `plugin-disconnected` | In the open Penpot file choose File, MCP Server, Connect, and keep that tab visible, then run the command again. |
-| `plugin-suspended` | The browser put the Penpot tab to sleep. Bring it to the foreground and keep it visible while a command runs. A suspended-tab error does not mean nothing was written: read the page before running a write again. |
+| `plugin-suspended` | The browser put the Penpot tab to sleep. Bring it to the foreground, or use penpair wake --debug-port PORT with a dedicated debugging browser, then run penpair doctor. Waking is temporary recovery. A suspended-tab error does not mean nothing was written: read the page and reconcile the run before explicitly replaying a write. |
 | `snippet-too-large` | Split the snippet. Penpot's proxy refuses request bodies of about 110 KB, so snippets stay under 90 KB. |
 | `stale-inspection` | The file, revision, query or inspected content changed. Discard the old cursor/chunks and start a fresh capture. |
 | `tool-failed` | Penpot's tool reported a failure; the message above says what. |

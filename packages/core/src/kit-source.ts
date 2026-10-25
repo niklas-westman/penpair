@@ -226,7 +226,7 @@ const pp = (() => {
         try { return await settleLayout(async nativeMs => {
             if (penpot.currentFile.id !== fileId || penpot.currentPage.id !== pageId) throw new Error("Layout target changed between samples");
             return observeLayout(penpot, root, { nativeMs, maxNodes: options.maxNodes });
-        }, { timeoutMs: options.timeoutMs === undefined ? 10000 : options.timeoutMs, intervalMs: options.intervalMs === undefined ? 100 : options.intervalMs, strategy: options.strategy === undefined ? "auto" : options.strategy, sleep: wait }); }
+        }, { timeoutMs: options.timeoutMs === undefined ? 10000 : options.timeoutMs, intervalMs: options.intervalMs === undefined ? 100 : options.intervalMs, strategy: options.strategy === undefined ? "auto" : options.strategy, maxNodes: options.maxNodes, sleep: wait }); }
         catch (error) { return { stable: false, method: "unavailable", samples: 0, reason: String(error && error.message || error) }; }
     };
     const flush = async (options = {}) => {
