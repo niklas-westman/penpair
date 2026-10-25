@@ -86,6 +86,24 @@ Claude Code supports project `.mcp.json` entries under `mcpServers`; see [offici
 }
 ```
 
+For authorized native-copy work, change that Claude entry's `args` to:
+
+```json
+["mcp", "--root", "/absolute/path/to/project", "--allow-writes"]
+```
+
+Restart or reconnect the server to discover `design_release_copy`. This enables
+tool visibility; it does not apply a copy or grant browser permissions. The tool
+must be present in the installed Penpair version's tool list. Registering only
+Penpot's upstream MCP server does not expose Penpair's project tools.
+The tool
+still previews by default. Apply requires `apply: true`, `debugPort`, the pinned
+project/plugin connection and existing clipboard read/write access in the
+browser on the Penpair process's computer. The standard CDP route needs no
+additional Claude computer-control integration. The injected native-UI driver
+used in the core-service trial is not a public fallback; bundled CDP/Penpot
+qualification remains pending. See [host prerequisites and qualification](copy-between-pages.md#using-from-claude-or-other-hosts).
+
 Codex uses project `.codex/config.toml` for trusted projects, with a server table; see [official Codex MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
 
 ```toml

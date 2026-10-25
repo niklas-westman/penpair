@@ -84,6 +84,7 @@ starts with `penpair design-release copy --source-page PAGE --frame BOARD_ID
 approve a full design release. Read the
 [native copy guide](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md)
 before applying it. `penpair wake` remains CLI-only.
+For Claude and other hosts, read the [CLI/MCP prerequisites and current qualification](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md#using-from-claude-or-other-hosts); the native-UI test driver is not shipped as a fallback.
 
 ## Add your companions
 

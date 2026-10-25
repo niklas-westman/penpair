@@ -136,6 +136,28 @@ is the default; apply requires `debugPort`, and resume requires apply. The tool
 returns the same operation result and keeps the same target/recovery safeguards.
 It does not expose raw page code. See [MCP tools](mcp.md).
 
+## Using from Claude or other hosts
+
+The standard copy route is host-neutral: an assistant can invoke the installed
+CLI or call the typed Penpair MCP tool. It requires the configured project,
+owner-confirmed file pin and responsive plugin connection described above. Apply
+also requires a debugging-enabled browser on the same computer as the Penpair
+process, the explicit debugging port and existing clipboard read/write access.
+These are the same prerequisites in Claude, Codex and other CLI/MCP-capable hosts.
+
+Claude does not need an additional computer-control integration for the standard
+CDP route. Register the reviewed Penpair executable with `--allow-writes` to expose
+`design_release_copy`, or use the CLI directly. Preview first; tool visibility
+alone neither applies the copy nor grants browser permissions. See the
+[Claude registration example](mcp.md#client-registration).
+
+The native-UI keyboard driver used in the trial below was an injected test
+driver, not a public CLI/MCP fallback supplied to Claude or other hosts. That
+trial establishes the core-service proof described below; qualification of the
+bundled CDP clipboard path against Penpot remains pending. Installing Penpair or
+adding host computer controls does not turn that pending qualification into a
+passing result.
+
 ## Evidence and API boundary
 
 The hardened bundled CDP transport has not passed end-to-end browser

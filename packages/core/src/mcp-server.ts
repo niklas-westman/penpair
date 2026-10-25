@@ -283,26 +283,41 @@ const definitions: Definition[] = [
       openWorldHint: true,
     },
     description:
-      "Preview native boards copied to release/<version>; explicit apply and a local debugging port perform one native clipboard transfer. Preserves originals; may require manual reconciliation. Changes browser focus and clipboard. Does not approve a release.",
+      "Experimental same-file native board copy to release/<version>, preview by default. Requires a configured project, pinned file and connected Penpot plugin; advertised only with --allow-writes. Applying also requires an already enabled loopback browser debugging port, existing clipboard read/write access and focused editor canvas. Does not start a browser or grant permissions. Host-independent CLI/MCP operation; no automatic fallback to the assistant's computer-control tools. The successful native-UI trial used an injected test driver; bundled CDP/Penpot qualification remains pending. Preserves originals, changes focus/clipboard, never blindly replays an uncertain paste and does not approve a release.",
     properties: {
-      sourcePage: string,
+      sourcePage: {
+        ...string,
+        description: "Exact source page name or ID within the project's pinned Penpot file.",
+      },
       frameIds: {
         type: "array",
         items: string,
         minItems: 1,
         maxItems: 100,
         uniqueItems: true,
+        description: "Observed native board IDs on the source page; selections must not overlap.",
       },
       releaseVersion: {
         ...string,
         pattern: "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+        description: "Version naming the new or existing destination page: release/<version>.",
       },
-      debugPort: integer(65535, 1),
+      debugPort: {
+        ...integer(65535, 1),
+        description:
+          "Required for apply: an existing loopback CDP port. This does not enable debugging or grant clipboard access.",
+      },
       apply: {
         type: "boolean",
         default: false,
+        description:
+          "False previews only. True explicitly authorizes native copying and requires debugPort plus existing browser clipboard read/write access.",
       },
-      resume: string,
+      resume: {
+        ...string,
+        description:
+          "Original run ID for explicit reconciliation with apply=true and the same inputs; never blindly repeats a paste.",
+      },
     },
     required: [
       "sourcePage",
