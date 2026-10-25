@@ -1,5 +1,12 @@
 # @penpair/docker
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [75c0b2d]
+  - @penpair/core@0.4.0
+
 ## 0.3.7
 
 ### Patch Changes
