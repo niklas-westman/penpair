@@ -18,9 +18,11 @@ import {
   type ReceiptInput,
 } from "../design-releases/index.js";
 import type { DesignCommandContext } from "./context.js";
+import { runDesignReleaseCopyCommand } from "./copy-command.js";
 
 const releaseUsage =
-  "design-release plan|assemble|verify|finalize|check|context --from FILE [--out FILE]";
+  "design-release plan|assemble|verify|finalize|check|context --from FILE [--out FILE]\n" +
+  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply] [--resume RUN_ID]";
 
 async function readReleaseJson(context: DesignCommandContext, file: string): Promise<unknown> {
   return JSON.parse(
@@ -78,6 +80,9 @@ export async function runDesignReleaseCommand(
   args: string[],
   context: DesignCommandContext,
 ): Promise<number> {
+  if (args[0] === "copy") {
+    return runDesignReleaseCopyCommand(args.slice(1), context);
+  }
   const parsed = parseCommandArgs({
     args,
     allowPositionals: true,

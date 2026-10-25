@@ -25,9 +25,9 @@ const string = {
   minLength: 1,
   maxLength: 1000,
 };
-const integer = (max: number) => ({
+const integer = (max: number, min = 0) => ({
   type: "integer",
-  minimum: 0,
+  minimum: min,
   maximum: max,
 });
 interface Definition {
@@ -275,6 +275,72 @@ const definitions: Definition[] = [
     localWrite: true,
   },
   {
+    name: "design_release_copy",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    description:
+      "Preview native boards copied to release/<version>; explicit apply and a local debugging port perform one native clipboard transfer. Preserves originals; may require manual reconciliation. Changes browser focus and clipboard. Does not approve a release.",
+    properties: {
+      sourcePage: string,
+      frameIds: {
+        type: "array",
+        items: string,
+        minItems: 1,
+        maxItems: 100,
+        uniqueItems: true,
+      },
+      releaseVersion: {
+        ...string,
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+      },
+      debugPort: integer(65535, 1),
+      apply: {
+        type: "boolean",
+        default: false,
+      },
+      resume: string,
+    },
+    required: [
+      "sourcePage",
+      "frameIds",
+      "releaseVersion",
+    ],
+    write: true,
+    command: (a) => [
+      "design-release",
+      "copy",
+      "--source-page",
+      String(a.sourcePage),
+      ...(a.frameIds as string[]).flatMap((frameId) => [
+        "--frame",
+        frameId,
+      ]),
+      "--release",
+      String(a.releaseVersion),
+      ...(a.debugPort !== undefined
+        ? [
+            "--debug-port",
+            String(a.debugPort),
+          ]
+        : []),
+      ...(a.apply
+        ? [
+            "--apply",
+          ]
+        : []),
+      ...(a.resume
+        ? [
+            "--resume",
+            String(a.resume),
+          ]
+        : []),
+    ],
+  },
+  {
     name: "run_registered",
     annotations: {
       readOnlyHint: false,
@@ -352,7 +418,16 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
       | {
           type: string;
           maximum?: number;
+          minimum?: number;
           maxLength?: number;
+          pattern?: string;
+          minItems?: number;
+          maxItems?: number;
+          uniqueItems?: boolean;
+          items?: {
+            type: string;
+            maxLength?: number;
+          };
         }
       | undefined;
     if (!schema) {
@@ -364,6 +439,7 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
         !value ||
         value.startsWith("-") ||
         value.length > (schema.maxLength ?? 1000) ||
+        (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) ||
         /[\x00-\x1f]/.test(value))
     ) {
       throw new Error(`Invalid ${key}`);
@@ -373,7 +449,27 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
     }
     if (
       schema.type === "integer" &&
-      (!Number.isInteger(value) || Number(value) < 0 || Number(value) > schema.maximum!)
+      (!Number.isInteger(value) ||
+        Number(value) < (schema.minimum ?? 0) ||
+        Number(value) > schema.maximum!)
+    ) {
+      throw new Error(`Invalid ${key}`);
+    }
+    if (
+      schema.type === "array" &&
+      (!Array.isArray(value) ||
+        value.length < (schema.minItems ?? 0) ||
+        value.length > (schema.maxItems ?? 100) ||
+        (schema.uniqueItems && new Set(value).size !== value.length) ||
+        value.some(
+          (item) =>
+            schema.items?.type !== "string" ||
+            typeof item !== "string" ||
+            !item.trim() ||
+            item.startsWith("-") ||
+            item.length > (schema.items.maxLength ?? 1000) ||
+            /[\x00-\x1f]/.test(item),
+        ))
     ) {
       throw new Error(`Invalid ${key}`);
     }
@@ -392,6 +488,9 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
   }
   if ((a.resume || a.checkpoint) && !a.apply) {
     throw new Error("Explicit resume requires apply");
+  }
+  if (def.name === "design_release_copy" && a.apply && a.debugPort === undefined) {
+    throw new Error("Native copy apply requires debugPort");
   }
   return a;
 }

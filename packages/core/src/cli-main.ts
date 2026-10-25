@@ -114,6 +114,7 @@ Design agreements and release pages:
   penpair journey-map check|render|publish|import|accept|approve|context --from FILE
   penpair integration-map check|render|publish|import|accept|approve|context --from FILE
   penpair design-release plan|assemble|verify|finalize|check|context --from FILE
+  penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply]
   (publication previews by default; --apply writes Penpot, --write records local acceptance/review)
 Start here (guided, plain language; safe to run again):
   penpair setup                                        asks where your Penpot is (web is the default), sets everything up and checks it
@@ -2709,9 +2710,20 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
       argv[0] === "design-release"
     ) {
       const { runDesignCommand } = await import("./design-commands/index.js");
+      const copyConfig =
+        argv[0] === "design-release" && argv[1] === "copy"
+          ? await loadCommandConfig(root)
+          : undefined;
       let designRedactor = (text: string) => redactEndpoint(text);
       return await runDesignCommand(argv[0], argv.slice(1), {
         root,
+        copyTarget: copyConfig?.file?.id
+          ? {
+              fileId: copyConfig.file.id,
+              origin: isExternal(copyConfig) ? copyConfig.profile.origin : frontendUrl(copyConfig),
+              allowLoopbackAlias: !isExternal(copyConfig),
+            }
+          : undefined,
         output,
         redact: (text) => designRedactor(text),
         async withPenpot(work) {

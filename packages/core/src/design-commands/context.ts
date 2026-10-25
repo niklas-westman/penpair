@@ -6,5 +6,10 @@ export interface DesignCommandContext {
   root: string;
   output: CommandOutput;
   redact(value: string): string;
+  copyTarget?: {
+    fileId: string;
+    origin: string;
+    allowLoopbackAlias: boolean;
+  };
   withPenpot<T>(work: (client: PenpotToolClient) => Promise<T>): Promise<T>;
 }
