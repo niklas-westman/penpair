@@ -56,6 +56,36 @@ Then choose a scratch page and agree on a small design task. The workflow is: in
 
 The installed skills cover **setup → design → recipes → handoff → verification**, with `design-judgment` for visual hierarchy. Ask the assistant to name the skill it uses. For frontend work, `penpair-handoff` carries design evidence into implementation; `penpair-verify` guides browser comparison, image review, fixes and recapture. [Check skill discovery and behavior](https://github.com/niklas-westman/penpair/blob/main/docs/skill-validation.md).
 
+## Where the command and tools live
+
+Install one command package in your application project. Both expose the same
+`penpair` command; the core library is installed as a dependency.
+
+| Surface | Where it comes from | How you discover it |
+| --- | --- | --- |
+| Hosted/team Penpot CLI | `@penpair/web` | `pnpm exec penpair --help` |
+| CLI with local Penpot containers | `@penpair/docker` | The same command, plus instance lifecycle commands |
+| Engine and shipped agent skills | `@penpair/core` | Library exports and `penpair skills`; core has no executable |
+| Penpair MCP tools | Your installed command, started as a stdio server | Register the executable with `mcp --root /absolute/path/to/project` in your assistant |
+| Your assistant's browser/computer controls | The assistant host, separately from Penpair | Host configuration; installing Penpair does not add these controls |
+
+For example, register `/absolute/path/to/project/node_modules/.bin/penpair` with
+arguments `["mcp", "--root", "/absolute/path/to/project"]`. That exposes typed
+inspection, status, doctor, spec and export tools for the pinned project. It does
+not expose every CLI command or arbitrary browser control. See the
+[tool inventory and client configuration](https://github.com/niklas-westman/penpair/blob/main/docs/mcp.md).
+
+Explicit `--allow-writes` additionally exposes registered operations and the
+experimental `design_release_copy` tool. Both preview by default; applying a
+native copy also requires a loopback browser debugging port and existing browser
+clipboard read/write capability. Penpair does not grant those permissions. The equivalent CLI
+starts with `penpair design-release copy --source-page PAGE --frame BOARD_ID
+--release 1.2.0`. Copying creates native boards and transfer evidence; it does not
+approve a full design release. Read the
+[native copy guide](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md)
+before applying it. `penpair wake` remains CLI-only.
+For Claude and other hosts, read the [CLI/MCP prerequisites and current qualification](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md#using-from-claude-or-other-hosts); the native-UI test driver is not shipped as a fallback.
+
 ## Add your companions
 
 | Package | Add it when | What it contributes |

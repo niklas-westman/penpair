@@ -25,9 +25,9 @@ const string = {
   minLength: 1,
   maxLength: 1000,
 };
-const integer = (max: number) => ({
+const integer = (max: number, min = 0) => ({
   type: "integer",
-  minimum: 0,
+  minimum: min,
   maximum: max,
 });
 interface Definition {
@@ -275,6 +275,87 @@ const definitions: Definition[] = [
     localWrite: true,
   },
   {
+    name: "design_release_copy",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    description:
+      "Experimental same-file native board copy to release/<version>, preview by default. Requires a configured project, pinned file and connected Penpot plugin; advertised only with --allow-writes. Applying also requires an already enabled loopback browser debugging port, existing clipboard read/write access and focused editor canvas. Does not start a browser or grant permissions. Host-independent CLI/MCP operation; no automatic fallback to the assistant's computer-control tools. The successful native-UI trial used an injected test driver; bundled CDP/Penpot qualification remains pending. Preserves originals, changes focus/clipboard, never blindly replays an uncertain paste and does not approve a release.",
+    properties: {
+      sourcePage: {
+        ...string,
+        description: "Exact source page name or ID within the project's pinned Penpot file.",
+      },
+      frameIds: {
+        type: "array",
+        items: string,
+        minItems: 1,
+        maxItems: 100,
+        uniqueItems: true,
+        description: "Observed native board IDs on the source page; selections must not overlap.",
+      },
+      releaseVersion: {
+        ...string,
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$",
+        description: "Version naming the new or existing destination page: release/<version>.",
+      },
+      debugPort: {
+        ...integer(65535, 1),
+        description:
+          "Required for apply: an existing loopback CDP port. This does not enable debugging or grant clipboard access.",
+      },
+      apply: {
+        type: "boolean",
+        default: false,
+        description:
+          "False previews only. True explicitly authorizes native copying and requires debugPort plus existing browser clipboard read/write access.",
+      },
+      resume: {
+        ...string,
+        description:
+          "Original run ID for explicit reconciliation with apply=true and the same inputs; never blindly repeats a paste.",
+      },
+    },
+    required: [
+      "sourcePage",
+      "frameIds",
+      "releaseVersion",
+    ],
+    write: true,
+    command: (a) => [
+      "design-release",
+      "copy",
+      "--source-page",
+      String(a.sourcePage),
+      ...(a.frameIds as string[]).flatMap((frameId) => [
+        "--frame",
+        frameId,
+      ]),
+      "--release",
+      String(a.releaseVersion),
+      ...(a.debugPort !== undefined
+        ? [
+            "--debug-port",
+            String(a.debugPort),
+          ]
+        : []),
+      ...(a.apply
+        ? [
+            "--apply",
+          ]
+        : []),
+      ...(a.resume
+        ? [
+            "--resume",
+            String(a.resume),
+          ]
+        : []),
+    ],
+  },
+  {
     name: "run_registered",
     annotations: {
       readOnlyHint: false,
@@ -352,7 +433,16 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
       | {
           type: string;
           maximum?: number;
+          minimum?: number;
           maxLength?: number;
+          pattern?: string;
+          minItems?: number;
+          maxItems?: number;
+          uniqueItems?: boolean;
+          items?: {
+            type: string;
+            maxLength?: number;
+          };
         }
       | undefined;
     if (!schema) {
@@ -364,6 +454,7 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
         !value ||
         value.startsWith("-") ||
         value.length > (schema.maxLength ?? 1000) ||
+        (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) ||
         /[\x00-\x1f]/.test(value))
     ) {
       throw new Error(`Invalid ${key}`);
@@ -373,7 +464,27 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
     }
     if (
       schema.type === "integer" &&
-      (!Number.isInteger(value) || Number(value) < 0 || Number(value) > schema.maximum!)
+      (!Number.isInteger(value) ||
+        Number(value) < (schema.minimum ?? 0) ||
+        Number(value) > schema.maximum!)
+    ) {
+      throw new Error(`Invalid ${key}`);
+    }
+    if (
+      schema.type === "array" &&
+      (!Array.isArray(value) ||
+        value.length < (schema.minItems ?? 0) ||
+        value.length > (schema.maxItems ?? 100) ||
+        (schema.uniqueItems && new Set(value).size !== value.length) ||
+        value.some(
+          (item) =>
+            schema.items?.type !== "string" ||
+            typeof item !== "string" ||
+            !item.trim() ||
+            item.startsWith("-") ||
+            item.length > (schema.items.maxLength ?? 1000) ||
+            /[\x00-\x1f]/.test(item),
+        ))
     ) {
       throw new Error(`Invalid ${key}`);
     }
@@ -392,6 +503,9 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
   }
   if ((a.resume || a.checkpoint) && !a.apply) {
     throw new Error("Explicit resume requires apply");
+  }
+  if (def.name === "design_release_copy" && a.apply && a.debugPort === undefined) {
+    throw new Error("Native copy apply requires debugPort");
   }
   return a;
 }

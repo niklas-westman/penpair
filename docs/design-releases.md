@@ -7,6 +7,27 @@ design cases and immutable evidence so a later implementation agent can identify
 what was reviewed. This is a design release, separate from publishing Penpair's
 npm packages or accepting a frontend implementation.
 
+## Copy boards to a release page
+
+For an experimental same-file page transfer, preview the observed source boards:
+
+```sh
+penpair design-release copy --source-page "Screens" \
+  --frame SOURCE_BOARD_ID --release 1.2.0
+# After reviewing and authorizing the transfer:
+penpair design-release copy --source-page "Screens" \
+  --frame SOURCE_BOARD_ID --release 1.2.0 --debug-port 9222 --apply
+```
+
+This uses native editor copy/paste into `release/1.2.0`, preserving originals and
+existing destination content, and writes private evidence under
+`.penpair/native-copy/<run-id>/`. It can report incomplete native fidelity after
+copying; read the findings and inspect the exports. The transfer receipt is not
+a release manifest, the `verify --receipts` input schema or owner approval.
+Copy-created page ownership does not by itself establish compatibility with the
+full assembly flow below. See [native copy and recovery](copy-between-pages.md)
+for prerequisites, clipboard effects, explicit resume and current proof limits.
+
 ## Local commands
 
 Create the plan from actual source inspection, using your own product SemVer.
@@ -60,10 +81,12 @@ is not approval of the child graph. See [linked detail maps](integration-maps.md
 Keep the release page in the same pinned Penpot file, named `release/<version>`.
 Assembly creates the owned overview/map sections and reports `awaiting-copy`.
 Copy source design frames natively using a reviewed, guided copy/paste operation
-by a person or an authorized AI using existing browser tools. Assembly does not
-perform an unsupported cross-page clone.
-The [cross-page API assessment](copy-between-pages.md) records the tested
-boundary and why there is no automatic file-change fallback.
+by a person or an authorized AI using existing browser tools. The experimental
+`design-release copy` path separately automates native clipboard transfer; its
+receipt is not automatically a full release's mapping or approval. Assembly
+does not perform an unsupported cross-page clone. The
+[native copy guide](copy-between-pages.md) records both that API boundary and the
+new transport's verification limits.
 Preserve visual fidelity, native components, token bindings, text and layout;
 do not recreate frames from screenshots or normalize their dimensions. A source
 using auto height must retain it. Floating-point geometry noise is not a reason

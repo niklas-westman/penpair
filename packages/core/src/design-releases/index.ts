@@ -11,3 +11,4 @@ export {
   hashDesignRelease,
   hashDesignRelease as releaseDesignHash,
 } from "./validation.js";
+export * from "./copy.js";

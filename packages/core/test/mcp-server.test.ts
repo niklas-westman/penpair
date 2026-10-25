@@ -1,12 +1,14 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "../src/mcp-server.js";
 import { resolveEndpoint } from "../src/endpoint.js";
 import { runCommand } from "../src/cli-main.js";
+import * as cli from "../src/cli-main.js";
+import { collectCommand } from "../src/command-result.js";
 async function project(instance: string) {
   const root = await mkdtemp(path.join(os.tmpdir(), "penpair-server-"));
   const config = {
@@ -124,16 +126,18 @@ describe("project-pinned typed MCP server", () => {
             ...(allowWrites
               ? [
                   "run_registered",
+                  "design_release_copy",
                 ]
               : []),
           ].sort(),
         );
         for (const tool of tools) {
-          const changesEnvironment = tool.name === "export" || tool.name === "run_registered";
+          const destructive = tool.name === "export" || tool.name === "run_registered";
+          const changesEnvironment = destructive || tool.name === "design_release_copy";
           const offline = tool.name === "run_status" || tool.name === "baselines_status";
           expect(tool.annotations, tool.name).toEqual({
             readOnlyHint: !changesEnvironment,
-            destructiveHint: changesEnvironment,
+            destructiveHint: destructive,
             idempotentHint: !changesEnvironment,
             openWorldHint: !offline,
           });
@@ -151,6 +155,190 @@ describe("project-pinned typed MCP server", () => {
       }
     },
   );
+
+  it("advertises native copy only with write opt-in and validates its bounded typed inputs before dispatch", async () => {
+    const { root } = await project("copy-inputs");
+    const canonicalRoot = await realpath(root);
+    const readOnly = await session(root);
+    const enabled = await session(root, true);
+    const result = await collectCommand("design-release", async () => 0);
+    const dispatch = vi.spyOn(cli, "runCommand").mockResolvedValue(result);
+    try {
+      expect(
+        (await readOnly.client.listTools()).tools.some(
+          (tool) => tool.name === "design_release_copy",
+        ),
+      ).toBe(false);
+      const definition = (await enabled.client.listTools()).tools.find(
+        (tool) => tool.name === "design_release_copy",
+      )!;
+      expect(definition.inputSchema.required).toEqual([
+        "sourcePage",
+        "frameIds",
+        "releaseVersion",
+      ]);
+      const base = {
+        sourcePage: "Candidate",
+        frameIds: [
+          "frame-a",
+        ],
+        releaseVersion: "1.2.0",
+      };
+      const invalid = [
+        {
+          ...base,
+          frameIds: [],
+        },
+        {
+          ...base,
+          frameIds: [
+            "frame-a",
+            "frame-a",
+          ],
+        },
+        {
+          ...base,
+          frameIds: [
+            1,
+          ],
+        },
+        {
+          ...base,
+          frameIds: [
+            "--apply",
+          ],
+        },
+        {
+          ...base,
+          frameIds: Array.from(
+            {
+              length: 101,
+            },
+            (_, index) => `frame-${index}`,
+          ),
+        },
+        {
+          ...base,
+          debugPort: 0,
+        },
+        {
+          ...base,
+          debugPort: -1,
+        },
+        {
+          ...base,
+          debugPort: 1.5,
+        },
+        {
+          ...base,
+          debugPort: 65536,
+        },
+        {
+          ...base,
+          apply: true,
+        },
+        {
+          ...base,
+          releaseVersion: "../unrelated-page",
+        },
+        {
+          ...base,
+          resume: "run-id",
+        },
+        {
+          ...base,
+          endpoint: "http://remote.test",
+        },
+        {
+          ...base,
+          rawCode: "arbitrary code",
+        },
+      ];
+      for (const arguments_ of invalid) {
+        expect(
+          (
+            await enabled.client.callTool({
+              name: "design_release_copy",
+              arguments: arguments_,
+            })
+          ).isError,
+        ).toBe(true);
+      }
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(
+        (
+          await readOnly.client.callTool({
+            name: "design_release_copy",
+            arguments: base,
+          })
+        ).isError,
+      ).toBe(true);
+      expect(dispatch).not.toHaveBeenCalled();
+
+      await enabled.client.callTool({
+        name: "design_release_copy",
+        arguments: base,
+      });
+      expect(dispatch).toHaveBeenLastCalledWith(
+        [
+          "design-release",
+          "copy",
+          "--source-page",
+          "Candidate",
+          "--frame",
+          "frame-a",
+          "--release",
+          "1.2.0",
+        ],
+        expect.objectContaining({
+          root: canonicalRoot,
+          projectEndpointOnly: true,
+          strictFileGuard: true,
+        }),
+      );
+      await enabled.client.callTool({
+        name: "design_release_copy",
+        arguments: {
+          ...base,
+          frameIds: [
+            "frame-a",
+            "frame-b",
+          ],
+          apply: true,
+          debugPort: 9222,
+          resume: "original-run",
+        },
+      });
+      expect(dispatch).toHaveBeenLastCalledWith(
+        [
+          "design-release",
+          "copy",
+          "--source-page",
+          "Candidate",
+          "--frame",
+          "frame-a",
+          "--frame",
+          "frame-b",
+          "--release",
+          "1.2.0",
+          "--debug-port",
+          "9222",
+          "--apply",
+          "--resume",
+          "original-run",
+        ],
+        expect.objectContaining({
+          root: canonicalRoot,
+          projectEndpointOnly: true,
+          strictFileGuard: true,
+        }),
+      );
+    } finally {
+      dispatch.mockRestore();
+      await enabled.close();
+      await readOnly.close();
+    }
+  });
 
   it("keeps concurrent roots separate without changing cwd and refuses target changes after startup", async () => {
     const a = await project("alpha");
