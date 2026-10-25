@@ -1,5 +1,13 @@
 # @penpair/web
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [0086bb7]
+- Updated dependencies [0086bb7]
+  - @penpair/core@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes
