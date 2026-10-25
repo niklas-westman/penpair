@@ -1,6 +1,6 @@
 {
   "name": "@penpair/marwes-ui",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "The Marwes UI adapter for penpair: Marwes tokens (and your own theme) in your Penpot file, with drift checks against the installed Marwes: snapshot, check, diff, push.",
   "license": "MIT",
   "repository": {
