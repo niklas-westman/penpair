@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "integration-map",
   "id": "reset-password-integration",
-  "title": "Reset password: illustrative integration",
+  "title": "Reset implementation",
   "goal": "Connect the proposed reset flow to implementation responsibilities without inventing existing code.",
   "sources": [
     {
@@ -14,52 +14,64 @@
   ],
   "journey": {
     "path": "examples/design-release-maps/journey.json",
-    "sha256": "9f2dad53db20cce516771c674c99f188eefe46824216fb011fcd9f74d2f5d315"
+    "sha256": "956fbe3e9d4eb3519d714912ec89bfaedd2a8c2b8882d06dc5ee9c4c279439a9"
   },
   "nodes": [
     {
       "id": "reset-route",
-      "label": "Proposed route: /reset-password",
+      "label": "Reset route",
       "kind": "route",
       "origin": "proposed",
       "requirementIds": [
         "reset-entry"
-      ]
+      ],
+      "summary": "Open /reset-password to begin the flow.",
+      "description": "Proposed route responsibility: enter the reset flow using the existing application router. The route and surrounding navigation have not been inspected. Reuse the actual project structure rather than treating this illustrative path as an approved architecture decision.",
+      "icon": "code"
     },
     {
       "id": "reset-form",
-      "label": "Proposed reusable reset form",
+      "label": "Reset form",
       "kind": "component",
       "origin": "proposed",
       "requirementIds": [
         "reset-entry",
         "reset-error-retry"
-      ]
+      ],
+      "summary": "Collect an address and retain it on retry.",
+      "description": "Proposed form responsibility: collect the address, follow agreed validation and preserve input during recoverable failure. Inspect existing components before choosing an implementation. Form semantics and behavior need explicit review and real browser evidence.",
+      "icon": "screen"
     },
     {
       "id": "reset-mutation",
-      "label": "Unknown: reset-request API contract",
+      "label": "Reset service",
       "kind": "data",
       "origin": "unknown",
       "requirementIds": [
         "reset-request",
         "reset-expiry"
-      ]
+      ],
+      "summary": "Agree the request and response contract.",
+      "description": "The endpoint, request payload, validation, response policy and expiry behavior are unknown. Obtain the actual project API and product decisions before implementation. This node does not claim that a service exists or prescribe a new backend.",
+      "icon": "service"
     },
     {
       "id": "reset-feedback",
-      "label": "Proposed confirmation/error states",
+      "label": "Request feedback",
       "kind": "state",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry",
         "reset-confirmation",
         "reset-focus"
-      ]
+      ],
+      "summary": "Show confirmation or a recoverable error.",
+      "description": "Proposed feedback responsibility: present the agreed confirmation state after an accepted request and useful recovery after failure. Define focus and announcements with the actual application. The synthetic source does not establish these transitions or their accessibility.",
+      "icon": "decision"
     },
     {
       "id": "browser-case",
-      "label": "Pending browser and keyboard evidence",
+      "label": "Verify recovery",
       "kind": "verification",
       "origin": "unknown",
       "requirementIds": [
@@ -67,7 +79,10 @@
         "reset-confirmation",
         "reset-focus",
         "reset-expiry"
-      ]
+      ],
+      "summary": "Check retry, focus, and announcements.",
+      "description": "Verification is pending. Map approved design cases to actual route/state/fixture setup, then observe failed submission, retained input, retry and confirmation in the real browser. Assess keyboard and screen-reader behavior separately from visual comparison. No provider or result is supplied here.",
+      "icon": "check"
     }
   ],
   "edges": [
@@ -75,7 +90,7 @@
       "id": "route-form",
       "from": "reset-route",
       "to": "reset-form",
-      "label": "Proposed composition",
+      "label": "Compose",
       "origin": "proposed",
       "requirementIds": [
         "reset-entry"
@@ -85,7 +100,7 @@
       "id": "form-request",
       "from": "reset-form",
       "to": "reset-mutation",
-      "label": "Request contract unresolved",
+      "label": "Submit",
       "origin": "unknown",
       "requirementIds": [
         "reset-request"
@@ -95,7 +110,7 @@
       "id": "request-feedback",
       "from": "reset-mutation",
       "to": "reset-feedback",
-      "label": "Proposed result handling",
+      "label": "Handle result",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry"
@@ -105,7 +120,7 @@
       "id": "feedback-evidence",
       "from": "reset-feedback",
       "to": "browser-case",
-      "label": "Requires observed state and recovery evidence",
+      "label": "Verify behavior",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry"
@@ -160,5 +175,7 @@
   ],
   "presentation": {
     "fontFamily": "Inter"
-  }
+  },
+  "summary": "Connect the reset flow to application responsibilities.",
+  "description": "This unapproved integration proposal links the synthetic journey to a route, form, service contract, feedback states and verification work. No application code, API or browser behavior has been inspected. Every proposed responsibility needs project evidence and review before implementation."
 }

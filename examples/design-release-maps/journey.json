@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "journey-map",
   "id": "reset-password-journey",
-  "title": "Reset password: illustrative journey",
+  "title": "Reset password",
   "goal": "Request password-reset instructions and understand the next step.",
   "sources": [
     {
@@ -15,7 +15,7 @@
   "nodes": [
     {
       "id": "address-entry",
-      "label": "Address entry screen",
+      "label": "Enter email",
       "kind": "screen",
       "origin": "observed",
       "sourceIds": [
@@ -23,11 +23,14 @@
       ],
       "requirementIds": [
         "reset-entry"
-      ]
+      ],
+      "summary": "Provide an address for reset instructions.",
+      "description": "The synthetic brief includes an address-entry screen. No Penpot frame or application has been inspected. Field validation, submission behavior and the final wording still require project evidence or review.",
+      "icon": "screen"
     },
     {
       "id": "confirmation",
-      "label": "Confirmation screen",
+      "label": "Check your email",
       "kind": "screen",
       "origin": "observed",
       "sourceIds": [
@@ -35,34 +38,46 @@
       ],
       "requirementIds": [
         "reset-confirmation"
-      ]
+      ],
+      "summary": "Explain the next step after the request.",
+      "description": "The synthetic brief includes a confirmation screen. Its success transition and response messaging are proposed, not observed. Confirm the actual request and account-disclosure policy before implementing this state.",
+      "icon": "screen"
     },
     {
       "id": "recoverable-error",
-      "label": "Recoverable error; address retained",
+      "label": "Retry request",
       "kind": "state",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry"
-      ]
+      ],
+      "summary": "Keep the address and offer a retry.",
+      "description": "Proposed recovery preserves the entered address after a failed request, explains the failure and allows another attempt. No inspected design or implementation establishes this behavior yet. Review it, then verify a real failure and retry.",
+      "icon": "action"
     },
     {
       "id": "expiry-policy",
-      "label": "Unknown: expiry and repeat-request policy",
+      "label": "Request policy",
       "kind": "decision",
       "origin": "unknown",
       "requirementIds": [
         "reset-expiry"
-      ]
+      ],
+      "summary": "Decide expiry and repeat-request behavior.",
+      "description": "The source provides no expiry, repeat-request or disclosure policy. Obtain the actual product and service contract before deciding what the interface should say or do. This is an unresolved requirement, not an inferred security rule.",
+      "icon": "decision"
     },
     {
       "id": "focus-recovery",
-      "label": "Proposed keyboard and announced recovery",
+      "label": "Accessible recovery",
       "kind": "behavior",
       "origin": "proposed",
       "requirementIds": [
         "reset-focus"
-      ]
+      ],
+      "summary": "Announce errors and guide keyboard focus.",
+      "description": "Proposed accessible recovery should explain failures to screen-reader users and support keyboard correction and retry. Exact focus destinations, announcement behavior and implementation checks remain to be defined and tested.",
+      "icon": "check"
     }
   ],
   "edges": [
@@ -70,7 +85,7 @@
       "id": "request-success",
       "from": "address-entry",
       "to": "confirmation",
-      "label": "Proposed: successful request",
+      "label": "Success",
       "origin": "proposed",
       "requirementIds": [
         "reset-confirmation"
@@ -80,7 +95,7 @@
       "id": "request-failure",
       "from": "address-entry",
       "to": "recoverable-error",
-      "label": "Proposed: request fails",
+      "label": "Failure",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry"
@@ -90,7 +105,7 @@
       "id": "retry",
       "from": "recoverable-error",
       "to": "address-entry",
-      "label": "Proposed: retry without retyping",
+      "label": "Retry",
       "origin": "proposed",
       "requirementIds": [
         "reset-error-retry"
@@ -100,7 +115,7 @@
       "id": "expiry-decision",
       "from": "address-entry",
       "to": "expiry-policy",
-      "label": "Requires product/security decision",
+      "label": "Resolve policy",
       "origin": "unknown",
       "requirementIds": [
         "reset-expiry"
@@ -110,7 +125,7 @@
       "id": "focus-requirement",
       "from": "recoverable-error",
       "to": "focus-recovery",
-      "label": "Proposed accessible feedback",
+      "label": "Accessible feedback",
       "origin": "proposed",
       "requirementIds": [
         "reset-focus"
@@ -166,5 +181,7 @@
   ],
   "presentation": {
     "fontFamily": "Inter"
-  }
+  },
+  "summary": "Request reset instructions and recover from failure.",
+  "description": "This unapproved planning fixture is grounded only in the synthetic brief. It illustrates the proposed reset flow without claiming inspected Penpot frames, actual application behavior or owner agreement. Request policy, recovery and accessibility behavior remain explicit decisions and verification work."
 }

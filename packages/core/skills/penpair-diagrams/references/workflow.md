@@ -12,6 +12,22 @@ Keep neutral diagram presentation, readable labels, stable logical IDs and the
 selected font. Do not alter project tokens to style diagrams. Missing fonts,
 unsupported native fields and ownership conflicts remain failures.
 
+## Titles, summaries and notes
+
+Existing contracts need no new fields. Map `summary` (up to 240 characters) and
+`description` (up to 8,000) are optional. Node `label` remains its title; optional
+`summary` (up to 240), `description` (up to 4,000) and `icon` add purpose, detail
+and a fixed semantic visual. Keep card titles within 24 characters and summaries
+within 42 where practical; the native compact view retains full text and long
+descriptions in managed notes below the flow, Markdown and context. Never remove
+unknowns or truncate canonical evidence merely to simplify a card.
+
+Choose `screen`, `action`, `decision`, `data`, `service`, `code`, `check` or `link`.
+Icons are fixed native vector paths, not fetched images. Use origin badges for
+status, concise titles for meaning, and descriptions for evidence and unresolved
+choices. Summary/description/icon changes are semantic proposals and require
+renewed approval; they are not presentation-only geometry edits.
+
 ## Semantic and presentation proposals
 
 A label/title/edge-label or unambiguous endpoint change imports as a canonical

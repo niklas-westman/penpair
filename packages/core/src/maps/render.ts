@@ -1,11 +1,18 @@
 import { designDataBlock } from "../project-input.js";
+import { mapAnnotationLayout } from "./annotation-layout.js";
 import {
   mapDrawingGeometryProblems,
+  mapEdgeLabelWidth,
   mapLabelHeight,
   mapNodeLayers,
   routeMapEdges,
 } from "./layout.js";
-import type { MapContract, MapDrawingPlan, MapDetailTarget } from "./types.js";
+import type {
+  MapContract,
+  MapDrawingPlan,
+  MapDetailTarget,
+  MapDrawingAnnotation,
+} from "./types.js";
 import { hashMapContract, validateMapContract, validateMapDetail } from "./validation.js";
 
 function mermaidLabel(value: string): string {
@@ -34,11 +41,11 @@ function reviewTables(contract: MapContract): string {
   const nodes = [
     "## Regions and responsibilities",
     "",
-    "| ID | Kind | Origin | Label | Requirements |",
-    "| --- | --- | --- | --- | --- |",
+    "| ID | Kind | Origin | Title | Summary | Description | Icon | Requirements |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ...contract.nodes.map(
       (node) =>
-        `| ${tableText(node.id)} | ${tableText(node.kind)} | ${node.origin} | ${tableText(node.label)} | ${tableText((node.requirementIds ?? []).join(", "))} |`,
+        `| ${tableText(node.id)} | ${tableText(node.kind)} | ${node.origin} | ${tableText(node.label)} | ${tableText(node.summary ?? "")} | ${tableText(node.description ?? "")} | ${node.icon ?? ""} | ${tableText((node.requirementIds ?? []).join(", "))} |`,
     ),
   ];
   const requirements = [
@@ -102,11 +109,25 @@ export function renderMapMermaid(raw: MapContract): string {
   );
   const lines = [
     "flowchart LR",
+    `  %% title: ${mermaidLabel(contract.title)}`,
+    `  %% goal: ${mermaidLabel(contract.goal)}`,
   ];
+  if (contract.summary !== undefined) {
+    lines.push(`  %% summary: ${mermaidLabel(contract.summary)}`);
+  }
+  if (contract.description !== undefined) {
+    lines.push(`  %% description: ${mermaidLabel(contract.description)}`);
+  }
   for (const node of contract.nodes) {
     lines.push(
-      `  ${aliases.get(node.id)}["${mermaidLabel((node.kind === "detail-link" ? "Details: " : "") + node.label)}"]`,
+      `  ${aliases.get(node.id)}["${mermaidLabel((node.kind === "detail-link" ? "Details: " : "") + node.label + (node.summary ? ` / ${node.summary}` : ""))}"]`,
     );
+    if (node.description !== undefined) {
+      lines.push(`  %% ${aliases.get(node.id)} description: ${mermaidLabel(node.description)}`);
+    }
+    if (node.icon !== undefined) {
+      lines.push(`  %% ${aliases.get(node.id)} icon: ${node.icon}`);
+    }
   }
   for (const edge of contract.edges) {
     lines.push(
@@ -122,6 +143,11 @@ export function renderMapMarkdown(raw: MapContract): string {
   return (
     `# ${contract.kind === "journey-map" ? "Journey map" : "Integration map"}\n\n` +
     `Contract hash: ${hash}\n\n` +
+    `Title: ${tableText(contract.title)}\n\nGoal: ${tableText(contract.goal)}\n\n` +
+    (contract.summary === undefined ? "" : `Summary: ${tableText(contract.summary)}\n\n`) +
+    (contract.description === undefined
+      ? ""
+      : `Description: ${tableText(contract.description)}\n\n`) +
     "Proposed and observed design data; review records are separate. Appearance does not establish behavior, accessibility or implementation verification.\n\n" +
     `\`\`\`mermaid\n${renderMapMermaid(contract)}\`\`\`\n\n` +
     reviewTables(contract) +
@@ -137,16 +163,61 @@ export function buildMapDrawingPlan(
   const detailReasons: string[] = [];
   const layers = mapNodeLayers(contract);
   const columns = Math.max(...layers.values()) + 1;
+  const sameColumn = contract.edges.some((edge) => layers.get(edge.from) === layers.get(edge.to));
+  const columnXs = [
+    sameColumn ? 400 : 96,
+  ];
+  for (let column = 0; column < columns - 1; column++) {
+    const crossing = contract.edges.filter(
+      (edge) => layers.get(edge.from) === column && layers.get(edge.to) === column + 1,
+    );
+    const gap = Math.max(
+      160,
+      ...crossing.map((edge) => mapEdgeLabelWidth(edge.label) + 64 + crossing.length * 8),
+    );
+    columnXs.push(columnXs[column]! + 240 + gap);
+  }
+  const titleBox = {
+    x: 32,
+    y: 24,
+    width: 1120,
+    height: mapLabelHeight(contract.title, 700) + 8,
+  };
+  const headerSummary =
+    contract.summary ?? (contract.goal.length <= 240 ? contract.goal : undefined);
+  const summaryBox =
+    headerSummary === undefined
+      ? undefined
+      : {
+          x: 32,
+          y: titleBox.y + titleBox.height + 12,
+          width: 1120,
+          height: mapLabelHeight(headerSummary, 1120),
+        };
+  const legendY =
+    (summaryBox ? summaryBox.y + summaryBox.height : titleBox.y + titleBox.height) + 16;
+  const header = {
+    titleBox,
+    ...(summaryBox
+      ? {
+          summaryBox,
+        }
+      : {}),
+    legendY,
+    height: legendY + 48,
+  };
+  const compact = (text: string, limit: number) =>
+    text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
   const columnEnds = Array.from(
     {
       length: columns,
     },
-    () => 180,
+    () => Math.max(180, header.height + 32),
   );
   const nodes = contract.nodes.map((node) => {
     const column = layers.get(node.id)!;
     const y = columnEnds[column]!;
-    const height = Math.max(144, 56 + mapLabelHeight(node.label, 248));
+    const height = 144;
     columnEnds[column] = y + height + 160;
     let detail: MapDetailTarget | undefined;
     if (node.kind === "detail-link") {
@@ -172,29 +243,118 @@ export function buildMapDrawingPlan(
     }
     return {
       ...node,
+      cardTitle: compact(node.label, 24),
+      ...(node.summary === undefined
+        ? {}
+        : {
+            cardSummary: compact(node.summary, 42),
+          }),
+      ...(node.label.length > 24 ||
+      (node.summary?.length ?? 0) > 42 ||
+      node.description !== undefined
+        ? {
+            annotationId: `node:${node.id}`,
+          }
+        : {}),
       ...(detail
         ? {
             detail,
           }
         : {}),
-      x: 400 + column * 760,
+      x: columnXs[column]!,
       y,
-      width: 280,
+      width: 240,
       height,
     };
   });
   const edges = routeMapEdges(nodes, contract.edges);
   const width =
     Math.max(
+      titleBox.x + titleBox.width,
       ...nodes.map((node) => node.x + node.width),
       ...edges.map((edge) => edge.labelBox.x + edge.labelBox.width),
     ) + 80;
-  const height =
+  const flowHeight =
     Math.max(
       ...nodes.map((node) => node.y + node.height),
       ...edges.map((edge) => edge.labelBox.y + edge.labelBox.height + 48),
       ...edges.flatMap((edge) => edge.points.map((point) => point.y)),
     ) + 80;
+  const annotations: MapDrawingAnnotation[] = [];
+  let annotationY = flowHeight + 32;
+  const noteWidth = 1120;
+  const noteGap = 24;
+  const noteColumnWidth = (noteWidth - noteGap) / 2;
+  let columnY = [
+    annotationY,
+    annotationY,
+  ];
+  const annotate = (annotation: Omit<MapDrawingAnnotation, "x" | "y" | "width" | "height">) => {
+    const width = annotation.nodeId ? noteColumnWidth : noteWidth;
+    const height = mapAnnotationLayout({
+      ...annotation,
+      width,
+    }).height;
+    const column = columnY[0]! <= columnY[1]! ? 0 : 1;
+    const y = annotation.nodeId ? columnY[column]! : annotationY;
+    annotations.push({
+      ...annotation,
+      x: 32 + (annotation.nodeId ? column * (noteColumnWidth + noteGap) : 0),
+      y,
+      width,
+      height,
+    });
+    if (annotation.nodeId) {
+      columnY[column] = y + height + noteGap;
+    } else {
+      annotationY = y + height + noteGap;
+      columnY = [
+        annotationY,
+        annotationY,
+      ];
+    }
+  };
+  if (
+    contract.summary !== undefined ||
+    contract.goal.length > 240 ||
+    contract.description !== undefined
+  ) {
+    annotate({
+      id: "map:details",
+      title: contract.title,
+      goal: contract.goal,
+      ...(contract.summary === undefined
+        ? {}
+        : {
+            summary: contract.summary,
+          }),
+      ...(contract.description === undefined
+        ? {}
+        : {
+            description: contract.description,
+          }),
+    });
+  }
+  for (const node of nodes) {
+    if (node.annotationId) {
+      annotate({
+        id: node.annotationId,
+        nodeId: node.id,
+        title: node.label,
+        ...(node.summary === undefined
+          ? {}
+          : {
+              summary: node.summary,
+            }),
+        ...(node.description === undefined
+          ? {}
+          : {
+              description: node.description,
+            }),
+      });
+    }
+  }
+  const height = annotations.length ? Math.max(...columnY) + 32 : flowHeight;
   const reasons = [
     ...detailReasons,
     ...mapDrawingGeometryProblems(nodes, edges),
@@ -211,6 +371,24 @@ export function buildMapDrawingPlan(
     mapId: contract.id,
     mapHash: hashMapContract(contract),
     title: contract.title,
+    goal: contract.goal,
+    ...(contract.summary === undefined
+      ? {}
+      : {
+          summary: contract.summary,
+        }),
+    ...(contract.description === undefined
+      ? {}
+      : {
+          description: contract.description,
+        }),
+    ...(headerSummary === undefined
+      ? {}
+      : {
+          headerSummary,
+        }),
+    header,
+    annotations,
     fontFamily: contract.presentation?.fontFamily ?? "Inter",
     width,
     height,

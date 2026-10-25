@@ -14,3 +14,5 @@ export {
 } from "./presentation.js";
 export { resolveMapDetails } from "./details.js";
 export { MapExportEvidenceError } from "./evidence-error.js";
+export { nativeMapTextEntries, nativeMapShapeKeys, type NativeMapTextEntry } from "./content.js";
+export { nativeMapIcons, defaultMapIcon } from "./icons.js";

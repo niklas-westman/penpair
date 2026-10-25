@@ -154,6 +154,13 @@ export function mapLabelHeight(text: string, width: number): number {
   return lines * 24 + 16;
 }
 
+export function mapEdgeLabelWidth(label: string): number {
+  return Math.max(
+    80,
+    Math.min(240, Math.max(...label.split(/\r?\n/).map((line) => line.length)) * 7 + 16),
+  );
+}
+
 /** Labels occupy dedicated gaps; routes stay outside those boxes and all card interiors. */
 export function routeMapEdges<T extends MapRoutingEdge>(
   nodes: MapRoutingNode[],
@@ -169,7 +176,12 @@ export function routeMapEdges<T extends MapRoutingEdge>(
     ...new Set(nodes.map((node) => node.x)),
   ].sort((left, right) => left - right);
   const corridorEnds = new Map<number, number>();
-  const corridorTracks = new Map<number, number>();
+  const portTracks = new Map<string, number>();
+  const takeTrack = (key: string) => {
+    const track = portTracks.get(key) ?? 0;
+    portTracks.set(key, track + 1);
+    return track;
+  };
   const pending: Array<{
     edge: T;
     from: MapRoutingNode;
@@ -178,7 +190,21 @@ export function routeMapEdges<T extends MapRoutingEdge>(
   const routed: Array<T & MapEdgeRoute> = [];
   for (const edge of [
     ...edges,
-  ].sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))) {
+  ].sort((left, right) => {
+    const aligned = (entry: T) => {
+      const from = byId.get(entry.from)!;
+      const to = byId.get(entry.to)!;
+      return (
+        to.x > from.x &&
+        columns.indexOf(to.x) === columns.indexOf(from.x) + 1 &&
+        from.y + from.height / 2 === to.y + to.height / 2
+      );
+    };
+    return (
+      Number(!aligned(left)) - Number(!aligned(right)) ||
+      (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    );
+  })) {
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
     if (!from || !to) {
@@ -195,16 +221,42 @@ export function routeMapEdges<T extends MapRoutingEdge>(
       continue;
     }
     const cyclic = targetColumn === sourceColumn;
-    const labelX = cyclic ? from.x - 368 : from.x + from.width + 112;
-    const track = corridorTracks.get(labelX) ?? 0;
-    corridorTracks.set(labelX, track + 1);
+    const labelWidth = mapEdgeLabelWidth(edge.label);
+    const labelX = cyclic
+      ? from.x - labelWidth - 96
+      : (from.x + from.width + to.x - labelWidth) / 2;
+    const corridorKey = cyclic ? -from.x : from.x;
+    const sourceTrack = takeTrack(
+      `${cyclic ? "left" : "right"}:${cyclic ? from.x : from.x + from.width}`,
+    );
+    const targetTrack = takeTrack(`left:${to.x}`);
+    const labelHeight = mapLabelHeight(edge.label, labelWidth);
+    const naturalY = to.y + to.height / 2 - labelHeight - 12;
+    const direct =
+      !cyclic &&
+      from.y + from.height / 2 === to.y + to.height / 2 &&
+      naturalY >= 160 &&
+      !routed.some((entry) =>
+        boxesOverlap(entry.labelBox, {
+          x: labelX,
+          y: naturalY,
+          width: labelWidth,
+          height: labelHeight,
+        }),
+      );
     const labelBox = {
       x: labelX,
-      y: corridorEnds.get(labelX) ?? 180,
-      width: 240,
-      height: mapLabelHeight(edge.label, 240),
+      y: direct
+        ? naturalY
+        : Math.max(
+            naturalY,
+            corridorEnds.get(corridorKey) ??
+              Math.max(180, Math.min(...nodes.map((node) => node.y))),
+          ),
+      width: labelWidth,
+      height: labelHeight,
     };
-    corridorEnds.set(labelX, labelBox.y + labelBox.height + 80);
+    corridorEnds.set(corridorKey, labelBox.y + labelBox.height + 80);
     const routeY = labelBox.y + labelBox.height + 16;
     const start = {
       x: cyclic ? from.x : from.x + from.width,
@@ -214,55 +266,60 @@ export function routeMapEdges<T extends MapRoutingEdge>(
       x: to.x,
       y: to.y + to.height / 2,
     };
-    const points = cyclic
+    const points = direct
       ? [
           start,
-          {
-            x: from.x - 112 + track * 8,
-            y: start.y,
-          },
-          {
-            x: from.x - 112 + track * 8,
-            y: routeY,
-          },
-          {
-            x: labelBox.x - 16,
-            y: routeY,
-          },
-          {
-            x: labelBox.x - 16,
-            y: routeY + 20,
-          },
-          {
-            x: to.x - 24 - track * 8,
-            y: routeY + 20,
-          },
-          {
-            x: to.x - 24 - track * 8,
-            y: finish.y,
-          },
           finish,
         ]
-      : [
-          start,
-          {
-            x: start.x + 24 + track * 8,
-            y: start.y,
-          },
-          {
-            x: start.x + 24 + track * 8,
-            y: routeY,
-          },
-          {
-            x: finish.x - 24 - track * 8,
-            y: routeY,
-          },
-          {
-            x: finish.x - 24 - track * 8,
-            y: finish.y,
-          },
-          finish,
-        ];
+      : cyclic
+        ? [
+            start,
+            {
+              x: from.x - 24 - sourceTrack * 8,
+              y: start.y,
+            },
+            {
+              x: from.x - 24 - sourceTrack * 8,
+              y: routeY,
+            },
+            {
+              x: labelBox.x - 16,
+              y: routeY,
+            },
+            {
+              x: labelBox.x - 16,
+              y: routeY + 20,
+            },
+            {
+              x: to.x - 24 - targetTrack * 8,
+              y: routeY + 20,
+            },
+            {
+              x: to.x - 24 - targetTrack * 8,
+              y: finish.y,
+            },
+            finish,
+          ]
+        : [
+            start,
+            {
+              x: start.x + 24 + sourceTrack * 8,
+              y: start.y,
+            },
+            {
+              x: start.x + 24 + sourceTrack * 8,
+              y: routeY,
+            },
+            {
+              x: finish.x - 24 - targetTrack * 8,
+              y: routeY,
+            },
+            {
+              x: finish.x - 24 - targetTrack * 8,
+              y: finish.y,
+            },
+            finish,
+          ];
     routed.push({
       ...edge,
       points,
@@ -272,17 +329,14 @@ export function routeMapEdges<T extends MapRoutingEdge>(
   let bottom =
     Math.max(180, ...nodes.map((node) => node.y + node.height), ...corridorEnds.values()) + 100;
   for (const { edge, from, to } of pending) {
-    const sourceKey = from.x + from.width + 112;
-    const targetKey = to.x - 368;
-    const sourceTrack = corridorTracks.get(sourceKey) ?? 0;
-    corridorTracks.set(sourceKey, sourceTrack + 1);
-    const targetTrack = corridorTracks.get(targetKey) ?? 0;
-    corridorTracks.set(targetKey, targetTrack + 1);
+    const sourceTrack = takeTrack(`right:${from.x + from.width}`);
+    const targetTrack = takeTrack(`left:${to.x}`);
+    const labelWidth = mapEdgeLabelWidth(edge.label);
     const labelBox = {
-      x: Math.min(from.x, to.x) + 392,
+      x: Math.min(from.x, to.x) + Math.max(from.width, to.width) + 32,
       y: bottom,
-      width: 240,
-      height: mapLabelHeight(edge.label, 240),
+      width: labelWidth,
+      height: mapLabelHeight(edge.label, labelWidth),
     };
     const routeY = labelBox.y + labelBox.height + 16;
     const start = {
@@ -322,7 +376,7 @@ export function routeMapEdges<T extends MapRoutingEdge>(
   return routed.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 }
 
-/** Collapse cycles before layering so loops remain visible without preventing deterministic layout. */
+/** Ignore DFS return edges for placement only; every connector remains in the drawing. */
 export function mapNodeLayers(contract: MapContract): Map<string, number> {
   const outgoing = new Map(
     contract.nodes.map((node) => [
@@ -330,114 +384,102 @@ export function mapNodeLayers(contract: MapContract): Map<string, number> {
       [] as string[],
     ]),
   );
-  const incoming = new Map(
+  const incomingCount = new Map(
     contract.nodes.map((node) => [
       node.id,
-      [] as string[],
+      0,
     ]),
   );
   for (const edge of contract.edges) {
     outgoing.get(edge.from)!.push(edge.to);
-    incoming.get(edge.to)!.push(edge.from);
+    incomingCount.set(edge.to, incomingCount.get(edge.to)! + 1);
   }
-  for (const neighbours of [
-    ...outgoing.values(),
-    ...incoming.values(),
-  ]) {
-    neighbours.sort();
+  const byId = new Map(
+    contract.nodes.map((node) => [
+      node.id,
+      node,
+    ]),
+  );
+  for (const neighbors of outgoing.values()) {
+    neighbors.sort(
+      (left, right) =>
+        Number(byId.get(left)!.kind !== "screen") - Number(byId.get(right)!.kind !== "screen") ||
+        (left < right ? -1 : left > right ? 1 : 0),
+    );
   }
-  const visited = new Set<string>();
-  const finished: string[] = [];
-  for (const node of contract.nodes) {
-    const stack: Array<{
-      id: string;
-      leaving: boolean;
-    }> = [
+  const state = new Map<string, "visiting" | "done">();
+  const successors = new Map(
+    contract.nodes.map((node) => [
+      node.id,
+      new Set<string>(),
+    ]),
+  );
+  const roots = [
+    ...contract.nodes,
+  ].sort(
+    (left, right) =>
+      Number(incomingCount.get(left.id)! > 0) - Number(incomingCount.get(right.id)! > 0) ||
+      (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+  );
+  for (const root of roots) {
+    if (state.has(root.id)) {
+      continue;
+    }
+    state.set(root.id, "visiting");
+    const stack = [
       {
-        id: node.id,
-        leaving: false,
+        id: root.id,
+        index: 0,
       },
     ];
     while (stack.length) {
-      const current = stack.pop()!;
-      if (current.leaving) {
-        finished.push(current.id);
-        continue;
-      }
-      if (visited.has(current.id)) {
-        continue;
-      }
-      visited.add(current.id);
-      stack.push({
-        id: current.id,
-        leaving: true,
-      });
-      for (const next of [
-        ...outgoing.get(current.id)!,
-      ].reverse()) {
-        if (!visited.has(next)) {
+      const current = stack[stack.length - 1]!;
+      const next = outgoing.get(current.id)![current.index++];
+      if (next === undefined) {
+        state.set(current.id, "done");
+        stack.pop();
+      } else if (state.get(next) !== "visiting") {
+        successors.get(current.id)!.add(next);
+        if (!state.has(next)) {
+          state.set(next, "visiting");
           stack.push({
             id: next,
-            leaving: false,
+            index: 0,
           });
         }
       }
     }
   }
-  const membership = new Map<string, number>();
-  const components: string[][] = [];
-  for (const id of finished.reverse()) {
-    if (membership.has(id)) {
-      continue;
-    }
-    const component: string[] = [];
-    const stack = [
-      id,
-    ];
-    while (stack.length) {
-      const current = stack.pop()!;
-      if (membership.has(current)) {
-        continue;
-      }
-      membership.set(current, components.length);
-      component.push(current);
-      stack.push(...incoming.get(current)!);
-    }
-    components.push(component.sort());
-  }
-  const successors = components.map(() => new Set<number>());
-  const indegrees = components.map(() => 0);
-  for (const edge of contract.edges) {
-    const from = membership.get(edge.from)!;
-    const to = membership.get(edge.to)!;
-    if (from !== to && !successors[from]!.has(to)) {
-      successors[from]!.add(to);
-      indegrees[to]!++;
-    }
-  }
-  const depths = components.map(() => 0);
-  const queue = indegrees.flatMap((indegree, index) =>
-    indegree === 0
-      ? [
-          index,
-        ]
-      : [],
+  const indegrees = new Map(
+    contract.nodes.map((node) => [
+      node.id,
+      0,
+    ]),
   );
+  const depths = new Map(
+    contract.nodes.map((node) => [
+      node.id,
+      0,
+    ]),
+  );
+  for (const targets of successors.values()) {
+    for (const target of targets) {
+      indegrees.set(target, indegrees.get(target)! + 1);
+    }
+  }
+  const queue = contract.nodes
+    .filter((node) => indegrees.get(node.id) === 0)
+    .map((node) => node.id);
   while (queue.length) {
-    queue.sort((left, right) => (components[left]![0]! < components[right]![0]! ? -1 : 1));
+    queue.sort();
     const current = queue.shift()!;
-    for (const next of successors[current]!) {
-      depths[next] = Math.max(depths[next]!, depths[current]! + 1);
-      indegrees[next]!--;
-      if (indegrees[next] === 0) {
+    for (const next of successors.get(current)!) {
+      depths.set(next, Math.max(depths.get(next)!, depths.get(current)! + 1));
+      indegrees.set(next, indegrees.get(next)! - 1);
+      if (indegrees.get(next) === 0) {
         queue.push(next);
       }
     }
   }
-  return new Map(
-    contract.nodes.map((node) => [
-      node.id,
-      depths[membership.get(node.id)!]!,
-    ]),
-  );
+  return depths;
 }

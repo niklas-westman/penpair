@@ -6,8 +6,11 @@ import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it } from "vitest";
 import { readMapPathPoints } from "../src/map-penpot/path-geometry.js";
 import { observationHash } from "../src/journal.js";
+import { verificationProblems } from "../src/map-penpot/publish.js";
 import { compiles } from "../src/snippet.js";
 import {
+  nativeMapIcons,
+  nativeMapTextEntries,
   importMapProposal,
   resolveMapDetails,
   createMapPresentationProposal,
@@ -229,7 +232,7 @@ describe("native map projection", () => {
     });
     expect(first.report.verified).toBe(true);
     expect(first.visualReviewRequired).toBe(true);
-    expect(first.projection.shapes).toHaveLength(7);
+    expect(first.projection.shapes).toHaveLength(15);
     const next = await publishMap(local.client, target, drawing, {
       apply: true,
       journal: await journal(),
@@ -912,7 +915,14 @@ describe("native map projection", () => {
       const planned = buildMapDrawingPlan(contract);
       expect(planned.complete).toBe(true);
       const native = drawingFromPlan(planned);
+      const initial = await readProjection(local.client, target, native.mapId);
+      await runInNewContext(`(async()=>{${publishMapSnippet(target, native, initial).code}\n})()`, {
+        penpot: local.penpot,
+      });
+      const firstProjection = await readProjection(local.client, target, native.mapId);
+      expect(verificationProblems(native, firstProjection)).toEqual([]);
       const result = await publishMap(local.client, target, native, {
+        expected: firstProjection,
         apply: true,
         journal: await journal(),
         layout: false,
@@ -1560,5 +1570,282 @@ describe("native map projection", () => {
       }),
     ).rejects.toThrow("protected values");
     expect(calls).toBe(0);
+  });
+  it("verifies compact canonical cards and generated metadata text independently", async () => {
+    const local = fixture();
+    const contract: MapContract = {
+      schemaVersion: 1,
+      kind: "journey-map",
+      id: "compact",
+      title: "Compact",
+      goal: "Show the approved flow",
+      sources: [],
+      nodes: [
+        {
+          id: "screen",
+          kind: "screen",
+          label: "Entry screen",
+          origin: "proposed",
+        },
+      ],
+      edges: [],
+      requirements: [],
+      findings: [],
+      presentation: {
+        fontFamily: "Test Sans",
+      },
+    };
+    const native = drawingFromPlan(buildMapDrawingPlan(contract));
+    const before = await readProjection(local.client, target, native.mapId);
+    const result = await runInNewContext(
+      `(async()=>{${publishMapSnippet(target, native, before).code}\n})()`,
+      {
+        penpot: local.penpot,
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(
+      verificationProblems(native, await readProjection(local.client, target, native.mapId)),
+    ).toEqual([]);
+  });
+  it("retains full metadata in annotations and imports edited titles, descriptions and fixed icons", async () => {
+    const local = fixture();
+    const map: MapContract = {
+      schemaVersion: 1,
+      kind: "journey-map",
+      id: "metadata",
+      title: "Account recovery",
+      goal: "Recover access without losing user input",
+      summary: "A short overview of recovery",
+      description: "A longer map explanation with responsibilities and boundaries.",
+      sources: [],
+      nodes: [
+        {
+          id: "recovery",
+          kind: "screen",
+          label: "A full recovery title that is deliberately longer than the compact card",
+          summary:
+            "A complete short description that must remain readable beyond the compact card summary.",
+          description:
+            "Long node context remains fully available beside the flow. It is not reduced to an ellipsis.",
+          icon: "screen",
+          origin: "proposed",
+        },
+      ],
+      edges: [],
+      requirements: [],
+      findings: [],
+      presentation: {
+        fontFamily: "Test Sans",
+      },
+    };
+    const native = drawingFromPlan(buildMapDrawingPlan(map));
+    expect(native.nodes[0]!.cardTitle).not.toBe(map.nodes[0]!.label);
+    expect(native.nodes[0]!.cardSummary).not.toBe(map.nodes[0]!.summary);
+    const first = await publishMap(local.client, target, native, {
+      apply: true,
+      journal: await journal(),
+      layout: false,
+      export: false,
+    });
+    const entry = (role: string, id = native.mapId) =>
+      first.projection.shapes.find((shape) => shape.role === role && shape.logicalId === id)!;
+    expect(entry("full-label", "recovery").label).toBe(map.nodes[0]!.label);
+    expect(entry("full-summary", "recovery").label).toBe(map.nodes[0]!.summary);
+    expect(entry("description", "recovery").label).toBe(map.nodes[0]!.description);
+    expect(entry("map-description").label).toBe(map.description);
+    expect(entry("map-goal").label).toBe(map.goal);
+    const unchanged = importMapProposal(native, first.projection);
+    expect(unchanged.changes).toEqual([]);
+    expect(unchanged.metadataChanges).toBeUndefined();
+    expect(unchanged.findings).toEqual([]);
+    const glyph = entry("icon", "recovery");
+    const vertices = Array.from(
+      glyph.content!.matchAll(/[ML]([-+0-9.e]+)[ ,]+([-+0-9.e]+)/gi),
+      (match) => ({
+        x: Number(match[1]),
+        y: Number(match[2]),
+      }),
+    );
+    expect(vertices.length).toBeGreaterThan(2);
+    expect(
+      vertices.every(
+        (point) =>
+          point.x >= native.nodes[0]!.x + 24 &&
+          point.x <= native.nodes[0]!.x + 40 &&
+          point.y >= native.nodes[0]!.y + 24 &&
+          point.y <= native.nodes[0]!.y + 40,
+      ),
+    ).toBe(true);
+    const setText = (role: string, value: string, id = native.mapId) => {
+      local.shapes.find((shape) => shape.id === entry(role, id).shapeId)!.characters = value;
+    };
+    setText("title", "Reviewed recovery map");
+    setText("map-summary", "A revised concise overview");
+    setText("map-description", "Revised long map context");
+    setText("full-label", "Updated full recovery title", "recovery");
+    setText("full-summary", "Updated full node summary", "recovery");
+    setText("description", "Updated long node context", "recovery");
+    (
+      local.shapes.find((shape) => shape.id === glyph.shapeId)! as unknown as {
+        content: string;
+      }
+    ).content = nativeMapIcons.check;
+    const observed = await readProjection(local.client, target, native.mapId);
+    const imported = importMapProposal(native, observed, first.projection);
+    expect(imported.metadataChanges).toMatchObject({
+      title: "Reviewed recovery map",
+      summary: "A revised concise overview",
+      description: "Revised long map context",
+    });
+    expect(imported.changes[0]).toMatchObject({
+      nodeId: "recovery",
+      label: "Updated full recovery title",
+      summary: "Updated full node summary",
+      description: "Updated long node context",
+      icon: "check",
+    });
+    expect(imported.findings).toEqual([]);
+    const proposed = nativeProposalToMapProposal(map, native, observed, first.projection);
+    expect(proposed.proposedMap.title).toBe("Reviewed recovery map");
+    expect(proposed.proposedMap.goal).toBe(map.goal);
+    expect(proposed.proposedMap.summary).toBe("A revised concise overview");
+    expect(proposed.proposedMap.description).toBe("Revised long map context");
+    expect(proposed.proposedMap.nodes[0]).toMatchObject({
+      label: "Updated full recovery title",
+      summary: "Updated full node summary",
+      description: "Updated long node context",
+      icon: "check",
+      origin: "proposed",
+    });
+    expect(hashMapContract(map)).not.toBe(proposed.proposedHash);
+    expect(() => createMapPresentationProposal(map, native, observed, first.projection)).toThrow(
+      "Semantic edits",
+    );
+  });
+
+  it("treats custom glyphs and derived annotation edits as explicit reconciliation findings", async () => {
+    const local = fixture();
+    const map: MapContract = {
+      schemaVersion: 1,
+      kind: "journey-map",
+      id: "notes",
+      title: "Notes",
+      goal: "Explain the flow",
+      sources: [],
+      nodes: [
+        {
+          id: "step",
+          kind: "action",
+          label: "Review",
+          description: "Context for the reviewer",
+          origin: "proposed",
+        },
+      ],
+      edges: [],
+      requirements: [],
+      findings: [],
+      presentation: {
+        fontFamily: "Test Sans",
+      },
+    };
+    const native = drawingFromPlan(buildMapDrawingPlan(map));
+    const first = await publishMap(local.client, target, native, {
+      apply: true,
+      journal: await journal(),
+      layout: false,
+      export: false,
+    });
+    const glyph = first.projection.shapes.find((shape) => shape.role === "icon")!;
+    (
+      local.shapes.find((shape) => shape.id === glyph.shapeId)! as unknown as {
+        content: string;
+      }
+    ).content = "M0 0 C1 1 2 2 3 3";
+    const heading = first.projection.shapes.find((shape) => shape.role === "annotation-id")!;
+    local.shapes.find((shape) => shape.id === heading.shapeId)!.characters =
+      "Approved by someone else";
+    const imported = importMapProposal(
+      native,
+      await readProjection(local.client, target, native.mapId),
+      first.projection,
+    );
+    expect(
+      imported.findings.some((message) => message.includes("Unrecognized or missing native icon")),
+    ).toBe(true);
+    expect(
+      imported.findings.some((message) => message.includes("Derived annotation label changed")),
+    ).toBe(true);
+    expect(imported.changes).toEqual([]);
+    expect(
+      nativeMapTextEntries(native).some(
+        (text) => text.role === "description" && text.text === "Context for the reviewer",
+      ),
+    ).toBe(true);
+  });
+  it("fingerprints rounded corners and opacity so decorative edits cannot reuse prior evidence", async () => {
+    const local = fixture();
+    const map: MapContract = {
+      schemaVersion: 1,
+      kind: "journey-map",
+      id: "style",
+      title: "Style",
+      goal: "Keep styling evidence exact",
+      sources: [],
+      nodes: [
+        {
+          id: "screen",
+          kind: "screen",
+          label: "Entry",
+          origin: "proposed",
+        },
+      ],
+      edges: [],
+      requirements: [],
+      findings: [],
+      presentation: {
+        fontFamily: "Test Sans",
+      },
+    };
+    const native = drawingFromPlan(buildMapDrawingPlan(map));
+    const first = await publishMap(local.client, target, native, {
+      apply: true,
+      journal: await journal(),
+      layout: false,
+      export: false,
+    });
+    const card = local.shapes.find(
+      (shape) =>
+        shape.id === first.projection.shapes.find((shape) => shape.role === "node")!.shapeId,
+    )!;
+    Object.assign(card, {
+      borderRadiusTopLeft: 0,
+      opacity: 0.5,
+      blendMode: "multiply",
+    });
+    const observed = await readProjection(local.client, target, native.mapId);
+    expect(observed.fingerprint).not.toBe(first.projection.fingerprint);
+    expect(
+      verificationProblems(native, observed).some((problem) =>
+        problem.includes("rounded corners differ"),
+      ),
+    ).toBe(true);
+    expect(
+      verificationProblems(native, observed).some((problem) =>
+        problem.includes("opacity/blend differs"),
+      ),
+    ).toBe(true);
+    expect(() => createMapPresentationProposal(map, native, observed, first.projection)).toThrow(
+      "style or ownership",
+    );
+    await expect(
+      publishMap(local.client, target, native, {
+        apply: true,
+        journal: await journal(),
+        layout: false,
+        export: false,
+        expected: first.projection,
+      }),
+    ).rejects.toThrow("matching prior projection");
   });
 });

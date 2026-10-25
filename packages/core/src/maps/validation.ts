@@ -4,6 +4,7 @@ import type {
   MapContract,
   MapEdge,
   MapFinding,
+  MapIcon,
   MapNode,
   MapOrigin,
   MapRequirement,
@@ -153,12 +154,15 @@ function validateNode(raw: unknown): MapNode {
   const node = mapObject(raw, "Map node", [
     "id",
     "label",
+    "summary",
+    "description",
+    "icon",
     "kind",
     "origin",
     "requirementIds",
     "sourceIds",
   ]);
-  return {
+  const result: MapNode = {
     id: mapId(node.id, "Node ID"),
     label: mapText(node.label, "Node label"),
     kind: mapId(node.kind, "Node kind"),
@@ -166,6 +170,31 @@ function validateNode(raw: unknown): MapNode {
     ...optionalReferences(node, "requirementIds"),
     ...optionalReferences(node, "sourceIds"),
   };
+  if (node.summary !== undefined) {
+    result.summary = mapText(node.summary, "Node summary", 240);
+  }
+  if (node.description !== undefined) {
+    result.description = mapText(node.description, "Node description", 4000);
+  }
+  if (node.icon !== undefined) {
+    if (
+      typeof node.icon !== "string" ||
+      ![
+        "screen",
+        "action",
+        "decision",
+        "data",
+        "service",
+        "code",
+        "check",
+        "link",
+      ].includes(node.icon)
+    ) {
+      throw new Error("Node icon requires a supported semantic icon");
+    }
+    result.icon = node.icon as MapIcon;
+  }
+  return result;
 }
 
 function validateEdge(raw: unknown): MapEdge {
@@ -323,6 +352,8 @@ export function validateMapContract(raw: unknown): MapContract {
     "id",
     "title",
     "goal",
+    "summary",
+    "description",
     "sources",
     "nodes",
     "edges",
@@ -360,6 +391,12 @@ export function validateMapContract(raw: unknown): MapContract {
   };
   if (!contract.nodes.length) {
     throw new Error("A map requires at least one explicit node");
+  }
+  if (object.summary !== undefined) {
+    contract.summary = mapText(object.summary, "Map summary", 240);
+  }
+  if (object.description !== undefined) {
+    contract.description = mapText(object.description, "Map description", 8000);
   }
   if (object.journey !== undefined) {
     if (contract.kind !== "integration-map") {

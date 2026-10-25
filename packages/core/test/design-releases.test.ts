@@ -131,6 +131,16 @@ function nativeFixture() {
     borderRadiusTopRight = 0;
     borderRadiusBottomRight = 0;
     borderRadiusBottomLeft = 0;
+    get borderRadius(): number {
+      return this.borderRadiusTopLeft;
+    }
+    set borderRadius(value: number) {
+      this.borderRadiusTopLeft = value;
+      this.borderRadiusTopRight = value;
+      this.borderRadiusBottomRight = value;
+      this.borderRadiusBottomLeft = value;
+      revision++;
+    }
     interactions: unknown[] = [];
     content = "";
     shared = new Map<string, string>();
@@ -281,7 +291,8 @@ function nativeFixture() {
       current = page;
     },
     createBoard: () => create("board"),
-    createRectangle: () => create("rect"),
+    createRectangle: () => create("rectangle"),
+    createEllipse: () => create("ellipse"),
     createPath: () => create("path"),
     createText: (value: string) => {
       const text = create("text");

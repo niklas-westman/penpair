@@ -1,3 +1,5 @@
+import { nativeMapShapeKeys, nativeMapTextEntries } from "./content.js";
+import { defaultMapIcon, identifyMapIcon } from "./icons.js";
 import { mapOriginLabels, mapOriginLegend } from "./status-labels.js";
 import { redactEndpoint } from "../endpoint.js";
 import { MapExportEvidenceError } from "./evidence-error.js";
@@ -19,38 +21,14 @@ import type {
   PublishMapResult,
 } from "./types.js";
 
-function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection): string[] {
+export function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection): string[] {
   const problems = [
     ...observed.conflicts,
   ];
   if (!observed.boardId || observed.contractHash !== drawing.contractHash) {
     problems.push("Map board or contract identity differs");
   }
-  const expectedKeys = new Set([
-    `title:${drawing.mapId}`,
-    ...(drawing.nodes.some((node) => node.origin)
-      ? [
-          `legend:${drawing.mapId}`,
-        ]
-      : []),
-    ...drawing.nodes.flatMap((node) => [
-      `node:${node.id}`,
-      `label:${node.id}`,
-      ...(node.origin
-        ? [
-            `badge:${node.id}`,
-          ]
-        : []),
-    ]),
-    ...drawing.edges.flatMap((edge) => [
-      `edge:${edge.id}`,
-      ...(edge.label
-        ? [
-            `edge-label:${edge.id}`,
-          ]
-        : []),
-    ]),
-  ]);
+  const expectedKeys = nativeMapShapeKeys(drawing);
   for (const shape of observed.shapes) {
     if (!expectedKeys.delete(`${shape.role}:${shape.logicalId}`)) {
       problems.push(`Unexpected shape ${shape.shapeId}`);
@@ -64,6 +42,32 @@ function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection
     observed.shapes.find((shape) => shape.role === "legend")?.label !== mapOriginLegend
   ) {
     problems.push("Origin legend differs");
+  }
+  for (const shape of observed.shapes) {
+    const style = shape.appearance as Record<string, unknown> | undefined;
+    const radius =
+      shape.role === "node" || shape.role === "annotation-panel"
+        ? 12
+        : shape.role === "icon-well"
+          ? 8
+          : undefined;
+    if (
+      radius !== undefined &&
+      [
+        "borderRadiusTopLeft",
+        "borderRadiusTopRight",
+        "borderRadiusBottomLeft",
+        "borderRadiusBottomRight",
+      ].some((corner) => typeof style?.[corner] === "number" && style[corner] !== radius)
+    ) {
+      problems.push(`Native rounded corners differ: ${shape.role}:${shape.logicalId}`);
+    }
+    if (
+      (typeof style?.opacity === "number" && style.opacity !== 1) ||
+      (typeof style?.blendMode === "string" && style.blendMode !== "normal")
+    ) {
+      problems.push(`Native decorative opacity/blend differs: ${shape.role}:${shape.logicalId}`);
+    }
   }
   const bounds = observed.boardBounds;
   if (bounds) {
@@ -83,13 +87,6 @@ function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection
     const label = observed.shapes.find(
       (shape) => shape.role === "label" && shape.logicalId === node.id,
     );
-    if (
-      label?.label !==
-      (node.kind === "decision" ? "Decision: " : node.kind === "detail-link" ? "Details: " : "") +
-        node.label
-    ) {
-      problems.push(`Label differs: ${node.id}`);
-    }
     for (const clickable of observed.shapes.filter(
       (shape) =>
         shape.logicalId === node.id &&
@@ -97,6 +94,11 @@ function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection
           "node",
           "label",
           "badge",
+          "summary",
+          "icon-well",
+          "icon",
+          "port-in",
+          "port-out",
         ].includes(shape.role),
     )) {
       if (
@@ -124,6 +126,12 @@ function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection
         problems.push(`Origin badge differs: ${node.id}`);
       }
     }
+    const icon = observed.shapes.find(
+      (shape) => shape.role === "icon" && shape.logicalId === node.id,
+    );
+    if (!icon || identifyMapIcon(icon) !== (node.icon ?? defaultMapIcon(node.kind))) {
+      problems.push(`Native icon differs: ${node.id}`);
+    }
     const card = observed.shapes.find(
       (shape) => shape.role === "node" && shape.logicalId === node.id,
     );
@@ -141,9 +149,24 @@ function verificationProblems(drawing: MapDrawing, observed: NativeMapProjection
   if (observed.shapes.find((shape) => shape.role === "title")?.label !== drawing.title) {
     problems.push("Map title differs");
   }
+  for (const entry of nativeMapTextEntries(drawing)) {
+    const actual = observed.shapes.find(
+      (shape) => shape.role === entry.role && shape.logicalId === entry.logicalId,
+    );
+    if (actual?.label !== entry.text) {
+      problems.push(`Native text differs: ${entry.role}:${entry.logicalId}`);
+    }
+    if (actual && actual.height > entry.height + 0.01) {
+      problems.push(`Native text exceeds reserved space: ${entry.role}:${entry.logicalId}`);
+    }
+  }
   const title = observed.shapes.find((shape) => shape.role === "title");
   const legend = observed.shapes.find((shape) => shape.role === "legend");
-  if (title && (title.height > 48 || (legend && title.y + title.height > legend.y))) {
+  if (
+    title &&
+    (title.height > (drawing.header?.titleBox.height ?? 48) ||
+      (legend && title.y + title.height > legend.y))
+  ) {
     problems.push("Map title exceeds the reserved header space");
   }
 

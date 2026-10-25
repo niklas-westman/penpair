@@ -2,6 +2,16 @@ export type MapKind = "journey-map" | "integration-map";
 
 export type MapOrigin = "observed" | "proposed" | "owner-decision" | "unknown";
 
+export type MapIcon =
+  | "screen"
+  | "action"
+  | "decision"
+  | "data"
+  | "service"
+  | "code"
+  | "check"
+  | "link";
+
 export interface MapSource {
   id: string;
   kind: "inspection" | "baseline" | "code" | "contract" | "other";
@@ -16,6 +26,9 @@ export interface MapSource {
 export interface MapNode {
   id: string;
   label: string;
+  summary?: string;
+  description?: string;
+  icon?: MapIcon;
   kind: string;
   origin: MapOrigin;
   requirementIds?: string[];
@@ -52,6 +65,8 @@ export interface MapContract {
   id: string;
   title: string;
   goal: string;
+  summary?: string;
+  description?: string;
   sources: MapSource[];
   nodes: MapNode[];
   edges: MapEdge[];
@@ -102,6 +117,9 @@ export interface MapProposal {
 }
 
 export interface MapDrawingNode extends MapNode {
+  cardTitle: string;
+  cardSummary?: string;
+  annotationId?: string;
   detail?: MapDetailTarget;
   x: number;
   y: number;
@@ -155,6 +173,17 @@ export interface MapDrawingPlan {
   mapId: string;
   mapHash: string;
   title: string;
+  goal: string;
+  summary?: string;
+  description?: string;
+  headerSummary?: string;
+  header: {
+    titleBox: MapDrawingBox;
+    summaryBox?: MapDrawingBox;
+    legendY: number;
+    height: number;
+  };
+  annotations: MapDrawingAnnotation[];
   fontFamily: string;
   width: number;
   height: number;
@@ -162,6 +191,22 @@ export interface MapDrawingPlan {
   edges: MapDrawingEdge[];
   complete: boolean;
   reasons: string[];
+}
+
+export interface MapDrawingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface MapDrawingAnnotation extends MapDrawingBox {
+  id: string;
+  nodeId?: string;
+  title: string;
+  goal?: string;
+  summary?: string;
+  description?: string;
 }
 
 export interface MapContext {
@@ -172,6 +217,8 @@ export interface MapContext {
   mapHash: string;
   title: string;
   goal: string;
+  summary?: string;
+  description?: string;
   reviewed: boolean;
   ready: boolean;
   freshness: "matches-supplied-inputs" | "stale" | "unassessed";

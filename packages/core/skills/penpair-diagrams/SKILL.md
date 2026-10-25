@@ -14,8 +14,11 @@ intent with text inferred from arbitrary artwork.
 
 1. **Readiness.** Validate the contract, source hashes and exact pinned file/page.
    Check the live capabilities and selected font before writing. Use neutral,
-   self-contained presentation with clear hierarchy, short readable labels and a
-   legend. Inter is the default; explicit map presentation can override it.
+   self-contained presentation with clear hierarchy, short readable titles,
+   one-line summaries, semantic icons and a legend. Keep
+   long explanations in managed notes; preserve all evidence and unknowns in
+   canonical descriptions and context. Inter is the default; explicit map
+   presentation can override it.
    Missing fonts remain a preflight failure. Do not change project tokens to
    style a diagram.
 2. **Render.** Use the map command's render action and inspect the Mermaid/native

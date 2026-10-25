@@ -1,3 +1,5 @@
+import { nativeMapShapeKeys, nativeMapTextEntries } from "./content.js";
+import { importNativeContent } from "./import-content.js";
 import { requireResolvedMapDetails } from "./details.js";
 import { mapOriginLabels, mapOriginLegend } from "./status-labels.js";
 import { hashMapContract } from "../maps/validation.js";
@@ -17,44 +19,45 @@ export function importMapProposal(
   if (observed.mapId !== drawing.mapId || observed.contractHash !== drawing.contractHash) {
     throw new Error("Projection does not match base contract");
   }
-  const changes: NativeMapProposal["changes"] = [];
   const presentation: NativeMapProposal["presentation"] = [];
   const edgeChanges: NativeMapProposal["edgeChanges"] = [];
   const findings = [
     ...observed.conflicts,
   ];
-  const expectedKeys = new Set([
-    `title:${drawing.mapId}`,
-    ...(drawing.nodes.some((node) => node.origin)
-      ? [
-          `legend:${drawing.mapId}`,
-        ]
-      : []),
-    ...drawing.nodes.flatMap((node) => [
-      `node:${node.id}`,
-      `label:${node.id}`,
-      ...(node.origin
-        ? [
-            `badge:${node.id}`,
-          ]
-        : []),
-    ]),
-    ...drawing.edges.flatMap((edge) => [
-      `edge:${edge.id}`,
-      ...(edge.label
-        ? [
-            `edge-label:${edge.id}`,
-          ]
-        : []),
-    ]),
-  ]);
+  const expectedKeys = nativeMapShapeKeys(drawing);
   for (const shape of observed.shapes) {
-    if (!expectedKeys.delete(`${shape.role}:${shape.logicalId}`)) {
+    if (
+      !expectedKeys.delete(`${shape.role}:${shape.logicalId}`) &&
+      !(
+        [
+          "summary",
+          "full-summary",
+          "description",
+        ].includes(shape.role) && drawing.nodes.some((node) => node.id === shape.logicalId)
+      ) &&
+      !(
+        [
+          "map-summary",
+          "map-goal",
+          "map-description",
+        ].includes(shape.role) && shape.logicalId === drawing.mapId
+      )
+    ) {
       findings.push(`Unmapped managed object requires reconciliation: ${shape.shapeId}`);
     }
   }
   for (const missing of expectedKeys) {
-    findings.push(`Missing managed object: ${missing}`);
+    if (
+      ![
+        "summary",
+        "full-summary",
+        "description",
+        "map-summary",
+        "map-description",
+      ].some((role) => missing.startsWith(role + ":"))
+    ) {
+      findings.push(`Missing managed object: ${missing}`);
+    }
   }
   if (
     drawing.nodes.some((node) => node.origin) &&
@@ -70,6 +73,11 @@ export function importMapProposal(
           "node",
           "label",
           "badge",
+          "summary",
+          "icon-well",
+          "icon",
+          "port-in",
+          "port-out",
         ].includes(shape.role),
     )) {
       if (
@@ -107,18 +115,6 @@ export function importMapProposal(
     if (labels.length !== 1 || !card || !labels[0]?.label) {
       findings.push(`Missing or ambiguous node: ${node.id}`);
       continue;
-    }
-    const label =
-      node.kind === "decision"
-        ? labels[0].label.replace(/^Decision: /, "")
-        : node.kind === "detail-link"
-          ? labels[0].label.replace(/^Details: /, "")
-          : labels[0].label;
-    if (label !== node.label) {
-      changes.push({
-        nodeId: node.id,
-        label,
-      });
     }
     presentation.push({
       nodeId: node.id,
@@ -195,6 +191,24 @@ export function importMapProposal(
       });
     }
   }
+  for (const entry of nativeMapTextEntries(drawing).filter(
+    (entry) =>
+      !entry.semantic &&
+      ![
+        "edge-label",
+        "badge",
+        "legend",
+      ].includes(entry.role),
+  )) {
+    if (
+      observed.shapes.find(
+        (shape) => shape.role === entry.role && shape.logicalId === entry.logicalId,
+      )?.label !== entry.text
+    ) {
+      findings.push(`Derived annotation label changed: ${entry.role}:${entry.logicalId}`);
+    }
+  }
+  const content = importNativeContent(drawing, observed, findings);
   return {
     schemaVersion: 1,
     kind: "native-map-proposal",
@@ -206,7 +220,7 @@ export function importMapProposal(
           title: observed.shapes.find((shape) => shape.role === "title")?.label ?? drawing.title,
         }
       : {}),
-    changes,
+    ...content,
     edgeChanges,
     presentation,
     findings,
@@ -230,17 +244,41 @@ export function nativeProposalToMapProposal(
   const proposedMap: MapContract = {
     ...map,
     title: imported.title ?? map.title,
+    ...(imported.metadataChanges?.goal !== undefined
+      ? {
+          goal: imported.metadataChanges.goal,
+        }
+      : {}),
     nodes: map.nodes.map((node) => {
       const change = imported.changes.find((change) => change.nodeId === node.id);
-      return change
-        ? {
-            ...node,
-            label: change.label,
-            origin: "proposed",
-          }
-        : {
-            ...node,
-          };
+      if (!change) {
+        return {
+          ...node,
+        };
+      }
+      const next = {
+        ...node,
+        origin: "proposed" as const,
+        ...(change.label !== undefined
+          ? {
+              label: change.label,
+            }
+          : {}),
+      };
+      for (const field of [
+        "summary",
+        "description",
+        "icon",
+      ] as const) {
+        if (change[field] === null) {
+          delete next[field];
+        } else if (change[field] !== undefined) {
+          Object.assign(next, {
+            [field]: change[field],
+          });
+        }
+      }
+      return next;
     }),
     edges: map.edges.map((edge) => {
       const change = imported.edgeChanges.find((change) => change.edgeId === edge.id);
@@ -266,6 +304,17 @@ export function nativeProposalToMapProposal(
       })),
     ],
   };
+  for (const field of [
+    "summary",
+    "description",
+  ] as const) {
+    const value = imported.metadataChanges?.[field];
+    if (value === null) {
+      delete proposedMap[field];
+    } else if (value !== undefined) {
+      proposedMap[field] = value;
+    }
+  }
   return createMapProposal(
     map,
     proposedMap,

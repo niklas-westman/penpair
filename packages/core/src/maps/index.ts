@@ -7,6 +7,11 @@ export {
 } from "./validation.js";
 export { renderMapMarkdown, renderMapMermaid, buildMapDrawingPlan } from "./render.js";
 export {
+  mapAnnotationLayout,
+  mapNoteTextHeight,
+  type MapAnnotationLayout,
+} from "./annotation-layout.js";
+export {
   routeMapEdges,
   mapLabelHeight,
   mapDrawingGeometryProblems,

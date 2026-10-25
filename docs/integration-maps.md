@@ -77,6 +77,24 @@ Use clear typography, short labels and a neutral diagram theme. The diagram's
 font defaults to Inter; an explicit presentation override belongs to the map.
 Diagram presentation must not modify the application's tokens or theme.
 
+## Readable titles and descriptions
+
+Existing contracts remain supported. Optional map `summary` and `description`
+add a short introduction and detailed context. A node's existing `label` remains
+its title; optional `summary`, `description` and `icon` supply a one-line purpose,
+longer explanation and semantic icon. Keep labels specific and concise instead
+of repeating “proposed” or “unknown”; the origin badge supplies that distinction.
+Descriptions still need to explain which evidence supports a claim and which
+questions remain unresolved.
+
+Native cards use compact titles, summaries, icons and connector ports. Full
+original text and long descriptions remain in managed notes below the flow and
+in generated Markdown/context; they must not disappear when card text is shortened.
+Descriptions and icons belong to canonical intent: edits need proposal review and
+renewed approval. Use one fixed icon key: `screen`, `action`, `decision`, `data`,
+`service`, `code`, `check` or `link`. Icons use native vector paths, with no external
+image URLs or asset downloads.
+
 ## Linked detail maps
 
 Decompose oversized maps explicitly; Penpair does not automatically partition a

@@ -22,13 +22,21 @@ is intentionally not ready for implementation or release finalization.
 
 ```mermaid
 flowchart LR
-    Entry["Address entry (synthetic observation)"]
-    Confirm["Confirmation (synthetic observation)"]
-    Error["Error; retain address (proposal)"]
-    Entry -->|"Proposed request succeeds"| Confirm
-    Entry -->|"Proposed request fails"| Error
-    Error -->|"Proposed retry"| Entry
+    Entry["Enter email"]
+    Confirm["Check your email"]
+    Error["Retry request"]
+    Entry -->|"Success"| Confirm
+    Entry -->|"Failure"| Error
+    Error -->|"Retry"| Entry
 ```
+
+Each JSON node uses a concise `label` as its title, a one-line `summary`, a
+longer `description` for evidence and decisions, and a fixed semantic `icon`.
+Native cards show the compact title/summary with origin badges; detailed notes
+retain the full explanation below the flow. The short labels above do not
+change provenance: entry/confirmation are observations of the synthetic text,
+while success, failure and retry behavior remain proposals. Policy and actual
+code/browser evidence remain unknown.
 
 This short illustration explains the intended flow; the JSON contract remains
 authoritative. Generate full Mermaid/native drawing plans from it rather than

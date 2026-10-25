@@ -3,6 +3,7 @@ import { mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { observationHash } from "../src/journal.js";
 import {
   acceptMapProposal,
   buildMapContext,
@@ -11,6 +12,7 @@ import {
   createMapProposal,
   findArtifactReview,
   hashMapContract,
+  mapAnnotationLayout,
   mapDrawingGeometryProblems,
   observeMapSources,
   readArtifactReviews,
@@ -90,6 +92,47 @@ function reviewFor(map: MapContract) {
 }
 
 describe("canonical map contracts", () => {
+  it("keeps legacy hashes stable and validates optional bounded semantic metadata", () => {
+    const legacy = journey();
+    expect(hashMapContract(legacy)).toBe(observationHash(legacy));
+    expect(validateMapContract(legacy)).toEqual(legacy);
+    const map = journey();
+    map.summary = "A short introduction";
+    map.description = "Detailed map context";
+    map.nodes[0]!.summary = "Request access";
+    map.nodes[0]!.description = "A longer explanation of the responsible step";
+    map.nodes[0]!.icon = "screen";
+    expect(validateMapContract(map)).toEqual(map);
+    expect(hashMapContract(map)).not.toBe(hashMapContract(legacy));
+    expect(() =>
+      validateMapContract({
+        ...map,
+        summary: "x".repeat(241),
+      }),
+    ).toThrow(/240/);
+    expect(() =>
+      validateMapContract({
+        ...map,
+        nodes: [
+          {
+            ...map.nodes[0],
+            icon: "https://asset.invalid/icon.svg",
+          },
+        ],
+      }),
+    ).toThrow(/semantic icon/);
+    expect(() =>
+      validateMapContract({
+        ...map,
+        nodes: [
+          {
+            ...map.nodes[0],
+            description: "x".repeat(4001),
+          },
+        ],
+      }),
+    ).toThrow(/4000/);
+  });
   it("canonicalizes ordering without changing meaning and keeps evidence origins explicit", () => {
     const map = journey();
     const reordered = structuredClone(map);
@@ -252,6 +295,48 @@ describe("canonical map contracts", () => {
 });
 
 describe("map render projections", () => {
+  it("keeps full semantic text outside compact flow cards and in every textual projection", () => {
+    const map = journey();
+    map.goal = "Full goal ".repeat(90);
+    map.summary = "Short map introduction";
+    map.description = "Full map description";
+    map.nodes[0]!.label = "A legacy node title that must remain available in full";
+    map.nodes[0]!.summary = "A sufficiently detailed short summary requiring its full annotation";
+    map.nodes[0]!.description = "A complete explanation of the step and its boundaries";
+    map.nodes[0]!.icon = "action";
+    const plan = buildMapDrawingPlan(map);
+    const node = plan.nodes.find((entry) => entry.id === "form")!;
+    expect(node.width).toBe(240);
+    expect(node.height).toBe(144);
+    expect(node.cardTitle.length).toBeLessThanOrEqual(24);
+    expect(node.cardSummary!.length).toBeLessThanOrEqual(42);
+    expect(node.label).toBe(map.nodes[0]!.label);
+    const annotation = plan.annotations.find((entry) => entry.nodeId === "form")!;
+    expect(annotation.title).toBe(node.label);
+    expect(annotation.summary).toBe(node.summary);
+    expect(annotation.description).toBe(node.description);
+    expect(annotation.y).toBeGreaterThan(
+      Math.max(...plan.nodes.map((entry) => entry.y + entry.height)),
+    );
+    expect(plan.annotations.find((entry) => entry.id === "map:details")!.goal).toBe(map.goal);
+    expect(plan.headerSummary).toBe(map.summary);
+    expect(plan.nodes.every((entry) => entry.y > plan.header.height)).toBe(true);
+    expect(plan.complete).toBe(true);
+    const context = buildMapContext(map);
+    expect(context.description).toBe(map.description);
+    expect(context.nodes[0]).toMatchObject(map.nodes[0]!);
+    for (const rendered of [
+      renderMapMarkdown(map),
+      renderMapMermaid(map),
+    ]) {
+      expect(rendered).toContain(map.description);
+      expect(rendered).toContain(map.nodes[0]!.description);
+      expect(rendered).toContain(map.nodes[0]!.summary);
+    }
+    expect(
+      createMapProposal(journey(), map, "Add complete descriptive context").proposedMap,
+    ).toEqual(map);
+  });
   it("reserves independent label corridors on the actual journey and integration examples", async () => {
     const root = new URL("../../../examples/design-release-maps/", import.meta.url);
     for (const name of [
@@ -263,6 +348,47 @@ describe("map render projections", () => {
       expect(plan.reasons).toEqual([]);
       expect(plan.complete).toBe(true);
       expect(plan.nodes.every((node) => node.y >= 180)).toBe(true);
+      if (name === "journey.json") {
+        expect(plan.height).toBeLessThanOrEqual(2600);
+        const notes = plan.annotations.filter((annotation) => annotation.nodeId);
+        expect(new Set(notes.map((annotation) => annotation.x)).size).toBe(2);
+        expect(notes.every((annotation) => annotation.width === 548)).toBe(true);
+        for (const annotation of plan.annotations) {
+          const layout = mapAnnotationLayout(annotation);
+          expect(annotation.height).toBe(layout.height);
+          expect(
+            layout.fields.every((field) => field.y + field.height <= annotation.height - 6),
+          ).toBe(true);
+          expect(
+            plan.annotations.some(
+              (other) =>
+                other.id !== annotation.id &&
+                annotation.x < other.x + other.width &&
+                other.x < annotation.x + annotation.width &&
+                annotation.y < other.y + other.height &&
+                other.y < annotation.y + annotation.height,
+            ),
+          ).toBe(false);
+        }
+        const entry = plan.nodes.find((node) => node.id === "address-entry")!;
+        const confirmation = plan.nodes.find((node) => node.id === "confirmation")!;
+        const error = plan.nodes.find((node) => node.id === "recoverable-error")!;
+        const success = plan.edges.find((edge) => edge.id === "request-success")!;
+        expect(confirmation.x).toBeGreaterThan(entry.x);
+        expect(confirmation.y).toBe(entry.y);
+        expect(error.y).toBeGreaterThan(entry.y);
+        expect(success.points).toEqual([
+          {
+            x: entry.x + entry.width,
+            y: entry.y + entry.height / 2,
+          },
+          {
+            x: confirmation.x,
+            y: confirmation.y + confirmation.height / 2,
+          },
+        ]);
+        expect(success.labelBox.y + success.labelBox.height).toBeLessThan(success.points[0]!.y);
+      }
       for (const edge of plan.edges) {
         const label = edge.labelBox;
         for (const node of plan.nodes) {
@@ -338,7 +464,10 @@ describe("map render projections", () => {
     });
     const cyclic = buildMapDrawingPlan(map);
     expect(cyclic.edges).toHaveLength(2);
-    expect(cyclic.nodes[0]!.x).toBe(cyclic.nodes[1]!.x);
+    expect(cyclic.nodes[0]!.x).toBeLessThan(cyclic.nodes[1]!.x);
+    expect(cyclic.edges.find((edge) => edge.id === "retry")!.labelBox.y).toBeGreaterThan(
+      Math.max(...cyclic.nodes.map((node) => node.y + node.height)),
+    );
     expect(buildMapDrawingPlan(map)).toEqual(cyclic);
     const oversized = journey();
     oversized.nodes = Array.from(
@@ -381,7 +510,8 @@ describe("map render projections", () => {
     );
     const bounded = buildMapDrawingPlan(largeLabels);
     expect(bounded.width).toBeLessThan(16384);
-    expect(bounded.height).toBeLessThan(16384);
+    expect(bounded.annotations).toHaveLength(80);
+    expect(bounded.annotations[0]!.title).toBe(largeLabels.nodes[0]!.label);
     expect(bounded.complete).toBe(false);
     expect(bounded.reasons.join(" ")).toContain("64 KiB");
   });

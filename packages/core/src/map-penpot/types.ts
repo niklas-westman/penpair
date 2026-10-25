@@ -1,3 +1,4 @@
+import type { MapIcon, MapDrawingPlan } from "../maps/types.js";
 import type { ExecuteOptions } from "../client.js";
 import type { OperationOptions, OperationReport } from "../operation.js";
 import type { ExportResult } from "../export.js";
@@ -5,6 +6,12 @@ import type { ExportResult } from "../export.js";
 export interface NativeDrawingNode {
   id: string;
   label: string;
+  summary?: string;
+  description?: string;
+  icon?: MapIcon;
+  cardTitle?: string;
+  cardSummary?: string;
+  annotationId?: string;
   kind: string;
   requirementIds?: string[];
   detail?: {
@@ -45,6 +52,12 @@ export interface MapDrawing {
   mapId: string;
   contractHash: string;
   title: string;
+  goal?: string;
+  summary?: string;
+  description?: string;
+  headerSummary?: string;
+  header?: MapDrawingPlan["header"];
+  annotations?: MapDrawingPlan["annotations"];
   fontFamily?: string;
   origin?: {
     x: number;
@@ -63,7 +76,29 @@ export interface MapTarget {
 export interface ProjectionShape {
   shapeId: string;
   logicalId: string;
-  role: "node" | "label" | "edge" | "edge-label" | "title" | "badge" | "legend";
+  role:
+    | "node"
+    | "label"
+    | "edge"
+    | "edge-label"
+    | "title"
+    | "badge"
+    | "legend"
+    | "map-summary"
+    | "map-full-summary"
+    | "map-goal"
+    | "map-description"
+    | "summary"
+    | "full-label"
+    | "full-summary"
+    | "description"
+    | "annotation-panel"
+    | "annotation-id"
+    | "annotation-heading"
+    | "icon-well"
+    | "icon"
+    | "port-in"
+    | "port-out";
   label: string | null;
   x: number;
   y: number;
@@ -71,6 +106,7 @@ export interface ProjectionShape {
   height: number;
   content: string | null;
   appearance?: unknown;
+  iconKey?: string | null;
   interactions?:
     | {
         trigger: string;
@@ -127,9 +163,18 @@ export interface NativeMapProposal {
   observedProjectionHash: string;
   mapId: string;
   title?: string;
+  metadataChanges?: {
+    title?: string;
+    goal?: string;
+    summary?: string | null;
+    description?: string | null;
+  };
   changes: {
     nodeId: string;
-    label: string;
+    label?: string;
+    summary?: string | null;
+    description?: string | null;
+    icon?: MapIcon | null;
   }[];
   edgeChanges: {
     edgeId: string;

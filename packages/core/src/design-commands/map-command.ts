@@ -727,6 +727,7 @@ Native publication previews by default. Captured source paths establish offline 
           !imported.changes.length &&
           !imported.edgeChanges.length &&
           !imported.title &&
+          !imported.metadataChanges &&
           !imported.findings.length;
         const proposal = presentationOnly
           ? createMapPresentationProposal(map, drawing, current, expected!)

@@ -9,7 +9,7 @@ import type { DesignCommandContext } from "../src/design-commands/context.js";
 import { observationHash } from "../src/journal.js";
 import * as native from "../src/map-penpot/index.js";
 import * as exportModule from "../src/export.js";
-import { mapOriginLabels, mapOriginLegend } from "../src/map-penpot/status-labels.js";
+import { defaultMapIcon, nativeMapIcons } from "../src/map-penpot/icons.js";
 import type { NativeMapProjection } from "../src/map-penpot/types.js";
 import {
   buildMapDrawingPlan,
@@ -109,90 +109,103 @@ function projection(
   detailMaps?: Record<string, MapContract>,
 ): NativeMapProjection {
   const plan = buildMapDrawingPlan(map, detailMaps);
-  const node = plan.nodes[0]!;
-  const shapes: NativeMapProjection["shapes"] = [
-    {
-      shapeId: "card",
-      logicalId: node.id,
-      role: "node",
+  const drawing = native.drawingFromPlan(plan);
+  const shapes: NativeMapProjection["shapes"] = drawing.nodes.flatMap((node) => {
+    const icon = node.icon ?? defaultMapIcon(node.kind);
+    return [
+      {
+        shapeId: "card",
+        logicalId: node.id,
+        role: "node" as const,
+        label: null,
+        content: null,
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        appearance: {
+          name: `${node.kind}: ${node.label}`,
+        },
+      },
+      ...(
+        [
+          "icon-well",
+          "icon",
+          "port-in",
+          "port-out",
+        ] as const
+      ).map((role) => ({
+        shapeId: `${role}-${node.id}`,
+        logicalId: node.id,
+        role,
+        label: null,
+        content: role === "icon" ? nativeMapIcons[icon] : null,
+        x: node.x + 16,
+        y: node.y + 16,
+        width: 24,
+        height: 24,
+        appearance:
+          role === "icon"
+            ? {
+                type: "path",
+              }
+            : {},
+      })),
+    ];
+  });
+  shapes.push(
+    ...native.nativeMapTextEntries(drawing).map((entry) => ({
+      shapeId: `${entry.role}-${entry.logicalId}`,
+      logicalId: entry.logicalId,
+      role: entry.role,
+      label: entry.text,
+      content: null,
+      x: entry.x,
+      y: entry.y,
+      width: entry.width,
+      height: entry.height,
+      appearance: {
+        type: "text",
+      },
+    })),
+  );
+  for (const annotation of drawing.annotations ?? []) {
+    shapes.push({
+      shapeId: `panel-${annotation.id}`,
+      logicalId: annotation.id,
+      role: "annotation-panel",
       label: null,
       content: null,
-      x: node.x,
-      y: node.y,
-      width: node.width,
-      height: node.height,
-      appearance: {
-        name: `${node.kind}: ${node.label}`,
-      },
-    },
-    {
-      shapeId: "label",
-      logicalId: node.id,
-      role: "label",
-      label: node.label,
-      content: null,
-      x: node.x,
-      y: node.y,
-      width: node.width,
-      height: node.height,
+      x: annotation.x,
+      y: annotation.y,
+      width: annotation.width,
+      height: annotation.height,
       appearance: {},
-    },
-    {
-      shapeId: "title",
-      logicalId: `${map.kind}:${map.id}`,
-      role: "title",
-      label: map.title,
-      content: null,
-      x: 0,
-      y: 0,
-      width: 100,
-      height: 40,
-      appearance: {},
-    },
-  ];
-  shapes.push(
-    {
-      shapeId: "badge",
-      logicalId: node.id,
-      role: "badge",
-      label: mapOriginLabels[node.origin],
-      content: null,
-      x: node.x,
-      y: node.y + 8,
-      width: 100,
-      height: 20,
-      appearance: {},
-    },
-    {
-      shapeId: "legend",
-      logicalId: `${map.kind}:${map.id}`,
-      role: "legend",
-      label: mapOriginLegend,
-      content: null,
-      x: 0,
-      y: 0,
-      width: 100,
-      height: 20,
-      appearance: {},
-    },
-  );
-  if (node.detail) {
-    shapes.find((shape) => shape.role === "label")!.label = `Details: ${node.label}`;
-    for (const shape of shapes.filter((shape) =>
-      [
-        "node",
-        "label",
-        "badge",
-      ].includes(shape.role),
+    });
+  }
+  for (const node of drawing.nodes.filter((node) => node.detail)) {
+    for (const shape of shapes.filter(
+      (shape) =>
+        shape.logicalId === node.id &&
+        [
+          "node",
+          "label",
+          "badge",
+          "summary",
+          "icon-well",
+          "icon",
+          "port-in",
+          "port-out",
+        ].includes(shape.role),
     )) {
       shape.interactions = [
         {
           trigger: "click",
           type: "navigate-to",
-          destinationId: node.detail.frameId,
-          destinationPageId: node.detail.pageId,
-          destinationMapHash: node.detail.contractHash!,
-          destinationMapId: node.detail.mapId!,
+          destinationId: node.detail!.frameId,
+          destinationPageId: node.detail!.pageId,
+          destinationMapHash: node.detail!.contractHash!,
+          destinationMapId: node.detail!.mapId!,
         },
       ];
     }
@@ -592,42 +605,16 @@ it("keeps publication preview read-only and persists actual PNG evidence only af
 it("imports observed native edits as a proposal without replacing the canonical map", async () => {
   const f = await fixture();
   const saved = projection(f.map);
-  const node = buildMapDrawingPlan(f.map).nodes[0]!;
-  const shapes: NativeMapProjection["shapes"] = [
-    {
-      shapeId: "card",
-      logicalId: "start",
-      role: "node",
-      label: null,
-      content: null,
-      x: node.x,
-      y: node.y,
-      width: node.width,
-      height: node.height,
-    },
-    {
-      shapeId: "label",
-      logicalId: "start",
-      role: "label",
-      label: "Changed by designer",
-      content: null,
-      x: node.x,
-      y: node.y,
-      width: node.width,
-      height: node.height,
-    },
-    {
-      shapeId: "title",
-      logicalId: saved.mapId,
-      role: "title",
-      label: f.map.title,
-      content: null,
-      x: 0,
-      y: 0,
-      width: 100,
-      height: 40,
-    },
-  ];
+  const shapes = saved.shapes.map((shape) =>
+    shape.role === "label"
+      ? {
+          ...shape,
+          label: "Changed by designer",
+        }
+      : {
+          ...shape,
+        },
+  );
   await writeFile(path.join(f.root, "projection.json"), JSON.stringify(saved));
   const observed = {
     ...saved,
@@ -1487,4 +1474,65 @@ it("resumes an interrupted publication with the original journal inputs and no d
   expect(JSON.parse(await readFile(path.join(f.root, "projection.json"), "utf8"))).toEqual(
     projection(f.map),
   );
+});
+
+it("imports a native map summary edit as a semantic proposal requiring renewed approval", async () => {
+  const map = {
+    ...contract(),
+    summary: "Original compact map summary",
+  };
+  const f = await fixture(map);
+  await f.run([
+    "approve",
+    "--write",
+    "--by",
+    "Owner",
+    "--note",
+    "Approve original summary",
+  ]);
+  const baseline = projection(map);
+  await writeFile(path.join(f.root, "projection.json"), JSON.stringify(baseline));
+  const edited = structuredClone(baseline);
+  edited.shapes.find((shape) => shape.role === "map-summary")!.label = "Updated native map summary";
+  const observed = refreshedProjection(edited);
+  vi.spyOn(native, "readProjection").mockResolvedValue(observed);
+  expect(
+    await f.run([
+      "import",
+      "--board-id",
+      "board",
+      "--out",
+      "summary-proposal.json",
+    ]),
+  ).toBe(0);
+  const proposal = JSON.parse(await readFile(path.join(f.root, "summary-proposal.json"), "utf8"));
+  expect(proposal).toMatchObject({
+    kind: "map-proposal",
+    baseHash: hashMapContract(map),
+    proposedMap: {
+      summary: "Updated native map summary",
+    },
+  });
+  expect(proposal.proposedMap.findings).toEqual([]);
+  expect(proposal.proposedHash).not.toBe(proposal.baseHash);
+  expect(JSON.parse(await readFile(path.join(f.root, "map.json"), "utf8"))).toEqual(map);
+  expect(
+    await f.run([
+      "accept",
+      "--proposal",
+      "summary-proposal.json",
+      "--write",
+    ]),
+  ).toBe(0);
+  expect(f.result.mock.lastCall?.[0]).toMatchObject({
+    kind: "map-acceptance",
+    reviewed: false,
+    nativePublicationRequired: true,
+  });
+  const accepted = JSON.parse(await readFile(path.join(f.root, "map.json"), "utf8"));
+  expect(accepted.summary).toBe("Updated native map summary");
+  const reviews = await readArtifactReviews(f.root, "reviews.json");
+  expect(reviews).toHaveLength(1);
+  expect(reviews[0]!.artifactHash).toBe(hashMapContract(map));
+  expect(reviews[0]!.artifactHash).not.toBe(hashMapContract(accepted));
 });

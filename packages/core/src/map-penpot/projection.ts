@@ -1,3 +1,6 @@
+import { nativeMapIcons } from "./icons.js";
+import { validateMapDrawingContent } from "./content-validation.js";
+import { nativeMapRoles } from "./content.js";
 import type { PenpotToolClient } from "../client.js";
 import { observationHash } from "../journal.js";
 import { selectPage, withPageSession } from "../page-session.js";
@@ -14,6 +17,24 @@ export function drawingFromPlan(plan: MapDrawingPlan): MapDrawing {
     mapId: `${plan.mapKind}:${plan.mapId}`,
     contractHash: plan.mapHash,
     title: plan.title,
+    goal: plan.goal,
+    ...(plan.summary !== undefined
+      ? {
+          summary: plan.summary,
+        }
+      : {}),
+    ...(plan.description !== undefined
+      ? {
+          description: plan.description,
+        }
+      : {}),
+    ...(plan.headerSummary !== undefined
+      ? {
+          headerSummary: plan.headerSummary,
+        }
+      : {}),
+    header: plan.header,
+    annotations: plan.annotations,
     fontFamily: plan.fontFamily,
     nodes: plan.nodes,
     edges: plan.edges,
@@ -21,6 +42,7 @@ export function drawingFromPlan(plan: MapDrawingPlan): MapDrawing {
 }
 
 export function validateDrawing(drawing: MapDrawing): void {
+  validateMapDrawingContent(drawing);
   if (
     !drawing.mapId ||
     !/^[a-f0-9]{64}$/.test(drawing.contractHash) ||
@@ -47,6 +69,11 @@ export function validateDrawing(drawing: MapDrawing): void {
     drawing.nodes.some(
       (node) =>
         !node.id ||
+        (node.icon !== undefined && !Object.hasOwn(nativeMapIcons, node.icon)) ||
+        (node.summary !== undefined &&
+          (typeof node.summary !== "string" || node.summary.length > 240)) ||
+        (node.description !== undefined &&
+          (typeof node.description !== "string" || node.description.length > 4000)) ||
         (node.detail !== undefined &&
           (node.kind !== "detail-link" ||
             !node.detail.fileId ||
@@ -141,15 +168,7 @@ export function projection(
         typeof shape !== "object" ||
         typeof shape.shapeId !== "string" ||
         typeof shape.logicalId !== "string" ||
-        ![
-          "node",
-          "label",
-          "edge",
-          "edge-label",
-          "title",
-          "badge",
-          "legend",
-        ].includes(shape.role) ||
+        !nativeMapRoles.includes(shape.role) ||
         ![
           shape.x,
           shape.y,

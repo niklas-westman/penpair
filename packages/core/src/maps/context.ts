@@ -162,6 +162,16 @@ export function buildMapContext(raw: MapContract, options: MapContextOptions = {
     mapHash,
     title: contract.title,
     goal: contract.goal,
+    ...(contract.summary === undefined
+      ? {}
+      : {
+          summary: contract.summary,
+        }),
+    ...(contract.description === undefined
+      ? {}
+      : {
+          description: contract.description,
+        }),
     reviewed,
     ready:
       reviewed &&
@@ -231,7 +241,19 @@ export function buildMapContext(raw: MapContract, options: MapContextOptions = {
         : previous,
     );
     if (!context[largest].length) {
-      context.goal = context.goal.slice(0, Math.floor(context.goal.length / 2));
+      const textKey = (
+        [
+          "goal",
+          "summary",
+          "description",
+        ] as const
+      ).reduce((previous, key) =>
+        (context[key]?.length ?? 0) > (context[previous]?.length ?? 0) ? key : previous,
+      );
+      context[textKey] = (context[textKey] ?? "").slice(
+        0,
+        Math.floor((context[textKey]?.length ?? 0) / 2),
+      );
     } else {
       context[largest].splice(Math.floor(context[largest].length / 2));
     }

@@ -42,6 +42,18 @@ An origin is provenance, not approval. In particular, an `owner-decision` label
 cannot replace a review record binding the owner's actual words to the exact
 contract hash. Do not turn guesses into observations or invent approval notes.
 
+## Keep the flow readable
+
+Use short, specific node titles (`label`), optional one-line `summary` and longer
+`description` text for evidence, decisions and unknowns. The map itself also
+accepts optional `summary` and `description`. Origin badges distinguish observed
+facts from proposals without repeating that status in every title. Optional
+semantic `icon` values use fixed native vectors. Full notes remain available
+below the flow and in Markdown/context; legacy contracts need no new fields.
+See [titles and descriptions](integration-maps.md#readable-titles-and-descriptions).
+These optional fields are part of reviewed canonical intent, so changing them
+needs renewed approval.
+
 ## Contract and review
 
 The schema-1 JSON contract contains `kind: "journey-map"`, `id`, `title`, `goal`,
@@ -57,6 +69,10 @@ approval, and producing bounded context. Consult the installed command's help
 for arguments. Checking and rendering locally do not approve or publish a map.
 Native publication is a Penpot write and needs the normal inspection, pinned
 snapshot, one idempotent write, independent readback and inspected stable export.
+Check the exported typeface against the canvas: a font available to the editor
+can still be unavailable to its exporter. Correct font metadata and identical
+consecutive exports do not prove font fidelity. Visible font substitution needs
+correction before visual approval.
 
 The contract is authoritative; Mermaid and native Penpot objects are derived
 views. Managed native edits become a proposal against the exact prior contract

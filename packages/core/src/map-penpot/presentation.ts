@@ -121,6 +121,7 @@ export function createMapPresentationProposal(
   }
   const semantic = importMapProposal(drawing, after, before);
   if (
+    semantic.metadataChanges ||
     semantic.changes.length ||
     semantic.edgeChanges.length ||
     semantic.title !== undefined ||
@@ -244,8 +245,36 @@ export function preserveMapPresentation(
   if (problems.length) {
     throw new Error(`Preserved map layout needs reconciliation: ${problems.join("; ")}`);
   }
+  const flowBottom = (flow: Pick<MapDrawing, "nodes" | "edges">) =>
+    Math.max(
+      0,
+      ...flow.nodes.map((node) => node.y + node.height),
+      ...flow.edges.flatMap((edge) => [
+        ...(edge.points ?? []).map((point) => point.y),
+        ...(edge.labelBox
+          ? [
+              edge.labelBox.y + edge.labelBox.height,
+            ]
+          : []),
+      ]),
+    );
+  const noteOffset = Math.max(
+    0,
+    flowBottom({
+      nodes,
+      edges,
+    }) - flowBottom(drawing),
+  );
   const preserved = {
     ...drawing,
+    ...(drawing.annotations
+      ? {
+          annotations: drawing.annotations.map((annotation) => ({
+            ...annotation,
+            y: annotation.y + noteOffset,
+          })),
+        }
+      : {}),
     origin: {
       x: bounds.x,
       y: bounds.y,
