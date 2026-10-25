@@ -1,5 +1,15 @@
 # @penpair/core
 
+## 0.4.1
+
+### Patch Changes
+
+- 0086bb7: Allow scoped layout observation with repeatable `--layout-root` and an explicit
+  `--layout-max-nodes` budget. Record roots, sampled node counts and partial
+  coverage in layout evidence so large pages can proceed to independent readback.
+  Document the tested cross-page copy limitation of the Penpot plugin API.
+- 0086bb7: Add an explicit loopback browser wake command for the pinned Penpot file, followed by a fresh read-only readiness check. Report plugin suspension and upstream heartbeat age in doctor without treating activation as sustained keep-alive or replaying uncertain writes.
+
 ## 0.4.0
 
 ### Minor Changes
