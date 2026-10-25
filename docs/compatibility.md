@@ -12,9 +12,11 @@ What has been checked, where, and what differs. Update it whenever a Penpot is p
 | Deep check (`probe --deep --write`): flex layout, text, token set and binding, components and swap, clone, PNG export, clean-up | all steps pass, nothing left behind (run on a fresh instance's empty file) | all steps pass, nothing left behind (run twice) |
 | `pages`, `tree`, `audit`, `tokens dump`, `export` (waits for a stable render), `archive` with `--apply`, a project snippet that writes (`run seed-demo`) | all in use | all verified on seeded sample content |
 | `doctor` (external profile) | ok | ok |
+| Cross-page clone followed by `appendChild` / `insertChild` | refused with either page active; scratch cleanup verified ([details](copy-between-pages.md)) | not tried |
 | `init`, `up`, `doctor` for a Penpot penpair starts (a fresh instance on its own port, then the owner's account, key and plugin connection) | ok: 16 seconds to answer with the images cached; `doctor` all ok | not applicable |
 
 ## Differences found
+- **Cross-page reparenting is refused on local 2.18.3.** Clones stay on the source page. Use native editor copy/paste; see [copying between pages](copy-between-pages.md).
 - **A new token set starts inactive, with no themes in the file.** Seen on both the hosted Penpot and a fresh local instance. (An earlier note that local sets start active was wrong or applied to a file with themes.)
 - **A token binding is recorded after the call, not during it.** On the hosted Penpot it appeared after about half a second to a few seconds; reading it straight away shows nothing. Code that checks a binding has to wait for it.
 - **Applying the same token again removes the binding** (seen on the hosted Penpot, as in the local notes).
@@ -42,11 +44,11 @@ The `Scratch Penpot compatibility smoke` workflow is manual-dispatch only. Confi
 
 Library helpers accept the project's guarded client:
 
-- `waitForStableLayout(client, { shapeId, timeoutMs })`: prefers supported native completion; otherwise polls geometry. Native failure, target changes, incomplete samples and timeout cannot pass. Geometry stability does not establish token/font/pixel correctness; independent readback and stable exports remain necessary. Default operation/export and token verification paths now use this helper; see [layout settling](layout-settling.md). Live behavior on pinned versions remains unverified.
+- `waitForStableLayout(client, { shapeId, timeoutMs })`: prefers supported native completion; otherwise polls geometry. In `auto` mode a failed native wait can fall back to geometry. Budget overflow reports explicitly partial evidence; target changes, malformed samples and timeout cannot pass. Geometry stability does not establish token/font/pixel correctness; independent readback and stable exports remain necessary. Default operation/export and token verification paths use this helper; see [layout settling](layout-settling.md).
 - `validateFileIntegrity(client)`: distinguishes unsupported from a valid empty issue list or actual referential-integrity problems.
 - `createCheckpoint(client, { label, runId }, { apply })`: optional native version history. Without apply it inspects; with apply it saves a run-keyed named version once and independently finds it again. Reusing that run ID reuses an existing checkpoint; it does not provide atomic cross-client locking. No automatic restore/rollback is performed.
 
-Current upstream references: [Penpot API](https://doc.plugins.penpot.app/interfaces/Penpot), [File API](https://doc.plugins.penpot.app/interfaces/File), [FileVersion API](https://doc.plugins.penpot.app/interfaces/FileVersion). Unit fixtures cover missing, present and throwing APIs. These helpers have not yet been exercised against the pinned 2.18.3/2.18.4 instances; the live compatibility table above is intentionally unchanged.
+Current upstream references: [Penpot API](https://doc.plugins.penpot.app/interfaces/Penpot), [File API](https://doc.plugins.penpot.app/interfaces/File), [FileVersion API](https://doc.plugins.penpot.app/interfaces/FileVersion). Unit fixtures cover missing, present and throwing APIs. A read-only layout check on local 2.18.3 on 2026-10-25 observed two existing boards: three equal geometry samples covered 192 nodes; a five-node budget returned `method: "partial"`, `nodeCount: 5`, `truncated: true` and both requested root IDs. This does not prove a live write on a page over 10,000 nodes, native wait timing, integrity validation or version-history behavior. Those remain unverified.
 
 ## Hosted archive candidate
 

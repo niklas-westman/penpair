@@ -62,6 +62,8 @@ Assembly creates the owned overview/map sections and reports `awaiting-copy`.
 Copy source design frames natively using a reviewed, guided copy/paste operation
 by a person or an authorized AI using existing browser tools. Assembly does not
 perform an unsupported cross-page clone.
+The [cross-page API assessment](copy-between-pages.md) records the tested
+boundary and why there is no automatic file-change fallback.
 Preserve visual fidelity, native components, token bindings, text and layout;
 do not recreate frames from screenshots or normalize their dimensions. A source
 using auto height must retain it. Floating-point geometry noise is not a reason

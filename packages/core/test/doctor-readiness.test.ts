@@ -62,6 +62,15 @@ it("separates transport, fresh challenge, page identity and file pin observation
       observedAt: expect.any(String),
       evidence: {
         heartbeat: "unknown",
+        pluginHealth: {
+          state: "responsive",
+          heartbeatAgeMs: null,
+          heartbeatSource: "unavailable",
+          keepAlive: {
+            method: "unknown",
+            verified: false,
+          },
+        },
       },
     });
   }
@@ -123,6 +132,62 @@ it("redacts secret-bearing probe errors", async () => {
     },
   });
   expect(JSON.stringify(result)).not.toContain("PRIVATE");
+});
+
+it("reports upstream suspension and heartbeat age without writing or treating wake as recovery", async () => {
+  const connect = vi.fn(async () => {
+    throw new Error(
+      "Plugin tab suspended (no heartbeat for 898s) https://example.test/mcp?userToken=PRIVATE",
+    );
+  });
+  const result = await doctorExternal(config, {
+    fetch: answering,
+    mcp: {
+      origin: config.profile.origin,
+      connect,
+    },
+  });
+  const execution = result.find((row) => row.layer === "execution");
+  expect(execution).toMatchObject({
+    ok: false,
+    evidence: {
+      heartbeat: "unknown",
+      pluginHealth: {
+        state: "suspended",
+        heartbeatAgeMs: 898000,
+        heartbeatSource: "upstream-error",
+        keepAlive: {
+          method: "unknown",
+          verified: false,
+        },
+      },
+    },
+    detail: expect.stringContaining("last heartbeat 898s ago"),
+    remedy: expect.stringContaining("Reconcile any uncertain run"),
+  });
+  expect(connect).toHaveBeenCalledTimes(1);
+  expect(JSON.stringify(result)).not.toContain("PRIVATE");
+});
+
+it("keeps suspension unknown when a generic deadline does not establish its cause", async () => {
+  const result = await doctorExternal(config, {
+    fetch: answering,
+    mcp: {
+      origin: config.profile.origin,
+      connect: async () => {
+        throw new Error("MCP request timeout");
+      },
+    },
+  });
+  expect(result.find((row) => row.layer === "execution")).toMatchObject({
+    ok: false,
+    evidence: {
+      pluginHealth: {
+        state: "unknown",
+        heartbeatAgeMs: null,
+      },
+    },
+  });
 });
 it.each([
   "999",

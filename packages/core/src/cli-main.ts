@@ -1,5 +1,7 @@
 import { auditDesignRules } from "./audit-rules.js";
 import { projectStatus, projectFileUrl, openProject } from "./project-status.js";
+import { wakeBrowserTarget } from "./browser-wake.js";
+import { pluginHealthFromError } from "./plugin-health.js";
 import { artifactSchemas, migrateProjectConfig } from "./formats.js";
 import { importDtcg, exportDtcg } from "./portable-tokens.js";
 import {
@@ -92,6 +94,8 @@ import { requireLocalProfile, type LocalContext, type LocalProfile } from "./loc
 import {
   assertEndpointIsInstance,
   doctorExternal,
+  doctorEditor,
+  frontendUrl,
   LifecycleError,
   type DoctorCheck,
 } from "./instance/connection.js";
@@ -122,6 +126,7 @@ Connect / diagnose:
   penpair config check [--json]                        validate configuration offline
   penpair config schema                               print its JSON Schema
   penpair doctor [--json] [--timeout-ms 5000]           origin, transport, fresh editor read and file pin (1000–30000 ms)
+  penpair wake --debug-port 9222 [--json]              activate the pinned browser tab, then verify the editor; no reload or replay
   penpair status [--adapters]                          observed project health and optional companion readiness
   penpair open [--print]                              open the pinned public file URL, or print it
   penpair probe [--integrity]                          observed APIs and limits
@@ -135,7 +140,7 @@ Build:
   penpair snippets / snippets check                    list or validate configured trusted scripts
   penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
   penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
-  (run-file/export/shots accept --layout auto|native|geometry; default auto)
+  (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
   (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
 Inspect / spec:
   penpair pages                                       file identity, revision and pages
@@ -322,7 +327,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "timeout-ms": {
         type: "string",
       },
+      "debug-port": {
+        type: "string",
+      },
       layout: {
+        type: "string",
+      },
+      "layout-root": {
+        type: "string",
+        multiple: true,
+      },
+      "layout-max-nodes": {
         type: "string",
       },
       page: {
@@ -519,6 +534,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "max-total-bytes",
     "capture-timeout-ms",
   ];
+  const layoutFlags = [
+    "layout",
+    "layout-root",
+    "layout-max-nodes",
+  ];
   const flags: Record<string, string[]> = {
     formats: [
       "out",
@@ -574,6 +594,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
               "theme",
             ]
           : [
+              ...layoutFlags,
               "type",
               "value",
               "description",
@@ -587,16 +608,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "page",
       "scale",
       "name",
-      "layout",
+      ...layoutFlags,
     ],
     shots: [
       "page",
       "prefix",
       "out",
       "scale",
-      "layout",
+      ...layoutFlags,
     ],
     archive: [
+      ...layoutFlags,
       "page",
       "name",
       "keep",
@@ -615,7 +637,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "include",
     ],
     "run-file": [
-      "layout",
+      ...layoutFlags,
       "include",
       "inspect",
       "readback",
@@ -628,6 +650,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "trace",
     ],
     run: [
+      ...layoutFlags,
       "builtins-only",
       "param",
       "apply",
@@ -680,6 +703,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "any-file",
     ],
     doctor: [
+      "timeout-ms",
+    ],
+    wake: [
+      "debug-port",
       "timeout-ms",
     ],
     up: [],
@@ -811,13 +838,38 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     throw new CommandArgumentError("--layout must be auto, native or geometry");
   }
   if (
-    command === "doctor" &&
+    values["layout-max-nodes"] !== undefined &&
+    (!/^\d+$/.test(values["layout-max-nodes"]) ||
+      Number(values["layout-max-nodes"]) < 1 ||
+      Number(values["layout-max-nodes"]) > 100000)
+  ) {
+    throw new CommandArgumentError("--layout-max-nodes must be an integer from 1 to 100000");
+  }
+  if (
+    values["layout-root"] &&
+    (values["layout-root"].some((id) => !id.trim()) ||
+      new Set(values["layout-root"]).size !== values["layout-root"].length)
+  ) {
+    throw new CommandArgumentError("--layout-root must name distinct nonempty shape IDs");
+  }
+  if (
+    (command === "doctor" || command === "wake") &&
     values["timeout-ms"] !== undefined &&
     (!/^\d+$/.test(values["timeout-ms"]) ||
       Number(values["timeout-ms"]) < 1000 ||
       Number(values["timeout-ms"]) > 30000)
   ) {
-    throw new CommandArgumentError("doctor --timeout-ms must be an integer from 1000 to 30000");
+    throw new CommandArgumentError(`${command} --timeout-ms must be an integer from 1000 to 30000`);
+  }
+  if (
+    command === "wake" &&
+    (rest.length ||
+      !values["debug-port"] ||
+      !/^\d+$/.test(values["debug-port"]) ||
+      Number(values["debug-port"]) < 1 ||
+      Number(values["debug-port"]) > 65535)
+  ) {
+    throw new CommandArgumentError("wake requires --debug-port with an integer from 1 to 65535");
   }
   let tokenEdit: TokenEdit | undefined;
   if (
@@ -1619,7 +1671,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
             {
               check: "editor and plugin",
               ok: false,
-              detail: "No resolved project credential/connection; editor identity was not observed",
+              detail:
+                "No resolved project credential/connection; editor identity was not observed; heartbeat age unavailable; keep-alive unknown",
+              evidence: {
+                heartbeat: "unknown" as const,
+                pluginHealth: pluginHealthFromError(undefined),
+              },
               remedy:
                 "Configure the private credential source, connect the intended editor, then rerun doctor.",
             },
@@ -1661,6 +1718,63 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       output.log("skip editor and plugin: no key yet. Run `penpair connect`.");
     }
     return ok ? 0 : 1;
+  }
+  if (command === "wake") {
+    const config = await loadCommandConfig(root);
+    if (!config.file?.id) {
+      throw new CommandArgumentError("Pin the owner-confirmed file before waking its browser tab");
+    }
+    const mcp = await mcpProbeFor();
+    if (!mcp) {
+      throw new Error("Configure the project's MCP connection before waking and verifying its tab");
+    }
+    assertEndpointIsInstance(
+      {
+        origin: mcp.origin,
+        source: "project connection",
+      },
+      config,
+    );
+    const timeoutMs = Number(values["timeout-ms"] ?? 5000);
+    const started = Date.now();
+    const activation = await wakeBrowserTarget({
+      origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
+      allowLoopbackAlias: !isExternal(config),
+      fileId: config.file.id,
+      port: Number(values["debug-port"]),
+      timeoutMs,
+      signal: commandSignal(),
+    });
+    const remaining = timeoutMs - (Date.now() - started);
+    const checks: DoctorCheck[] =
+      remaining > 0
+        ? await doctorEditor(config, {
+            mcp,
+            timeoutMs: remaining,
+          })
+        : [
+            {
+              check: "editor and plugin",
+              ok: false,
+              detail: "Tab activation exhausted the verification deadline",
+            },
+          ];
+    const ready = checks.length > 0 && checks.every((check) => check.ok);
+    output.result({
+      ...activation,
+      ready,
+      checks,
+    });
+    if (!values.json) {
+      output.log(
+        "Browser activation acknowledged; sustained keep-alive: none. No write was replayed.",
+      );
+      for (const check of checks) {
+        output.log(`${check.ok ? "ok  " : "FAIL"} ${check.check}: ${check.detail}`);
+      }
+      output.log("Reconcile any uncertain run independently before explicitly resuming it.");
+    }
+    return ready ? 0 : 1;
   }
   if (command === "open") {
     if (rest.length) {
@@ -1977,10 +2091,24 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
   const options = {
-    ...(values.layout
+    ...(values.layout || values["layout-root"] || values["layout-max-nodes"]
       ? {
           layout: {
-            strategy: values.layout as import("./layout.js").LayoutStrategy,
+            ...(values.layout
+              ? {
+                  strategy: values.layout as import("./layout.js").LayoutStrategy,
+                }
+              : {}),
+            ...(values["layout-root"]
+              ? {
+                  shapeIds: values["layout-root"],
+                }
+              : {}),
+            ...(values["layout-max-nodes"]
+              ? {
+                  maxNodes: Number(values["layout-max-nodes"]),
+                }
+              : {}),
           },
         }
       : {}),
@@ -2824,15 +2952,16 @@ async function runCliBound(argv: string[], options: CliOptions = {}): Promise<nu
     ...argv,
   ];
   const timeoutAt = args.indexOf("--timeout-ms");
+  const boundedDiagnosis = args[0] === "doctor" || args[0] === "wake";
   let invalidTimeout = false;
   if (timeoutAt !== -1) {
     const milliseconds = Number(args[timeoutAt + 1]);
     invalidTimeout =
       !Number.isInteger(milliseconds) ||
-      milliseconds < (args[0] === "doctor" ? 1000 : 1) ||
-      milliseconds > (args[0] === "doctor" ? 30000 : 1_800_000) ||
+      milliseconds < (boundedDiagnosis ? 1000 : 1) ||
+      milliseconds > (boundedDiagnosis ? 30000 : 1_800_000) ||
       args.indexOf("--timeout-ms", timeoutAt + 1) !== -1;
-    if (args[0] !== "doctor") {
+    if (!boundedDiagnosis) {
       args.splice(timeoutAt, 2);
     }
     if (!invalidTimeout) {
@@ -2865,8 +2994,8 @@ async function runCliBound(argv: string[], options: CliOptions = {}): Promise<nu
     if (invalidTimeout) {
       const result = await collectCommand(args[0] ?? "help", async () => {
         throw new Error(
-          args[0] === "doctor"
-            ? "doctor --timeout-ms must be one integer from 1000 to 30000"
+          boundedDiagnosis
+            ? `${args[0]} --timeout-ms must be one integer from 1000 to 30000`
             : "--timeout-ms must be one integer from 1 to 1800000",
         );
       });
