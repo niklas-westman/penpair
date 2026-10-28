@@ -242,3 +242,191 @@ describe("same-execution archive preconditions", () => {
     });
   });
 });
+
+describe("staged runs", () => {
+  const setup = async (done: number[] = []) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-stages-"));
+    const penpot = {
+      currentPage: {
+        id: "page",
+        root: {
+          id: "root",
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          children: [],
+        },
+      },
+      currentFile: {
+        id: "file",
+        revn: 1,
+      },
+      done: [
+        ...done,
+      ],
+      writes: [] as number[],
+    };
+    const lose = {
+      stage: 0,
+    };
+    const client: PenpotToolClient = {
+      async callTool(_name, args) {
+        const code = String(args.code);
+        const result = await new AsyncFunction("penpot", code)(penpot);
+        if (code.includes("penpot.writes.push") && lose.stage === penpot.writes.at(-1)) {
+          lose.stage = 0;
+          throw new Error("acknowledgment lost");
+        }
+        return {
+          text: JSON.stringify({
+            result,
+            log: "",
+          }),
+          isError: false,
+        };
+      },
+      async close() {},
+    };
+    type Staged = {
+      stage?: number;
+    };
+    const operation: Operation<Staged> = {
+      name: "build",
+      page: () => undefined,
+      inspect: (p) =>
+        snippet(
+          "inspect",
+          "return {ok:true, done:[...penpot.done]};",
+          {
+            stage: p.stage,
+          },
+          "read",
+        ),
+      apply: (p) =>
+        snippet(
+          "apply",
+          "penpot.done.push(CFG.stage); penpot.writes.push(CFG.stage); return {ok:true};",
+          {
+            stage: p.stage,
+          },
+          "write",
+        ),
+      readback: (p) =>
+        snippet(
+          "readback",
+          "return {ok:true, done:[...penpot.done], has: penpot.done.includes(CFG.stage)};",
+          {
+            stage: p.stage,
+          },
+          "read",
+        ),
+      verify: ({ readback }) =>
+        readback.has === true
+          ? []
+          : [
+              "stage missing",
+            ],
+    };
+    return {
+      client,
+      operation,
+      penpot,
+      lose,
+      options: {
+        apply: true,
+        settleMs: 0,
+        stages: 3,
+        journal: {
+          root,
+          runId: "staged-run",
+        },
+      },
+    };
+  };
+
+  it("calls the script once per stage in order and records each stage", async () => {
+    const { client, operation, penpot, options } = await setup();
+    const report = await runOperation(client, operation, {}, options);
+    expect(penpot.writes).toEqual([
+      1,
+      2,
+      3,
+    ]);
+    expect(report).toMatchObject({
+      outcome: "verified",
+      verified: true,
+      stages: [
+        {
+          stage: 1,
+          state: "completed",
+        },
+        {
+          stage: 2,
+          state: "completed",
+        },
+        {
+          stage: 3,
+          state: "completed",
+        },
+      ],
+    });
+  });
+
+  it("does not skip a stage because its readback already passes", async () => {
+    const { client, operation, penpot, options } = await setup([
+      2,
+    ]);
+    const report = await runOperation(client, operation, {}, options);
+    expect(penpot.writes).toEqual([
+      1,
+      2,
+      3,
+    ]);
+    expect(report.outcome).toBe("verified");
+    expect(report.skipped).toBeUndefined();
+  });
+
+  it("resumes from the failed stage and does not rerun the recorded ones", async () => {
+    const { client, operation, penpot, lose, options } = await setup();
+    lose.stage = 2;
+    await expect(runOperation(client, operation, {}, options)).rejects.toMatchObject({
+      outcome: "uncertain",
+    });
+    const report = await runOperation(
+      client,
+      operation,
+      {},
+      {
+        ...options,
+        journal: {
+          ...options.journal,
+          resume: true,
+        },
+      },
+    );
+    expect(penpot.writes).toEqual([
+      1,
+      2,
+      3,
+    ]);
+    expect(report.verified).toBe(true);
+  });
+
+  it("refuses a staged write without a journal", async () => {
+    const { client, operation, options } = await setup();
+    await expect(
+      runOperation(
+        client,
+        operation,
+        {},
+        {
+          apply: true,
+          stages: 3,
+          settleMs: 0,
+        },
+      ),
+    ).rejects.toThrow("needs a journal");
+    expect(options.stages).toBe(3);
+  });
+});

@@ -16,6 +16,7 @@ import {
   readJournalTarget,
   runJournaledSteps,
   type JournalOptions,
+  type JournalStep,
 } from "./journal.js";
 import { guardRevision, writeCoordinator } from "./coordination.js";
 import { guardFile } from "./file-guard.js";
@@ -51,6 +52,8 @@ export interface OperationOptions extends ExecuteOptions {
   journal?: Omit<JournalOptions, "operation" | "input" | "target">;
   /** Without it only the read-only inspect runs. */
   apply?: boolean;
+  /** Run the script once per stage (1..N, CFG.stage); each stage is its own journal step, skipped on resume only when recorded done. */
+  stages?: number;
   /** Wait between the write and the readback: token resolution and layout settle slowly. */
   settleMs?: number;
   onStep?: (message: string) => void;
@@ -147,10 +150,22 @@ async function runOperationInSession<P>(
   if (options.apply && options.journal) {
     return journaledOperation(client, operation, params, options);
   }
+  if (options.apply && options.stages !== undefined) {
+    throw new Error("A staged run needs a journal: its progress is recorded per stage");
+  }
   const { settleMs = 0, sleep = defaultSleep, onStep } = options;
   const page = operation.page(params);
   onStep?.(`${operation.name}: inspecting`);
-  const inspect = await runOnPage(client, operation.inspect(params), page, {
+  // An inspect-only run of a staged script looks at stage 1.
+  const first =
+    options.stages === undefined
+      ? params
+      : ({
+          ...params,
+          stage: 1,
+          stages: options.stages,
+        } as P);
+  const inspect = await runOnPage(client, operation.inspect(first), page, {
     ...options,
     effect: "read",
   });
@@ -317,7 +332,20 @@ async function journaledOperation<P>(
   options: OperationOptions,
 ): Promise<OperationReport> {
   const page = operation.page(params);
-  const planned = await runOnPage(client, operation.inspect(params), page, {
+  const { stages } = options;
+  if (stages !== undefined && (!Number.isInteger(stages) || stages < 1 || stages > 50)) {
+    throw new Error("Stages must be an integer from 1 to 50");
+  }
+  // A staged run calls the script once per stage; the stage number travels in the params the builders receive.
+  const stageParams = (stage: number): P =>
+    stages === undefined
+      ? params
+      : ({
+          ...params,
+          stage,
+          stages,
+        } as P);
+  const planned = await runOnPage(client, operation.inspect(stageParams(1)), page, {
     ...options,
     effect: "read",
   });
@@ -326,17 +354,31 @@ async function journaledOperation<P>(
   const guarded = guardFile(client, {
     id: initialTarget.fileId,
   });
-  const observe = async () => {
-    const inspection = await runOnPage(guarded, operation.inspect(params), page, {
+  // The inspection taken before this process wrote anything is the baseline a stage's readback compares against.
+  const baselines = new Map<number, SnippetResult>([
+    [
+      1,
+      planned,
+    ],
+  ]);
+  const observe = async (stage: number) => {
+    const inspection = await runOnPage(guarded, operation.inspect(stageParams(stage)), page, {
       ...options,
       effect: "read",
     });
     const layout = await settleOperation(guarded, options, inspection);
-    // The inspection taken before this process wrote anything is the baseline the readback compares against.
-    const readback = await runOnPage(guarded, operation.readback(params, planned), page, {
-      ...options,
-      effect: "read",
-    });
+    if (!baselines.has(stage)) {
+      baselines.set(stage, inspection);
+    }
+    const readback = await runOnPage(
+      guarded,
+      operation.readback(stageParams(stage), baselines.get(stage)),
+      page,
+      {
+        ...options,
+        effect: "read",
+      },
+    );
     if (inspection.ok !== true || readback.ok !== true) {
       throw new Error("Operation inspection/readback did not acknowledge its observations");
     }
@@ -347,7 +389,7 @@ async function journaledOperation<P>(
     };
   };
   type Observation = Awaited<ReturnType<typeof observe>>;
-  const verify = (current: Observation, before: Observation, result?: unknown) =>
+  const verify = (stage: number) => (current: Observation, before: Observation, result?: unknown) =>
     verificationProblems(operation, {
       inspect: before.inspection,
       apply: (result as SnippetResult) ?? {
@@ -356,57 +398,86 @@ async function journaledOperation<P>(
       },
       readback: current.readback,
     }).length === 0;
-  const record = await runJournaledSteps(
-    [
-      {
-        key: "apply",
-        label: operation.name,
-        signature: [
-          operation.inspect(params).code,
-          operation.apply(params).code,
-          operation.readback(params).code,
-          operation.verify.toString(),
-          operation.reconcile?.toString(),
-          settleOperation.toString(),
-          inspectedRoots.toString(),
-          waitForStableLayout.toString(),
-        ].join("\n"),
-        inspect: observe,
-        apply: async (current, target) => {
-          const result = await runOnPage(
-            guardRevision(guarded, target),
-            operation.apply(params, current.inspection),
-            page,
-            {
-              ...options,
-              effect: "write",
-            },
-          );
-          if (result.ok !== true) {
-            throw new Error("Apply returned no explicit acknowledgment");
+  const deferred: Observation = {
+    inspection: {
+      ok: true,
+    },
+    readback: {
+      ok: true,
+    },
+    layout: undefined,
+  };
+  const stageStep = (stage: number): JournalStep<Observation> => {
+    const forStage = stageParams(stage);
+    const check = verify(stage);
+    return {
+      key: stages === undefined ? "apply" : `stage-${stage}`,
+      label:
+        stages === undefined ? operation.name : `${operation.name} stage ${stage} of ${stages}`,
+      signature: [
+        operation.inspect(forStage).code,
+        operation.apply(forStage).code,
+        operation.readback(forStage).code,
+        operation.verify.toString(),
+        operation.reconcile?.toString(),
+        settleOperation.toString(),
+        inspectedRoots.toString(),
+        waitForStableLayout.toString(),
+      ].join("\n"),
+      // A later stage is observed right before it runs; the earlier stages change what it sees.
+      ...(stage > 1
+        ? {
+            initial: deferred,
+            deferredBefore: true,
           }
-          await (options.sleep ?? defaultSleep)(options.settleMs ?? 0);
-          return result;
-        },
-        verify,
-        reconcile: (before, current, result) => {
-          if (verify(current, before, result)) {
-            return "complete";
-          }
-          if (operation.reconcile) {
-            return operation.reconcile({
-              before: before.inspection,
-              current: current.inspection,
-              readback: current.readback,
-            });
-          }
-          return observationHash(before.inspection, true) ===
-            observationHash(current.inspection, true)
-            ? "pending"
-            : "conflict";
-        },
+        : {}),
+      inspect: () => observe(stage),
+      apply: async (current, target) => {
+        const result = await runOnPage(
+          guardRevision(guarded, target),
+          operation.apply(forStage, current.inspection),
+          page,
+          {
+            ...options,
+            effect: "write",
+          },
+        );
+        if (result.ok !== true) {
+          throw new Error("Apply returned no explicit acknowledgment");
+        }
+        await (options.sleep ?? defaultSleep)(options.settleMs ?? 0);
+        return result;
       },
-    ],
+      verify: check,
+      reconcile: (before, current, result, state) => {
+        // A stage that was never attempted always runs its write: a readback that happens to pass does not skip it.
+        if (stages !== undefined && state === "pending") {
+          return "pending";
+        }
+        if (check(current, before, result)) {
+          return "complete";
+        }
+        if (operation.reconcile) {
+          return operation.reconcile({
+            before: before.inspection,
+            current: current.inspection,
+            readback: current.readback,
+          });
+        }
+        return observationHash(before.inspection, true) ===
+          observationHash(current.inspection, true)
+          ? "pending"
+          : "conflict";
+      },
+    };
+  };
+  const record = await runJournaledSteps(
+    Array.from(
+      {
+        length: stages ?? 1,
+      },
+      (_, index) => stageStep(index + 1),
+    ),
     {
       ...options.journal!,
       coordinate: writeCoordinator(guarded, {
@@ -418,6 +489,11 @@ async function journaledOperation<P>(
       operation: operation.name,
       input: {
         params,
+        ...(stages === undefined
+          ? {}
+          : {
+              stages,
+            }),
         layout: options.layout ?? {},
         minimumWaitMs: options.settleMs ?? 0,
       },
@@ -429,26 +505,41 @@ async function journaledOperation<P>(
       redact: options.redact ?? options.journal!.redact,
     },
   );
-  const saved = record.steps[0]!;
+  const first = record.steps[0]!;
+  const last = record.steps[record.steps.length - 1]!;
+  const skipped = record.steps.every((step) => step.skipped) ? first.skipped : undefined;
   return {
-    layout: (saved.after as Observation).layout,
+    layout: (last.after as Observation).layout,
     operation: operation.name,
     phase: "applied",
-    outcome: record.redacted ? "failed" : saved.skipped ? "already-satisfied" : "verified",
-    ...(saved.skipped
+    outcome: record.redacted ? "failed" : skipped ? "already-satisfied" : "verified",
+    ...(skipped
       ? {
-          skipped: saved.skipped,
+          skipped,
         }
       : {}),
+    ...(stages === undefined
+      ? {}
+      : {
+          stages: record.steps.map((step, index) => ({
+            stage: index + 1,
+            state: step.state,
+            ...((step.after as Observation | undefined)?.layout
+              ? {
+                  layout: (step.after as Observation).layout,
+                }
+              : {}),
+          })),
+        }),
     ...(record.redacted
       ? {
           redacted: true,
           complete: false,
         }
       : {}),
-    inspect: (saved.before as Observation).inspection,
-    apply: saved.result as SnippetResult | undefined,
-    readback: (saved.after as Observation).readback,
+    inspect: (first.before as Observation).inspection,
+    apply: last.result as SnippetResult | undefined,
+    readback: (last.after as Observation).readback,
     problems: record.redacted
       ? [
           "Journal evidence required credential redaction; completeness cannot be confirmed",

@@ -41,10 +41,17 @@ export interface JournalStep<T> {
   /** Source/signature identifying the implementation of this step, not only its display name. */
   signature: string;
   initial?: T;
+  /** The `before` observation is taken right before this step runs instead of at planning (earlier steps change what it sees). */
+  deferredBefore?: boolean;
   inspect(): Promise<T>;
   apply(current: T, target: JournalTarget): Promise<unknown>;
   verify(current: T, before: T, result?: unknown): boolean;
-  reconcile(before: T, current: T, result?: unknown): "complete" | "pending" | "conflict";
+  reconcile(
+    before: T,
+    current: T,
+    result?: unknown,
+    state?: OperationJournal["steps"][number]["state"],
+  ): "complete" | "pending" | "conflict";
 }
 export interface JournalTraceEvent {
   event:
@@ -466,7 +473,10 @@ export async function runJournaledSteps<T>(
         }
         continue;
       }
-      const reconciliation = step.reconcile(saved.before as T, current, saved.result);
+      if (step.deferredBefore && saved.state === "pending") {
+        saved.before = current;
+      }
+      const reconciliation = step.reconcile(saved.before as T, current, saved.result, saved.state);
       if (reconciliation === "conflict") {
         record.state = "conflict";
         throw new Error(`External or unexplained changes conflict with ${step.label}`);

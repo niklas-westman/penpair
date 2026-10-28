@@ -79,3 +79,13 @@ To scope layout settling by hand, use repeatable `--layout-root SHAPE_ID` (it ov
 If the readback already holds before the write, a journaled `run-file --apply` does not run the write. The report says `outcome: "already-satisfied"` with `skipped: "readback-already-satisfied"` (the journal step in `penpair runs RUN_ID` carries the same `skipped` field), a warning names it, and `verified` stays true because the state is right. It is not a successful write: check that the readback tests the change itself, not only that the target exists. The outer command result keeps its fixed `outcome` set; read `data.outcome`.
 
 The readback script receives `CFG.inspection`, the inspection taken before this process wrote anything, next to its parameters. A resumed run that began after a partial write gets the inspection of its own first observation.
+
+## Staged runs
+
+A frame with many heavy instances does not settle in one flush. `run-file --stages N` (1–50) calls the write script once per stage with `CFG.stage` (1..N) and `CFG.stages`; the inspect and readback scripts get the same two values. Each stage is its own journal step: it is inspected right before it runs, its readback is checked after it, and `penpair runs RUN_ID` shows each stage's state.
+
+- Each stage builds one subtree and flushes only that subtree (`pp.flush({ root })`). Report that subtree as `layoutRoots` from the stage's inspect script, so layout is checked there and not on the whole page.
+- A stage is skipped on resume only when the journal records that stage as done. A stage that was never attempted always runs its write, even if its readback already passes, so a readback that happens to pass cannot hide a missing write. Keep each stage's write idempotent (the usual `// penpair: idempotent` contract).
+- After an interrupted stage, `--apply --resume RUN_ID` verifies that stage from its readback and continues with the next; completed stages are not written again.
+- `--stages` and `CFG.stage`/`CFG.stages` are reserved: do not pass them with `--param`. Without `--apply`, the inspection runs for stage 1.
+- The report lists `stages` with each stage's state.

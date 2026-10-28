@@ -142,6 +142,7 @@ Build:
   penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
   penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
   (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
+  (run-file --stages N runs the script once per stage with CFG.stage 1..N; each stage is a journal step)
   (run-file checks layout at the layoutRoots its inspect script reports; --layout-scope page samples the whole page instead)
   (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
 Inspect / spec:
@@ -336,6 +337,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "string",
       },
       "layout-scope": {
+        type: "string",
+      },
+      stages: {
         type: "string",
       },
       "layout-root": {
@@ -644,6 +648,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "run-file": [
       ...layoutFlags,
       "layout-scope",
+      "stages",
       "include",
       "inspect",
       "readback",
@@ -842,6 +847,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ].includes(values.layout)
   ) {
     throw new CommandArgumentError("--layout must be auto, native or geometry");
+  }
+  if (
+    values.stages !== undefined &&
+    (!/^\d+$/.test(values.stages) || Number(values.stages) < 1 || Number(values.stages) > 50)
+  ) {
+    throw new CommandArgumentError("--stages must be an integer from 1 to 50");
   }
   if (
     values["layout-scope"] !== undefined &&
@@ -2133,6 +2144,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
                 }
               : {}),
           },
+        }
+      : {}),
+    ...(values.stages
+      ? {
+          stages: Number(values.stages),
         }
       : {}),
     signal: commandSignal(),
