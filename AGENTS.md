@@ -27,6 +27,11 @@ Use kebab-case code paths, descriptive local names and focused responsibilities;
 extract independently meaningful validation, I/O and command logic as it appears.
 Keep public imports and persisted schemas stable when moving code.
 
+Re-read cited files and symbols before reasoning from a `file:line` reference,
+including references copied from earlier notes or reviews. Line numbers can drift.
+Kit JavaScript inside `String.raw` is string data: symbol searches may land inside
+strings, and Biome does not format their contents.
+
 `biome.json` owns formatting. Run `pnpm format` after edits, then `pnpm check`.
 The checks enforce supported-source formatting, braces, separate declarations,
 code path naming and executable convention examples. Review still checks naming
@@ -53,3 +58,10 @@ specific handling described in the conventions.
 ## Validation
 
 `pnpm check` runs style/path checks, the build, typechecking, executable convention examples, tests and the version check. `pnpm smoke:package` packs all six packages, installs them in an empty project and runs them; run it before any release.
+
+`pnpm check` requires a Git checkout or worktree: the code-path check uses
+`git ls-files`. In a source copy without Git metadata, run `pnpm exec biome check .`,
+`pnpm build`, `pnpm typecheck`, `pnpm conventions:check`, `pnpm test` and
+`pnpm check:versions` in that order. Report these as partial validation;
+Git-dependent checks and the full gate remain unverified until `pnpm check`
+passes in a checkout or worktree.
