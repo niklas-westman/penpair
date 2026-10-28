@@ -87,6 +87,8 @@ export interface OperationJournal {
     targetBefore?: JournalTarget;
     targetAfter?: JournalTarget;
     result?: unknown;
+    /** Set when the step's verification already held before its write, so the write was not run. */
+    skipped?: "readback-already-satisfied";
     error?: string;
   }[];
 }
@@ -473,6 +475,12 @@ export async function runJournaledSteps<T>(
         if (!step.verify(current, saved.before as T, saved.result)) {
           record.state = "conflict";
           throw new Error(`Reconciliation lacks verification for ${step.label}`);
+        }
+        if (saved.state === "pending") {
+          saved.skipped = "readback-already-satisfied";
+          options.onStep?.(
+            `${step.label}: the readback already held before the write; nothing was written`,
+          );
         }
         saved.state = "completed";
         saved.after = current;

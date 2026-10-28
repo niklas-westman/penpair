@@ -2209,6 +2209,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       if (report.phase === "inspected") {
         output.error("Nothing was written. Review the inspection, then use --apply.");
       }
+      if (report.outcome === "already-satisfied") {
+        output.error(
+          "Nothing was written: the readback already held before the write (outcome already-satisfied). Check that the readback tests the change, not only that the target exists.",
+        );
+      }
       return report.complete === false ? 3 : report.phase === "applied" && !report.verified ? 1 : 0;
     }
     if (command === "run") {

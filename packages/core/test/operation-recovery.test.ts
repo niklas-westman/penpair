@@ -87,8 +87,121 @@ it("resumes a registered-style operation from independent observations after a l
     ),
   ).toMatchObject({
     verified: true,
+    outcome: "verified",
   });
   expect(penpot.writes).toBe(1);
+});
+
+describe("a readback that already holds before the write", () => {
+  const setup = async (startValue: number) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-satisfied-"));
+    const penpot = {
+      currentPage: {
+        id: "page",
+        root: {
+          id: "root",
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          children: [],
+        },
+      },
+      currentFile: {
+        id: "file",
+        revn: 1,
+      },
+      value: startValue,
+      writes: 0,
+    };
+    const baselines: unknown[] = [];
+    const client: PenpotToolClient = {
+      async callTool(_name, args) {
+        const result = await new AsyncFunction("penpot", String(args.code))(penpot);
+        return {
+          text: JSON.stringify({
+            result,
+            log: "",
+          }),
+          isError: false,
+        };
+      },
+      async close() {},
+    };
+    const operation: Operation<Record<string, never>> = {
+      name: "set-value",
+      page: () => undefined,
+      inspect: () => snippet("inspect", "return {ok:true, value:penpot.value};"),
+      apply: () => snippet("apply", "penpot.value=1; penpot.writes++; return {ok:true};"),
+      readback: (_params, baseline) => {
+        baselines.push(baseline);
+        return snippet("readback", "return {ok:true, value:penpot.value};");
+      },
+      verify: ({ readback }) =>
+        readback.value === 1
+          ? []
+          : [
+              "wrong value",
+            ],
+    };
+    return {
+      client,
+      operation,
+      penpot,
+      baselines,
+      options: {
+        apply: true,
+        settleMs: 0,
+        journal: {
+          root,
+        },
+      },
+    };
+  };
+
+  it("is reported as already-satisfied, not as a verified write", async () => {
+    const { client, operation, penpot, options } = await setup(1);
+    const steps: string[] = [];
+    const report = await runOperation(
+      client,
+      operation,
+      {},
+      {
+        ...options,
+        onStep: (message) => void steps.push(message),
+      },
+    );
+    expect(penpot.writes).toBe(0);
+    expect(report).toMatchObject({
+      outcome: "already-satisfied",
+      skipped: "readback-already-satisfied",
+      verified: true,
+    });
+    expect(steps.join("\n")).toContain("nothing was written");
+  });
+
+  it("still writes and reports verified when the readback does not hold yet", async () => {
+    const { client, operation, penpot, options } = await setup(0);
+    expect(await runOperation(client, operation, {}, options)).toMatchObject({
+      outcome: "verified",
+      verified: true,
+    });
+    expect(penpot.writes).toBe(1);
+  });
+
+  it("gives the readback the inspection taken before the write", async () => {
+    const { client, operation, baselines, options } = await setup(0);
+    await runOperation(client, operation, {}, options);
+    // The undefined call is the plan signature; each observation passes the pre-write baseline.
+    const observed = baselines.filter((baseline) => baseline !== undefined);
+    expect(observed.length).toBeGreaterThan(1);
+    for (const baseline of observed) {
+      expect(baseline).toMatchObject({
+        ok: true,
+        value: 0,
+      });
+    }
+  });
 });
 
 describe("same-execution archive preconditions", () => {

@@ -30,7 +30,8 @@ export interface Operation<P> {
   page(params: P): string | undefined;
   inspect(params: P): Snippet;
   apply(params: P, inspected?: SnippetResult): Snippet;
-  readback(params: P): Snippet;
+  /** `baseline` is the inspection from before the write, for readbacks that compare against it. */
+  readback(params: P, baseline?: SnippetResult): Snippet;
   verify(results: {
     inspect: SnippetResult;
     apply: SnippetResult;
@@ -63,7 +64,9 @@ export interface OperationReport {
     runId: string;
     state: string;
   };
-  outcome: "inspected" | "verified" | "failed";
+  /** `already-satisfied`: the readback held before the write, so nothing was written. It is not a successful write. */
+  outcome: "inspected" | "verified" | "already-satisfied" | "failed";
+  skipped?: "readback-already-satisfied";
   operation: string;
   phase: "inspected" | "applied";
   inspect: SnippetResult;
@@ -194,7 +197,7 @@ async function runOperationInSession<P>(
   let problems: string[];
   try {
     layout = await settleOperation(client, options, inspect);
-    readback = await runOnPage(client, operation.readback(params), page, {
+    readback = await runOnPage(client, operation.readback(params, inspect), page, {
       ...options,
       effect: "read",
     });
@@ -329,7 +332,8 @@ async function journaledOperation<P>(
       effect: "read",
     });
     const layout = await settleOperation(guarded, options, inspection);
-    const readback = await runOnPage(guarded, operation.readback(params), page, {
+    // The inspection taken before this process wrote anything is the baseline the readback compares against.
+    const readback = await runOnPage(guarded, operation.readback(params, planned), page, {
       ...options,
       effect: "read",
     });
@@ -430,7 +434,12 @@ async function journaledOperation<P>(
     layout: (saved.after as Observation).layout,
     operation: operation.name,
     phase: "applied",
-    outcome: record.redacted ? "failed" : "verified",
+    outcome: record.redacted ? "failed" : saved.skipped ? "already-satisfied" : "verified",
+    ...(saved.skipped
+      ? {
+          skipped: saved.skipped,
+        }
+      : {}),
     ...(record.redacted
       ? {
           redacted: true,

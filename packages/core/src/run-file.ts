@@ -150,7 +150,7 @@ export async function prepareFileScript(
         `${requirePage}\n${prelude}\n${body}`,
         {
           ...cfg,
-          ...(effect === "write"
+          ...(effect === "write" || inspected
             ? {
                 inspection: inspected ?? null,
               }
@@ -205,7 +205,8 @@ export async function prepareFileScript(
     inspect: () => build("run-file-inspect", inspect.body, "read"),
     apply: (_params: Params, inspected?: SnippetResult) =>
       build("run-file-apply", main.body, "write", inspected),
-    readback: () => build("run-file-readback", readback.body, "read"),
+    readback: (_params: Params, baseline?: SnippetResult) =>
+      build("run-file-readback", readback.body, "read", baseline),
   };
   operation.inspect({});
   operation.apply({});
