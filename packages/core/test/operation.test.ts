@@ -184,6 +184,48 @@ describe("running an operation", () => {
     });
   });
 
+  it("with the inspected scope, skips the layout sample and says so when the inspection names no roots", async () => {
+    const client = editor(script);
+    const report = await runOperation(client, archiveOperation, params, {
+      apply: true,
+      layout: {
+        scope: "inspected",
+      },
+      sleep: async () => undefined,
+    });
+    expect(client.log).not.toContain("layout-state");
+    expect(report.verified).toBe(true);
+    expect(report.layout).toMatchObject({
+      stable: true,
+      method: "skipped",
+      samples: 0,
+    });
+    expect(report.layout?.reason).toContain("layoutRoots");
+  });
+
+  it("with the inspected scope, observes the roots the inspection reports", async () => {
+    const client = editor({
+      ...script,
+      "archive-inspect": [
+        {
+          ...script["archive-inspect"][0],
+          layoutRoots: [
+            "board",
+          ],
+        },
+      ],
+    });
+    const report = await runOperation(client, archiveOperation, params, {
+      apply: true,
+      layout: {
+        scope: "inspected",
+      },
+      sleep: async () => undefined,
+    });
+    expect(client.log).toContain("layout-state");
+    expect(report.layout?.method).not.toBe("skipped");
+  });
+
   it("reports what the readback found wrong", async () => {
     const client = editor({
       ...script,

@@ -193,7 +193,7 @@ async function runOperationInSession<P>(
   let readback: SnippetResult | undefined;
   let problems: string[];
   try {
-    layout = await settleOperation(client, options);
+    layout = await settleOperation(client, options, inspect);
     readback = await runOnPage(client, operation.readback(params), page, {
       ...options,
       effect: "read",
@@ -259,25 +259,52 @@ function verificationProblems<P>(
       ];
 }
 
+/** Roots the inspection names as `layoutRoots`: existing shapes, so they can be observed before and after the write. */
+function inspectedRoots(inspected: SnippetResult | undefined): string[] {
+  const roots = inspected?.layoutRoots;
+  if (!Array.isArray(roots) || roots.some((id) => typeof id !== "string" || !id.trim())) {
+    return [];
+  }
+  return [
+    ...new Set(roots as string[]),
+  ];
+}
+
 async function settleOperation(
   client: PenpotToolClient,
   options: OperationOptions,
+  inspected?: SnippetResult,
 ): Promise<LayoutResult | undefined> {
   if (options.layout === false) {
     return undefined;
   }
+  const { scope, ...layout } = options.layout ?? {};
+  const explicit = layout.shapeIds?.length || layout.shapeId;
+  if (scope === "inspected" && !explicit) {
+    const roots = inspectedRoots(inspected);
+    if (roots.length === 0) {
+      return {
+        stable: true,
+        method: "skipped",
+        samples: 0,
+        reason:
+          "the inspection named no layoutRoots; pass --layout-root, report layoutRoots from the inspect script, or use --layout-scope page for a whole-page sample",
+      };
+    }
+    layout.shapeIds = roots;
+  }
   options.onStep?.("waiting for bounded layout completion");
-  const layout = await waitForStableLayout(client, {
+  const result = await waitForStableLayout(client, {
     sleep: options.sleep,
-    ...options.layout,
+    ...layout,
   });
-  if (!layout.stable) {
+  if (!result.stable) {
     throw new PenpairError(
       "incomplete-output",
-      `Layout did not settle: ${layout.reason ?? "unknown reason"}`,
+      `Layout did not settle: ${result.reason ?? "unknown reason"}`,
     );
   }
-  return layout;
+  return result;
 }
 
 async function journaledOperation<P>(
@@ -287,11 +314,11 @@ async function journaledOperation<P>(
   options: OperationOptions,
 ): Promise<OperationReport> {
   const page = operation.page(params);
-  await runOnPage(client, operation.inspect(params), page, {
+  const planned = await runOnPage(client, operation.inspect(params), page, {
     ...options,
     effect: "read",
   });
-  await settleOperation(client, options);
+  await settleOperation(client, options, planned);
   const initialTarget = await readJournalTarget(client);
   const guarded = guardFile(client, {
     id: initialTarget.fileId,
@@ -301,7 +328,7 @@ async function journaledOperation<P>(
       ...options,
       effect: "read",
     });
-    const layout = await settleOperation(guarded, options);
+    const layout = await settleOperation(guarded, options, inspection);
     const readback = await runOnPage(guarded, operation.readback(params), page, {
       ...options,
       effect: "read",
@@ -337,6 +364,7 @@ async function journaledOperation<P>(
           operation.verify.toString(),
           operation.reconcile?.toString(),
           settleOperation.toString(),
+          inspectedRoots.toString(),
           waitForStableLayout.toString(),
         ].join("\n"),
         inspect: observe,

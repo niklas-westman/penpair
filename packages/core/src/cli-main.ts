@@ -142,6 +142,7 @@ Build:
   penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
   penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
   (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
+  (run-file checks layout at the layoutRoots its inspect script reports; --layout-scope page samples the whole page instead)
   (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
 Inspect / spec:
   penpair pages                                       file identity, revision and pages
@@ -332,6 +333,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "string",
       },
       layout: {
+        type: "string",
+      },
+      "layout-scope": {
         type: "string",
       },
       "layout-root": {
@@ -639,6 +643,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ],
     "run-file": [
       ...layoutFlags,
+      "layout-scope",
       "include",
       "inspect",
       "readback",
@@ -837,6 +842,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ].includes(values.layout)
   ) {
     throw new CommandArgumentError("--layout must be auto, native or geometry");
+  }
+  if (
+    values["layout-scope"] !== undefined &&
+    ![
+      "inspected",
+      "page",
+    ].includes(values["layout-scope"])
+  ) {
+    throw new CommandArgumentError("--layout-scope must be inspected or page");
   }
   if (
     values["layout-max-nodes"] !== undefined &&
@@ -2092,9 +2106,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
   const options = {
-    ...(values.layout || values["layout-root"] || values["layout-max-nodes"]
+    ...(values.layout ||
+    values["layout-scope"] ||
+    values["layout-root"] ||
+    values["layout-max-nodes"]
       ? {
           layout: {
+            ...(values["layout-scope"]
+              ? {
+                  scope: values["layout-scope"] as import("./layout.js").LayoutScope,
+                }
+              : {}),
             ...(values.layout
               ? {
                   strategy: values.layout as import("./layout.js").LayoutStrategy,

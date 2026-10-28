@@ -257,7 +257,16 @@ export async function runFileScript(
       parameters: prepared.params,
       sourceFiles: prepared.source,
     },
-    options,
+    // A script's write is checked where it reports layoutRoots; the page sample is opt-in (--layout-scope page).
+    options.layout === false
+      ? options
+      : {
+          ...options,
+          layout: {
+            scope: "inspected",
+            ...options.layout,
+          },
+        },
   );
   return {
     ...report,
