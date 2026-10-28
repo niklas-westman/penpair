@@ -115,6 +115,7 @@ import { backupNoteCheck } from "./backup-note.js";
 import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
 import { clearDeadLocks, listLocks } from "./coordination.js";
+import { exportFrames, parseFrames } from "./export-batch.js";
 import { inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
 import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
 import { resolveProjectInput } from "./project-input.js";
@@ -177,6 +178,7 @@ Snapshot / diff:
 Capture / approve:
   penpair export ID out.png [--page PAGE] [--scale 1]
   penpair export --name EXACT_NAME --page PAGE out.png
+  penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]   several frames, one failure does not stop the rest; --cache skips unchanged ones
   penpair shots --page PAGE [--prefix PREFIX] [--out design/shots]
   penpair approve --page PAGE --frame ID [--case CASE_ID]  preview exact-artifact evidence
   penpair approve --page PAGE --frame ID --write --note "OWNER WORDS" --by OWNER
@@ -313,6 +315,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "boolean",
       },
       "empty-shapes": {
+        type: "boolean",
+      },
+      frames: {
+        type: "string",
+      },
+      cache: {
         type: "boolean",
       },
       note: {
@@ -638,6 +646,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "page",
       "scale",
       "name",
+      "frames",
+      "out",
+      "cache",
       ...layoutFlags,
     ],
     shots: [
@@ -860,7 +871,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       );
     }
   }
-  if (
+  if (command === "export" && (values.cache || values.out) && !values.frames) {
+    throw new CommandArgumentError("--cache and --out belong to a batch export (--frames)");
+  }
+  if (command === "export" && values.frames) {
+    if (rest.length || values.name || !values.page) {
+      throw new CommandArgumentError(
+        "Batch export is penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]",
+      );
+    }
+  } else if (
     command === "export" &&
     (rest.length !== (values.name ? 1 : 2) || (values.name && !values.page))
   ) {
@@ -2714,6 +2734,25 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         });
       }
       return 0;
+    } else if (command === "export" && values.frames) {
+      const report = await exportFrames(
+        client,
+        root,
+        {
+          page: values.page!,
+          frames: parseFrames(values.frames),
+          out: values.out ?? "design/exports",
+        },
+        {
+          ...options,
+          page: values.page,
+          scale: values.scale ? Number(values.scale) : 1,
+          cache: values.cache === true,
+          log: (line) => output.error(`… ${line}`),
+        },
+      );
+      output.log(JSON.stringify(report, null, 2));
+      return report.complete ? 0 : 1;
     } else if (command === "export") {
       const [shapeId, out] = values.name
         ? [
