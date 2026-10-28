@@ -15,7 +15,7 @@ Your MCP address contains a personal key. Keep it, private connection files and 
 
 ## Run the source
 
-Fork and clone the repository, then work from its root. Use Node.js 22 or newer and the pnpm version declared in `package.json`.
+Fork and clone the repository, then work from its root. Use Node.js 24.22.1, pinned in `.nvmrc` (`nvm use` or `fnm use`), and the pnpm version declared in `package.json`. CI, releases and local development run that exact version; the published packages still declare `>=22` for people who install them.
 
 ```sh
 pnpm install --frozen-lockfile

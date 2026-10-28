@@ -42,7 +42,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       - name: Verify the exact merged version PR or explicit manual release
         id: review
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -76,7 +76,7 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       - run: pnpm install --frozen-lockfile
       - name: Recheck guards, pack and publish the full family with OIDC
         run: node scripts/ci-release.mjs
