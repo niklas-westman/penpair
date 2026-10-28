@@ -31,3 +31,16 @@ Use `--trace --apply` on journaled core writes or `marwes tokens push` to retain
 ## Fresh doctor evidence
 
 `penpair doctor --json --timeout-ms 5000` uses a total origin/connection/execution budget (1000–30000 ms). It reports origin reachability, connected transport, a fresh random editor challenge with file/page IDs, and file-pin matching separately. Observation times/durations are measured; heartbeat and unobserved API versions stay unknown. A reachable origin or a connected transport alone is insufficient. Reconnect/foreground an unresponsive editor and obtain a fresh read before starting another operation.
+
+## Shapes without an id on the page root
+
+An interrupted build can leave shapes with no id and no name directly on the page root. They make every whole-page layout observation fail with `Malformed layout geometry`, which now names the shape (`a shape with no id ... at index 3 under the layout root`). Until they are gone, scope layout checks with `--layout-root`, or rely on `run-file`'s default (it checks only the `layoutRoots` its inspect script reports).
+
+```sh
+penpair repair --page PAGE --empty-shapes           # read-only: counts and lists them
+penpair repair --page PAGE --empty-shapes --apply   # asks Penpot to remove them, then recounts
+```
+
+The write is journaled like the other operations (`--resume`, `--checkpoint`, `--force-lock`), refuses if the number of shapes changed since the inspection, and skips the whole-page layout observation these shapes break. Its verification is an independent recount: if Penpot's `remove()` does not clear them (on some Penpot versions it does not), the run reports `failed` with the counts instead of claiming a repair. The fallback is to reload the editor tab, and if they remain, to recreate the page and copy the boards over.
+
+Stale local writer locks have their own command: `penpair locks` lists them with the holding run, operation and command, and `penpair locks clear` removes only those whose process is gone on this host.

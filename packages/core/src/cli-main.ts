@@ -60,7 +60,12 @@ import { exportShapePng } from "./export.js";
 import { exportBaselines, resolveBaselineImageFormat } from "./baselines.js";
 import { encodeBaselineImage } from "./image-codec.js";
 import type { BaselineImageFormat } from "./image-evidence.js";
-import { archiveOperation, runOnPage, runOperation } from "./operation.js";
+import {
+  archiveOperation,
+  repairEmptyShapesOperation,
+  runOnPage,
+  runOperation,
+} from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
 import { installSkills, listBundledSkills } from "./skills.js";
@@ -147,6 +152,7 @@ Build:
   penpair snippets / snippets check                    list or validate configured trusted scripts
   penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
   penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
+  penpair repair --page PAGE --empty-shapes [--apply]  remove shapes without an id that an interrupted build left on the page root
   (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
   (run-file --stages N runs the script once per stage with CFG.stage 1..N; each stage is a journal step)
   (run-file checks layout at the layoutRoots its inspect script reports; --layout-scope page samples the whole page instead)
@@ -304,6 +310,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "boolean",
       },
       reload: {
+        type: "boolean",
+      },
+      "empty-shapes": {
         type: "boolean",
       },
       note: {
@@ -638,6 +647,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "scale",
       ...layoutFlags,
     ],
+    repair: [
+      "page",
+      "empty-shapes",
+      "apply",
+      "resume",
+      "checkpoint",
+      "force-lock",
+      "trace",
+    ],
     archive: [
       ...layoutFlags,
       "page",
@@ -759,6 +777,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "export",
     "shots",
     "archive",
+    "repair",
     "run",
     "run-file",
     "baselines",
@@ -1080,6 +1099,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       !(
         [
           "archive",
+          "repair",
           "run",
           "run-file",
         ].includes(command ?? "") ||
@@ -1087,7 +1107,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       ))
   ) {
     throw new Error(
-      "--resume and --checkpoint require an operation command (archive/run/run-file/tokens) with --apply",
+      "--resume and --checkpoint require an operation command (archive/repair/run/run-file/tokens) with --apply",
     );
   }
   if (values.version) {
@@ -2768,6 +2788,28 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       output.log(JSON.stringify(report, null, 2));
       if (!values.apply) {
         output.error("Nothing was written. Run again with --apply to execute this token edit.");
+      }
+      return report.phase === "applied" && !report.verified ? 1 : 0;
+    } else if (command === "repair") {
+      if (!values.page || !values["empty-shapes"]) {
+        throw new Error("usage: penpair repair --page PAGE --empty-shapes [--apply]");
+      }
+      // The whole-page layout observation is what the shapes without an id break, so it is not run here;
+      // the independent readback counts what is left.
+      const report = await runOperation(
+        client,
+        repairEmptyShapesOperation,
+        {
+          page: values.page,
+        },
+        {
+          ...writeOptions("repair"),
+          layout: false,
+        },
+      );
+      output.log(JSON.stringify(report, null, 2));
+      if (report.phase === "inspected") {
+        output.error("Nothing was removed. Run again with --apply to do it.");
       }
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else if (command === "archive") {

@@ -9,6 +9,12 @@ import {
   archiveReadback,
   type ArchiveParams,
 } from "./snippets/archive.js";
+import {
+  repairApply,
+  repairInspect,
+  repairReadback,
+  type RepairParams,
+} from "./snippets/repair.js";
 import { PenpairError } from "./errors.js";
 import { UncertainExecutionError } from "./client.js";
 import {
@@ -660,5 +666,43 @@ export const archiveOperation: Operation<ArchiveParams> = {
       return "conflict";
     }
     return remaining.length === 0 ? "complete" : "pending";
+  },
+};
+
+/** Removes the shapes without an id that an interrupted build leaves on the page root. Penpot's `remove()` may not clear them: the readback says. */
+export const repairEmptyShapesOperation: Operation<RepairParams> = {
+  name: "repair-empty-shapes",
+  page: (params) => params.page,
+  inspect: repairInspect,
+  apply: (params, inspected) =>
+    repairApply({
+      ...params,
+      expectedCount: inspected?.found as number | undefined,
+    }),
+  readback: repairReadback,
+  verify({ inspect, apply, readback }) {
+    if (!Number.isInteger(inspect.found) || !Number.isInteger(readback.remaining)) {
+      return [
+        "Repair verification is missing the shape counts",
+      ];
+    }
+    if (readback.remaining === 0) {
+      return [];
+    }
+    const errors =
+      Array.isArray(apply.errors) && apply.errors.length ? ` (${apply.errors.join("; ")})` : "";
+    return [
+      `${readback.remaining} of ${inspect.found} shapes without an id are still on the page after remove()${errors}. Penpot did not clear them: reload the editor tab, and if they remain, recreate the page and copy the boards over`,
+    ];
+  },
+  reconcile({ before, current }) {
+    if (!Number.isInteger(before.found) || !Number.isInteger(current.found)) {
+      return "conflict";
+    }
+    return current.found === 0
+      ? "complete"
+      : current.found === before.found
+        ? "pending"
+        : "conflict";
   },
 };
