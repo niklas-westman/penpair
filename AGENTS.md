@@ -13,6 +13,9 @@ the maintained documentation before archiving working notes.
   and add a completion note. Keep one "Now" item and record new work unchecked.
 - Never force-add `.working-docs/` or link public documentation to local-only
   notes. Keep reusable guides, conventions, skills and examples tracked.
+- Keep reusable design investigations and proposals in `docs/designs/`, linked
+  from the documentation index, with status and the version or commit examined.
+  Session handoffs, review reports and private evidence stay in `.working-docs/`.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
 ## Code conventions
@@ -23,6 +26,11 @@ and the relevant file-type example. Use the repository skill
 Use kebab-case code paths, descriptive local names and focused responsibilities;
 extract independently meaningful validation, I/O and command logic as it appears.
 Keep public imports and persisted schemas stable when moving code.
+
+Re-read cited files and symbols before reasoning from a `file:line` reference,
+including references copied from earlier notes or reviews. Line numbers can drift.
+Kit JavaScript inside `String.raw` is string data: symbol searches may land inside
+strings, and Biome does not format their contents.
 
 `biome.json` owns formatting. Run `pnpm format` after edits, then `pnpm check`.
 The checks enforce supported-source formatting, braces, separate declarations,
@@ -36,6 +44,11 @@ specific handling described in the conventions.
 - **No secrets in the repository, in output or in logs.** The MCP URL carries a personal key: redact it, never print it, never commit it.
 - **Write protocol for any Penpot change:** read-only inspect, a pinned snapshot, one idempotent write, an independent readback, an export that is looked at. A first export after a write or a page switch can be stale; look twice.
 - **Snippets sent to Penpot stay under 90 KB** (the proxy refuses about 110 KB).
+- Measure kit byte limits against the generated source consumers load. Code
+  serialized with `Function.toString()` can differ between build/test transforms;
+  run adapter tests as well as core tests before changing sandbox generation.
+  After editing `layout-settling.ts`, run `pnpm sandbox:generate`; core builds
+  check the tracked artifact without rewriting it.
 - Pin the Penpot version; run the smoke test before bumping it.
 
 ## Packages
@@ -45,3 +58,10 @@ specific handling described in the conventions.
 ## Validation
 
 `pnpm check` runs style/path checks, the build, typechecking, executable convention examples, tests and the version check. `pnpm smoke:package` packs all six packages, installs them in an empty project and runs them; run it before any release.
+
+`pnpm check` requires a Git checkout or worktree: the code-path check uses
+`git ls-files`. In a source copy without Git metadata, run `pnpm exec biome check .`,
+`pnpm build`, `pnpm typecheck`, `pnpm conventions:check`, `pnpm test` and
+`pnpm check:versions` in that order. Report these as partial validation;
+Git-dependent checks and the full gate remain unverified until `pnpm check`
+passes in a checkout or worktree.

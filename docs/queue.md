@@ -43,3 +43,5 @@ Only failures that did not decide the job are retried, up to `retries` times wit
 `penpair queue run jobs.json --resume QUEUE_ID` continues a queue after a crash or a stop: finished jobs are skipped, an uncertain job resumes its run, other jobs start again. The queue file must be unchanged since it started.
 
 A queue does not make a multi-job batch transactional. Each job is its own journaled write; there is no rollback across jobs. A queue is not a lock: do not start a second queue or hand-run writes against the same file while one runs.
+
+For one heavy frame, start with [staged runs](run-file.md#staged-runs); use a queue to sequence multiple builds. Each queue job can also use stages.

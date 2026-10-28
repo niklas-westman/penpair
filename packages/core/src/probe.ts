@@ -31,7 +31,7 @@ return {
   apis: { tokens: typeof lib.tokens, tokenSets: lib.tokens ? lib.tokens.sets.length : null, themes: lib.tokens ? lib.tokens.themes.length : null, components: lib.components.length,
     uploadMediaData: typeof penpot.uploadMediaData, createBoard: typeof penpot.createBoard, openPage: typeof penpot.openPage, fileExport: typeof (f && f.export),
     layoutWait: typeof penpot.waitForLayoutUpdate, fileValidate: typeof (f && f.validate), saveVersion: typeof (f && f.saveVersion), findVersions: typeof (f && f.findVersions), generateMarkup: typeof penpot.generateMarkup, generateStyle: typeof penpot.generateStyle, generateFontFaces: typeof penpot.generateFontFaces },
-  shapeApis: shape ? { swapComponent: typeof shape.swapComponent, applyToken: typeof shape.applyToken, flex: typeof shape.addFlexLayout, exportSmallShape: exported } : "not checked: the page has no shape; open a file with at least one shape to check these",
+  shapeApis: shape ? { swapComponent: typeof shape.swapComponent, applyToken: typeof shape.applyToken, flex: typeof shape.addFlexLayout, layoutWait: typeof shape.waitForLayoutUpdate, exportSmallShape: exported } : "not checked: the page has no shape; open a file with at least one shape to check these",
 };`;
 
 /**

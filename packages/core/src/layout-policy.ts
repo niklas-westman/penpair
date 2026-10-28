@@ -1,4 +1,4 @@
-import { settleLayout } from "./layout-settling.js";
+import { layoutSettlingSource } from "./generated/layout-settling-source.js";
 
 /** Trusted, dependency-free observation source for the Penpot sandbox. */
 const layoutObservationSource = String.raw`
@@ -57,4 +57,4 @@ const observeLayout = async (penpot, root, options) => {
 };
 `;
 
-export const layoutPolicySource = `${layoutObservationSource}\nconst settleLayout = ${settleLayout.toString()};`;
+export const layoutPolicySource = `${layoutObservationSource}\nconst settleLayout = ${layoutSettlingSource}`;

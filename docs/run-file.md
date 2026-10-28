@@ -84,8 +84,9 @@ The readback script receives `CFG.inspection`, the inspection taken before this 
 
 A frame with many heavy instances does not settle in one flush. `run-file --stages N` (1–50) calls the write script once per stage with `CFG.stage` (1..N) and `CFG.stages`; the inspect and readback scripts get the same two values. Each stage is its own journal step: it is inspected right before it runs, its readback is checked after it, and `penpair runs RUN_ID` shows each stage's state.
 
-- Each stage builds one subtree and flushes only that subtree (`pp.flush({ root })`). Report that subtree as `layoutRoots` from the stage's inspect script, so layout is checked there and not on the whole page.
+- Each stage builds one subtree and flushes only that subtree (`pp.flush({ root })`). Its inspect script reports existing roots as `layoutRoots`; when the subtree has not been created yet, report its existing parent. These roots must remain present through readback, so layout is checked on the intended scope.
 - A stage is skipped on resume only when the journal records that stage as done. A stage that was never attempted always runs its write, even if its readback already passes, so a readback that happens to pass cannot hide a missing write. Keep each stage's write idempotent (the usual `// penpair: idempotent` contract).
 - After an interrupted stage, `--apply --resume RUN_ID` verifies that stage from its readback and continues with the next; completed stages are not written again.
 - `--stages` and `CFG.stage`/`CFG.stages` are reserved: do not pass them with `--param`. Without `--apply`, the inspection runs for stage 1.
 - The report lists `stages` with each stage's state.
+- Many boards one at a time belong in a queue rather than in one staged run: see [queue runs](queue.md).

@@ -341,3 +341,56 @@ describe("instance kit", () => {
     );
   });
 });
+
+describe("filter cardinality", () => {
+  it("resolves a filter to an expected count and names the filter and the count", async () => {
+    const f = kitFixture();
+    const pp = await load(f.penpot);
+    const card = pp.box(null, {
+      name: "Card",
+      w: 240,
+    });
+    pp.box(card, {
+      name: "Row",
+      w: 100,
+    });
+    pp.box(card, {
+      name: "Row",
+      w: 100,
+    });
+    expect(pp.find(card, "Card").name).toBe("Card");
+    expect(pp.find(card, "Row", 2)).toHaveLength(2);
+    expect(() => pp.find(card, "Row")).toThrow(
+      /find\("Row"\) matched 2 shapes under "Card", expected 1/,
+    );
+    expect(() => pp.find(card, "Nope")).toThrow(/matched 0 shapes/);
+    expect(() => pp.find(null, "Card")).toThrow(/find needs a root shape/);
+    expect(() => pp.find(card, "Card", 0)).toThrow(/positive integer/);
+  });
+});
+
+it("finds predicate matches and labels cardinality errors with the predicate name", async () => {
+  const fixture = kitFixture();
+  const helpers = await load(fixture.penpot);
+  const root = helpers.box(null, {
+    name: "Root",
+    w: 240,
+  });
+  const row = helpers.box(root, {
+    name: "Row",
+    w: 100,
+  });
+  const namedRow = (shape: { name: string }) => shape.name === "Row";
+
+  expect(helpers.find(root, namedRow)).toBe(row);
+  expect(() => helpers.find(root, namedRow, 2)).toThrow(/find\(namedRow\) matched 1/);
+  expect(() => helpers.find(root, () => false)).toThrow(/matched 0 shapes/);
+
+  for (const expected of [
+    -1,
+    1.5,
+    NaN,
+  ]) {
+    expect(() => helpers.find(root, "Row", expected)).toThrow(/positive integer/);
+  }
+});

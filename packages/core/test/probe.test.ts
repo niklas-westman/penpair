@@ -102,6 +102,53 @@ describe("probe", () => {
     });
   });
 
+  it("reports shape-level capabilities when the page has a shape", async () => {
+    const penpot = {
+      version: "2.18.3",
+      currentFile: {
+        id: "file",
+        name: "File",
+        revn: 1,
+        pages: [],
+      },
+      currentPage: {
+        id: "page",
+        name: "Home",
+        root: {
+          children: [
+            {
+              width: 100,
+              height: 50,
+              swapComponent: () => undefined,
+              applyToken: async () => undefined,
+              addFlexLayout: () => undefined,
+              waitForLayoutUpdate: async () => undefined,
+              export: async () => new Uint8Array(7),
+            },
+          ],
+        },
+      },
+      library: {
+        local: {
+          tokens: {
+            sets: [],
+            themes: [],
+          },
+          components: [],
+        },
+      },
+    };
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    const result = await new AsyncFunction("penpot", capabilityCode)(penpot);
+    expect(result.shapeApis).toMatchObject({
+      swapComponent: "function",
+      applyToken: "function",
+      flex: "function",
+      layoutWait: "function",
+      exportSmallShape: 7,
+    });
+  });
+
   it("sends plugin code that is valid", () => {
     expect(compiles(capabilityCode)).toBeUndefined();
   });

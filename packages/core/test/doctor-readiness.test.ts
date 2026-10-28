@@ -1,6 +1,11 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { doctorExternal } from "../src/instance/connection.js";
 import { runCommand } from "../src/cli-main.js";
+import * as connectionModule from "../src/instance/connection.js";
+import * as endpointModule from "../src/endpoint.js";
 const config = {
   instance: "fixture",
   profile: {
@@ -14,7 +19,10 @@ const config = {
 const answering = vi.fn(async () => ({
   status: 200,
 })) as unknown as typeof fetch;
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 it("separates transport, fresh challenge, page identity and file pin observations", async () => {
   const challenges: string[] = [];
   for (let i = 0; i < 2; i++) {
@@ -224,3 +232,74 @@ it("malformed file/page observations cannot establish fresh execution readiness"
   });
   expect(result.find((row) => row.layer === "execution")?.ok).toBe(false);
 });
+
+it("qualifies a connected transport row when the editor verdict fails", async () => {
+  const result = await doctorExternal(config, {
+    fetch: answering,
+    mcp: {
+      origin: config.profile.origin,
+      connect: async (request) => {
+        request!.onTransport();
+        return {
+          file: "Fixture",
+          fileId: "expected",
+          pageId: "page",
+          challenge: "stale",
+        };
+      },
+    },
+  });
+  const transport = result.find((row) => row.layer === "transport");
+  expect(transport).toMatchObject({
+    ok: true,
+    warning: true,
+  });
+  expect(transport?.detail).toMatch(/did not answer/);
+  expect(result.find((row) => row.layer === "execution")?.ok).toBe(false);
+});
+
+it.each([
+  true,
+  false,
+])(
+  "reports the skipped tab census without changing the editor verdict (%s)",
+  async (editorReady) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-doctor-census-"));
+    await writeFile(path.join(root, "penpair.config.json"), JSON.stringify(config));
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.spyOn(endpointModule, "resolveEndpoint").mockResolvedValue({
+      url: "https://example.test/mcp",
+      description: {
+        source: "env",
+        origin: config.profile.origin,
+        pathname: "/mcp",
+      },
+    });
+    vi.spyOn(connectionModule, "doctorExternal").mockResolvedValue([
+      {
+        check: "editor and plugin",
+        ok: editorReady,
+        detail: "Fixture editor verdict",
+      },
+    ]);
+
+    const result = await runCommand([
+      "--json",
+      "doctor",
+    ]);
+
+    expect(result.exitCode).toBe(editorReady ? 0 : 1);
+    expect(result.data).toMatchObject({
+      ok: editorReady,
+      checks: expect.arrayContaining([
+        {
+          check: "browser tabs",
+          ok: true,
+          warning: true,
+          detail: expect.stringContaining("--debug-port"),
+          remedy: expect.stringContaining("--debug-port"),
+        },
+      ]),
+    });
+  },
+);

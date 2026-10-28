@@ -218,7 +218,14 @@ export async function doctorEditor(
         ? "heartbeat age unavailable"
         : `last heartbeat ${pluginHealth.heartbeatAgeMs / 1000}s ago (reported by upstream)`;
 
-    if (!connected) {
+    if (connected) {
+      // A green transport row beside a failing editor row reads as success; qualify it without changing the exit code.
+      const transportRow = out.find((check) => check.layer === "transport");
+      if (transportRow) {
+        transportRow.warning = true;
+        transportRow.detail = "Connected to MCP transport, but the editor did not answer";
+      }
+    } else {
       out.push({
         check: "MCP transport",
         layer: "transport",

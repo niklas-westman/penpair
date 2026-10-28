@@ -331,3 +331,112 @@ describe("neutral plugin build kit", () => {
     ).toThrow(/^bg needs a token name$/);
   });
 });
+
+describe("explicit flush roots", () => {
+  it.each([
+    undefined,
+    null,
+    false,
+    0,
+    -0,
+    0n,
+    NaN,
+    "",
+  ])(
+    "refuses an explicit empty root (%s) before applying queued work and recovers",
+    async (root) => {
+      const fixture = kitFixture();
+      const helpers = await load(fixture.penpot);
+      const card = helpers.box(null, {
+        name: "Card",
+        w: 120,
+        bg: "surface",
+      });
+      const before = [
+        ...fixture.events,
+      ];
+      const received = typeof root === "string" ? JSON.stringify(root) : String(root);
+
+      await expect(
+        helpers.flush({
+          root,
+        }),
+      ).rejects.toThrow(`Flush root must exist (got ${received})`);
+      expect(fixture.events).toEqual(before);
+      expect(card.tokens).toEqual({});
+
+      const report = await helpers.flush({
+        root: card,
+      });
+      expect(report.layout).toMatchObject({
+        stable: true,
+        rootIds: [
+          card.id,
+        ],
+      });
+      expect(card.tokens).toMatchObject({
+        fill: "surface",
+      });
+    },
+  );
+
+  it("keeps page scope for omitted roots and supports explicit arrays", async () => {
+    const fixture = kitFixture();
+    const helpers = await load(fixture.penpot);
+    expect((await helpers.flush()).layout.rootIds).toEqual([
+      fixture.root.id,
+    ]);
+    expect(
+      (
+        await helpers.flush({
+          timeoutMs: 1000,
+        })
+      ).layout.rootIds,
+    ).toEqual([
+      fixture.root.id,
+    ]);
+    const first = helpers.box(null, {
+      name: "First",
+      w: 100,
+    });
+    const second = helpers.box(null, {
+      name: "Second",
+      w: 100,
+    });
+    expect(
+      (
+        await helpers.flush({
+          root: [
+            first,
+            second,
+          ],
+        })
+      ).layout.rootIds,
+    ).toEqual([
+      first.id,
+      second.id,
+    ]);
+    await expect(
+      helpers.flush({
+        root: [],
+      }),
+    ).rejects.toThrow(/layout target does not exist/);
+    await expect(
+      helpers.flush({
+        root: [
+          undefined,
+        ],
+      }),
+    ).rejects.toThrow(/layout target does not exist/);
+    expect(
+      (
+        await helpers.flush({
+          root: first,
+        })
+      ).layout.stable,
+    ).toBe(true);
+    expect((await helpers.settle(undefined)).rootIds).toEqual([
+      fixture.root.id,
+    ]);
+  });
+});
