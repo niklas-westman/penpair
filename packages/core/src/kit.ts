@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { coreKitSource } from "./kit-source.js";
+import { instanceKitSource } from "./kit-instances.js";
 import { compiles, snippet } from "./snippet.js";
 import { loadAdapters } from "./adapters.js";
 import { loadOptionalConfig } from "./instance/config.js";
@@ -22,6 +23,15 @@ export const coreKit: BuildKit = {
       name: "hello-card",
       description: "A neutral text-in-board example, with explicit token styles",
     },
+  ],
+};
+/** Helpers for component instances (swap, icon size, component name, library icon); extends `pp`, so it follows `@kit`. */
+export const instanceKit: BuildKit = {
+  include: "@instances",
+  source: instanceKitSource,
+  recipes: [],
+  requires: [
+    "@kit",
   ],
 };
 /** Plain JavaScript to concatenate into a reviewed plugin body; defines the pp namespace. */
@@ -148,8 +158,12 @@ export async function loadKits(
       "@kit",
       coreKit,
     ],
+    [
+      "@instances",
+      instanceKit,
+    ],
   ]);
-  if (includes.some((name) => name !== "@kit")) {
+  if (includes.some((name) => !available.has(name))) {
     const loaded = await loadAdapters(root, config?.adapters);
     for (const adapter of loaded.adapters) {
       if (adapter.kits !== undefined && !Array.isArray(adapter.kits)) {
