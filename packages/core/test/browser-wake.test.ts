@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  inspectBrowserPages,
   inspectBrowserTarget,
+  reloadBrowserTarget,
   wakeBrowserTarget,
   type BrowserTargetOptions,
 } from "../src/browser-wake.js";
@@ -575,4 +577,178 @@ it("never follows a real HTTP redirect to another service", async () => {
   });
   await expect(wakeBrowserTarget(options)).rejects.toThrow("Cannot reach the local browser");
   expect(redirectedRequests).toBe(0);
+});
+
+describe("browser tab diagnostics", () => {
+  const integrations = {
+    id: "settings",
+    type: "page",
+    url: `${pinnedFile.origin}/#/settings/integrations?token=SECRET`,
+  };
+  it("says which tab is the pinned workspace and keeps query strings out of the answer", async () => {
+    const browser = fakeBrowser([
+      selectedTab,
+      integrations,
+      {
+        id: "elsewhere",
+        type: "page",
+        url: "https://other.test/#/x?token=SECRET",
+      },
+    ]);
+    const found = await inspectBrowserPages({
+      ...pinnedFile,
+      fetch: browser.fetch,
+    });
+    expect(found.matching).toBe(1);
+    expect(found.pages.map((page) => page.state)).toEqual([
+      "pinned-file-workspace",
+      "not-a-workspace",
+      "other-origin",
+    ]);
+    expect(found.summary).toContain("/settings/integrations");
+    expect(found.summary).toContain("not a workspace");
+    expect(JSON.stringify(found)).not.toContain("SECRET");
+    expect(browser.requests.every((url) => url.endsWith("/json/list"))).toBe(true);
+  });
+  it("lists the tabs it saw when the pinned workspace is missing or open twice", async () => {
+    await expect(
+      wakeBrowserTarget({
+        ...pinnedFile,
+        fetch: fakeBrowser([
+          integrations,
+        ]).fetch,
+      }),
+    ).rejects.toThrow(
+      /No browser page matches.*Tabs seen: 1\. .*\/settings\/integrations \(not a workspace/,
+    );
+    await expect(
+      wakeBrowserTarget({
+        ...pinnedFile,
+        fetch: fakeBrowser([
+          selectedTab,
+          {
+            ...selectedTab,
+            id: "second",
+          },
+        ]).fetch,
+      }),
+    ).rejects.toThrow(/Multiple browser pages.*Tabs seen: 1\..*; 2\./);
+  });
+});
+
+describe("browser reload", () => {
+  const socketUrl = `ws://127.0.0.1:${pinnedFile.port}/devtools/page/${selectedTab.id}`;
+  function fakeSocket(reply: object | "close") {
+    const sent: string[] = [];
+    class Fake {
+      listeners: Record<string, ((event: { data?: string }) => void)[]> = {};
+      constructor(public url: string) {
+        queueMicrotask(() => this.emit("open", {}));
+      }
+      addEventListener(type: string, listener: (event: { data?: string }) => void) {
+        (this.listeners[type] ??= []).push(listener);
+      }
+      emit(
+        type: string,
+        event: {
+          data?: string;
+        },
+      ) {
+        for (const listener of this.listeners[type] ?? []) {
+          listener(event);
+        }
+      }
+      send(message: string) {
+        sent.push(message);
+        queueMicrotask(() =>
+          reply === "close"
+            ? this.emit("close", {})
+            : this.emit("message", {
+                data: JSON.stringify(reply),
+              }),
+        );
+      }
+      close() {}
+    }
+    return {
+      Socket: Fake as unknown as typeof WebSocket,
+      sent,
+    };
+  }
+  const withSocket = (url: string | undefined) =>
+    fakeBrowser([
+      {
+        ...selectedTab,
+        ...(url
+          ? {
+              webSocketDebuggerUrl: url,
+            }
+          : {}),
+      },
+    ]).fetch;
+
+  it("reloads only the one pinned tab, asking for nothing but Page.reload", async () => {
+    const { Socket, sent } = fakeSocket({
+      id: 1,
+      result: {},
+    });
+    expect(
+      await reloadBrowserTarget({
+        ...pinnedFile,
+        fetch: withSocket(socketUrl),
+        webSocket: Socket,
+      }),
+    ).toEqual({
+      reloaded: true,
+      targetId: selectedTab.id,
+    });
+    expect(sent.map((message) => JSON.parse(message).method)).toEqual([
+      "Page.reload",
+    ]);
+  });
+  it("refuses a socket that is not this loopback browser's page, and reports a refusal or a closed socket", async () => {
+    const { Socket } = fakeSocket({
+      id: 1,
+      result: {},
+    });
+    for (const url of [
+      "ws://evil.test:9222/devtools/page/ABCD-1234",
+      "ws://127.0.0.1:1234/devtools/page/ABCD-1234",
+      "ws://127.0.0.1:9222/devtools/browser/ABCD-1234",
+    ]) {
+      await expect(
+        reloadBrowserTarget({
+          ...pinnedFile,
+          fetch: withSocket(url),
+          webSocket: Socket,
+        }),
+      ).rejects.toThrow(/Refusing a debugging socket/);
+    }
+    await expect(
+      reloadBrowserTarget({
+        ...pinnedFile,
+        fetch: withSocket(undefined),
+        webSocket: Socket,
+      }),
+    ).rejects.toThrow(/did not offer a debugging socket/);
+    await expect(
+      reloadBrowserTarget({
+        ...pinnedFile,
+        fetch: withSocket(socketUrl),
+        webSocket: fakeSocket({
+          id: 1,
+          error: {
+            message: "nope",
+          },
+        }).Socket,
+      }),
+    ).rejects.toThrow(/refused the reload: nope/);
+    await expect(
+      reloadBrowserTarget({
+        ...pinnedFile,
+        fetch: withSocket(socketUrl),
+        webSocket: fakeSocket("close").Socket,
+      }),
+    ).rejects.toThrow(/closed the debugging socket/);
+  });
 });

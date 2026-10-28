@@ -97,7 +97,15 @@ export {
   type PreparedFileScript,
 } from "./run-file.js";
 
-export { kit, coreKit, checkKits, loadKits, type BuildKit, type RecipeInfo } from "./kit.js";
+export {
+  kit,
+  coreKit,
+  instanceKit,
+  checkKits,
+  loadKits,
+  type BuildKit,
+  type RecipeInfo,
+} from "./kit.js";
 
 export { runKitSmoke, kitSmokeOperation } from "./kit-smoke.js";
 

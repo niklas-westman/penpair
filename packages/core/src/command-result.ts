@@ -12,7 +12,15 @@ export interface CommandResult {
   schemaVersion: 1;
   redacted?: boolean;
   command: string;
-  outcome: "success" | "drift" | "failed" | "incomplete" | "uncertain" | "cancelled" | "deadline";
+  outcome:
+    | "success"
+    | "already-satisfied"
+    | "drift"
+    | "failed"
+    | "incomplete"
+    | "uncertain"
+    | "cancelled"
+    | "deadline";
   phase: string;
   exitCode: number;
   target: {
@@ -295,6 +303,10 @@ export async function collectCommand(
               : exitCode === 124
                 ? "deadline"
                 : "failed";
+  if (outcome === "success" && record.outcome === "already-satisfied") {
+    // The write was not needed and was not run; the state is right but this is not a successful write.
+    outcome = "already-satisfied";
+  }
   if (errorCode === "write-uncertain" || errorCode === "uncertain") {
     outcome = "uncertain";
     exitCode = 4;
@@ -386,7 +398,7 @@ export async function collectCommand(
     warnings: capture.warnings,
     errors: capture.errors,
     completeness: {
-      complete: outcome === "success" || outcome === "drift",
+      complete: outcome === "success" || outcome === "already-satisfied" || outcome === "drift",
       ...(incomplete
         ? {
             reason: "Output is truncated or required observations are missing",
@@ -413,7 +425,11 @@ export async function collectCommand(
         complete: false,
         reason: "Displayed data required redaction and is not lossless source evidence",
       };
-      if (result.outcome === "success" || result.outcome === "drift") {
+      if (
+        result.outcome === "success" ||
+        result.outcome === "already-satisfied" ||
+        result.outcome === "drift"
+      ) {
         result.outcome = "incomplete";
         result.exitCode = 3;
       }
@@ -454,6 +470,7 @@ export const commandResultSchema = {
     outcome: {
       enum: [
         "success",
+        "already-satisfied",
         "drift",
         "failed",
         "incomplete",

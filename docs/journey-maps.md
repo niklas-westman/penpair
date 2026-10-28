@@ -137,3 +137,7 @@ Use the original `--board-id` and `--projection` options if they were supplied.
 Resume independently reconciles readback and exports; it does not blindly repeat
 the write. Changed input or code signatures must refuse reuse. Inspect again and
 start a new explicitly authorized run when needed; do not bypass those guards.
+
+## Republishing over an older drawing
+
+The publish write no longer carries the previously inspected drawing; it carries a short digest of it and re-checks that digest inside Penpot before changing anything (a stale map still stops with "Map changed after inspection"). Republishing a map whose earlier drawing is still on the page therefore no longer pushes the request past the 90 KB limit, which used to be possible for a larger map. The digest is a staleness guard, not a security boundary.

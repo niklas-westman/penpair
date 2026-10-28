@@ -105,6 +105,9 @@ export async function prepareFileScript(
   if (options.page && Object.hasOwn(params, "page")) {
     throw new Error("--page owns CFG.page; do not also pass --param page");
   }
+  if (Object.hasOwn(params, "stage") || Object.hasOwn(params, "stages")) {
+    throw new Error("CFG.stage and CFG.stages are reserved for --stages");
+  }
   if (Object.hasOwn(params, "inspection")) {
     throw new Error("CFG.inspection is reserved for the independently captured write inspection");
   }
@@ -143,6 +146,7 @@ export async function prepareFileScript(
     body: string,
     effect: "read" | "write",
     inspected?: SnippetResult,
+    staged?: Params,
   ) =>
     checked(
       snippet(
@@ -150,7 +154,13 @@ export async function prepareFileScript(
         `${requirePage}\n${prelude}\n${body}`,
         {
           ...cfg,
-          ...(effect === "write"
+          ...(typeof staged?.stage === "number"
+            ? {
+                stage: staged.stage,
+                stages: staged.stages,
+              }
+            : {}),
+          ...(effect === "write" || inspected
             ? {
                 inspection: inspected ?? null,
               }
@@ -202,10 +212,11 @@ export async function prepareFileScript(
   const operation: WriteEntry["operation"] = {
     ...normalized.operation,
     page: () => options.page,
-    inspect: () => build("run-file-inspect", inspect.body, "read"),
-    apply: (_params: Params, inspected?: SnippetResult) =>
-      build("run-file-apply", main.body, "write", inspected),
-    readback: () => build("run-file-readback", readback.body, "read"),
+    inspect: (staged: Params) => build("run-file-inspect", inspect.body, "read", undefined, staged),
+    apply: (staged: Params, inspected?: SnippetResult) =>
+      build("run-file-apply", main.body, "write", inspected, staged),
+    readback: (staged: Params, baseline?: SnippetResult) =>
+      build("run-file-readback", readback.body, "read", baseline, staged),
   };
   operation.inspect({});
   operation.apply({});
@@ -257,7 +268,16 @@ export async function runFileScript(
       parameters: prepared.params,
       sourceFiles: prepared.source,
     },
-    options,
+    // A script's write is checked where it reports layoutRoots; the page sample is opt-in (--layout-scope page).
+    options.layout === false
+      ? options
+      : {
+          ...options,
+          layout: {
+            scope: "inspected",
+            ...options.layout,
+          },
+        },
   );
   return {
     ...report,

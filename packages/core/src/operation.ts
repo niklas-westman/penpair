@@ -9,6 +9,12 @@ import {
   archiveReadback,
   type ArchiveParams,
 } from "./snippets/archive.js";
+import {
+  repairApply,
+  repairInspect,
+  repairReadback,
+  type RepairParams,
+} from "./snippets/repair.js";
 import { PenpairError } from "./errors.js";
 import { UncertainExecutionError } from "./client.js";
 import {
@@ -16,6 +22,7 @@ import {
   readJournalTarget,
   runJournaledSteps,
   type JournalOptions,
+  type JournalStep,
 } from "./journal.js";
 import { guardRevision, writeCoordinator } from "./coordination.js";
 import { guardFile } from "./file-guard.js";
@@ -30,7 +37,8 @@ export interface Operation<P> {
   page(params: P): string | undefined;
   inspect(params: P): Snippet;
   apply(params: P, inspected?: SnippetResult): Snippet;
-  readback(params: P): Snippet;
+  /** `baseline` is the inspection from before the write, for readbacks that compare against it. */
+  readback(params: P, baseline?: SnippetResult): Snippet;
   verify(results: {
     inspect: SnippetResult;
     apply: SnippetResult;
@@ -50,6 +58,8 @@ export interface OperationOptions extends ExecuteOptions {
   journal?: Omit<JournalOptions, "operation" | "input" | "target">;
   /** Without it only the read-only inspect runs. */
   apply?: boolean;
+  /** Run the script once per stage (1..N, CFG.stage); each stage is its own journal step, skipped on resume only when recorded done. */
+  stages?: number;
   /** Wait between the write and the readback: token resolution and layout settle slowly. */
   settleMs?: number;
   onStep?: (message: string) => void;
@@ -63,7 +73,9 @@ export interface OperationReport {
     runId: string;
     state: string;
   };
-  outcome: "inspected" | "verified" | "failed";
+  /** `already-satisfied`: the readback held before the write, so nothing was written. It is not a successful write. */
+  outcome: "inspected" | "verified" | "already-satisfied" | "failed";
+  skipped?: "readback-already-satisfied";
   operation: string;
   phase: "inspected" | "applied";
   inspect: SnippetResult;
@@ -144,10 +156,22 @@ async function runOperationInSession<P>(
   if (options.apply && options.journal) {
     return journaledOperation(client, operation, params, options);
   }
+  if (options.apply && options.stages !== undefined) {
+    throw new Error("A staged run needs a journal: its progress is recorded per stage");
+  }
   const { settleMs = 0, sleep = defaultSleep, onStep } = options;
   const page = operation.page(params);
   onStep?.(`${operation.name}: inspecting`);
-  const inspect = await runOnPage(client, operation.inspect(params), page, {
+  // An inspect-only run of a staged script looks at stage 1.
+  const first =
+    options.stages === undefined
+      ? params
+      : ({
+          ...params,
+          stage: 1,
+          stages: options.stages,
+        } as P);
+  const inspect = await runOnPage(client, operation.inspect(first), page, {
     ...options,
     effect: "read",
   });
@@ -193,8 +217,8 @@ async function runOperationInSession<P>(
   let readback: SnippetResult | undefined;
   let problems: string[];
   try {
-    layout = await settleOperation(client, options);
-    readback = await runOnPage(client, operation.readback(params), page, {
+    layout = await settleOperation(client, options, inspect);
+    readback = await runOnPage(client, operation.readback(params, inspect), page, {
       ...options,
       effect: "read",
     });
@@ -259,25 +283,52 @@ function verificationProblems<P>(
       ];
 }
 
+/** Roots the inspection names as `layoutRoots`: existing shapes, so they can be observed before and after the write. */
+function inspectedRoots(inspected: SnippetResult | undefined): string[] {
+  const roots = inspected?.layoutRoots;
+  if (!Array.isArray(roots) || roots.some((id) => typeof id !== "string" || !id.trim())) {
+    return [];
+  }
+  return [
+    ...new Set(roots as string[]),
+  ];
+}
+
 async function settleOperation(
   client: PenpotToolClient,
   options: OperationOptions,
+  inspected?: SnippetResult,
 ): Promise<LayoutResult | undefined> {
   if (options.layout === false) {
     return undefined;
   }
+  const { scope, ...layout } = options.layout ?? {};
+  const explicit = layout.shapeIds?.length || layout.shapeId;
+  if (scope === "inspected" && !explicit) {
+    const roots = inspectedRoots(inspected);
+    if (roots.length === 0) {
+      return {
+        stable: true,
+        method: "skipped",
+        samples: 0,
+        reason:
+          "the inspection named no layoutRoots; pass --layout-root, report layoutRoots from the inspect script, or use --layout-scope page for a whole-page sample",
+      };
+    }
+    layout.shapeIds = roots;
+  }
   options.onStep?.("waiting for bounded layout completion");
-  const layout = await waitForStableLayout(client, {
+  const result = await waitForStableLayout(client, {
     sleep: options.sleep,
-    ...options.layout,
+    ...layout,
   });
-  if (!layout.stable) {
+  if (!result.stable) {
     throw new PenpairError(
       "incomplete-output",
-      `Layout did not settle: ${layout.reason ?? "unknown reason"}`,
+      `Layout did not settle: ${result.reason ?? "unknown reason"} (${result.samples} samples, ${result.nodeCount ?? "unknown"} nodes sampled${result.elapsedMs === undefined ? "" : `, ${result.elapsedMs} ms`}${result.rootIds?.length ? `; roots ${result.rootIds.join(", ")}` : "; whole page"})`,
     );
   }
-  return layout;
+  return result;
 }
 
 async function journaledOperation<P>(
@@ -287,25 +338,53 @@ async function journaledOperation<P>(
   options: OperationOptions,
 ): Promise<OperationReport> {
   const page = operation.page(params);
-  await runOnPage(client, operation.inspect(params), page, {
+  const { stages } = options;
+  if (stages !== undefined && (!Number.isInteger(stages) || stages < 1 || stages > 50)) {
+    throw new Error("Stages must be an integer from 1 to 50");
+  }
+  // A staged run calls the script once per stage; the stage number travels in the params the builders receive.
+  const stageParams = (stage: number): P =>
+    stages === undefined
+      ? params
+      : ({
+          ...params,
+          stage,
+          stages,
+        } as P);
+  const planned = await runOnPage(client, operation.inspect(stageParams(1)), page, {
     ...options,
     effect: "read",
   });
-  await settleOperation(client, options);
+  await settleOperation(client, options, planned);
   const initialTarget = await readJournalTarget(client);
   const guarded = guardFile(client, {
     id: initialTarget.fileId,
   });
-  const observe = async () => {
-    const inspection = await runOnPage(guarded, operation.inspect(params), page, {
+  // The inspection taken before this process wrote anything is the baseline a stage's readback compares against.
+  const baselines = new Map<number, SnippetResult>([
+    [
+      1,
+      planned,
+    ],
+  ]);
+  const observe = async (stage: number) => {
+    const inspection = await runOnPage(guarded, operation.inspect(stageParams(stage)), page, {
       ...options,
       effect: "read",
     });
-    const layout = await settleOperation(guarded, options);
-    const readback = await runOnPage(guarded, operation.readback(params), page, {
-      ...options,
-      effect: "read",
-    });
+    const layout = await settleOperation(guarded, options, inspection);
+    if (!baselines.has(stage)) {
+      baselines.set(stage, inspection);
+    }
+    const readback = await runOnPage(
+      guarded,
+      operation.readback(stageParams(stage), baselines.get(stage)),
+      page,
+      {
+        ...options,
+        effect: "read",
+      },
+    );
     if (inspection.ok !== true || readback.ok !== true) {
       throw new Error("Operation inspection/readback did not acknowledge its observations");
     }
@@ -316,7 +395,7 @@ async function journaledOperation<P>(
     };
   };
   type Observation = Awaited<ReturnType<typeof observe>>;
-  const verify = (current: Observation, before: Observation, result?: unknown) =>
+  const verify = (stage: number) => (current: Observation, before: Observation, result?: unknown) =>
     verificationProblems(operation, {
       inspect: before.inspection,
       apply: (result as SnippetResult) ?? {
@@ -325,56 +404,86 @@ async function journaledOperation<P>(
       },
       readback: current.readback,
     }).length === 0;
-  const record = await runJournaledSteps(
-    [
-      {
-        key: "apply",
-        label: operation.name,
-        signature: [
-          operation.inspect(params).code,
-          operation.apply(params).code,
-          operation.readback(params).code,
-          operation.verify.toString(),
-          operation.reconcile?.toString(),
-          settleOperation.toString(),
-          waitForStableLayout.toString(),
-        ].join("\n"),
-        inspect: observe,
-        apply: async (current, target) => {
-          const result = await runOnPage(
-            guardRevision(guarded, target),
-            operation.apply(params, current.inspection),
-            page,
-            {
-              ...options,
-              effect: "write",
-            },
-          );
-          if (result.ok !== true) {
-            throw new Error("Apply returned no explicit acknowledgment");
+  const deferred: Observation = {
+    inspection: {
+      ok: true,
+    },
+    readback: {
+      ok: true,
+    },
+    layout: undefined,
+  };
+  const stageStep = (stage: number): JournalStep<Observation> => {
+    const forStage = stageParams(stage);
+    const check = verify(stage);
+    return {
+      key: stages === undefined ? "apply" : `stage-${stage}`,
+      label:
+        stages === undefined ? operation.name : `${operation.name} stage ${stage} of ${stages}`,
+      signature: [
+        operation.inspect(forStage).code,
+        operation.apply(forStage).code,
+        operation.readback(forStage).code,
+        operation.verify.toString(),
+        operation.reconcile?.toString(),
+        settleOperation.toString(),
+        inspectedRoots.toString(),
+        waitForStableLayout.toString(),
+      ].join("\n"),
+      // A later stage is observed right before it runs; the earlier stages change what it sees.
+      ...(stage > 1
+        ? {
+            initial: deferred,
+            deferredBefore: true,
           }
-          await (options.sleep ?? defaultSleep)(options.settleMs ?? 0);
-          return result;
-        },
-        verify,
-        reconcile: (before, current, result) => {
-          if (verify(current, before, result)) {
-            return "complete";
-          }
-          if (operation.reconcile) {
-            return operation.reconcile({
-              before: before.inspection,
-              current: current.inspection,
-              readback: current.readback,
-            });
-          }
-          return observationHash(before.inspection, true) ===
-            observationHash(current.inspection, true)
-            ? "pending"
-            : "conflict";
-        },
+        : {}),
+      inspect: () => observe(stage),
+      apply: async (current, target) => {
+        const result = await runOnPage(
+          guardRevision(guarded, target),
+          operation.apply(forStage, current.inspection),
+          page,
+          {
+            ...options,
+            effect: "write",
+          },
+        );
+        if (result.ok !== true) {
+          throw new Error("Apply returned no explicit acknowledgment");
+        }
+        await (options.sleep ?? defaultSleep)(options.settleMs ?? 0);
+        return result;
       },
-    ],
+      verify: check,
+      reconcile: (before, current, result, state) => {
+        // A stage that was never attempted always runs its write: a readback that happens to pass does not skip it.
+        if (stages !== undefined && state === "pending") {
+          return "pending";
+        }
+        if (check(current, before, result)) {
+          return "complete";
+        }
+        if (operation.reconcile) {
+          return operation.reconcile({
+            before: before.inspection,
+            current: current.inspection,
+            readback: current.readback,
+          });
+        }
+        return observationHash(before.inspection, true) ===
+          observationHash(current.inspection, true)
+          ? "pending"
+          : "conflict";
+      },
+    };
+  };
+  const record = await runJournaledSteps(
+    Array.from(
+      {
+        length: stages ?? 1,
+      },
+      (_, index) => stageStep(index + 1),
+    ),
     {
       ...options.journal!,
       coordinate: writeCoordinator(guarded, {
@@ -386,6 +495,11 @@ async function journaledOperation<P>(
       operation: operation.name,
       input: {
         params,
+        ...(stages === undefined
+          ? {}
+          : {
+              stages,
+            }),
         layout: options.layout ?? {},
         minimumWaitMs: options.settleMs ?? 0,
       },
@@ -397,21 +511,41 @@ async function journaledOperation<P>(
       redact: options.redact ?? options.journal!.redact,
     },
   );
-  const saved = record.steps[0]!;
+  const first = record.steps[0]!;
+  const last = record.steps[record.steps.length - 1]!;
+  const skipped = record.steps.every((step) => step.skipped) ? first.skipped : undefined;
   return {
-    layout: (saved.after as Observation).layout,
+    layout: (last.after as Observation).layout,
     operation: operation.name,
     phase: "applied",
-    outcome: record.redacted ? "failed" : "verified",
+    outcome: record.redacted ? "failed" : skipped ? "already-satisfied" : "verified",
+    ...(skipped
+      ? {
+          skipped,
+        }
+      : {}),
+    ...(stages === undefined
+      ? {}
+      : {
+          stages: record.steps.map((step, index) => ({
+            stage: index + 1,
+            state: step.state,
+            ...((step.after as Observation | undefined)?.layout
+              ? {
+                  layout: (step.after as Observation).layout,
+                }
+              : {}),
+          })),
+        }),
     ...(record.redacted
       ? {
           redacted: true,
           complete: false,
         }
       : {}),
-    inspect: (saved.before as Observation).inspection,
-    apply: saved.result as SnippetResult | undefined,
-    readback: (saved.after as Observation).readback,
+    inspect: (first.before as Observation).inspection,
+    apply: last.result as SnippetResult | undefined,
+    readback: (last.after as Observation).readback,
     problems: record.redacted
       ? [
           "Journal evidence required credential redaction; completeness cannot be confirmed",
@@ -532,5 +666,43 @@ export const archiveOperation: Operation<ArchiveParams> = {
       return "conflict";
     }
     return remaining.length === 0 ? "complete" : "pending";
+  },
+};
+
+/** Removes the shapes without an id that an interrupted build leaves on the page root. Penpot's `remove()` may not clear them: the readback says. */
+export const repairEmptyShapesOperation: Operation<RepairParams> = {
+  name: "repair-empty-shapes",
+  page: (params) => params.page,
+  inspect: repairInspect,
+  apply: (params, inspected) =>
+    repairApply({
+      ...params,
+      expectedCount: inspected?.found as number | undefined,
+    }),
+  readback: repairReadback,
+  verify({ inspect, apply, readback }) {
+    if (!Number.isInteger(inspect.found) || !Number.isInteger(readback.remaining)) {
+      return [
+        "Repair verification is missing the shape counts",
+      ];
+    }
+    if (readback.remaining === 0) {
+      return [];
+    }
+    const errors =
+      Array.isArray(apply.errors) && apply.errors.length ? ` (${apply.errors.join("; ")})` : "";
+    return [
+      `${readback.remaining} of ${inspect.found} shapes without an id are still on the page after remove()${errors}. Penpot did not clear them: reload the editor tab, and if they remain, recreate the page and copy the boards over`,
+    ];
+  },
+  reconcile({ before, current }) {
+    if (!Number.isInteger(before.found) || !Number.isInteger(current.found)) {
+      return "conflict";
+    }
+    return current.found === 0
+      ? "complete"
+      : current.found === before.found
+        ? "pending"
+        : "conflict";
   },
 };

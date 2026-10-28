@@ -6,7 +6,10 @@ import { layoutPolicySource } from "./layout-policy.js";
 import { settleLayout } from "./layout-settling.js";
 
 export type LayoutStrategy = "auto" | "native" | "geometry";
+/** `inspected` observes the roots the inspection reports as `layoutRoots`; `page` samples the whole page. */
+export type LayoutScope = "inspected" | "page";
 export interface LayoutOptions {
+  scope?: LayoutScope;
   shapeId?: string;
   shapeIds?: string[];
   maxNodes?: number;
@@ -17,7 +20,7 @@ export interface LayoutOptions {
 }
 export interface LayoutResult {
   stable: boolean;
-  method: "native" | "geometry" | "partial" | "unavailable";
+  method: "native" | "geometry" | "partial" | "unavailable" | "skipped";
   rootIds?: string[];
   nodeCount?: number;
   maxNodes?: number;

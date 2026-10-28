@@ -30,6 +30,7 @@ import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-e
 import {
   withCommandSignal,
   commandSignal,
+  commandSleep,
   commandOutput as output,
   commandFailure,
   commandRedactor,
@@ -59,7 +60,12 @@ import { exportShapePng } from "./export.js";
 import { exportBaselines, resolveBaselineImageFormat } from "./baselines.js";
 import { encodeBaselineImage } from "./image-codec.js";
 import type { BaselineImageFormat } from "./image-evidence.js";
-import { archiveOperation, runOnPage, runOperation } from "./operation.js";
+import {
+  archiveOperation,
+  repairEmptyShapesOperation,
+  runOnPage,
+  runOperation,
+} from "./operation.js";
 import { formatDeepReport, runDeepCheck } from "./deep-check.js";
 import { probe } from "./probe.js";
 import { installSkills, listBundledSkills } from "./skills.js";
@@ -108,6 +114,11 @@ import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
 import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
+import { clearDeadLocks, listLocks } from "./coordination.js";
+import { exportFrames, parseFrames } from "./export-batch.js";
+import { inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
+import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
+import { resolveProjectInput } from "./project-input.js";
 
 const usageHead = `penpair ${version}
 Design agreements and release pages:
@@ -127,7 +138,8 @@ Connect / diagnose:
   penpair config check [--json]                        validate configuration offline
   penpair config schema                               print its JSON Schema
   penpair doctor [--json] [--timeout-ms 5000]           origin, transport, fresh editor read and file pin (1000–30000 ms)
-  penpair wake --debug-port 9222 [--json]              activate the pinned browser tab, then verify the editor; no reload or replay
+  penpair wake --debug-port 9222 [--reload] [--json]   activate the pinned browser tab, then verify the editor; --reload also reloads that one tab and waits for the plugin; no write is replayed
+  penpair doctor --debug-port 9222                     also lists the browser tabs on the Penpot origin and which holds the pinned file
   penpair status [--adapters]                          observed project health and optional companion readiness
   penpair open [--print]                              open the pinned public file URL, or print it
   penpair probe [--integrity]                          observed APIs and limits
@@ -141,7 +153,10 @@ Build:
   penpair snippets / snippets check                    list or validate configured trusted scripts
   penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
   penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
+  penpair repair --page PAGE --empty-shapes [--apply]  remove shapes without an id that an interrupted build left on the page root
   (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
+  (run-file --stages N runs the script once per stage with CFG.stage 1..N; each stage is a journal step)
+  (run-file checks layout at the layoutRoots its inspect script reports; --layout-scope page samples the whole page instead)
   (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
 Inspect / spec:
   penpair pages                                       file identity, revision and pages
@@ -157,9 +172,13 @@ Snapshot / diff:
   penpair snapshot diff design/snapshots/before --from design/snapshots/current
   penpair tokens diff before.json after.json --theme NAME
   penpair runs [RUN_ID]                                private recovery evidence, offline
+  penpair queue run jobs.json [--resume QUEUE_ID] [--stop-on-failure]   ordered run-file jobs, one writer, retries, status
+  penpair queue status [QUEUE_ID]                      job states of a queue, offline
+  penpair locks [clear]                                local writer locks and who holds them; clear removes only those whose process is gone
 Capture / approve:
   penpair export ID out.png [--page PAGE] [--scale 1]
   penpair export --name EXACT_NAME --page PAGE out.png
+  penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]   several frames, one failure does not stop the rest; --cache skips unchanged ones
   penpair shots --page PAGE [--prefix PREFIX] [--out design/shots]
   penpair approve --page PAGE --frame ID [--case CASE_ID]  preview exact-artifact evidence
   penpair approve --page PAGE --frame ID --write --note "OWNER WORDS" --by OWNER
@@ -292,6 +311,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       print: {
         type: "boolean",
       },
+      reload: {
+        type: "boolean",
+      },
+      "empty-shapes": {
+        type: "boolean",
+      },
+      frames: {
+        type: "string",
+      },
+      cache: {
+        type: "boolean",
+      },
       note: {
         type: "string",
       },
@@ -332,6 +363,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "string",
       },
       layout: {
+        type: "string",
+      },
+      "layout-scope": {
+        type: "string",
+      },
+      stages: {
         type: "string",
       },
       "layout-root": {
@@ -609,6 +646,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "page",
       "scale",
       "name",
+      "frames",
+      "out",
+      "cache",
       ...layoutFlags,
     ],
     shots: [
@@ -617,6 +657,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       "out",
       "scale",
       ...layoutFlags,
+    ],
+    repair: [
+      "page",
+      "empty-shapes",
+      "apply",
+      "resume",
+      "checkpoint",
+      "force-lock",
+      "trace",
     ],
     archive: [
       ...layoutFlags,
@@ -639,6 +688,8 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ],
     "run-file": [
       ...layoutFlags,
+      "layout-scope",
+      "stages",
       "include",
       "inspect",
       "readback",
@@ -705,10 +756,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ],
     doctor: [
       "timeout-ms",
+      "debug-port",
     ],
     wake: [
       "debug-port",
       "timeout-ms",
+      "reload",
     ],
     up: [],
     down: [],
@@ -735,6 +788,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     "export",
     "shots",
     "archive",
+    "repair",
     "run",
     "run-file",
     "baselines",
@@ -817,7 +871,16 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       );
     }
   }
-  if (
+  if (command === "export" && (values.cache || values.out) && !values.frames) {
+    throw new CommandArgumentError("--cache and --out belong to a batch export (--frames)");
+  }
+  if (command === "export" && values.frames) {
+    if (rest.length || values.name || !values.page) {
+      throw new CommandArgumentError(
+        "Batch export is penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]",
+      );
+    }
+  } else if (
     command === "export" &&
     (rest.length !== (values.name ? 1 : 2) || (values.name && !values.page))
   ) {
@@ -837,6 +900,21 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ].includes(values.layout)
   ) {
     throw new CommandArgumentError("--layout must be auto, native or geometry");
+  }
+  if (
+    values.stages !== undefined &&
+    (!/^\d+$/.test(values.stages) || Number(values.stages) < 1 || Number(values.stages) > 50)
+  ) {
+    throw new CommandArgumentError("--stages must be an integer from 1 to 50");
+  }
+  if (
+    values["layout-scope"] !== undefined &&
+    ![
+      "inspected",
+      "page",
+    ].includes(values["layout-scope"])
+  ) {
+    throw new CommandArgumentError("--layout-scope must be inspected or page");
   }
   if (
     values["layout-max-nodes"] !== undefined &&
@@ -861,6 +939,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       Number(values["timeout-ms"]) > 30000)
   ) {
     throw new CommandArgumentError(`${command} --timeout-ms must be an integer from 1000 to 30000`);
+  }
+  if (
+    command === "doctor" &&
+    values["debug-port"] !== undefined &&
+    (!/^\d+$/.test(values["debug-port"]) ||
+      Number(values["debug-port"]) < 1 ||
+      Number(values["debug-port"]) > 65535)
+  ) {
+    throw new CommandArgumentError("doctor --debug-port must be an integer from 1 to 65535");
   }
   if (
     command === "wake" &&
@@ -1032,6 +1119,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       !(
         [
           "archive",
+          "repair",
           "run",
           "run-file",
         ].includes(command ?? "") ||
@@ -1039,7 +1127,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       ))
   ) {
     throw new Error(
-      "--resume and --checkpoint require an operation command (archive/run/run-file/tokens) with --apply",
+      "--resume and --checkpoint require an operation command (archive/repair/run/run-file/tokens) with --apply",
     );
   }
   if (values.version) {
@@ -1661,12 +1749,64 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     output.log("next: penpair up, then penpair connect");
     return 0;
   }
+  /** With --debug-port, says which browser tabs are on the Penpot origin and which one holds the pinned file, so a silent editor has a visible cause. */
+  async function browserTabsCheck(): Promise<DoctorCheck | undefined> {
+    if (command !== "doctor" || !values["debug-port"]) {
+      return undefined;
+    }
+    const config = await loadCommandConfig(root);
+    if (!config.file?.id) {
+      return {
+        check: "browser tabs",
+        ok: false,
+        detail: "No pinned file to look for in the browser",
+        remedy: "Pin the owner-confirmed file, then rerun doctor with --debug-port.",
+      };
+    }
+    try {
+      const found = await inspectBrowserPages({
+        origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
+        allowLoopbackAlias: !isExternal(config),
+        fileId: config.file.id,
+        port: Number(values["debug-port"]),
+        timeoutMs: 5000,
+        signal: commandSignal(),
+      });
+      return {
+        check: "browser tabs",
+        ok: found.matching === 1,
+        detail: `${found.matching} tab${found.matching === 1 ? "" : "s"} on the pinned file's workspace. Tabs: ${found.summary}`,
+        ...(found.matching === 1
+          ? {}
+          : {
+              remedy:
+                found.matching === 0
+                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integrations page), then run wake."
+                  : "Close the duplicate tab: two sessions on one file make the plugin connection drop.",
+            }),
+      };
+    } catch (error) {
+      return {
+        check: "browser tabs",
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+        remedy:
+          "Start a dedicated browser with a loopback debugging port, open the pinned file, then rerun.",
+      };
+    }
+  }
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
     const backupCheck = await backupNoteCheck(root, await loadCommandConfig(root));
+    const tabs = await browserTabsCheck();
     const all: DoctorCheck[] = [
       ...checks,
+      ...(tabs
+        ? [
+            tabs,
+          ]
+        : []),
       ...(!mcp
         ? [
             {
@@ -1736,22 +1876,32 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       },
       config,
     );
-    const timeoutMs = Number(values["timeout-ms"] ?? 5000);
+    const timeoutMs = Number(values["timeout-ms"] ?? (values.reload ? 20000 : 5000));
     const started = Date.now();
-    const activation = await wakeBrowserTarget({
+    const target = {
       origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
       allowLoopbackAlias: !isExternal(config),
       fileId: config.file.id,
       port: Number(values["debug-port"]),
-      timeoutMs,
       signal: commandSignal(),
+    };
+    const activation = await wakeBrowserTarget({
+      ...target,
+      timeoutMs: Math.min(timeoutMs, 5000),
     });
-    const remaining = timeoutMs - (Date.now() - started);
-    const checks: DoctorCheck[] =
-      remaining > 0
-        ? await doctorEditor(config, {
+    // --reload only after the tab is known to be the one pinned workspace; wake itself never reloads.
+    const reloaded = values.reload
+      ? await reloadBrowserTarget({
+          ...target,
+          timeoutMs: 5000,
+        })
+      : undefined;
+    const verify = async (): Promise<DoctorCheck[]> => {
+      const remaining = timeoutMs - (Date.now() - started);
+      return remaining > 0
+        ? doctorEditor(config, {
             mcp,
-            timeoutMs: remaining,
+            timeoutMs: Math.max(1000, Math.min(remaining, reloaded ? 4000 : remaining)),
           })
         : [
             {
@@ -1760,9 +1910,25 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
               detail: "Tab activation exhausted the verification deadline",
             },
           ];
+    };
+    let checks = await verify();
+    // After a reload the plugin needs a moment to reconnect: look again until it answers or the budget ends.
+    while (
+      reloaded &&
+      !(checks.length > 0 && checks.every((check) => check.ok)) &&
+      timeoutMs - (Date.now() - started) > 1500
+    ) {
+      await commandSleep(1000);
+      checks = await verify();
+    }
     const ready = checks.length > 0 && checks.every((check) => check.ok);
     output.result({
       ...activation,
+      ...(reloaded
+        ? {
+            reloaded: true,
+          }
+        : {}),
       ready,
       checks,
     });
@@ -2092,9 +2258,17 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
   const options = {
-    ...(values.layout || values["layout-root"] || values["layout-max-nodes"]
+    ...(values.layout ||
+    values["layout-scope"] ||
+    values["layout-root"] ||
+    values["layout-max-nodes"]
       ? {
           layout: {
+            ...(values["layout-scope"]
+              ? {
+                  scope: values["layout-scope"] as import("./layout.js").LayoutScope,
+                }
+              : {}),
             ...(values.layout
               ? {
                   strategy: values.layout as import("./layout.js").LayoutStrategy,
@@ -2111,6 +2285,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
                 }
               : {}),
           },
+        }
+      : {}),
+    ...(values.stages
+      ? {
+          stages: Number(values.stages),
         }
       : {}),
     signal: commandSignal(),
@@ -2186,6 +2365,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       output.log(JSON.stringify(report, null, 2));
       if (report.phase === "inspected") {
         output.error("Nothing was written. Review the inspection, then use --apply.");
+      }
+      if (report.outcome === "already-satisfied") {
+        output.error(
+          "Nothing was written: the readback already held before the write (outcome already-satisfied). Check that the readback tests the change, not only that the target exists.",
+        );
       }
       return report.complete === false ? 3 : report.phase === "applied" && !report.verified ? 1 : 0;
     }
@@ -2550,6 +2734,25 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         });
       }
       return 0;
+    } else if (command === "export" && values.frames) {
+      const report = await exportFrames(
+        client,
+        root,
+        {
+          page: values.page!,
+          frames: parseFrames(values.frames),
+          out: values.out ?? "design/exports",
+        },
+        {
+          ...options,
+          page: values.page,
+          scale: values.scale ? Number(values.scale) : 1,
+          cache: values.cache === true,
+          log: (line) => output.error(`… ${line}`),
+        },
+      );
+      output.log(JSON.stringify(report, null, 2));
+      return report.complete ? 0 : 1;
     } else if (command === "export") {
       const [shapeId, out] = values.name
         ? [
@@ -2624,6 +2827,28 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       output.log(JSON.stringify(report, null, 2));
       if (!values.apply) {
         output.error("Nothing was written. Run again with --apply to execute this token edit.");
+      }
+      return report.phase === "applied" && !report.verified ? 1 : 0;
+    } else if (command === "repair") {
+      if (!values.page || !values["empty-shapes"]) {
+        throw new Error("usage: penpair repair --page PAGE --empty-shapes [--apply]");
+      }
+      // The whole-page layout observation is what the shapes without an id break, so it is not run here;
+      // the independent readback counts what is left.
+      const report = await runOperation(
+        client,
+        repairEmptyShapesOperation,
+        {
+          page: values.page,
+        },
+        {
+          ...writeOptions("repair"),
+          layout: false,
+        },
+      );
+      output.log(JSON.stringify(report, null, 2));
+      if (report.phase === "inspected") {
+        output.error("Nothing was removed. Run again with --apply to do it.");
       }
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else if (command === "archive") {
@@ -2762,6 +2987,89 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
         report.warnings.forEach((warning) => output.log(`Note: ${warning}`));
       }
       return 0;
+    }
+    if (argv[0] === "locks") {
+      const rest = argv.slice(1).filter((arg) => arg !== "--json");
+      if (rest.length > 1 || (rest[0] !== undefined && rest[0] !== "clear")) {
+        throw new Error("usage: penpair locks [clear]");
+      }
+      if (rest[0] === "clear") {
+        const outcome = await clearDeadLocks(root);
+        output.log(JSON.stringify(outcome, null, 2));
+        output.error(
+          `locks: ${outcome.cleared.length} cleared${outcome.kept.length ? `; ${outcome.kept.length} kept (${outcome.kept.map((lock) => lock.status).join(", ")})` : ""}`,
+        );
+      } else {
+        output.log(JSON.stringify(await listLocks(root), null, 2));
+      }
+      return 0;
+    }
+    if (argv[0] === "queue") {
+      const usage =
+        "usage: penpair queue run FILE [--resume QUEUE_ID] [--stop-on-failure] | penpair queue status [QUEUE_ID]";
+      const rest = argv.slice(2).filter((arg) => arg !== "--json");
+      if (argv[1] === "status") {
+        if (rest.length > 1 || rest[0]?.startsWith("--")) {
+          throw new Error(usage);
+        }
+        output.log(
+          JSON.stringify(
+            rest[0] ? await readQueue(root, rest[0]) : await listQueues(root),
+            null,
+            2,
+          ),
+        );
+        return 0;
+      }
+      const file = rest[0];
+      const flags = rest.slice(1);
+      const resumeAt = flags.indexOf("--resume");
+      const resumeId = resumeAt >= 0 ? flags[resumeAt + 1] : undefined;
+      const known = flags.filter(
+        (flag, at) => flag === "--stop-on-failure" || at === resumeAt || at === resumeAt + 1,
+      );
+      if (
+        argv[1] !== "run" ||
+        !file ||
+        file.startsWith("--") ||
+        known.length !== flags.length ||
+        (resumeAt >= 0 && (!resumeId || resumeId.startsWith("--")))
+      ) {
+        throw new Error(usage);
+      }
+      const spec = parseQueueSpec(await readFile(await resolveProjectInput(root, file), "utf8"));
+      const specHash = hashSpec(spec);
+      const record = resumeId ? await readQueue(root, resumeId) : undefined;
+      if (record && (record.specHash !== specHash || record.jobs.length !== spec.jobs.length)) {
+        throw new Error(
+          "The queue file changed since this queue started; start a new queue instead of resuming it",
+        );
+      }
+      const finished = await runQueue({
+        root,
+        spec,
+        specHash,
+        queueId: record?.queueId ?? newQueueId(),
+        record,
+        stopOnFailure: flags.includes("--stop-on-failure") ? true : undefined,
+        exec: (args) =>
+          runCommand(args, {
+            ...options,
+            root,
+            signal: commandSignal(),
+          }),
+        sleep: commandSleep,
+        log: (line) => output.error(line),
+        signal: commandSignal(),
+      });
+      output.log(JSON.stringify(finished, null, 2));
+      const bad = finished.jobs.filter(
+        (job) => job.state !== "ok" && job.state !== "already-satisfied",
+      );
+      output.error(
+        `queue ${finished.queueId}: ${finished.jobs.length - bad.length} of ${finished.jobs.length} done${bad.length ? `; not done: ${bad.map((job) => `${job.id} (${job.state})`).join(", ")}` : ""}`,
+      );
+      return bad.length === 0 ? 0 : bad.some((job) => job.state === "uncertain") ? 4 : 1;
     }
     if (argv[0] === "runs") {
       if (

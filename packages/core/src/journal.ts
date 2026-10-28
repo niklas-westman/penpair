@@ -41,10 +41,17 @@ export interface JournalStep<T> {
   /** Source/signature identifying the implementation of this step, not only its display name. */
   signature: string;
   initial?: T;
+  /** The `before` observation is taken right before this step runs instead of at planning (earlier steps change what it sees). */
+  deferredBefore?: boolean;
   inspect(): Promise<T>;
   apply(current: T, target: JournalTarget): Promise<unknown>;
   verify(current: T, before: T, result?: unknown): boolean;
-  reconcile(before: T, current: T, result?: unknown): "complete" | "pending" | "conflict";
+  reconcile(
+    before: T,
+    current: T,
+    result?: unknown,
+    state?: OperationJournal["steps"][number]["state"],
+  ): "complete" | "pending" | "conflict";
 }
 export interface JournalTraceEvent {
   event:
@@ -87,6 +94,8 @@ export interface OperationJournal {
     targetBefore?: JournalTarget;
     targetAfter?: JournalTarget;
     result?: unknown;
+    /** Set when the step's verification already held before its write, so the write was not run. */
+    skipped?: "readback-already-satisfied";
     error?: string;
   }[];
 }
@@ -464,7 +473,10 @@ export async function runJournaledSteps<T>(
         }
         continue;
       }
-      const reconciliation = step.reconcile(saved.before as T, current, saved.result);
+      if (step.deferredBefore && saved.state === "pending") {
+        saved.before = current;
+      }
+      const reconciliation = step.reconcile(saved.before as T, current, saved.result, saved.state);
       if (reconciliation === "conflict") {
         record.state = "conflict";
         throw new Error(`External or unexplained changes conflict with ${step.label}`);
@@ -473,6 +485,12 @@ export async function runJournaledSteps<T>(
         if (!step.verify(current, saved.before as T, saved.result)) {
           record.state = "conflict";
           throw new Error(`Reconciliation lacks verification for ${step.label}`);
+        }
+        if (saved.state === "pending") {
+          saved.skipped = "readback-already-satisfied";
+          options.onStep?.(
+            `${step.label}: the readback already held before the write; nothing was written`,
+          );
         }
         saved.state = "completed";
         saved.after = current;

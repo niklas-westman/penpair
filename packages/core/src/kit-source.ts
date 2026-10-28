@@ -39,7 +39,7 @@ const pp = (() => {
         throw new Error("Binding queue exceeds budget"); bindings.push({ shape, name, properties: [...properties] }); return shape; };
     const checkStyle = options => { for (const key of ["bg", "stroke", "radius"])
         if (options[key] !== undefined && (typeof options[key] !== "string" || !options[key]))
-            throw new Error(key + " needs a token name"); for (const key of ["bg", "stroke", "radius"])
+            throw new Error(key + " needs a token name" + (key === "radius" ? "; borderRadius tokens: " + activeSets().flatMap(set => set.tokens).filter(token => token.type === "borderRadius").map(token => token.name).slice(0, 12).join(", ") : "")); for (const key of ["bg", "stroke", "radius"])
         if (options[key] !== undefined) {
             const token = tok(options[key]);
             if (token.type !== (key === "radius" ? "borderRadius" : "color"))
@@ -232,38 +232,54 @@ const pp = (() => {
     const flush = async (options = {}) => {
         if (flushing)
             throw new Error("Concurrent flush is unsupported");
+        if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 30000))
+            throw new Error("Flush timeoutMs must be from 1 to 30000 (got " + options.timeoutMs + "); split the build into staged flushes, one new subtree per flush root, instead of a longer budget");
         flushing = true;
         const timeout = options.timeoutMs === undefined ? 10000 : options.timeoutMs, started = Date.now();
-        let applied = 0;
+        let applied = 0, nodes = null, slowest = null, phase = "start";
+        const phases = {};
+        const timed = async (name, run) => { phase = name; const begin = Date.now(); try { return await run(); } finally { phases[name] = (phases[name] || 0) + (Date.now() - begin); } };
         const remaining = () => { const value = timeout - (Date.now() - started); if (value < 1)
             throw new Error("Flush deadline exceeded"); return value; };
+        const detail = () => "phase " + phase + "; " + applied + " binds applied, " + bindings.length + " binds and " + styles.length + " styles still queued" + (nodes === null ? "" : "; " + nodes + " nodes sampled under the root") + (slowest ? "; slowest bind " + slowest.ms + " ms on " + JSON.stringify(slowest.name) + " (id " + slowest.id + ")" : "") + "; ms per phase " + JSON.stringify(phases) + " of a " + timeout + " ms budget" + (timeout >= 30000 ? "" : "; split the build into staged flushes (one new subtree per flush root) rather than a longer budget");
         try {
             if (queuedContext !== null && context() !== queuedContext)
                 throw new Error("Active token context changed before flush");
-            let layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy });
+            let layout = await timed("layout-before", () => settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy }));
+            nodes = layout.nodeCount === undefined ? nodes : layout.nodeCount;
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");
             if (queuedContext !== null && context() !== queuedContext)
                 throw new Error("Active token context changed during layout");
-            while (styles.length) {
+            await timed("styles", async () => { while (styles.length) {
                 remaining();
                 styles[0]();
                 styles.shift();
-            }
-            while (bindings.length) {
+            } });
+            await timed("binds", async () => { while (bindings.length) {
                 remaining();
                 if (context() !== queuedContext)
                     throw new Error("Token context changed during binding");
-                const binding = bindings[0];
+                const binding = bindings[0], begin = Date.now();
                 await binding.shape.applyToken(tok(binding.name), binding.properties);
+                const ms = Date.now() - begin;
+                if (!slowest || ms > slowest.ms)
+                    slowest = { ms, name: binding.shape.name === undefined ? null : binding.shape.name, id: binding.shape.id };
                 bindings.shift();
                 applied++;
-            }
-            layout = await settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy });
+            } });
+            layout = await timed("layout-after", () => settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy }));
+            nodes = layout.nodeCount === undefined ? nodes : layout.nodeCount;
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");
             queuedContext = null;
-            return { applied, layout };
+            return { applied, layout, phases, slowest };
+        }
+        catch (error) {
+            const message = String(error && error.message || error);
+            if (/deadline|settle/i.test(message))
+                throw new Error(message + " [" + detail() + "]");
+            throw error;
         }
         finally {
             flushing = false;

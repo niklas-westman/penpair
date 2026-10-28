@@ -70,4 +70,22 @@ Final wrapped UTF-8 snippets obey the existing 90 KB guard, including helpers, g
 
 Writes reuse pinned file guards, revisions, writer coordination, positive independent verification and redacted journals. Optional `--checkpoint`, `--force-lock` and explicit `--apply --resume RUN_ID` follow normal recovery rules. Source/parameter changes refuse resume; a final state already independently verified is not written again. Partial unexplained state requires inspection; there is no rollback or enforced idempotency sandbox. A redacted journal cannot be presented as complete verification or automatically resumed.
 
-On a large page, scope layout settling to the existing boards touched by the write with repeatable `--layout-root SHAPE_ID`. `--layout-max-nodes N` sets the shared sample budget (1–100,000; default 10,000). The roots must exist before the write and remain present through readback. Reports and `penpair runs RUN_ID` retain the roots and sampled node count. Budget overflow continues with explicitly partial layout evidence; independent readback is still required. See [layout settling](layout-settling.md) for scope and partial-sample limits.
+`run-file` checks layout where the write happened, not on the whole page. The inspect script reports the existing boards the write touches as `layoutRoots` (an array of shape IDs, e.g. `return { ok: true, layoutRoots: [board.id] }`); those are observed before planning, after the write and during recovery. When the inspection names none, the layout check is reported as `method: "skipped"` with the reason, and the independent readback still decides the result. `--layout-scope page` restores the whole-page sample as an opt-in audit.
+
+To scope layout settling by hand, use repeatable `--layout-root SHAPE_ID` (it overrides `layoutRoots`). `--layout-max-nodes N` sets the shared sample budget (1–100,000; default 10,000). The roots must exist before the write and remain present through readback. Reports and `penpair runs RUN_ID` retain the roots and sampled node count. Budget overflow continues with explicitly partial layout evidence; independent readback is still required. See [layout settling](layout-settling.md) for scope and partial-sample limits.
+
+## A write that was not needed
+
+If the readback already holds before the write, a journaled `run-file --apply` does not run the write. The report says `outcome: "already-satisfied"` with `skipped: "readback-already-satisfied"` (the journal step in `penpair runs RUN_ID` carries the same `skipped` field), a warning names it, and `verified` stays true because the state is right. It is not a successful write: check that the readback tests the change itself, not only that the target exists. The outer command result carries the same `outcome: "already-satisfied"` (exit code 0), as does `data.outcome`.
+
+The readback script receives `CFG.inspection`, the inspection taken before this process wrote anything, next to its parameters. A resumed run that began after a partial write gets the inspection of its own first observation.
+
+## Staged runs
+
+A frame with many heavy instances does not settle in one flush. `run-file --stages N` (1–50) calls the write script once per stage with `CFG.stage` (1..N) and `CFG.stages`; the inspect and readback scripts get the same two values. Each stage is its own journal step: it is inspected right before it runs, its readback is checked after it, and `penpair runs RUN_ID` shows each stage's state.
+
+- Each stage builds one subtree and flushes only that subtree (`pp.flush({ root })`). Report that subtree as `layoutRoots` from the stage's inspect script, so layout is checked there and not on the whole page.
+- A stage is skipped on resume only when the journal records that stage as done. A stage that was never attempted always runs its write, even if its readback already passes, so a readback that happens to pass cannot hide a missing write. Keep each stage's write idempotent (the usual `// penpair: idempotent` contract).
+- After an interrupted stage, `--apply --resume RUN_ID` verifies that stage from its readback and continues with the next; completed stages are not written again.
+- `--stages` and `CFG.stage`/`CFG.stages` are reserved: do not pass them with `--param`. Without `--apply`, the inspection runs for stage 1.
+- The report lists `stages` with each stage's state.

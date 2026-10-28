@@ -6,6 +6,26 @@ export interface BrowserTargetOptions {
   allowLoopbackAlias?: boolean;
   signal?: AbortSignal;
   fetch?: typeof fetch;
+  /** For tests; the global WebSocket is used otherwise. */
+  webSocket?: typeof WebSocket;
+}
+
+export type BrowserPageState =
+  | "pinned-file-workspace"
+  | "other-file-workspace"
+  | "not-a-workspace"
+  | "other-origin";
+export interface BrowserPage {
+  id: string;
+  /** Origin and route only; query strings and fragments with parameters are never kept, they can carry tokens. */
+  where: string;
+  state: BrowserPageState;
+}
+export interface BrowserPagesResult {
+  pages: BrowserPage[];
+  /** Pages open on the pinned file's workspace; the plugin connection needs exactly one. */
+  matching: number;
+  summary: string;
 }
 
 export interface BrowserWakeResult {
@@ -23,6 +43,7 @@ interface BrowserTarget {
   id: string;
   type: string;
   url: string;
+  webSocketDebuggerUrl?: string;
 }
 
 interface BrowserRequest {
@@ -195,7 +216,7 @@ async function browserRequest(request: BrowserRequest, path: string): Promise<Re
   return response;
 }
 
-async function findBrowserTarget(request: BrowserRequest): Promise<string> {
+async function listTargets(request: BrowserRequest): Promise<BrowserTarget[]> {
   const response = await browserRequest(request, "/json/list");
   const text = await readTargetList(response);
   request.signal.throwIfAborted();
@@ -213,22 +234,187 @@ async function findBrowserTarget(request: BrowserRequest): Promise<string> {
   ) {
     throw new Error("Invalid browser debugging target list");
   }
+  return targets.filter((target) => target.type === "page");
+}
 
-  const matching = targets.filter(
-    (target) => target.type === "page" && matchesFile(target.url, request),
-  );
+async function findBrowserTargetWithSocket(request: BrowserRequest): Promise<BrowserTarget> {
+  const pages = await listTargets(request);
+  const matching = pages.filter((target) => matchesFile(target.url, request));
   if (matching.length !== 1) {
+    const seen = summarize(pages.map((page) => describePage(page, request)));
     throw new Error(
       matching.length === 0
-        ? "No browser page matches the project's Penpot origin and pinned file ID"
-        : "Multiple browser pages match the pinned file; close duplicate tabs before waking",
+        ? `No browser page matches the project's Penpot origin and pinned file ID. Tabs seen: ${seen}`
+        : `Multiple browser pages match the pinned file; close duplicate tabs before waking (two sessions on one file make the plugin connection drop). Tabs seen: ${seen}`,
     );
   }
-  const targetId = matching[0]!.id;
-  if (!/^[A-Za-z0-9_-]{1,256}$/.test(targetId)) {
+  const target = matching[0]!;
+  if (!/^[A-Za-z0-9_-]{1,256}$/.test(target.id)) {
     throw new Error("Invalid browser debugging target ID");
   }
-  return targetId;
+  return target;
+}
+async function findBrowserTarget(request: BrowserRequest): Promise<string> {
+  return (await findBrowserTargetWithSocket(request)).id;
+}
+
+/** What the browser shows for this file, without touching it: the tabs on the Penpot origin and which one is the pinned workspace. */
+export async function inspectBrowserPages(
+  options: BrowserTargetOptions,
+): Promise<BrowserPagesResult> {
+  return withBrowserDeadline(options, async (request) => {
+    const pages = (await listTargets(request)).map((target) => describePage(target, request));
+    return {
+      pages,
+      matching: pages.filter((page) => page.state === "pinned-file-workspace").length,
+      summary: summarize(pages),
+    };
+  });
+}
+
+export interface BrowserReloadResult {
+  reloaded: true;
+  targetId: string;
+}
+/** Reloads the one tab on the pinned file's workspace through the browser's debugging socket. It evaluates no page code and replays no write. */
+export async function reloadBrowserTarget(
+  options: BrowserTargetOptions,
+): Promise<BrowserReloadResult> {
+  return withBrowserDeadline(options, async (request) => {
+    const target = await findBrowserTargetWithSocket(request);
+    const socketUrl = target.webSocketDebuggerUrl;
+    let socket: URL;
+    try {
+      socket = new URL(socketUrl ?? "");
+    } catch {
+      throw new Error(
+        "The browser did not offer a debugging socket for this tab (another tool may be attached to it); close it and try again",
+      );
+    }
+    if (
+      socket.protocol !== "ws:" ||
+      ![
+        "127.0.0.1",
+        "localhost",
+      ].includes(socket.hostname) ||
+      socket.port !== String(options.port) ||
+      !socket.pathname.startsWith("/devtools/page/")
+    ) {
+      throw new Error(
+        "Refusing a debugging socket that is not this loopback browser's page socket",
+      );
+    }
+    const Socket = options.webSocket ?? globalThis.WebSocket;
+    if (typeof Socket !== "function") {
+      throw new Error("This Node.js has no WebSocket; use Node.js 22 or newer for --reload");
+    }
+    await new Promise<void>((resolve, reject) => {
+      const connection = new Socket(socket.toString());
+      const finish = (error?: Error): void => {
+        request.signal.removeEventListener("abort", onAbort);
+        try {
+          connection.close();
+        } catch {
+          /* already closed */
+        }
+        error ? reject(error) : resolve();
+      };
+      const onAbort = (): void => finish(new Error("Browser debugging cancelled"));
+      request.signal.addEventListener("abort", onAbort, {
+        once: true,
+      });
+      connection.addEventListener("open", () =>
+        connection.send(
+          JSON.stringify({
+            id: 1,
+            method: "Page.reload",
+            params: {
+              ignoreCache: false,
+            },
+          }),
+        ),
+      );
+      connection.addEventListener("message", (event) => {
+        let reply: {
+          id?: number;
+          error?: {
+            message?: string;
+          };
+        };
+        try {
+          reply = JSON.parse(String(event.data));
+        } catch {
+          return;
+        }
+        if (reply.id === 1) {
+          finish(
+            reply.error
+              ? new Error(
+                  `The browser refused the reload: ${String(reply.error.message ?? "unknown")}`,
+                )
+              : undefined,
+          );
+        }
+      });
+      connection.addEventListener("error", () =>
+        finish(new Error("Cannot use the browser debugging socket for the reload")),
+      );
+      connection.addEventListener("close", () =>
+        finish(new Error("The browser closed the debugging socket before confirming the reload")),
+      );
+    });
+    return {
+      reloaded: true,
+      targetId: target.id,
+    };
+  });
+}
+
+function routeOf(url: URL): string {
+  const hashRoute = url.hash.slice(1);
+  const route = hashRoute.startsWith("/") ? hashRoute.split("?")[0]! : url.pathname;
+  return route.slice(0, 80) || "/";
+}
+function describePage(target: BrowserTarget, request: BrowserRequest): BrowserPage {
+  let url: URL | undefined;
+  try {
+    url = new URL(target.url);
+  } catch {
+    url = undefined;
+  }
+  if (!url || !matchesOrigin(url, request)) {
+    return {
+      id: target.id,
+      where: url ? url.origin : "unreadable address",
+      state: "other-origin",
+    };
+  }
+  const where = `${url.origin}${routeOf(url)}`;
+  if (matchesFile(target.url, request)) {
+    return {
+      id: target.id,
+      where,
+      state: "pinned-file-workspace",
+    };
+  }
+  return {
+    id: target.id,
+    where,
+    state: routeOf(url) === "/workspace" ? "other-file-workspace" : "not-a-workspace",
+  };
+}
+const stateText: Record<BrowserPageState, string> = {
+  "pinned-file-workspace": "the pinned file's workspace",
+  "other-file-workspace": "another file's workspace",
+  "not-a-workspace":
+    "not a workspace (a dashboard, settings or Integrations page does not hold the plugin connection)",
+  "other-origin": "another site",
+};
+function summarize(pages: BrowserPage[]): string {
+  const rows = pages.filter((page) => page.state !== "other-origin");
+  return rows.length
+    ? rows.map((page, index) => `${index + 1}. ${page.where} (${stateText[page.state]})`).join("; ")
+    : `no tab on this Penpot origin (${pages.length} other tab${pages.length === 1 ? "" : "s"} open)`;
 }
 
 function isBrowserTarget(value: unknown): value is BrowserTarget {
@@ -239,7 +425,8 @@ function isBrowserTarget(value: unknown): value is BrowserTarget {
   return (
     typeof target.id === "string" &&
     typeof target.type === "string" &&
-    typeof target.url === "string"
+    typeof target.url === "string" &&
+    (target.webSocketDebuggerUrl === undefined || typeof target.webSocketDebuggerUrl === "string")
   );
 }
 

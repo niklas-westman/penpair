@@ -7,6 +7,7 @@ The outer schema is exported as `commandResultSchema`, with the TypeScript `Comm
 | Exit | Outcome | Meaning |
 | --- | --- | --- |
 | 0 | success | Command completed; an inspect/preview still does not mean it applied or visually approved a change. |
+| 0 | already-satisfied | A write was not needed: its readback already held, so nothing was written (`run-file --apply`). The state is right, but this is not a successful write. |
 | 1 | failed | Validation, connection, verification or command failure. Error codes distinguish configuration and transport problems. |
 | 2 | drift | A valid comparison found differences or a stale snapshot. |
 | 3 | incomplete | Required output is missing, truncated or unstable. |

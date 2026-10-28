@@ -4,6 +4,32 @@ import { mapOriginLabels, mapOriginLegend } from "./status-labels.js";
 import { snippet, type Snippet } from "../snippet.js";
 import type { MapDrawing, MapTarget, NativeMapProjection } from "./types.js";
 
+/**
+ * The publish snippet checks that the map still matches what was inspected. It used to carry the whole inspected projection for an exact
+ * comparison, so a page with an older drawing made the request exceed the 90 KB proxy limit. It now carries only this digest of the
+ * projection's JSON text (two 32-bit lanes plus the length); the digest is a staleness guard, not a security boundary.
+ */
+export const projectionDigestSource = `const projectionDigest = text => {
+  let a = 0xdeadbeef, b = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) { const code = text.charCodeAt(i); a = Math.imul(a ^ code, 2654435761); b = Math.imul(b ^ code, 1597334677); }
+  a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
+  b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
+  return (a >>> 0).toString(16) + (b >>> 0).toString(16) + ":" + text.length;
+};`;
+/** The same digest on the host, for the projection the snippet is told to expect. */
+export function projectionDigest(text: string): string {
+  let a = 0xdeadbeef;
+  let b = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    a = Math.imul(a ^ code, 2654435761);
+    b = Math.imul(b ^ code, 1597334677);
+  }
+  a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
+  b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
+  return `${(a >>> 0).toString(16)}${(b >>> 0).toString(16)}:${text.length}`;
+}
+
 const inspectSource = `
 if (penpot.currentFile.id !== CFG.target.fileId || penpot.currentPage.id !== CFG.target.pageId) throw new Error("Map file/page identity changed");
 const readMeta = shape => {
@@ -74,7 +100,8 @@ export function publishMapSnippet(
   return snippet(
     "map-projection-publish",
     `${inspectSource}
-if (conflicts.length || JSON.stringify(observation) !== JSON.stringify(CFG.expected)) throw new Error("Map changed after inspection; reconcile before publishing");
+${projectionDigestSource}
+if (conflicts.length || projectionDigest(JSON.stringify(observation)) !== CFG.expectedDigest) throw new Error("Map changed after inspection; reconcile before publishing");
 const fontName = CFG.drawing.fontFamily || "Inter";
 const exactFonts = Array.isArray(penpot.fonts.all) ? penpot.fonts.all.filter(font => font.name === fontName) : [];
 if (exactFonts.length !== 1) throw new Error("Map font unavailable or ambiguous: " + fontName);
@@ -171,13 +198,15 @@ return {ok:true,boardId:root.id};`,
       ),
       originLabels: mapOriginLabels,
       originLegend: mapOriginLegend,
-      expected: {
-        boardId: expected.boardId,
-        boardBounds: expected.boardBounds,
-        contractHash: expected.contractHash,
-        shapes: expected.shapes,
-        conflicts: expected.conflicts,
-      },
+      expectedDigest: projectionDigest(
+        JSON.stringify({
+          boardId: expected.boardId,
+          boardBounds: expected.boardBounds,
+          contractHash: expected.contractHash,
+          shapes: expected.shapes,
+          conflicts: expected.conflicts,
+        }),
+      ),
     },
     "write",
   );

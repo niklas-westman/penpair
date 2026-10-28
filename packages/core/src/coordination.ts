@@ -1,7 +1,7 @@
 import { inheritPageSession } from "./page-session.js";
 import { createHash, randomUUID } from "node:crypto";
 import { hostname, userInfo } from "node:os";
-import { lstat, mkdir, open, readFile, unlink } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, readdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { ensureGitignoreEntry } from "./instance/gitignore.js";
 import { runSnippet, snippet } from "./snippet.js";
@@ -21,12 +21,115 @@ export interface CoordinationOptions {
   warn?(message: string): void;
 }
 
+export interface LockEntry {
+  token: string;
+  runId: string;
+  pid: number;
+  host: string;
+  createdAt: string;
+  operation?: string;
+  command?: string;
+}
+/** The command line a lock names, without anything that looks like a credential. */
+export function describeCommand(argv: string[]): string {
+  return argv
+    .join(" ")
+    .replace(/\b(userToken|token|key|secret|password)=[^\s&]+/gi, "$1=…")
+    .slice(0, 300);
+}
+/** Who holds a lock, in one phrase; entries written by older versions lack the operation and command. */
+export function describeLock(entry: LockEntry): string {
+  return [
+    entry.operation ? `operation ${entry.operation}` : undefined,
+    `pid ${entry.pid} on ${entry.host}`,
+    `since ${entry.createdAt}`,
+    entry.command ? `command: penpair ${entry.command}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+const processRunning = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (failure) {
+    return (failure as NodeJS.ErrnoException).code !== "ESRCH";
+  }
+};
+export interface LockReport {
+  file: string;
+  entry: LockEntry;
+  /** `dead`: this host, process gone. `running`: this host, process alive. `foreign`: written on another host, cannot be judged. */
+  status: "dead" | "running" | "foreign";
+}
+/** The local writer locks of this checkout, offline. */
+export async function listLocks(root: string): Promise<LockReport[]> {
+  const directory = path.join(root, ".penpair", "locks");
+  let names: string[];
+  try {
+    names = await readdir(directory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+  const reports: LockReport[] = [];
+  for (const name of names.filter((entry) => entry.endsWith(".json")).sort()) {
+    const file = path.join(directory, name);
+    const info = await lstat(file);
+    if (!info.isFile() || info.isSymbolicLink()) {
+      continue;
+    }
+    let entry: LockEntry;
+    try {
+      entry = JSON.parse(await readFile(file, "utf8")) as LockEntry;
+    } catch {
+      continue;
+    }
+    reports.push({
+      file: name,
+      entry,
+      status:
+        entry.host !== hostname() || !Number.isInteger(entry.pid) || entry.pid < 1
+          ? "foreign"
+          : processRunning(entry.pid)
+            ? "running"
+            : "dead",
+    });
+  }
+  return reports;
+}
+/** Removes only locks whose process is gone on this host. A lock from another host or a live process is never touched. */
+export async function clearDeadLocks(root: string): Promise<{
+  cleared: LockReport[];
+  kept: LockReport[];
+}> {
+  const reports = await listLocks(root);
+  const cleared: LockReport[] = [];
+  for (const report of reports.filter((candidate) => candidate.status === "dead")) {
+    // Re-read: only remove the lock that was judged, not one a new run created in between.
+    const file = path.join(root, ".penpair", "locks", report.file);
+    const current = JSON.parse(await readFile(file, "utf8")) as LockEntry;
+    if (current.token === report.entry.token) {
+      await unlink(file);
+      cleared.push(report);
+    }
+  }
+  return {
+    cleared,
+    kept: reports.filter((report) => !cleared.includes(report)),
+  };
+}
+
 /** Exclusive only within this checkout. Shared file markers below are advisory, not compare-and-swap. */
 async function localLease(
   root: string,
   fileId: string,
   runId: string,
   force: boolean,
+  operation?: string,
 ): Promise<() => Promise<void>> {
   await ensureGitignoreEntry(root, ".penpair", {
     directory: true,
@@ -67,6 +170,8 @@ async function localLease(
     pid: process.pid,
     host: hostname(),
     createdAt: new Date().toISOString(),
+    operation,
+    command: describeCommand(process.argv.slice(2)),
   };
   const create = async () => {
     const handle = await open(destination, "wx", 0o600);
@@ -96,7 +201,7 @@ async function localLease(
     }
     if (!force || running) {
       throw new Error(
-        `Local writer ${previous.runId} holds this file. ${running ? "Its process is still running; wait for it to finish." : "Inspect its journal, then use --force-lock to remove the abandoned local lock."}`,
+        `Local writer ${previous.runId} (${describeLock(previous)}) holds this file. ${running ? "Its process is still running; wait for it to finish, or find a duplicate background run." : "Inspect its journal, then use --force-lock to remove the abandoned local lock, or run penpair locks clear when its process is gone."}`,
       );
     }
     // Explicit owner override only. Simultaneous force operations are not an exclusion guarantee.
@@ -128,6 +233,7 @@ export function writeCoordinator(
       target.fileId,
       runId,
       options.forceLock === true,
+      options.operation,
     );
     const marker = {
       schemaVersion: 1,
@@ -172,7 +278,7 @@ export function writeCoordinator(
             readMarker +
             `
 if (marker && marker.token !== CFG.marker.token && (!Number.isFinite(marker.expiresAt) || marker.expiresAt > Date.now()) && !CFG.force)
-  return { ok:false, message:"Another writer is running " + String(marker.operation) + " (run " + String(marker.runId) + "). Coordinate before --force-lock." };
+  return { ok:false, message:"Another writer is running " + String(marker.operation) + " (run " + String(marker.runId) + ", owner " + String(marker.owner) + ", since " + (Number.isFinite(marker.createdAt) ? new Date(marker.createdAt).toISOString() : "an unknown time") + "). Coordinate before --force-lock." };
 f.setSharedPluginData("penpair", "writer", JSON.stringify(CFG.marker));
 return { ok:true, supported:true };`,
           params,

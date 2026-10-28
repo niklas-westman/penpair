@@ -38,23 +38,42 @@ export async function settleLayout(
 ): Promise<LayoutResult> {
   const { timeoutMs, intervalMs, strategy = "auto", maxNodes = 10000, sleep } = options;
 
-  if (
-    !Number.isInteger(maxNodes) ||
-    maxNodes < 1 ||
-    maxNodes > 100000 ||
-    ![
+  const budgetProblems = [
+    ...(!Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 100000
+      ? [
+          `maxNodes must be an integer from 1 to 100000 (got ${maxNodes})`,
+        ]
+      : []),
+    ...(![
       "auto",
       "native",
       "geometry",
-    ].includes(strategy) ||
-    !Number.isFinite(timeoutMs) ||
-    timeoutMs < 1 ||
-    timeoutMs > 30000 ||
-    !Number.isFinite(intervalMs) ||
-    intervalMs <= 0 ||
+    ].includes(strategy)
+      ? [
+          `strategy must be auto, native or geometry (got ${String(strategy)})`,
+        ]
+      : []),
+    ...(!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000
+      ? [
+          `timeoutMs must be from 1 to 30000 (got ${timeoutMs}); split the work into staged flushes instead of a longer budget`,
+        ]
+      : []),
+    ...(!Number.isFinite(intervalMs) || intervalMs <= 0
+      ? [
+          `intervalMs must be positive (got ${intervalMs})`,
+        ]
+      : []),
+    ...(Number.isFinite(timeoutMs) &&
+    Number.isFinite(intervalMs) &&
+    intervalMs > 0 &&
     Math.ceil(timeoutMs / intervalMs) + 1 > 1000
-  ) {
-    throw new Error("Invalid layout strategy or settling budgets");
+      ? [
+          `timeoutMs / intervalMs allows more than 1000 samples (${timeoutMs} / ${intervalMs}); raise intervalMs`,
+        ]
+      : []),
+  ];
+  if (budgetProblems.length) {
+    throw new Error(`Invalid layout settling budgets: ${budgetProblems.join("; ")}`);
   }
 
   const started = Date.now();
