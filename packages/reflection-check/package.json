@@ -1,6 +1,6 @@
 {
   "name": "@penpair/reflection-check",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Explicit design case planning and verified implementation evidence for penpair baselines.",
   "license": "MIT",
   "repository": {
