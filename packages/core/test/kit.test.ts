@@ -316,4 +316,18 @@ describe("neutral plugin build kit", () => {
     expect(result.stable).toBe(false);
     expect(result.reason).toMatch(/a shape with no id \(name null.*at index \d+ under/);
   });
+  it("lists the project's radius tokens when a raw radius is given", async () => {
+    const f = kitFixture();
+    const pp = await load(f.penpot);
+    expect(() =>
+      pp.box(null, {
+        radius: 28,
+      }),
+    ).toThrow(/radius needs a token name; borderRadius tokens: radius/);
+    expect(() =>
+      pp.box(null, {
+        bg: 3,
+      }),
+    ).toThrow(/^bg needs a token name$/);
+  });
 });

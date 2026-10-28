@@ -39,7 +39,7 @@ const pp = (() => {
         throw new Error("Binding queue exceeds budget"); bindings.push({ shape, name, properties: [...properties] }); return shape; };
     const checkStyle = options => { for (const key of ["bg", "stroke", "radius"])
         if (options[key] !== undefined && (typeof options[key] !== "string" || !options[key]))
-            throw new Error(key + " needs a token name"); for (const key of ["bg", "stroke", "radius"])
+            throw new Error(key + " needs a token name" + (key === "radius" ? "; borderRadius tokens: " + activeSets().flatMap(set => set.tokens).filter(token => token.type === "borderRadius").map(token => token.name).slice(0, 12).join(", ") : "")); for (const key of ["bg", "stroke", "radius"])
         if (options[key] !== undefined) {
             const token = tok(options[key]);
             if (token.type !== (key === "radius" ? "borderRadius" : "color"))

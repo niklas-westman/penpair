@@ -24,6 +24,7 @@ import {
   publishMap,
   readProjection,
 } from "../src/map-penpot/index.js";
+import { projectionDigest, projectionDigestSource } from "../src/map-penpot/snippets.js";
 import type { MapContract } from "../src/maps/types.js";
 import { buildMapDrawingPlan } from "../src/maps/render.js";
 import { hashMapContract } from "../src/maps/validation.js";
@@ -192,6 +193,50 @@ describe("native map projection", () => {
     expect(result.report.phase).toBe("inspected");
     expect(result.projection.boardId).toBeNull();
     expect(local.shapes).toHaveLength(1);
+  });
+
+  it("does not carry the inspected projection in the publish snippet, so an older drawing cannot make it too large", async () => {
+    const local = fixture();
+    const observed = await readProjection(local.client, target, drawing.mapId);
+    const bare = publishMapSnippet(target, drawing, observed).code.length;
+    const crowded = publishMapSnippet(target, drawing, {
+      ...observed,
+      shapes: Array.from(
+        {
+          length: 3000,
+        },
+        (_, index) => ({
+          shapeId: `shape-${index}`,
+          role: "node",
+          logicalId: `node-${index}`,
+        }),
+      ),
+    } as never).code.length;
+    expect(crowded - bare).toBeLessThan(64);
+  });
+
+  it("computes the same projection digest on the host and in the Penpot sandbox", async () => {
+    for (const text of [
+      "",
+      "{}",
+      JSON.stringify({
+        a: [
+          1,
+          2,
+          {
+            b: "ö☃",
+          },
+        ],
+      }),
+      "x".repeat(5000),
+    ]) {
+      const inSandbox = await runInNewContext(
+        `${projectionDigestSource}\nprojectionDigest(${JSON.stringify(text)})`,
+        {},
+      );
+      expect(inSandbox).toBe(projectionDigest(text));
+    }
+    expect(projectionDigest("a")).not.toBe(projectionDigest("b"));
   });
 
   it("requires journaling and rejects a missing font before any writes", async () => {

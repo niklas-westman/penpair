@@ -51,7 +51,9 @@ A recipe is registered with `pp.defineRecipe(name, (parent, props) => shape, des
 - `pp.iconSize(instance, px)` resizes an icon instance and scales its nested shapes, which a plain `resize` can leave at their old size (an instance resized smaller than the path inside it). It returns `{ scale, nodes, scaled, overflow }`; `overflow` is true when a nested shape still leaves the instance box. Stroke widths are not scaled; export and look at the result.
 - `pp.libraryIcon(parent, "Path", "Name", colorToken, size)` places a library icon instance, sizes it with `iconSize` and binds the colour token on its inner stroked or filled shapes (a bind needs `pp.flush`). It throws when nothing inside can be recoloured.
 
-These helpers run against Penpot's plugin API as the fixture models it; check a first use on a scratch board. Not included: a radius-token listing in the `radius needs a token name` error, which would not fit the core kit's 32 KiB budget.
+These helpers run against Penpot's plugin API as the fixture models it; check a first use on a scratch board.
+
+The core kit is now within about 20 bytes of its 32 KiB budget. New helpers belong in an included kit like `@instances`, not in `@kit`. A raw `radius: 28` is refused with `radius needs a token name; borderRadius tokens: ...`, listing up to twelve active radius tokens.
 
 `@marwes-kit`, included after `@kit`, defines `mw.card`, `mw.segmented`, `mw.progress`, `mw.iconTile` and `mw.statTile`, and registers corresponding recipe names. Library token defaults live entirely in the adapter; every token can be retargeted through props. Card/progress/tile radius tokens are explicit project declarations or measured inputs. Progress additionally requires an explicit **sizing** height token, since spacing tokens do not bind height. Tile dimensions and content are explicit.
 
