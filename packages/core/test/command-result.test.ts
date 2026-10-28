@@ -356,3 +356,23 @@ it("bounds explicit restoration after cancellation while retaining the cancelled
     }, 5),
   ).rejects.toThrow(/Restoration deadline/);
 });
+
+it("gives a skipped write its own outcome without failing the command", async () => {
+  const result = await collectCommand("run-file", async () => {
+    commandOutput.log(
+      JSON.stringify({
+        phase: "applied",
+        verified: true,
+        outcome: "already-satisfied",
+      }),
+    );
+    return 0;
+  });
+  expect(result).toMatchObject({
+    outcome: "already-satisfied",
+    exitCode: 0,
+    completeness: {
+      complete: true,
+    },
+  });
+});

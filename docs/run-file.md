@@ -76,7 +76,7 @@ To scope layout settling by hand, use repeatable `--layout-root SHAPE_ID` (it ov
 
 ## A write that was not needed
 
-If the readback already holds before the write, a journaled `run-file --apply` does not run the write. The report says `outcome: "already-satisfied"` with `skipped: "readback-already-satisfied"` (the journal step in `penpair runs RUN_ID` carries the same `skipped` field), a warning names it, and `verified` stays true because the state is right. It is not a successful write: check that the readback tests the change itself, not only that the target exists. The outer command result keeps its fixed `outcome` set; read `data.outcome`.
+If the readback already holds before the write, a journaled `run-file --apply` does not run the write. The report says `outcome: "already-satisfied"` with `skipped: "readback-already-satisfied"` (the journal step in `penpair runs RUN_ID` carries the same `skipped` field), a warning names it, and `verified` stays true because the state is right. It is not a successful write: check that the readback tests the change itself, not only that the target exists. The outer command result carries the same `outcome: "already-satisfied"` (exit code 0), as does `data.outcome`.
 
 The readback script receives `CFG.inspection`, the inspection taken before this process wrote anything, next to its parameters. A resumed run that began after a partial write gets the inspection of its own first observation.
 
