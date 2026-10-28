@@ -109,6 +109,8 @@ import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
 import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
+import { clearDeadLocks, listLocks } from "./coordination.js";
+import { inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
 import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
 import { resolveProjectInput } from "./project-input.js";
 
@@ -130,7 +132,8 @@ Connect / diagnose:
   penpair config check [--json]                        validate configuration offline
   penpair config schema                               print its JSON Schema
   penpair doctor [--json] [--timeout-ms 5000]           origin, transport, fresh editor read and file pin (1000–30000 ms)
-  penpair wake --debug-port 9222 [--json]              activate the pinned browser tab, then verify the editor; no reload or replay
+  penpair wake --debug-port 9222 [--reload] [--json]   activate the pinned browser tab, then verify the editor; --reload also reloads that one tab and waits for the plugin; no write is replayed
+  penpair doctor --debug-port 9222                     also lists the browser tabs on the Penpot origin and which holds the pinned file
   penpair status [--adapters]                          observed project health and optional companion readiness
   penpair open [--print]                              open the pinned public file URL, or print it
   penpair probe [--integrity]                          observed APIs and limits
@@ -164,6 +167,7 @@ Snapshot / diff:
   penpair runs [RUN_ID]                                private recovery evidence, offline
   penpair queue run jobs.json [--resume QUEUE_ID] [--stop-on-failure]   ordered run-file jobs, one writer, retries, status
   penpair queue status [QUEUE_ID]                      job states of a queue, offline
+  penpair locks [clear]                                local writer locks and who holds them; clear removes only those whose process is gone
 Capture / approve:
   penpair export ID out.png [--page PAGE] [--scale 1]
   penpair export --name EXACT_NAME --page PAGE out.png
@@ -297,6 +301,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         type: "boolean",
       },
       print: {
+        type: "boolean",
+      },
+      reload: {
         type: "boolean",
       },
       note: {
@@ -720,10 +727,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     ],
     doctor: [
       "timeout-ms",
+      "debug-port",
     ],
     wake: [
       "debug-port",
       "timeout-ms",
+      "reload",
     ],
     up: [],
     down: [],
@@ -891,6 +900,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       Number(values["timeout-ms"]) > 30000)
   ) {
     throw new CommandArgumentError(`${command} --timeout-ms must be an integer from 1000 to 30000`);
+  }
+  if (
+    command === "doctor" &&
+    values["debug-port"] !== undefined &&
+    (!/^\d+$/.test(values["debug-port"]) ||
+      Number(values["debug-port"]) < 1 ||
+      Number(values["debug-port"]) > 65535)
+  ) {
+    throw new CommandArgumentError("doctor --debug-port must be an integer from 1 to 65535");
   }
   if (
     command === "wake" &&
@@ -1691,12 +1709,64 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     output.log("next: penpair up, then penpair connect");
     return 0;
   }
+  /** With --debug-port, says which browser tabs are on the Penpot origin and which one holds the pinned file, so a silent editor has a visible cause. */
+  async function browserTabsCheck(): Promise<DoctorCheck | undefined> {
+    if (command !== "doctor" || !values["debug-port"]) {
+      return undefined;
+    }
+    const config = await loadCommandConfig(root);
+    if (!config.file?.id) {
+      return {
+        check: "browser tabs",
+        ok: false,
+        detail: "No pinned file to look for in the browser",
+        remedy: "Pin the owner-confirmed file, then rerun doctor with --debug-port.",
+      };
+    }
+    try {
+      const found = await inspectBrowserPages({
+        origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
+        allowLoopbackAlias: !isExternal(config),
+        fileId: config.file.id,
+        port: Number(values["debug-port"]),
+        timeoutMs: 5000,
+        signal: commandSignal(),
+      });
+      return {
+        check: "browser tabs",
+        ok: found.matching === 1,
+        detail: `${found.matching} tab${found.matching === 1 ? "" : "s"} on the pinned file's workspace. Tabs: ${found.summary}`,
+        ...(found.matching === 1
+          ? {}
+          : {
+              remedy:
+                found.matching === 0
+                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integrations page), then run wake."
+                  : "Close the duplicate tab: two sessions on one file make the plugin connection drop.",
+            }),
+      };
+    } catch (error) {
+      return {
+        check: "browser tabs",
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+        remedy:
+          "Start a dedicated browser with a loopback debugging port, open the pinned file, then rerun.",
+      };
+    }
+  }
   /** Prints the checks one per line, or as JSON for scripts and agents. The key file check is added to both kinds of project. */
   async function report(checks: DoctorCheck[], mcp: unknown): Promise<number> {
     const keyCheck = await keyFileCheck(root, nodeRunner);
     const backupCheck = await backupNoteCheck(root, await loadCommandConfig(root));
+    const tabs = await browserTabsCheck();
     const all: DoctorCheck[] = [
       ...checks,
+      ...(tabs
+        ? [
+            tabs,
+          ]
+        : []),
       ...(!mcp
         ? [
             {
@@ -1766,22 +1836,32 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       },
       config,
     );
-    const timeoutMs = Number(values["timeout-ms"] ?? 5000);
+    const timeoutMs = Number(values["timeout-ms"] ?? (values.reload ? 20000 : 5000));
     const started = Date.now();
-    const activation = await wakeBrowserTarget({
+    const target = {
       origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
       allowLoopbackAlias: !isExternal(config),
       fileId: config.file.id,
       port: Number(values["debug-port"]),
-      timeoutMs,
       signal: commandSignal(),
+    };
+    const activation = await wakeBrowserTarget({
+      ...target,
+      timeoutMs: Math.min(timeoutMs, 5000),
     });
-    const remaining = timeoutMs - (Date.now() - started);
-    const checks: DoctorCheck[] =
-      remaining > 0
-        ? await doctorEditor(config, {
+    // --reload only after the tab is known to be the one pinned workspace; wake itself never reloads.
+    const reloaded = values.reload
+      ? await reloadBrowserTarget({
+          ...target,
+          timeoutMs: 5000,
+        })
+      : undefined;
+    const verify = async (): Promise<DoctorCheck[]> => {
+      const remaining = timeoutMs - (Date.now() - started);
+      return remaining > 0
+        ? doctorEditor(config, {
             mcp,
-            timeoutMs: remaining,
+            timeoutMs: Math.max(1000, Math.min(remaining, reloaded ? 4000 : remaining)),
           })
         : [
             {
@@ -1790,9 +1870,25 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
               detail: "Tab activation exhausted the verification deadline",
             },
           ];
+    };
+    let checks = await verify();
+    // After a reload the plugin needs a moment to reconnect: look again until it answers or the budget ends.
+    while (
+      reloaded &&
+      !(checks.length > 0 && checks.every((check) => check.ok)) &&
+      timeoutMs - (Date.now() - started) > 1500
+    ) {
+      await commandSleep(1000);
+      checks = await verify();
+    }
     const ready = checks.length > 0 && checks.every((check) => check.ok);
     output.result({
       ...activation,
+      ...(reloaded
+        ? {
+            reloaded: true,
+          }
+        : {}),
       ready,
       checks,
     });
@@ -2808,6 +2904,22 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
         }
         report.steps.forEach((step, index) => output.log(`${index + 1}. ${step}`));
         report.warnings.forEach((warning) => output.log(`Note: ${warning}`));
+      }
+      return 0;
+    }
+    if (argv[0] === "locks") {
+      const rest = argv.slice(1).filter((arg) => arg !== "--json");
+      if (rest.length > 1 || (rest[0] !== undefined && rest[0] !== "clear")) {
+        throw new Error("usage: penpair locks [clear]");
+      }
+      if (rest[0] === "clear") {
+        const outcome = await clearDeadLocks(root);
+        output.log(JSON.stringify(outcome, null, 2));
+        output.error(
+          `locks: ${outcome.cleared.length} cleared${outcome.kept.length ? `; ${outcome.kept.length} kept (${outcome.kept.map((lock) => lock.status).join(", ")})` : ""}`,
+        );
+      } else {
+        output.log(JSON.stringify(await listLocks(root), null, 2));
       }
       return 0;
     }

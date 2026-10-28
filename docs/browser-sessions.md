@@ -35,12 +35,46 @@ the intended editor. Activation can succeed while readiness fails: JSON then
 reports `activated: true, ready: false`. A browser may also leave a minimized
 window minimized; check the actual window when activation alone is insufficient.
 
-This command does not reload, navigate, restart the plugin, inject page code or
-resume a write. Its `keepAlive: "none"` result means activation is momentary
+Without `--reload` this command does not reload, navigate, restart the plugin,
+inject page code or resume a write. Its `keepAlive: "none"` result means activation is momentary
 recovery, with no sustained keep-alive mechanism. Browser focus can affect legacy
 MCP routing, which is why a fresh identity check follows activation. A target can
 navigate between discovery and activation; the acknowledgment is not an atomic
 guarantee of tab identity or exclusive ownership.
+
+## When the editor stays silent
+
+`doctor` can say "Connected" while the editor never answers. Add the debugging port
+and it also looks at the browser:
+
+```sh
+penpair doctor --debug-port 9222
+```
+
+The `browser tabs` check lists the tabs on the project's Penpot origin, by origin
+and route only (query strings can carry tokens and are never shown), and says which
+one is the pinned file's workspace. The usual causes it makes visible: the file open
+in two tabs (two sessions drop the plugin connection), the tab sitting on the
+dashboard or the account Integrations page, or no workspace tab at all.
+`wake` names the same tabs when it refuses ("Tabs seen: ...").
+
+If the tab is the right one but the plugin has dropped its connection, reload it:
+
+```sh
+penpair wake --debug-port 9222 --reload
+```
+
+`--reload` runs after the usual checks (exactly one tab on the pinned file's
+workspace), sends only `Page.reload` through that page's loopback debugging socket
+(Node.js 22 or newer), then looks again every second until the plugin answers or
+the budget ends (default 20 s with `--reload`, up to 30 s). It refuses a socket
+that is not this loopback browser's page socket. It evaluates no page code and
+replays no write: a reload does not tell you whether an earlier write completed.
+Reconcile an uncertain run from its journal before resuming it.
+
+When a writer lock blocks a run, the message names the holding run, its operation,
+process and command line. `penpair locks` lists the local locks and
+`penpair locks clear` removes only those whose process is gone on this host.
 
 If a write became uncertain, retain its journal, inspect the intended target
 independently and reconcile it before explicitly resuming. Waking a tab does not

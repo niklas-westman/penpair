@@ -2,7 +2,13 @@ import { mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { guardRevision, writeCoordinator } from "../src/coordination.js";
+import {
+  clearDeadLocks,
+  describeCommand,
+  guardRevision,
+  listLocks,
+  writeCoordinator,
+} from "../src/coordination.js";
 import { onboardingChecklist } from "../src/onboard.js";
 import { runSnippet, snippet } from "../src/snippet.js";
 import type { PenpotToolClient } from "../src/client.js";
@@ -173,6 +179,78 @@ describe("write coordination", () => {
     // A forced takeover changes the token, so the old release cannot clear the new lock.
     await first.release();
     await second.release();
+  });
+  it("names the run, operation and command of the writer that holds the lock", async () => {
+    const e = editor();
+    const root = await folder();
+    const first = await writeCoordinator(e.client, {
+      root,
+      operation: "build-log",
+    })("run-one", target);
+    await expect(
+      writeCoordinator(e.client, {
+        root,
+        operation: "second",
+      })("run-two", target),
+    ).rejects.toThrow(
+      /run-one \(operation build-log, pid \d+ on .*since .*\) holds this file.*duplicate background run/,
+    );
+    await first.release();
+  });
+  it("keeps credentials out of the command a lock names", () => {
+    expect(
+      describeCommand([
+        "export",
+        "x",
+        "--url",
+        "https://h/mcp?userToken=SECRET&a=1",
+      ]),
+    ).not.toContain("SECRET");
+  });
+  it("clears only locks whose process is gone on this host", async () => {
+    const e = editor();
+    const root = await folder();
+    const first = await writeCoordinator(e.client, {
+      root,
+      operation: "first",
+    })("old", target);
+    const lock = path.join(
+      root,
+      ".penpair/locks",
+      (await readdir(path.join(root, ".penpair/locks")))[0]!,
+    );
+    const record = JSON.parse(await readFile(lock, "utf8"));
+    expect((await listLocks(root))[0]).toMatchObject({
+      status: "running",
+    });
+    expect(await clearDeadLocks(root)).toMatchObject({
+      cleared: [],
+    });
+    await writeFile(
+      lock,
+      JSON.stringify({
+        ...record,
+        pid: 2 ** 22 + 12345,
+      }),
+    );
+    expect((await listLocks(root))[0]).toMatchObject({
+      status: "dead",
+    });
+    const outcome = await clearDeadLocks(root);
+    expect(outcome.cleared).toHaveLength(1);
+    expect(await listLocks(root)).toEqual([]);
+    await writeFile(
+      lock,
+      JSON.stringify({
+        ...record,
+        host: "another-host",
+      }),
+    );
+    expect((await clearDeadLocks(root)).kept[0]).toMatchObject({
+      status: "foreign",
+    });
+    expect(await listLocks(root)).toHaveLength(1);
+    await first.release().catch(() => undefined);
   });
   it("checks revision inside the mutation before touching content", async () => {
     const e = editor();

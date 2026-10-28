@@ -386,6 +386,53 @@ describe("running a queue", () => {
   });
 });
 
+describe("locks command", () => {
+  it("lists and clears locks offline", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "penpair-locks-cli-"));
+    expect(
+      (
+        await runCommand(
+          [
+            "locks",
+          ],
+          {
+            root,
+          },
+        )
+      ).exitCode,
+    ).toBe(0);
+    expect(
+      (
+        await runCommand(
+          [
+            "locks",
+            "clear",
+          ],
+          {
+            root,
+          },
+        )
+      ).data,
+    ).toMatchObject({
+      cleared: [],
+      kept: [],
+    });
+    expect(
+      (
+        await runCommand(
+          [
+            "locks",
+            "wipe",
+          ],
+          {
+            root,
+          },
+        )
+      ).errors[0]!.message,
+    ).toMatch(/usage: penpair locks/);
+  });
+});
+
 describe("queue command", () => {
   it("lists queues offline and refuses a malformed queue file before running anything", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "penpair-queue-cli-"));
