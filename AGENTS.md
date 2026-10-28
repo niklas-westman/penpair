@@ -13,6 +13,9 @@ the maintained documentation before archiving working notes.
   and add a completion note. Keep one "Now" item and record new work unchecked.
 - Never force-add `.working-docs/` or link public documentation to local-only
   notes. Keep reusable guides, conventions, skills and examples tracked.
+- Keep reusable design investigations and proposals in `docs/designs/`, linked
+  from the documentation index, with status and the version or commit examined.
+  Session handoffs, review reports and private evidence stay in `.working-docs/`.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
 ## Code conventions
@@ -36,6 +39,11 @@ specific handling described in the conventions.
 - **No secrets in the repository, in output or in logs.** The MCP URL carries a personal key: redact it, never print it, never commit it.
 - **Write protocol for any Penpot change:** read-only inspect, a pinned snapshot, one idempotent write, an independent readback, an export that is looked at. A first export after a write or a page switch can be stale; look twice.
 - **Snippets sent to Penpot stay under 90 KB** (the proxy refuses about 110 KB).
+- Measure kit byte limits against the generated source consumers load. Code
+  serialized with `Function.toString()` can differ between build/test transforms;
+  run adapter tests as well as core tests before changing sandbox generation.
+  After editing `layout-settling.ts`, run `pnpm sandbox:generate`; core builds
+  check the tracked artifact without rewriting it.
 - Pin the Penpot version; run the smoke test before bumping it.
 
 ## Packages

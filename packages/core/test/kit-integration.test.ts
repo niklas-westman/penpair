@@ -352,15 +352,33 @@ describe("explicit kit loading and opt-in scratch probe", () => {
       verified: false,
     });
     expect(f.root.children).toEqual([]);
-    expect(
-      await runFileScript(client, prepared, {
-        apply: true,
-        journal: {
-          root,
-        },
-      }),
-    ).toMatchObject({
+    const built = await runFileScript(client, prepared, {
+      apply: true,
+      journal: {
+        root,
+      },
+    });
+    expect(built).toMatchObject({
       verified: true,
+    });
+    expect(built).toMatchObject({
+      apply: {
+        layout: {
+          stable: true,
+          rootIds: [
+            f.root.children[0]!.id,
+          ],
+        },
+        phases: {
+          "layout-before": expect.any(Number),
+          styles: expect.any(Number),
+          binds: expect.any(Number),
+          "layout-after": expect.any(Number),
+        },
+        slowest: {
+          ms: expect.any(Number),
+        },
+      },
     });
     const ids = f.shapes.map((shape) => shape.id);
     expect(

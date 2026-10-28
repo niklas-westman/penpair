@@ -1,6 +1,6 @@
 # Bounded layout settling
 
-Normal operation writes, PNG exports, baselines, shots and token push verification now use `waitForStableLayout`. A supported shape/global native wait is preferred. Older APIs fall back to geometry samples, requiring three consecutive equal observations of the target subtree. Missing targets, changed file/page identity, malformed sampled geometry and expired budgets cannot establish stability. Native failure falls back to geometry in `auto` mode; `native` mode still requires a successful native wait.
+Normal operation writes, PNG exports, baselines, shots and token push verification now use `waitForStableLayout`. A supported shape/global native wait is preferred. Older APIs fall back to geometry samples, requiring three consecutive equal observations of the sampled geometry and hierarchy. Bounded samples can establish only partial evidence, as described below. Missing targets, changed file/page identity, malformed sampled geometry and expired budgets cannot establish stability. Native failure falls back to geometry in `auto` mode; `native` mode still requires a successful native wait.
 
 The default layout budget is 30 seconds, with 200 ms fallback intervals. A run is also limited to 1,000 samples. Each layout observation forwards its remaining request budget through guards to the MCP SDK and disables suspension retries; a read timeout does not silently restart the budget. Custom clients must honor the optional `ToolCallOptions.timeoutMs` contract. A late native response is rejected even if it claims completion. The overall CLI `--timeout-ms` remains a separate bound on the complete command.
 
@@ -37,4 +37,36 @@ Reports and journal observations, visible through `penpair runs RUN_ID`, record 
 - **Budget limit.** The settling budget is at most 30,000 ms (`timeoutMs`), at most 1,000 samples and 1–100,000 nodes. A refusal now says which value is wrong and what the maximum is (`Invalid layout settling budgets: timeoutMs must be from 1 to 30000 (got 45000)`). `pp.flush({ timeoutMs })` refuses a longer budget up front. When a build needs longer, split it into staged flushes (`run-file --stages`, one new subtree per `pp.flush({ root })`) instead.
 - **`pp.flush` failures.** A deadline or settle failure carries `[phase …; N binds applied, M binds and K styles still queued; X nodes sampled under the root; slowest bind … ms on "name" (id …); ms per phase {...} of a … ms budget]`. The slowest bind is the nearest cheap signal for a heavy component instance. A successful flush returns the same `phases` and `slowest`.
 - **Layout check failures.** `Layout did not settle` names the sample count, the nodes sampled, the elapsed time and the roots (or "whole page").
-- **Malformed geometry.** The error names the offending shape: no id (with its name and type), duplicate id, or non-finite fields, and where it sits (`index 3 under "Board" (id …)`). A shape with no id is typically left by an interrupted run; observe a different root with `--layout-root`. A repair command for such shapes does not exist yet.
+- **Malformed geometry.** The error names the offending shape: no id (with its name and type), duplicate id, or non-finite fields, and where it sits (`index 3 under "Board" (id …)`). A shape with no id is typically left by an interrupted run; observe a different root with `--layout-root`, or remove them with `penpair repair --page PAGE --empty-shapes`.
+- **Empty flush root.** `pp.flush({ root })` refuses an explicitly falsy root before any layout or queued work. A selector that returned nothing therefore fails instead of widening scope. Resolve shapes with `pp.find` from `@instances` for a match-count error. Omit the `root` key when whole-page scope is intentional; `pp.settle(undefined)` retains its separate page-root default.
+
+
+## Pending live verification
+
+The generated-policy and explicit-root tests are offline evidence. They do not
+establish a live performance improvement or a new Penpot compatibility pass.
+Before live work, record the CLI version/source commit, expected Penpot version,
+origin, file/page identity and owner-authorized scope without exposing credentials.
+
+1. Run the [Q-SELF probe](designs/penpot-revision-conflicts.md#q-self--the-probe-that-gates-everything)
+   on scratch, allowing for delayed revision updates. Record the observation
+   window. A negative result does not identify the historical conflict cause.
+2. Run ordinary `penpair probe` against the separately pinned 2.18.3 and 2.18.4
+   targets and record `shapeApis.layoutWait` in [compatibility](compatibility.md).
+   Presence is not a successful behavior test; do not change pins casually.
+3. Measure a heavy board built once with `pp.flush()` and once with
+   `pp.flush({ root })`, using equivalent scratch starting states, board/instance
+   counts and matching owned markers. Ensure both runs actually execute the
+   build rather than returning already-satisfied. Use the example's returned
+   `layout`, `phases` and `slowest`, plus traced journal timings, to distinguish
+   binding cost, script flush cost and the host's post-write layout check.
+4. Record roots, node/sample counts, partial status, per-phase timings and
+   slowest binding alongside each version/target. Follow the write protocol:
+   pin the inspection, perform the idempotent write, independently read back,
+   then export and look twice. Interpret results using the
+   [measurement verdicts](designs/fewer-lost-penpair-runs.md#measurement).
+
+Changed snippet hashes can refuse resume of outstanding journals. Package
+version and implementation guards remain in force; reconcile the original run
+and use its compatible implementation rather than bypassing guards or silently
+restarting uncertain writes. No journal schema or revision guard changes here.

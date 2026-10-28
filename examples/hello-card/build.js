@@ -16,9 +16,9 @@ try {
     text: { typo: CFG.typo, color: CFG.color },
     label: "Hello, card",
   });
-  await pp.flush({ root });
+  const settled = await pp.flush({ root });
   built = true;
-  return { ok: true, rootId: root.id };
+  return { ok: true, rootId: root.id, layout: settled.layout, phases: settled.phases, slowest: settled.slowest };
 } finally {
   if (!built && root) root.remove();
 }

@@ -234,6 +234,10 @@ const pp = (() => {
             throw new Error("Concurrent flush is unsupported");
         if (options.timeoutMs !== undefined && (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 30000))
             throw new Error("Flush timeoutMs must be from 1 to 30000 (got " + options.timeoutMs + "); split the build into staged flushes, one new subtree per flush root, instead of a longer budget");
+        if ("root" in options && !options.root) {
+            const received = typeof options.root === "string" ? JSON.stringify(options.root) : String(options.root);
+            throw new Error("Flush root must exist (got " + received + ")");
+        }
         flushing = true;
         const timeout = options.timeoutMs === undefined ? 10000 : options.timeoutMs, started = Date.now();
         let applied = 0, nodes = null, slowest = null, phase = "start";
@@ -245,7 +249,7 @@ const pp = (() => {
         try {
             if (queuedContext !== null && context() !== queuedContext)
                 throw new Error("Active token context changed before flush");
-            let layout = await timed("layout-before", () => settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy }));
+            let layout = await timed("layout-before", () => settle(options.root, { timeoutMs: remaining(), strategy: options.strategy }));
             nodes = layout.nodeCount === undefined ? nodes : layout.nodeCount;
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");
@@ -268,7 +272,7 @@ const pp = (() => {
                 bindings.shift();
                 applied++;
             } });
-            layout = await timed("layout-after", () => settle(options.root || penpot.currentPage.root, { timeoutMs: remaining(), strategy: options.strategy }));
+            layout = await timed("layout-after", () => settle(options.root, { timeoutMs: remaining(), strategy: options.strategy }));
             nodes = layout.nodeCount === undefined ? nodes : layout.nodeCount;
             if (!layout.stable)
                 throw new Error(layout.reason || "Layout did not settle");

@@ -142,6 +142,32 @@ check(
   "but it is the library: defineSnippet and runCli",
 );
 
+// Execute the checks from the installed project, so imports resolve to the packed package.
+await writeFile(
+  join(library, "kit-consumer-check.mjs"),
+  await readFile(join(repo, "scripts/fixtures/kit-consumer-check.mjs"), "utf8"),
+);
+const installedKitReport = JSON.parse(
+  await run(
+    "node",
+    [
+      "kit-consumer-check.mjs",
+    ],
+    {
+      cwd: library,
+    },
+  ),
+);
+const builtKits = await import("../packages/core/dist/kit.js");
+const builtKitReport = builtKits.checkKits([
+  builtKits.coreKit,
+  builtKits.instanceKit,
+]);
+check(
+  JSON.stringify(installedKitReport) === JSON.stringify(builtKitReport),
+  "installed kits preserve built source bytes/hashes, budgets and explicit-root flush behavior",
+);
+
 // The declarations must be usable: compile a TypeScript file against the packed library, the way a project's own code would.
 await writeFile(
   join(library, "tsconfig.json"),

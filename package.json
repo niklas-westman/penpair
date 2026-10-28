@@ -23,7 +23,9 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "check:style": "biome check . && node scripts/check-code-paths.mjs",
-    "conventions:check": "tsc -p docs/conventions/tsconfig.json && vitest run --config docs/conventions/vitest.config.ts"
+    "conventions:check": "tsc -p docs/conventions/tsconfig.json && vitest run --config docs/conventions/vitest.config.ts",
+    "sandbox:generate": "node scripts/generate-layout-source.mjs",
+    "sandbox:check": "node scripts/generate-layout-source.mjs --check"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.2",
@@ -32,6 +34,7 @@
     "sharp": "0.35.5",
     "typescript": "5.6.3",
     "vitest": "3.2.4",
-    "yaml": "2.9.1"
+    "yaml": "2.9.1",
+    "esbuild": "0.28.2"
   }
 }

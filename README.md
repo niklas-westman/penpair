@@ -128,6 +128,7 @@ Use the pnpm version declared in `package.json`. Read [CONTRIBUTING](https://git
 | Connect a library or browser checker | [Companion adapters](https://github.com/niklas-westman/penpair/blob/main/docs/adapters.md) |
 | Find commands, recipes or extension points | [Guide](https://github.com/niklas-westman/penpair/blob/main/docs/guide.md) · [Cookbook](https://github.com/niklas-westman/penpair/blob/main/docs/cookbook.md) · [MCP tools](https://github.com/niklas-westman/penpair/blob/main/docs/mcp.md) |
 | Diagnose or recover a failure | [Troubleshooting](https://github.com/niklas-westman/penpair/blob/main/docs/troubleshooting.md) · [Recovery](https://github.com/niklas-westman/penpair/blob/main/docs/recovery.md) |
+| Understand design investigations and proposed changes | [Flush scope and build diagnostics](docs/designs/fewer-lost-penpair-runs.md) · [Revision conflicts](docs/designs/penpot-revision-conflicts.md) |
 | Validate a source build or prepare a release | [Validation](https://github.com/niklas-westman/penpair/blob/main/docs/validation.md) · [Releasing](https://github.com/niklas-westman/penpair/blob/main/docs/releasing.md) |
 
 [Changelog](https://github.com/niklas-westman/penpair/blob/main/CHANGELOG.md) · [MIT licence](https://github.com/niklas-westman/penpair/blob/main/LICENSE)

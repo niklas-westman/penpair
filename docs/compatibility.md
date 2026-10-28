@@ -12,6 +12,7 @@ What has been checked, where, and what differs. Update it whenever a Penpot is p
 | Deep check (`probe --deep --write`): flex layout, text, token set and binding, components and swap, clone, PNG export, clean-up | all steps pass, nothing left behind (run on a fresh instance's empty file) | all steps pass, nothing left behind (run twice) |
 | `pages`, `tree`, `audit`, `tokens dump`, `export` (waits for a stable render), `archive` with `--apply`, a project snippet that writes (`run seed-demo`) | all in use | all verified on seeded sample content |
 | `doctor` (external profile) | ok | ok |
+| Shape-level `waitForLayoutUpdate` (`shapeApis.layoutWait`) | not run | not run |
 | Cross-page clone followed by `appendChild` / `insertChild` | refused with either page active; scratch cleanup verified ([details](copy-between-pages.md)) | not tried |
 | `init`, `up`, `doctor` for a Penpot penpair starts (a fresh instance on its own port, then the owner's account, key and plugin connection) | ok: 16 seconds to answer with the images cached; `doctor` all ok | not applicable |
 

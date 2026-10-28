@@ -24,10 +24,10 @@ The last two examples require the token adapter configured in the adopting proje
 | `inst(parent, path, name, textOverrides, library?)` | Exact unique component match; validates named text overrides and never removes/reorders instance children. Defaults to the local library. |
 | `style(shape, options)` | Queues requested styling only; an isolated color update preserves existing spacing and bindings. |
 | `fill`, `fillV` | Sets layout-child horizontal/vertical fill sizing. |
-| `settle(root, options)` | `strategy: auto | native | geometry`, default auto. Auto caps native at min(500 ms, remaining/4), then requires three complete equal geometry/hierarchy samples. Time/node/malformed evidence cannot report stable. |
-| `flush({root, timeoutMs, strategy})` | Waits for layout, applies queued values/styles, then awaits queued bindings, then settles again. Active token-context changes refuse. |
+| `settle(root, options)` | `strategy: auto | native | geometry`, default auto. Auto caps native at min(500 ms, remaining/4), then requires three equal geometry/hierarchy samples. A bounded sample can report `stable: true` with `method: "partial"`; it does not establish stability of unsampled shapes. Timeout or malformed evidence cannot report stable. |
+| `flush({root, timeoutMs, strategy})` | Waits for layout, applies queued values/styles, then awaits queued bindings, then settles again. Active token-context changes refuse. An explicitly supplied falsy `root` refuses before queued work or layout; omitting `root` deliberately selects the page. Resolve subtrees with `pp.find` (`@instances`) and check `layout.rootIds` in the report. |
 
-Always `await pp.flush()` before independent readback/export. There are no fixed 1.2/2.5-second styling sleeps. Layout completion does not prove font download, token persistence or pixels; keep positive readback and stable exports. Queues are local to one execution, not a recovery log. Partial errors are not transactions; the enclosing reviewed operation must own and reconcile its roots. Bindings remain subject to the runtime's supported token properties; A4 owns the broader compatibility whitelist.
+Always `await pp.flush({ root: ownedRoot })` before independent readback/export. Omitting `root` deliberately settles the whole page. There are no fixed 1.2/2.5-second styling sleeps. Layout completion does not prove font download, token persistence or pixels; keep positive readback and stable exports. Queues are local to one execution, not a recovery log. Partial errors are not transactions; the enclosing reviewed operation must own and reconcile its roots. Bindings remain subject to the runtime's supported token properties; A4 owns the broader compatibility whitelist.
 
 Example body (inside a reviewed `run-file` operation):
 
@@ -50,10 +50,26 @@ A recipe is registered with `pp.defineRecipe(name, (parent, props) => shape, des
 - `pp.swap(instance, "Path / Name", { keepText, keepSize, allowTextMismatch, library })` creates the new component's instance first, puts it at the old one's index, carries the texts in reading order (`keepText`, default on) and the size or fill sizing (`keepSize`, default on), then removes the old instance. If the text counts differ it keeps the original and throws, unless `allowTextMismatch` is set. A missing or ambiguous component also leaves the original in place.
 - `pp.iconSize(instance, px)` resizes an icon instance and scales its nested shapes, which a plain `resize` can leave at their old size (an instance resized smaller than the path inside it). It returns `{ scale, nodes, scaled, overflow }`; `overflow` is true when a nested shape still leaves the instance box. Stroke widths are not scaled; export and look at the result.
 - `pp.libraryIcon(parent, "Path", "Name", colorToken, size)` places a library icon instance, sizes it with `iconSize` and binds the colour token on its inner stroked or filled shapes (a bind needs `pp.flush`). It throws when nothing inside can be recoloured.
+- `pp.find(root, filter, expected)` resolves `root` and its descendants by name string or predicate function and throws unless the match count equals `expected` (default 1), naming the filter and the count. It returns the shape for `expected: 1` and an array otherwise, and shares the 20,000-node traversal budget. Use it before `pp.flush({ root })` to fail at the selector with a useful match-count error; flush also refuses an explicitly empty root.
 
 These helpers run against Penpot's plugin API as the fixture models it; check a first use on a scratch board.
 
-The core kit is now within about 20 bytes of its 32 KiB budget. New helpers belong in an included kit like `@instances`, not in `@kit`. A raw `radius: 28` is refused with `radius needs a token name; borderRadius tokens: ...`, listing up to twelve active radius tokens.
+The current generated kit source measures 29,914 bytes for `@kit` and 6,867
+bytes for `@instances`; the combined wrapped report is 36,914 bytes. Run
+`penpair kit check --include @kit --include @instances` for current bytes and
+hashes. Sandbox policy text is generated from the host TypeScript implementation,
+not from runtime `Function.toString()`, so tests, built consumers and installed
+packages load the same text. See the [generation workflow](conventions/plugin-code.md#generated-layout-policy).
+A raw `radius: 28` is refused with `radius needs a token name; borderRadius tokens: ...`,
+listing up to twelve active radius tokens.
+
+For migration, replace `pp.flush({ root: possiblyEmpty })` with a verified root.
+If the whole page is intentional, omit the key: `pp.flush()` or
+`pp.flush({ timeoutMs: 10000 })`. Explicit `undefined`, `null`, `false`, zero,
+`NaN` and an empty string refuse. Root arrays remain supported, with empty or
+invalid arrays refused by layout validation. Direct `pp.settle(undefined)` retains
+its page-root default. Refusal does not consume queued styles/bindings or leave
+the flush concurrency flag set.
 
 `@marwes-kit`, included after `@kit`, defines `mw.card`, `mw.segmented`, `mw.progress`, `mw.iconTile` and `mw.statTile`, and registers corresponding recipe names. Library token defaults live entirely in the adapter; every token can be retargeted through props. Card/progress/tile radius tokens are explicit project declarations or measured inputs. Progress additionally requires an explicit **sizing** height token, since spacing tokens do not bind height. Tile dimensions and content are explicit.
 
@@ -67,4 +83,4 @@ A verified trial saves a private PNG preview under `.penpair/probes/`, with byte
 
 Current references: [flex layout](https://doc.plugins.penpot.app/interfaces/FlexLayout), [font application](https://doc.plugins.penpot.app/interfaces/Font), [component instantiation](https://doc.plugins.penpot.app/interfaces/LibraryComponent), [spacing properties](https://doc.plugins.penpot.app/types/TokenSpacingProps) and [sizing properties](https://doc.plugins.penpot.app/types/TokenSizingProps). Runtime capability and independent evidence remain required.
 
-Host operations retain a 30 s total layout deadline; kit settle/flush default to 10 s. `native` reports failure without fallback; `geometry` skips native waiting. Diagnostics include the chosen strategy, native outcome, fallback reason and elapsed time. Neither transport loss, cancellation, changed target nor malformed/truncated data becomes a successful fallback. `run-file`, `export` and `shots` accept `--layout auto|native|geometry`. The default is suitable for ordinary builds; there is no CLI off mode.
+Host operations retain a 30 s total layout deadline; kit settle/flush default to 10 s. `native` reports failure without fallback; `geometry` skips native waiting. Diagnostics include the chosen strategy, native outcome, fallback reason and elapsed time. Neither transport loss, cancellation, changed target nor malformed data becomes a successful fallback. Truncated evidence can establish only `method: "partial"`, not stability of unsampled shapes. `run-file`, `export` and `shots` accept `--layout auto|native|geometry`. The default is suitable for ordinary builds; there is no CLI off mode.

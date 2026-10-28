@@ -1751,8 +1751,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   /** With --debug-port, says which browser tabs are on the Penpot origin and which one holds the pinned file, so a silent editor has a visible cause. */
   async function browserTabsCheck(): Promise<DoctorCheck | undefined> {
-    if (command !== "doctor" || !values["debug-port"]) {
+    if (command !== "doctor") {
       return undefined;
+    }
+    if (!values["debug-port"]) {
+      // Silence here once read as a passing check; warn instead, without changing the exit code.
+      return {
+        check: "browser tabs",
+        ok: true,
+        warning: true,
+        detail: "Not checked: browser tabs need --debug-port",
+        remedy: "Rerun doctor with --debug-port to see which tab holds the pinned file.",
+      };
     }
     const config = await loadCommandConfig(root);
     if (!config.file?.id) {

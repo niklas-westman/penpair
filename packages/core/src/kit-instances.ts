@@ -101,6 +101,23 @@ Object.assign(pp, (() => {
             throw new Error("The icon has no stroked or filled inner shape to recolour: " + path + "/" + name);
         return shape;
     };
-    return { componentName, iconSize, swap, libraryIcon };
+    const find = (root, filter, expected = 1) => {
+        if (!root) {
+            throw new Error("find needs a root shape (got " + JSON.stringify(root) + ")");
+        }
+        if (!Number.isInteger(expected) || expected < 1) {
+            throw new Error("find expected must be a positive integer (got " + JSON.stringify(expected) + ")");
+        }
+
+        const label = typeof filter === "function" ? filter.name || "predicate" : JSON.stringify(filter);
+        const match = typeof filter === "function" ? filter : shape => shape.name === filter;
+        const found = walk(root).filter(match);
+        if (found.length !== expected) {
+            throw new Error("find(" + label + ") matched " + found.length + " shapes under " + JSON.stringify(root.name === undefined ? null : root.name) + ", expected " + expected);
+        }
+
+        return expected === 1 ? found[0] : found;
+    };
+    return { componentName, iconSize, swap, libraryIcon, find };
 })());
 `;
