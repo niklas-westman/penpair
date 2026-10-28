@@ -11,7 +11,7 @@ consumer evidence.
 | --- | --- |
 | First run / shared file | [Choose an installation route](installation.md), [manual installation](getting-started.md), [team](team.md), [validation](validation.md) |
 | Intent / release | [Journey maps](journey-maps.md), [integration maps](integration-maps.md), [design releases](design-releases.md) |
-| Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [handoff](handoff.md) |
+| Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [job queue](queue.md), [handoff](handoff.md) |
 | Evidence | [Inspection](inspection.md), [advisory audits](audits.md), [snapshots](snapshots.md), [approvals](approvals.md), [coverage](coverage.md), [artifacts](artifacts.md) |
 | Integration | [Companion adapters](adapters.md), [MCP](mcp.md), [formats](formats.md), [extension trust](extensions-trust.md), [credentials](credentials.md), [token adapter](marwes.md) |
 | Repair / operations | [Status/open](status.md), [troubleshooting](troubleshooting.md), [recovery](recovery.md), [backup](backup.md), [compatibility](compatibility.md), [releasing](releasing.md) |

@@ -30,6 +30,7 @@ import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-e
 import {
   withCommandSignal,
   commandSignal,
+  commandSleep,
   commandOutput as output,
   commandFailure,
   commandRedactor,
@@ -108,6 +109,8 @@ import { exportFileArchive } from "./file-archive.js";
 import { backupNoteCheck } from "./backup-note.js";
 import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
+import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
+import { resolveProjectInput } from "./project-input.js";
 
 const usageHead = `penpair ${version}
 Design agreements and release pages:
@@ -159,6 +162,8 @@ Snapshot / diff:
   penpair snapshot diff design/snapshots/before --from design/snapshots/current
   penpair tokens diff before.json after.json --theme NAME
   penpair runs [RUN_ID]                                private recovery evidence, offline
+  penpair queue run jobs.json [--resume QUEUE_ID] [--stop-on-failure]   ordered run-file jobs, one writer, retries, status
+  penpair queue status [QUEUE_ID]                      job states of a queue, offline
 Capture / approve:
   penpair export ID out.png [--page PAGE] [--scale 1]
   penpair export --name EXACT_NAME --page PAGE out.png
@@ -2805,6 +2810,73 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
         report.warnings.forEach((warning) => output.log(`Note: ${warning}`));
       }
       return 0;
+    }
+    if (argv[0] === "queue") {
+      const usage =
+        "usage: penpair queue run FILE [--resume QUEUE_ID] [--stop-on-failure] | penpair queue status [QUEUE_ID]";
+      const rest = argv.slice(2).filter((arg) => arg !== "--json");
+      if (argv[1] === "status") {
+        if (rest.length > 1 || rest[0]?.startsWith("--")) {
+          throw new Error(usage);
+        }
+        output.log(
+          JSON.stringify(
+            rest[0] ? await readQueue(root, rest[0]) : await listQueues(root),
+            null,
+            2,
+          ),
+        );
+        return 0;
+      }
+      const file = rest[0];
+      const flags = rest.slice(1);
+      const resumeAt = flags.indexOf("--resume");
+      const resumeId = resumeAt >= 0 ? flags[resumeAt + 1] : undefined;
+      const known = flags.filter(
+        (flag, at) => flag === "--stop-on-failure" || at === resumeAt || at === resumeAt + 1,
+      );
+      if (
+        argv[1] !== "run" ||
+        !file ||
+        file.startsWith("--") ||
+        known.length !== flags.length ||
+        (resumeAt >= 0 && (!resumeId || resumeId.startsWith("--")))
+      ) {
+        throw new Error(usage);
+      }
+      const spec = parseQueueSpec(await readFile(await resolveProjectInput(root, file), "utf8"));
+      const specHash = hashSpec(spec);
+      const record = resumeId ? await readQueue(root, resumeId) : undefined;
+      if (record && (record.specHash !== specHash || record.jobs.length !== spec.jobs.length)) {
+        throw new Error(
+          "The queue file changed since this queue started; start a new queue instead of resuming it",
+        );
+      }
+      const finished = await runQueue({
+        root,
+        spec,
+        specHash,
+        queueId: record?.queueId ?? newQueueId(),
+        record,
+        stopOnFailure: flags.includes("--stop-on-failure") ? true : undefined,
+        exec: (args) =>
+          runCommand(args, {
+            ...options,
+            root,
+            signal: commandSignal(),
+          }),
+        sleep: commandSleep,
+        log: (line) => output.error(line),
+        signal: commandSignal(),
+      });
+      output.log(JSON.stringify(finished, null, 2));
+      const bad = finished.jobs.filter(
+        (job) => job.state !== "ok" && job.state !== "already-satisfied",
+      );
+      output.error(
+        `queue ${finished.queueId}: ${finished.jobs.length - bad.length} of ${finished.jobs.length} done${bad.length ? `; not done: ${bad.map((job) => `${job.id} (${job.state})`).join(", ")}` : ""}`,
+      );
+      return bad.length === 0 ? 0 : bad.some((job) => job.state === "uncertain") ? 4 : 1;
     }
     if (argv[0] === "runs") {
       if (
