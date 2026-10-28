@@ -248,4 +248,72 @@ describe("neutral plugin build kit", () => {
     });
     await expect(brokenKit.flush()).rejects.toThrow(/geometry/);
   });
+  it("refuses a flush budget above the maximum and says what the maximum is", async () => {
+    const f = kitFixture();
+    const pp = await load(f.penpot);
+    await expect(
+      pp.flush({
+        timeoutMs: 45000,
+      }),
+    ).rejects.toThrow(/from 1 to 30000 \(got 45000\).*staged flushes/);
+    await expect(
+      pp.settle(f.root, {
+        timeoutMs: 45000,
+      }),
+    ).resolves.toMatchObject({
+      stable: false,
+      reason: expect.stringMatching(/timeoutMs must be from 1 to 30000 \(got 45000\)/),
+    });
+  });
+  it("reports what was pending when a flush runs out of time", async () => {
+    const f = kitFixture();
+    const pp = await load(f.penpot);
+    const board = pp.box(null, {
+      name: "Heavy",
+      bg: "surface",
+      stroke: "ink",
+      radius: "radius",
+      w: 240,
+    });
+    const slow = board.applyToken.bind(board);
+    board.applyToken = async (
+      token: {
+        name: string;
+      },
+      properties: string[],
+    ) => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      return slow(token, properties);
+    };
+    const failure = await pp
+      .flush({
+        timeoutMs: 40,
+      })
+      .then(
+        () => undefined,
+        (error: Error) => error,
+      );
+    expect(failure?.message).toMatch(
+      /^Flush deadline exceeded \[phase binds; 1 binds applied, \d+ binds/,
+    );
+    expect(failure?.message).toMatch(/slowest bind \d+ ms on "Heavy"/);
+    expect(failure?.message).toMatch(/ms per phase \{.*"binds":\d+.*\} of a 40 ms budget/);
+  });
+  it("names the shape that makes the layout geometry malformed", async () => {
+    const f = kitFixture();
+    const pp = await load(f.penpot);
+    f.root.children.push({
+      id: "",
+      name: null,
+      type: undefined,
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+      children: [],
+    } as never);
+    const result = await pp.settle(f.root);
+    expect(result.stable).toBe(false);
+    expect(result.reason).toMatch(/a shape with no id \(name null.*at index \d+ under/);
+  });
 });

@@ -30,13 +30,18 @@ const observeLayout = async (penpot, root, options) => {
  }
  validTarget();
  // Keep hierarchy and sibling order as well as geometry; repeated IDs include cycles.
- const geometry = [], stack = roots.map(shape => [shape, null, 0]).reverse(), seen = new Set();
+ const geometry = [], stack = roots.map(shape => [shape, null, 0]).reverse(), seen = new Set(), names = new Map();
  let truncated = false;
  while (stack.length) {
   if (geometry.length >= (options.maxNodes || 10000)) { truncated = true; break; }
   const [shape, parent, index] = stack.pop();
-  if (!shape || typeof shape.id !== "string" || !shape.id || seen.has(shape.id) || ![shape.x, shape.y, shape.width, shape.height].every(Number.isFinite)) throw new Error("Malformed layout geometry or duplicate IDs");
-  seen.add(shape.id);
+  const where = () => "index " + index + " under " + (parent === null ? "the layout root" : JSON.stringify(names.get(parent) ?? null) + " (id " + parent + ")");
+  if (!shape) throw new Error("Malformed layout geometry: empty child at " + where());
+  if (typeof shape.id !== "string" || !shape.id) throw new Error("Malformed layout geometry: a shape with no id (name " + JSON.stringify(shape.name ?? null) + ", type " + JSON.stringify(shape.type ?? null) + ") at " + where() + "; an interrupted run may have left it, remove it or scope layout to another root");
+  if (seen.has(shape.id)) throw new Error("Malformed layout geometry: duplicate id " + shape.id + " (name " + JSON.stringify(shape.name ?? null) + ") at " + where());
+  const badFields = ["x", "y", "width", "height"].filter(field => !Number.isFinite(shape[field]));
+  if (badFields.length) throw new Error("Malformed layout geometry: " + badFields.join(", ") + " not finite on " + JSON.stringify(shape.name ?? null) + " (id " + shape.id + ") at " + where());
+  seen.add(shape.id); names.set(shape.id, shape.name ?? null);
   geometry.push([shape.id, shape.x, shape.y, shape.width, shape.height, parent, index]);
   const children = shape.children || [];
   if (!Array.isArray(children)) throw new Error("Malformed layout hierarchy");

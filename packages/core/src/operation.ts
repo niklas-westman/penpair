@@ -319,7 +319,7 @@ async function settleOperation(
   if (!result.stable) {
     throw new PenpairError(
       "incomplete-output",
-      `Layout did not settle: ${result.reason ?? "unknown reason"}`,
+      `Layout did not settle: ${result.reason ?? "unknown reason"} (${result.samples} samples, ${result.nodeCount ?? "unknown"} nodes sampled${result.elapsedMs === undefined ? "" : `, ${result.elapsedMs} ms`}${result.rootIds?.length ? `; roots ${result.rootIds.join(", ")}` : "; whole page"})`,
     );
   }
   return result;

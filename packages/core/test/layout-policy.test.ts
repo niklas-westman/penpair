@@ -546,3 +546,21 @@ it("refuses vanished explicit roots before invoking any native wait", async () =
   });
   expect(wait).not.toHaveBeenCalled();
 });
+
+it("names the maximum when a layout budget is refused", async () => {
+  const f = fixture("success");
+  await expect(
+    waitForStableLayout(f.client, {
+      timeoutMs: 45000,
+    }),
+  ).rejects.toThrow(
+    /Invalid layout settling budgets: timeoutMs must be from 1 to 30000 \(got 45000\)/,
+  );
+  await expect(
+    waitForStableLayout(f.client, {
+      timeoutMs: 30000,
+      intervalMs: 10,
+    }),
+  ).rejects.toThrow(/more than 1000 samples/);
+  expect(f.calls()).toBe(0);
+});
