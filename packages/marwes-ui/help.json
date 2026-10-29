@@ -1,0 +1,513 @@
+{
+  "schemaVersion": 1,
+  "topics": [
+    {
+      "id": "marwes",
+      "group": "Adapter",
+      "summary": "marwes: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes theme lint [--json]              advisory family/default hue gaps; no design writes",
+        "penpair marwes tokens schema | migrate --from FILE --ownership FILE [--out NEW_FILE]   schema and explicit legacy migration",
+        "penpair marwes tokens snapshot [--write]       build the expected Penpot tokens from the installed Marwes and your theme; --write saves the snapshot",
+        "penpair marwes tokens preview --from SNAPSHOT --theme NAME [--out FILE]  offline projected values; no native bindings or live selection changes",
+        "penpair marwes tokens migrate --from LEGACY --ownership MAP [--out NEW_FILE]  explicit offline ownership upgrade",
+        "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)",
+        "penpair marwes tokens diff [--json]            Penpot against the snapshot: missing, changed, added by hand, and what each change reaches",
+        "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations",
+        "penpair marwes tokens diff --resolved [--apply] verify actual values in isolated themes and restore the complete original selection",
+        "penpair marwes tokens verify-modes ID --page PAGE --out DIR [--apply] capture stable per-mode PNG evidence and restore selection",
+        "penpair marwes components snapshot [--write] | check [--measure] | diff — explicit three-component measurement pilot; native generation gated",
+        "penpair marwes tokens status                   one screen: installed Marwes, snapshot, Penpot"
+      ],
+      "flags": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "ownership",
+          "type": "string"
+        },
+        {
+          "name": "theme",
+          "type": "string"
+        },
+        {
+          "name": "resolved",
+          "type": "boolean"
+        },
+        {
+          "name": "page",
+          "type": "string"
+        },
+        {
+          "name": "out",
+          "type": "string"
+        },
+        {
+          "name": "overwrite",
+          "type": "boolean"
+        },
+        {
+          "name": "adopt",
+          "type": "string"
+        },
+        {
+          "name": "write",
+          "type": "boolean"
+        },
+        {
+          "name": "apply",
+          "type": "boolean"
+        },
+        {
+          "name": "prune",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        },
+        {
+          "name": "resume",
+          "type": "string"
+        },
+        {
+          "name": "checkpoint",
+          "type": "boolean"
+        },
+        {
+          "name": "force-lock",
+          "type": "boolean"
+        },
+        {
+          "name": "trace",
+          "type": "boolean"
+        },
+        {
+          "name": "measure",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "workflows.iterative-build"
+      ]
+    },
+    {
+      "id": "marwes.theme.lint",
+      "group": "Adapter",
+      "summary": "marwes theme lint: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes theme lint [--json]              advisory family/default hue gaps; no design writes"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.schema",
+      "group": "Adapter",
+      "summary": "marwes tokens schema: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens schema | migrate --from FILE --ownership FILE [--out NEW_FILE]   schema and explicit legacy migration"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.migrate",
+      "group": "Adapter",
+      "summary": "marwes tokens migrate: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens migrate --from LEGACY --ownership MAP [--out NEW_FILE]  explicit offline ownership upgrade"
+      ],
+      "flags": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "ownership",
+          "type": "string"
+        },
+        {
+          "name": "out",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.snapshot",
+      "group": "Adapter",
+      "summary": "marwes tokens snapshot: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens snapshot [--write]       build the expected Penpot tokens from the installed Marwes and your theme; --write saves the snapshot"
+      ],
+      "flags": [
+        {
+          "name": "write",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.preview",
+      "group": "Adapter",
+      "summary": "marwes tokens preview: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens preview --from SNAPSHOT --theme NAME [--out FILE]  offline projected values; no native bindings or live selection changes"
+      ],
+      "flags": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "theme",
+          "type": "string"
+        },
+        {
+          "name": "out",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.check",
+      "group": "Adapter",
+      "summary": "marwes tokens check: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens check [--json]           offline, for CI: is the committed snapshot current? (exit 2 when stale)"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.diff",
+      "group": "Adapter",
+      "summary": "marwes tokens diff: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens diff [--json]            Penpot against the snapshot: missing, changed, added by hand, and what each change reaches",
+        "penpair marwes tokens diff --resolved [--apply] verify actual values in isolated themes and restore the complete original selection"
+      ],
+      "flags": [
+        {
+          "name": "resolved",
+          "type": "boolean"
+        },
+        {
+          "name": "apply",
+          "type": "boolean"
+        },
+        {
+          "name": "resume",
+          "type": "string"
+        },
+        {
+          "name": "checkpoint",
+          "type": "boolean"
+        },
+        {
+          "name": "force-lock",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.push",
+      "group": "Adapter",
+      "summary": "marwes tokens push: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens push [--apply] [--prune] inspect reconciliation; --apply writes, --overwrite resolves value conflicts, --prune removes owned retired tokens; --adopt FILE proposes local declarations"
+      ],
+      "flags": [
+        {
+          "name": "apply",
+          "type": "boolean"
+        },
+        {
+          "name": "prune",
+          "type": "boolean"
+        },
+        {
+          "name": "resume",
+          "type": "string"
+        },
+        {
+          "name": "checkpoint",
+          "type": "boolean"
+        },
+        {
+          "name": "force-lock",
+          "type": "boolean"
+        },
+        {
+          "name": "trace",
+          "type": "boolean"
+        },
+        {
+          "name": "overwrite",
+          "type": "boolean"
+        },
+        {
+          "name": "adopt",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.verify-modes",
+      "group": "Adapter",
+      "summary": "marwes tokens verify-modes: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens verify-modes ID --page PAGE --out DIR [--apply] capture stable per-mode PNG evidence and restore selection"
+      ],
+      "flags": [
+        {
+          "name": "page",
+          "type": "string"
+        },
+        {
+          "name": "out",
+          "type": "string"
+        },
+        {
+          "name": "apply",
+          "type": "boolean"
+        },
+        {
+          "name": "resume",
+          "type": "string"
+        },
+        {
+          "name": "checkpoint",
+          "type": "boolean"
+        },
+        {
+          "name": "force-lock",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.tokens.status",
+      "group": "Adapter",
+      "summary": "marwes tokens status: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes tokens status                   one screen: installed Marwes, snapshot, Penpot"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.components.snapshot",
+      "group": "Adapter",
+      "summary": "marwes components snapshot: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes components snapshot [--write] | check [--measure] | diff — explicit three-component measurement pilot; native generation gated"
+      ],
+      "flags": [
+        {
+          "name": "write",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.components.check",
+      "group": "Adapter",
+      "summary": "marwes components check: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes components check"
+      ],
+      "flags": [
+        {
+          "name": "measure",
+          "type": "boolean"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.components.diff",
+      "group": "Adapter",
+      "summary": "marwes components diff: Project token and component reconciliation",
+      "usages": [
+        "penpair marwes components diff"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.components.schema",
+      "group": "Adapter",
+      "summary": "Inspect the explicit component pilot schema",
+      "usages": [
+        "penpair marwes components schema"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "The component pilot is bounded; native generation is gated. Read the component guide before planning builds."
+      ],
+      "related": [
+        "marwes"
+      ]
+    },
+    {
+      "id": "marwes.components.build",
+      "group": "Adapter",
+      "summary": "Explain the gated native component generation pilot",
+      "usages": [
+        "penpair marwes components build"
+      ],
+      "flags": [
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "The component pilot is bounded; native generation is gated. Read the component guide before planning builds."
+      ],
+      "related": [
+        "marwes"
+      ]
+    }
+  ]
+}

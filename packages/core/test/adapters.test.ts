@@ -196,7 +196,7 @@ describe("the command line with an adapter", () => {
         "--help",
       ]),
     ).toBe(0);
-    expect(String(log.mock.calls[0]?.[0])).toMatch(
+    expect(log.mock.calls.map((call) => String(call[0])).join("\n")).toMatch(
       /Configured executable extensions[\s\S]*adapter\.mjs/,
     );
   });

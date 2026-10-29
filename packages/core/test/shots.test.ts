@@ -155,6 +155,7 @@ describe("ad-hoc shots", () => {
   it("publishes complete immutable captures with no baseline approvals", async () => {
     const root = await folder();
     const e = editor();
+    const progress: import("../src/capture-progress.js").CaptureProgress[] = [];
     const report = await captureShots(
       e.client,
       root,
@@ -162,7 +163,10 @@ describe("ad-hoc shots", () => {
         page: "Page",
         prefix: "Desk",
       },
-      fast,
+      {
+        ...fast,
+        onProgress: (event) => progress.push(event),
+      },
     );
     expect(report).toMatchObject({
       complete: true,
@@ -180,6 +184,13 @@ describe("ad-hoc shots", () => {
       await readFile(path.join(root, "design/shots/penpair-shots.json"), "utf8"),
     );
     expect(manifest.complete).toBe(true);
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.every((event) => event.command === "shots")).toBe(true);
+    expect(progress.find((event) => event.phase === "render")).toMatchObject({
+      frame: "Desktop",
+      index: 1,
+      total: 1,
+    });
     expect(manifest.captures[0].approved).toBeUndefined();
     expect(await readFile(path.join(root, "design/shots", report.captures[0]!.file))).toEqual(
       png("Desktop"),

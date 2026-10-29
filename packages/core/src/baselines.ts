@@ -1,3 +1,4 @@
+import { capturePhase } from "./capture-progress.js";
 import { matchingApproval } from "./approvals.js";
 import { matchesDesignViewport } from "./design-viewport.js";
 import { pngSize } from "./png.js";
@@ -243,14 +244,16 @@ export async function exportBaselines(
   validateBaselines(config, (message) => {
     throw new Error(message);
   });
-  const listing = await runOnPage(
-    client,
-    frames({
-      page: config.page,
-      recursive: config.frames.some((entry) => entry.frameId !== undefined),
-    }),
-    config.page,
-    options,
+  const listing = await capturePhase(options, "baselines", "selection", () =>
+    runOnPage(
+      client,
+      frames({
+        page: config.page,
+        recursive: config.frames.some((entry) => entry.frameId !== undefined),
+      }),
+      config.page,
+      options,
+    ),
   );
   if (
     listing.ok !== true ||
@@ -299,7 +302,7 @@ export async function exportBaselines(
   const runId = randomUUID();
   const generation = `captures/${runId}`;
   const captures = new Map<string, Buffer>();
-  for (const wanted of config.frames) {
+  for (const [index, wanted] of config.frames.entries()) {
     options.signal?.throwIfAborted();
     const old = previous?.frames?.find((entry) => entry.id === wanted.id);
     const existingEvidence = await existingBaseline(projectRoot, config, wanted.id, old);
@@ -358,6 +361,16 @@ export async function exportBaselines(
     options.onStep?.(`exporting ${frame.name}`);
     const exported = await exportShapePng(client, frame.id, {
       ...options,
+      onProgress: options.onProgress
+        ? (event) =>
+            options.onProgress?.({
+              ...event,
+              command: "baselines",
+              frame: frame.name,
+              index: index + 1,
+              total: config.frames.length,
+            })
+        : undefined,
       page: config.page,
       stable: true,
     });
@@ -392,7 +405,13 @@ export async function exportBaselines(
     if (!pngSize(exported.png)) {
       throw new Error("Baseline export is not a PNG with dimensions");
     }
-    const encoded = await encodeBaselineImage(exported.png, format);
+    const encoded = await capturePhase(
+      options,
+      "baselines",
+      "encode",
+      () => encodeBaselineImage(exported.png, format),
+      frame.name,
+    );
     const captured: ArtifactProvenance = {
       ...(wanted.case
         ? {
@@ -516,14 +535,16 @@ export async function exportBaselines(
     });
     captures.set(`${wanted.id}.${format}`, encoded);
   }
-  const after = await runOnPage(
-    client,
-    frames({
-      page: config.page,
-      recursive: config.frames.some((entry) => entry.frameId !== undefined),
-    }),
-    config.page,
-    options,
+  const after = await capturePhase(options, "baselines", "verify", () =>
+    runOnPage(
+      client,
+      frames({
+        page: config.page,
+        recursive: config.frames.some((entry) => entry.frameId !== undefined),
+      }),
+      config.page,
+      options,
+    ),
   );
   const source = (value: Record<string, unknown>) => ({
     fileId: value.fileId,
@@ -561,7 +582,7 @@ export async function exportBaselines(
       );
     }
     options.signal?.throwIfAborted();
-    options.onStep?.("publishing complete capture");
+    options.onStep?.("staging complete capture");
     options.signal?.throwIfAborted();
     const captureFolder = await resolveProjectOutput(
       projectRoot,
@@ -575,7 +596,9 @@ export async function exportBaselines(
     try {
       for (const [file, bytes] of captures) {
         options.signal?.throwIfAborted();
-        await atomicWriteFile(path.join(staged, file), bytes);
+        await capturePhase(options, "baselines", "stage", () =>
+          atomicWriteFile(path.join(staged, file), bytes),
+        );
         options.onStep?.(`staging ${path.parse(file).name}`);
       }
       const cases = reflectionCases(config, results);
@@ -596,19 +619,21 @@ export async function exportBaselines(
       options.signal?.throwIfAborted();
       await rename(staged, path.join(captureFolder, runId));
       // Immutable generation first. The canonical manifest is the commit point and is published last.
-      await atomicWriteFile(
-        path.join(folder, "reflection-cases.json"),
-        `${JSON.stringify(
+      await capturePhase(options, "baselines", "publish", () =>
+        atomicWriteFile(
+          path.join(folder, "reflection-cases.json"),
+          `${JSON.stringify(
+            {
+              ...cases,
+              captureId: runId,
+            },
+            null,
+            2,
+          )}\n`,
           {
-            ...cases,
-            captureId: runId,
+            replace: true,
           },
-          null,
-          2,
-        )}\n`,
-        {
-          replace: true,
-        },
+        ),
       );
       options.signal?.throwIfAborted();
       for (const result of results) {
@@ -630,12 +655,14 @@ export async function exportBaselines(
         note: "Capture provenance and approved provenance are separate. Changed references require exact-artifact owner words or a recorded forced-reference waiver.",
         frames: results,
       };
-      await atomicWriteFile(
-        path.join(folder, "penpair-baselines.json"),
-        `${JSON.stringify(manifest, null, 2)}\n`,
-        {
-          replace: true,
-        },
+      await capturePhase(options, "baselines", "publish", () =>
+        atomicWriteFile(
+          path.join(folder, "penpair-baselines.json"),
+          `${JSON.stringify(manifest, null, 2)}\n`,
+          {
+            replace: true,
+          },
+        ),
       );
       for (const result of results) {
         result.written =

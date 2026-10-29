@@ -2,7 +2,7 @@ import { parseArgs, type ParseArgsConfig } from "node:util";
 
 export class CommandArgumentError extends Error {
   readonly code = "invalid-arguments";
-  readonly remedy = "Use the command's supported flags and required values; see penpair --help.";
+  remedy = "Use the command's supported flags and required values; see penpair --help.";
 }
 function distance(a: string, b: string): number {
   let previous = Array.from(

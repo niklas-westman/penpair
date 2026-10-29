@@ -99,6 +99,12 @@ export const commandOutput: CommandOutput = {
 export function commandRedactor(redact: (value: string) => string): void {
   (scope.getStore()?.redactors ?? signals.getStore()?.redactors)?.push(redact);
 }
+
+/** Streaming diagnostics do not become warnings or messages in the final result. */
+export function commandProgress(message: string): void {
+  const redactors = scope.getStore()?.redactors ?? signals.getStore()?.redactors ?? [];
+  console.error(redactors.reduce((text, redact) => redact(text), redactEndpoint(message)));
+}
 export function commandFailure(error: unknown): void {
   const current = scope.getStore();
   if (!current) {

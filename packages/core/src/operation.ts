@@ -26,6 +26,7 @@ import {
 } from "./journal.js";
 import { guardRevision, writeCoordinator } from "./coordination.js";
 import { guardFile } from "./file-guard.js";
+import type { CaptureProgress } from "./capture-progress.js";
 
 /**
  * A Penpot change done the safe way: look first, change once, read back independently. `verify` compares the three
@@ -63,6 +64,8 @@ export interface OperationOptions extends ExecuteOptions {
   /** Wait between the write and the readback: token resolution and layout settle slowly. */
   settleMs?: number;
   onStep?: (message: string) => void;
+  /** Structured capture diagnostics, independent of operation outcomes. */
+  onProgress?: (event: CaptureProgress) => void;
 }
 
 export interface OperationReport {

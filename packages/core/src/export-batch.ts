@@ -1,3 +1,4 @@
+import { capturePhase } from "./capture-progress.js";
 import { createHash } from "node:crypto";
 import { mkdir, lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -171,6 +172,18 @@ export async function exportFrames(
   const total = params.frames.length;
   for (const [index, frame] of params.frames.entries()) {
     options.signal?.throwIfAborted();
+    const frameOptions = {
+      ...options,
+      onProgress: options.onProgress
+        ? (event: import("./capture-progress.js").CaptureProgress) =>
+            options.onProgress?.({
+              ...event,
+              frame: frame.name,
+              index: index + 1,
+              total,
+            })
+        : undefined,
+    };
     const started = Date.now();
     const file = path.join(params.out, `${frame.name}.png`);
     const target = await resolveProjectOutput(root, file);
@@ -179,14 +192,11 @@ export async function exportFrames(
       let fingerprint: string | undefined;
       let key: string | undefined;
       if (options.cache) {
-        const seen = await runOnPage(
-          client,
-          fingerprintSnippet(frame.id, params.page),
-          params.page,
-          {
+        const seen = await capturePhase(frameOptions, "export", "fingerprint", () =>
+          runOnPage(client, fingerprintSnippet(frame.id, params.page), params.page, {
             ...options,
             effect: "read",
-          },
+          }),
         );
         if (
           seen.ok !== true ||
@@ -214,6 +224,14 @@ export async function exportFrames(
               bytes: existing.length,
               elapsedMs: Date.now() - started,
             });
+            frameOptions.onProgress?.({
+              schemaVersion: 1,
+              kind: "progress",
+              command: "export",
+              phase: "cache",
+              status: "cached",
+              elapsedMs: Date.now() - started,
+            });
             options.log?.(`${where}: unchanged since its last export, kept ${file}`);
             continue;
           }
@@ -221,16 +239,18 @@ export async function exportFrames(
       }
       options.log?.(`${where}: exporting`);
       const exported = await exportShapePng(client, frame.id, {
-        ...options,
+        ...frameOptions,
         page: params.page,
         stable: true,
       });
       if (!exported.stable) {
         throw new Error("Export did not stabilize; the previous file was kept");
       }
-      await atomicWriteFile(target, exported.png, {
-        replace: true,
-      });
+      await capturePhase(frameOptions, "export", "publish", () =>
+        atomicWriteFile(target, exported.png, {
+          replace: true,
+        }),
+      );
       if (cacheFile && key) {
         if (fingerprint) {
           cache[key] = {

@@ -1,6 +1,7 @@
 // Packs the three packages, installs the tarballs in empty projects, and runs what a new user would run, so that what is tested
 // is what is published. Two projects: the web way (core and the short name only) and the Docker way (plus @penpair/docker).
 import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -239,7 +240,7 @@ check(
 );
 const help = await penpair(web, "--help");
 check(
-  /penpair setup/.test(help) && /not part of this install/.test(help),
+  /penpair setup/.test(help) && /Requires the local-instance/.test(help),
   "the help starts with setup and says where Docker comes from",
 );
 check(
@@ -534,9 +535,7 @@ await writeFile(
   }),
 );
 check(
-  /Configured executable extensions[\s\S]*@penpair\/marwes-ui/.test(
-    await penpair(marwes, "--help"),
-  ),
+  /Adapter @penpair\/marwes-ui/.test(await penpair(marwes, "--help")),
   "help names configured extensions without executing them",
 );
 const noMarwes = await runFailing(
@@ -642,4 +641,80 @@ check(
   ),
   "the case adapter installs and explains missing baseline setup without a connection",
 );
+const marwesHelp = JSON.parse(await penpair(marwes, "help", "marwes", "tokens", "push", "--json"));
+check(
+  marwesHelp.exitCode === 0 &&
+    marwesHelp.data.topics[0].flags.some((flag) => flag.name === "apply"),
+  "packed adapter manifest supplies typed action help without loading project code",
+);
+const reflectionHelp = JSON.parse(
+  await penpair(reflection, "help", "reflection", "check", "--json"),
+);
+check(
+  reflectionHelp.exitCode === 0 &&
+    reflectionHelp.data.topics[0].flags.some((flag) => flag.name === "provider"),
+  "packed verification adapter supplies static action help",
+);
+await writeFile(join(web, "penpair.config.json"), "{ malformed configuration");
+const offlineHelp = JSON.parse(await penpair(web, "help", "export", "batch", "--json"));
+check(
+  offlineHelp.exitCode === 0 && offlineHelp.data.topics[0].id === "export.batch",
+  "installed nested JSON help works with malformed configuration",
+);
+
+// A delayed fake tool request exercises the installed public capture API in another process.
+await writeFile(
+  join(library, "capture-progress-check.mjs"),
+  `
+import { exportShapePng } from "@penpair/core";
+const client = {
+  async callTool() {
+    await new Promise((resolve) => setTimeout(resolve, 5200));
+    return {text:JSON.stringify({result:{ok:true,base64:"eA==",length:1,capture:{fileId:"file",pageId:"page",frameId:"shape",revision:1,scale:1,activeThemes:[]}},log:""}),isError:false};
+  }, async close() {}
+};
+const result = await exportShapePng(client,"shape",{stable:false,layout:false,onProgress:(event)=>console.error(JSON.stringify(event))});
+console.log(JSON.stringify({bytes:result.png.length}));
+`,
+);
+await new Promise((resolve, reject) => {
+  const child = spawn(
+    process.execPath,
+    [
+      "capture-progress-check.mjs",
+    ],
+    {
+      cwd: library,
+      stdio: [
+        "ignore",
+        "pipe",
+        "pipe",
+      ],
+    },
+  );
+  let stdout = "";
+  let stderr = "";
+  let observedBeforeExit = false;
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+    if (stderr.includes('"status":"waiting"') && child.exitCode === null && stdout === "") {
+      observedBeforeExit = true;
+    }
+  });
+  child.on("error", reject);
+  child.on("close", (code) => {
+    try {
+      check(
+        code === 0 && observedBeforeExit && JSON.parse(stdout).bytes === 1,
+        "installed capture emits live waiting progress before exit and keeps stdout separate",
+      );
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+});
 console.log(`\npackages smoke-tested from ${packDir}`);

@@ -345,6 +345,29 @@ describe("native copy orchestration with real operation journals", () => {
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
   });
 
+  it("announces source preparation and run ID before journaling or dispatching a paste", async () => {
+    const trial = await fixture();
+    const progress: import("../src/capture-progress.js").CaptureProgress[] = [];
+    vi.mocked(evidence.captureCopyEvidence).mockImplementationOnce(async () => {
+      expect(progress.find((event) => event.phase === "prepare")).toMatchObject({
+        runId: trial.options.runId,
+        status: "started",
+      });
+      expect(await listJournals(trial.root)).toEqual([]);
+      expect(trial.clipboard.paste).not.toHaveBeenCalled();
+      throw new Error("Source capture stopped before paste");
+    });
+    await expect(
+      copyReleaseBoards(trial.client, trial.root, trial.request, {
+        ...trial.options,
+        onProgress: (event) => progress.push(event),
+      }),
+    ).rejects.toThrow("Source capture stopped");
+    expect(trial.clipboard.copy).not.toHaveBeenCalled();
+    expect(trial.clipboard.paste).not.toHaveBeenCalled();
+    expect(await listJournals(trial.root)).toEqual([]);
+  });
+
   it("previews without changing selection, pages, clipboard or local journals", async () => {
     const trial = await fixture();
     const before = trial.state.currentPage.id;

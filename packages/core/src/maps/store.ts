@@ -98,14 +98,33 @@ export async function writeMapProposal(
   root: string,
   file: string,
   proposal: MapProposal,
-  options: MapWriteOptions = {},
+  options: MapWriteOptions & {
+    allowIdentical?: boolean;
+  } = {},
 ): Promise<void> {
   const encoded = encodeMapArtifact(validateMapProposal(proposal), options.redact);
-  await withArtifactLock(root, file, async (target) =>
-    atomicWriteFile(target, encoded, {
-      replace: options.replace ?? false,
-    }),
-  );
+  await withArtifactLock(root, file, async (target) => {
+    try {
+      await atomicWriteFile(target, encoded, {
+        replace: options.replace ?? false,
+      });
+    } catch (error) {
+      if (!options.allowIdentical || (error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
+      const existing = await readBoundedBytes(root, file);
+      if (!existing.equals(Buffer.from(encoded))) {
+        throw Object.assign(
+          new Error(
+            `Map proposal ${JSON.stringify(file)} already exists with different bytes; choose a new --out path. Previous evidence was preserved.`,
+          ),
+          {
+            code: "EEXIST",
+          },
+        );
+      }
+    }
+  });
 }
 
 export async function readArtifactReviews(root: string, file: string): Promise<ArtifactReview[]> {

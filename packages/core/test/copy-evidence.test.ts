@@ -18,6 +18,7 @@ import {
 const directories: string[] = [];
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((directory) =>
@@ -27,6 +28,79 @@ afterEach(async () => {
       }),
     ),
   );
+});
+
+it("streams frame preparation while source capture is pending, then names the completed frame", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "penpair-copy-progress-"));
+  directories.push(root);
+  const source = evidence("a", "A named board");
+  vi.spyOn(live, "captureReleaseScreen").mockResolvedValue(source.inspection);
+  vi.spyOn(fidelity, "decodedPixels").mockResolvedValue(source.pixels);
+  let release!: () => void;
+  let entered!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  vi.spyOn(exports, "exportShapePng").mockImplementation(async () => {
+    entered();
+    await pending;
+    return {
+      stable: true,
+      exports: 2,
+      png: Buffer.from("fixture-png"),
+      capture: {
+        fileId: "file",
+        pageId: "page",
+        frameId: "a",
+        revision: 2,
+        scale: 1,
+        activeThemes: [],
+        penpotApiVersion: null,
+        renderEnvironment: null,
+      },
+    };
+  });
+  vi.useFakeTimers();
+  const events: import("../src/capture-progress.js").CaptureProgress[] = [];
+  const capture = captureCopyEvidence(
+    {} as PenpotToolClient,
+    root,
+    "file",
+    "page",
+    [
+      "a",
+    ],
+    "evidence/source",
+    undefined,
+    {
+      onProgress: (event) => events.push(event),
+    },
+  );
+  await started;
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(
+    events.some(
+      (event) =>
+        event.phase === "prepare" &&
+        event.status === "waiting" &&
+        event.index === 1 &&
+        event.total === 1,
+    ),
+  ).toBe(true);
+  release();
+  await capture;
+  expect(events.at(-1)).toMatchObject({
+    phase: "prepare",
+    status: "completed",
+    frame: "A named board",
+    index: 1,
+    total: 1,
+    elapsedMs: 5000,
+  });
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 function evidence(id: string, name = "Screen", x = 0, y = 0): CopyFrameEvidence {

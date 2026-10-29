@@ -1,3 +1,6 @@
+import { capturePhase, progressReporter } from "./capture-progress.js";
+import { isHelpRequest, runHelp } from "./help/command.js";
+import { commandOptions, allowedCommandFlags } from "./command-options.js";
 import { auditDesignRules } from "./audit-rules.js";
 import { projectStatus, projectFileUrl, openProject } from "./project-status.js";
 import { wakeBrowserTarget } from "./browser-wake.js";
@@ -120,121 +123,6 @@ import { inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
 import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
 import { resolveProjectInput } from "./project-input.js";
 
-const usageHead = `penpair ${version}
-Design agreements and release pages:
-  penpair journey-map check|render|publish|import|accept|approve|context --from FILE
-  penpair integration-map check|render|publish|import|accept|approve|context --from FILE
-  penpair design-release plan|assemble|verify|finalize|check|context --from FILE
-  penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply]
-  (publication previews by default; --apply writes Penpot, --write records local acceptance/review)
-Start here (guided, plain language; safe to run again):
-  penpair setup                                        asks where your Penpot is (web is the default), sets everything up and checks it
-  penpair setup --web [--external <address>]           Penpot on the web: design.penpot.app, or your team's address; no questions about it
-@@SETUP@@  penpair connect [--replace]                          only the connection: takes your personal key without showing it, waits for the editor
-                                                       (a pipe works too: pbpaste | penpair connect)
-  penpair connect --pin-file                           pin the connected design file ID in project configuration
-  (--any-file explicitly overrides a pinned file; instance guarding still applies)
-Connect / diagnose:
-  penpair config check [--json]                        validate configuration offline
-  penpair config schema                               print its JSON Schema
-  penpair doctor [--json] [--timeout-ms 5000]           origin, transport, fresh editor read and file pin (1000–30000 ms)
-  penpair wake --debug-port 9222 [--reload] [--json]   activate the pinned browser tab, then verify the editor; --reload also reloads that one tab and waits for the plugin; no write is replayed
-  penpair doctor --debug-port 9222                     also lists the browser tabs on the Penpot origin and which holds the pinned file
-  penpair status [--adapters]                          observed project health and optional companion readiness
-  penpair open [--print]                              open the pinned public file URL, or print it
-  penpair probe [--integrity]                          observed APIs and limits
-  penpair probe --deep --write [--kit]                 temporary scratch checks; requires an authorized disposable file
-  penpair onboard [--json]                            personal-key colleague setup checklist
-Build:
-  penpair kit check [--include @kit]                   compile helpers offline
-  penpair recipes [--include @kit]                     list available recipes without building
-  penpair run-file <script.js> --include @kit --inspect inspect.js --readback readback.js --page PAGE [--apply]
-  penpair run <name> [--param key=value] [--apply]       configured snippet; inspect first
-  penpair snippets / snippets check                    list or validate configured trusted scripts
-  penpair tokens add-set|set|remove|promote             inspect token edits; --apply writes once
-  penpair archive --page PAGE --name Archive --keep PREFIX [--apply]
-  penpair repair --page PAGE --empty-shapes [--apply]  remove shapes without an id that an interrupted build left on the page root
-  (run-file/run/archive/token edits/export/shots accept --layout auto|native|geometry, repeatable --layout-root ID, --layout-max-nodes 1..100000)
-  (run-file --stages N runs the script once per stage with CFG.stage 1..N; each stage is a journal step)
-  (run-file checks layout at the layoutRoots its inspect script reports; --layout-scope page samples the whole page instead)
-  (journaled writes accept --resume RUN_ID --apply, --checkpoint and --trace)
-Inspect / spec:
-  penpair pages                                       file identity, revision and pages
-  penpair tree --page PAGE [--depth 3] [--prefix TEXT]  bounded preview
-  penpair inspect ID --page PAGE --all --out design/inspection.json
-  penpair spec --from design/inspection.json --out design/spec.md
-  penpair spec check --from design/inspection.json --out design/spec.md
-  penpair spec --page PAGE --frame ID [--map mapping.json]
-  penpair audit --page PAGE --prefix PREFIX [--rules]  advisory findings and unknowns
-  penpair tokens dump                                  complete typed token catalog
-Snapshot / diff:
-  penpair snapshot [--write] [--out design/snapshots/current]
-  penpair snapshot diff design/snapshots/before --from design/snapshots/current
-  penpair tokens diff before.json after.json --theme NAME
-  penpair runs [RUN_ID]                                private recovery evidence, offline
-  penpair queue run jobs.json [--resume QUEUE_ID] [--stop-on-failure]   ordered run-file jobs, one writer, retries, status
-  penpair queue status [QUEUE_ID]                      job states of a queue, offline
-  penpair locks [clear]                                local writer locks and who holds them; clear removes only those whose process is gone
-Capture / approve:
-  penpair export ID out.png [--page PAGE] [--scale 1]
-  penpair export --name EXACT_NAME --page PAGE out.png
-  penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]   several frames, one failure does not stop the rest; --cache skips unchanged ones
-  penpair shots --page PAGE [--prefix PREFIX] [--out design/shots]
-  penpair approve --page PAGE --frame ID [--case CASE_ID]  preview exact-artifact evidence
-  penpair approve --page PAGE --frame ID --write --note "OWNER WORDS" --by OWNER
-  penpair baselines [--apply] [--update]                capture configured references; approval requires exact owner evidence
-  penpair baselines coverage [--json]                  approved intent, missing cases and unknowns
-  penpair backup file new.penpot                        bounded full-file archive; restore proof remains separate
-Compare:
-  penpair reflection plan --map cases.json              requires the configured comparison companion
-  penpair reflection check --map cases.json --provider provider.mjs
-  (install/register the companion, then supply real browser setup/readback; scores require owner review)
-  Workflow and limitations: docs/design-workflow.md, docs/adapters.md, docs/recovery.md
-@@INSTANCE@@Skills (the rules an AI agent follows, shipped with penpair):
-  penpair skills                                       list them
-  penpair skills install [--to <folder>] [--only <name>] [--force] [--agents AGENTS.md] [--dry-run]
-  penpair skills check [--agent codex|claude|copilot] [--only <name>] [--agents <file>] [--json]
-  (built-in help lists configured extensions without importing their trusted code)
-  (config-free inspection requires --standalone; writes require a project)
-  penpair --version`;
-
-const usageLocalInstance = `An instance on this computer (one Penpot per project, configured in penpair.config.json):
-  penpair init [--instance <name>] [--port 9001] [--gitignore]   set up the config, the compose file and the secrets
-  penpair up | down | status                           start, stop (data stays) and look at the containers
-  penpair backup                                       database and assets, with checksums and counts
-  penpair backup verify <dir>                          restore into a throwaway database and compare
-  penpair restore <dir> --yes                          replace the instance's data with a backup (safety backup first)
-`;
-const usageNoLocalInstance = `Penpot on this computer is not part of this install; it comes with the package @penpair/docker.
-`;
-const usageConnection = `Connecting to a Penpot (one project, configured in penpair.config.json):
-  penpair init --external <origin>                     use a Penpot someone else runs (a team server or https://design.penpot.app)
-  penpair doctor [--json]                              what is up, what is not, and what to do about it (--json for scripts and agents)
-`;
-
-const usage = (hasLocal: boolean, adapters: Adapter[] = [], configured: string[] = []): string =>
-  usageHead
-    .replace(
-      "@@INSTANCE@@",
-      usageConnection + (hasLocal ? usageLocalInstance : usageNoLocalInstance),
-    )
-    .replace(
-      "@@SETUP@@",
-      hasLocal
-        ? "  penpair setup --docker                               Penpot on this computer in Docker\n"
-        : "",
-    ) +
-  adapterUsage(adapters) +
-  (configured.length
-    ? `\nConfigured executable extensions (not loaded for built-in help):\n${configured.map((name) => `  ${JSON.stringify(name)}`).join("\n")}\nUse the extension command to load its trusted project code.\n`
-    : "");
-
-/** The commands that adapters from penpair.config.json add, after the core's own. */
-const adapterUsage = (adapters: Adapter[]): string =>
-  adapters.length === 0
-    ? ""
-    : `\nAdapters (listed under "adapters" in penpair.config.json):\n${adapters.flatMap((a) => a.commands.flatMap((c) => c.usage.map((line) => `  ${line}`))).join("\n")}\n`;
-
 const list = (value: string | undefined): string[] =>
   (value ?? "")
     .split(",")
@@ -294,521 +182,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   const { values, positionals } = parseCommandArgs({
     args: argv,
     allowPositionals: true,
-    options: {
-      include: {
-        type: "string",
-        multiple: true,
-      },
-      rules: {
-        type: "boolean",
-      },
-      "token-source": {
-        type: "string",
-      },
-      adapters: {
-        type: "boolean",
-      },
-      print: {
-        type: "boolean",
-      },
-      reload: {
-        type: "boolean",
-      },
-      "empty-shapes": {
-        type: "boolean",
-      },
-      frames: {
-        type: "string",
-      },
-      cache: {
-        type: "boolean",
-      },
-      note: {
-        type: "string",
-      },
-      by: {
-        type: "string",
-      },
-      case: {
-        type: "string",
-      },
-      format: {
-        type: "string",
-      },
-      "migrate-format": {
-        type: "boolean",
-      },
-      "force-reason": {
-        type: "string",
-      },
-      from: {
-        type: "string",
-      },
-      map: {
-        type: "string",
-      },
-      frame: {
-        type: "string",
-      },
-      inspect: {
-        type: "string",
-      },
-      readback: {
-        type: "string",
-      },
-      "timeout-ms": {
-        type: "string",
-      },
-      "debug-port": {
-        type: "string",
-      },
-      layout: {
-        type: "string",
-      },
-      "layout-scope": {
-        type: "string",
-      },
-      stages: {
-        type: "string",
-      },
-      "layout-root": {
-        type: "string",
-        multiple: true,
-      },
-      "layout-max-nodes": {
-        type: "string",
-      },
-      page: {
-        type: "string",
-      },
-      out: {
-        type: "string",
-      },
-      fields: {
-        type: "string",
-      },
-      cursor: {
-        type: "string",
-      },
-      all: {
-        type: "boolean",
-      },
-      "max-nodes": {
-        type: "string",
-      },
-      "response-bytes": {
-        type: "string",
-      },
-      "time-budget-ms": {
-        type: "string",
-      },
-      "document-bytes": {
-        type: "string",
-      },
-      "max-calls": {
-        type: "string",
-      },
-      "max-total-bytes": {
-        type: "string",
-      },
-      "capture-timeout-ms": {
-        type: "string",
-      },
-      depth: {
-        type: "string",
-      },
-      limit: {
-        type: "string",
-      },
-      prefix: {
-        type: "string",
-      },
-      steps: {
-        type: "string",
-      },
-      ignore: {
-        type: "string",
-      },
-      theme: {
-        type: "string",
-      },
-      type: {
-        type: "string",
-      },
-      value: {
-        type: "string",
-      },
-      description: {
-        type: "string",
-      },
-      scale: {
-        type: "string",
-      },
-      name: {
-        type: "string",
-      },
-      keep: {
-        type: "string",
-      },
-      parts: {
-        type: "string",
-      },
-      x: {
-        type: "string",
-      },
-      apply: {
-        type: "boolean",
-      },
-      instance: {
-        type: "string",
-      },
-      external: {
-        type: "string",
-      },
-      port: {
-        type: "string",
-      },
-      gitignore: {
-        type: "boolean",
-      },
-      yes: {
-        type: "boolean",
-      },
-      "any-instance": {
-        type: "boolean",
-      },
-      "any-file": {
-        type: "boolean",
-      },
-      "pin-file": {
-        type: "boolean",
-      },
-      standalone: {
-        type: "boolean",
-      },
-      "builtins-only": {
-        type: "boolean",
-      },
-      agents: {
-        type: "string",
-      },
-      agent: {
-        type: "string",
-      },
-      "dry-run": {
-        type: "boolean",
-      },
-      web: {
-        type: "boolean",
-      },
-      docker: {
-        type: "boolean",
-      },
-      replace: {
-        type: "boolean",
-      },
-      update: {
-        type: "boolean",
-      },
-      json: {
-        type: "boolean",
-      },
-      deep: {
-        type: "boolean",
-      },
-      integrity: {
-        type: "boolean",
-      },
-      kit: {
-        type: "boolean",
-      },
-      resume: {
-        type: "string",
-      },
-      checkpoint: {
-        type: "boolean",
-      },
-      "force-lock": {
-        type: "boolean",
-      },
-      trace: {
-        type: "boolean",
-      },
-      force: {
-        type: "boolean",
-      },
-      to: {
-        type: "string",
-      },
-      only: {
-        type: "string",
-        multiple: true,
-      },
-      write: {
-        type: "boolean",
-      },
-      param: {
-        type: "string",
-        multiple: true,
-      },
-      version: {
-        type: "boolean",
-      },
-      help: {
-        type: "boolean",
-      },
-    },
+    options: commandOptions,
   });
   const [command, ...rest] = positionals;
-  const inspectionFlags = [
-    "cursor",
-    "all",
-    "out",
-    "max-nodes",
-    "response-bytes",
-    "time-budget-ms",
-    "document-bytes",
-    "max-calls",
-    "max-total-bytes",
-    "capture-timeout-ms",
-  ];
-  const layoutFlags = [
-    "layout",
-    "layout-root",
-    "layout-max-nodes",
-  ];
-  const flags: Record<string, string[]> = {
-    formats: [
-      "out",
-    ],
-    snapshot: [
-      "write",
-      "out",
-      "from",
-    ],
-    approve: [
-      "page",
-      "frame",
-      "note",
-      "by",
-      "case",
-      "write",
-      "format",
-    ],
-    spec: [
-      "from",
-      "map",
-      "out",
-      "page",
-      "frame",
-    ],
-    pages: [],
-    tree: [
-      "page",
-      "depth",
-      "prefix",
-      "limit",
-    ],
-    audit: [
-      "page",
-      "prefix",
-      "steps",
-      "ignore",
-      "rules",
-      "from",
-      "token-source",
-    ],
-    inspect: [
-      "page",
-      "depth",
-      "fields",
-      ...inspectionFlags,
-    ],
-    tokens:
-      rest[0] === "dump"
-        ? inspectionFlags
-        : rest[0] === "diff"
-          ? [
-              "theme",
-            ]
-          : [
-              ...layoutFlags,
-              "type",
-              "value",
-              "description",
-              "apply",
-              "resume",
-              "checkpoint",
-              "force-lock",
-              "trace",
-            ],
-    export: [
-      "page",
-      "scale",
-      "name",
-      "frames",
-      "out",
-      "cache",
-      ...layoutFlags,
-    ],
-    shots: [
-      "page",
-      "prefix",
-      "out",
-      "scale",
-      ...layoutFlags,
-    ],
-    repair: [
-      "page",
-      "empty-shapes",
-      "apply",
-      "resume",
-      "checkpoint",
-      "force-lock",
-      "trace",
-    ],
-    archive: [
-      ...layoutFlags,
-      "page",
-      "name",
-      "keep",
-      "parts",
-      "x",
-      "apply",
-      "resume",
-      "checkpoint",
-      "force-lock",
-      "trace",
-    ],
-    kit: [
-      "include",
-    ],
-    recipes: [
-      "include",
-    ],
-    "run-file": [
-      ...layoutFlags,
-      "layout-scope",
-      "stages",
-      "include",
-      "inspect",
-      "readback",
-      "page",
-      "param",
-      "apply",
-      "resume",
-      "checkpoint",
-      "force-lock",
-      "trace",
-    ],
-    run: [
-      ...layoutFlags,
-      "builtins-only",
-      "param",
-      "apply",
-      "resume",
-      "checkpoint",
-      "force-lock",
-      "trace",
-    ],
-    baselines: [
-      "apply",
-      "update",
-      "force-reason",
-      "format",
-      "migrate-format",
-    ],
-    probe: [
-      "deep",
-      "write",
-      "integrity",
-      "kit",
-    ],
-    skills: [
-      "agent",
-      "to",
-      "only",
-      "force",
-      "agents",
-      "dry-run",
-    ],
-    snippets: [
-      "builtins-only",
-    ],
-    init: [
-      "instance",
-      "port",
-      "gitignore",
-      "external",
-    ],
-    setup: [
-      "agents",
-      "web",
-      "docker",
-      "external",
-      "instance",
-      "port",
-    ],
-    connect: [
-      "replace",
-      "pin-file",
-      "any-file",
-    ],
-    doctor: [
-      "timeout-ms",
-      "debug-port",
-    ],
-    wake: [
-      "debug-port",
-      "timeout-ms",
-      "reload",
-    ],
-    up: [],
-    down: [],
-    open: [
-      "print",
-    ],
-    status: [
-      "adapters",
-    ],
-    backup: [],
-    restore: [
-      "yes",
-    ],
-  };
-  const network = [
-    "snapshot",
-    "approve",
-    "spec",
-    "inspect",
-    "pages",
-    "tree",
-    "audit",
-    "tokens",
-    "export",
-    "shots",
-    "archive",
-    "repair",
-    "run",
-    "run-file",
-    "baselines",
-    "probe",
-    "backup",
-    "doctor",
-  ];
-  const allowed = new Set([
-    "help",
-    "version",
-    "json",
-    ...(flags[command ?? ""] ?? []),
-    ...(network.includes(command ?? "")
-      ? [
-          "any-instance",
-          "any-file",
-          "standalone",
-        ]
-      : []),
-  ]);
+  const allowed = new Set(allowedCommandFlags(command ?? "", rest));
   for (const key of Object.keys(values)) {
     if (!allowed.has(key)) {
       throw new Error(`--${key} is not supported by ${command || "this command"}`);
@@ -1135,8 +512,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     return 0;
   }
   if (!command || command === "help" || values.help) {
-    output.log(usage(Boolean(cli.local), cli.adapters, cli.configuredAdapters));
-    return 0;
+    return runHelp(argv, projectRoot(), Boolean(cli.local), cli.configuredAdapters);
   }
 
   if (command === "audit" && values.from) {
@@ -1900,6 +1276,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       timeoutMs: Math.min(timeoutMs, 5000),
     });
     // --reload only after the tab is known to be the one pinned workspace; wake itself never reloads.
+    if (values.reload) {
+      output.error(
+        "Reload can discard unsaved editor changes. Verify Penpot has finished saving before using --reload. Penpair cannot confirm saved state; an editor revision alone is not a save receipt.",
+      );
+    }
     const reloaded = values.reload
       ? await reloadBrowserTarget({
           ...target,
@@ -2265,6 +1646,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
     }
     return 0;
   }
+  const captureProgress = [
+    "export",
+    "shots",
+    "baselines",
+  ].includes(command ?? "")
+    ? progressReporter(values.progress, command!)
+    : undefined;
   const client = await guarded();
   commandRedactor(endpointRedactor(endpoint));
   const options = {
@@ -2304,8 +1692,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       : {}),
     signal: commandSignal(),
     redact: endpointRedactor(endpoint),
-    onWait: (m: string) => output.error(`… ${m}`),
-    onStep: (m: string) => output.error(`… ${m}`),
+    onWait: captureProgress ? undefined : (m: string) => output.error(`… ${m}`),
+    onStep: captureProgress ? undefined : (m: string) => output.error(`… ${m}`),
+    onProgress: captureProgress,
   };
   const writeOptions = (operation: string) => ({
     ...options,
@@ -2580,7 +1969,10 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         return 3;
       }
     } else if (command === "snapshot") {
-      const snapshot = await captureStructuralSnapshot(client, options);
+      const snapshot = await captureStructuralSnapshot(client, {
+        ...options,
+        onProgress: undefined,
+      });
       if (values.write) {
         const manifest = await writeStructuralSnapshot(
           root,
@@ -2758,7 +2150,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           page: values.page,
           scale: values.scale ? Number(values.scale) : 1,
           cache: values.cache === true,
-          log: (line) => output.error(`… ${line}`),
+          log: captureProgress ? undefined : (line) => output.error(`… ${line}`),
         },
       );
       output.log(JSON.stringify(report, null, 2));
@@ -2789,9 +2181,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           "Export did not stabilize; previous output was preserved",
         );
       }
-      await atomicWriteFile(out, result.png, {
-        replace: true,
-      });
+      await capturePhase(options, "export", "publish", () =>
+        atomicWriteFile(out, result.png, {
+          replace: true,
+        }),
+      );
       output.log(
         JSON.stringify(
           {
@@ -2883,7 +2277,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       }
       return report.phase === "applied" && !report.verified ? 1 : 0;
     } else {
-      output.log(usage(Boolean(cli.local), cli.adapters, cli.configuredAdapters));
+      output.error("Unknown command; see penpair help --all");
       return 1;
     }
     return 0;
@@ -2939,6 +2333,9 @@ async function runAdapterCommand(
 async function runCliInternal(argv: string[], options: CliOptions = {}): Promise<number> {
   try {
     const root = projectRoot();
+    if (isHelpRequest(argv)) {
+      return await runHelp(argv, root, Boolean(options.local), options.configuredAdapters);
+    }
     if (
       argv[0] === "journey-map" ||
       argv[0] === "integration-map" ||
@@ -3173,6 +2570,9 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
       configuredAdapters: specifiers,
     });
   } catch (error: unknown) {
+    if (error instanceof CommandArgumentError && /^[a-z][a-z-]*$/.test(argv[0] ?? "")) {
+      error.remedy = `Read penpair help ${argv[0]} or use penpair help --search TEXT.`;
+    }
     commandFailure(error);
     output.error(
       error instanceof PenpairError
@@ -3217,7 +2617,8 @@ export async function runCommand(
         [
           "setup",
           "connect",
-        ].includes(argv[0] ?? "")
+        ].includes(argv[0] ?? "") &&
+        !isHelpRequest(argv)
       ) {
         throw new Error(
           "Interactive setup/connect require a terminal; run without --json and use doctor --json afterwards",
@@ -3240,7 +2641,7 @@ export async function runCommand(
 }
 
 async function runCliBound(argv: string[], options: CliOptions = {}): Promise<number> {
-  if (argv[0] === "mcp") {
+  if (argv[0] === "mcp" && !isHelpRequest(argv)) {
     try {
       const parsed = parseCommandArgs({
         args: argv.slice(1),

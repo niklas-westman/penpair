@@ -1,3 +1,4 @@
+import { capturePhase } from "./capture-progress.js";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
@@ -34,11 +35,12 @@ export async function findShapesByName(
   if (!name || !page) {
     throw new Error("Name lookup requires an exact name and explicit page");
   }
-  const result = await runOnPage(
-    client,
-    snippet(
-      "find-shape-name",
-      `${requirePage}
+  const result = await capturePhase(options, "shots", "selection", () =>
+    runOnPage(
+      client,
+      snippet(
+        "find-shape-name",
+        `${requirePage}
 const matches = [], stack = [...penpot.currentPage.root.children]; let visited = 0;
 while (stack.length && visited < 10000) {
   const shape = stack.pop(); visited++;
@@ -46,14 +48,15 @@ while (stack.length && visited < 10000) {
   for (const child of shape.children || []) stack.push(child);
 }
 return {ok:true,fileId:penpot.currentFile.id,pageId:penpot.currentPage.id,revision:penpot.currentFile.revn,matches,truncated:stack.length>0};`,
-      {
-        name,
-        page,
-      },
-      "read",
+        {
+          name,
+          page,
+        },
+        "read",
+      ),
+      page,
+      options,
     ),
-    page,
-    options,
   );
   if (result.truncated) {
     throw new PenpairError(
@@ -89,7 +92,13 @@ export async function exportShapeByName(
   page: string,
   options: ExportOptions = {},
 ) {
-  const lookup = await findShapesByName(client, name, page, options);
+  const lookup = await capturePhase(
+    options,
+    "export",
+    "selection",
+    () => findShapesByName(client, name, page, options),
+    name,
+  );
   if (lookup.matches.length !== 1) {
     throw new Error(
       `Exact name ${JSON.stringify(name)} matched ${lookup.matches.length} shapes on ${JSON.stringify(page)}. Candidates: ${JSON.stringify(lookup.matches.slice(0, 20))}. Use an ID for an ambiguous name.`,
@@ -140,13 +149,15 @@ export async function captureShots(
     signal?: AbortSignal;
   } = {},
 ): Promise<ShotsReport> {
-  const listing = await runOnPage(
-    client,
-    frames({
-      page: params.page,
-    }),
-    params.page,
-    options,
+  const listing = await capturePhase(options, "shots", "verify", () =>
+    runOnPage(
+      client,
+      frames({
+        page: params.page,
+      }),
+      params.page,
+      options,
+    ),
   );
   if (
     typeof listing.fileId !== "string" ||
@@ -185,6 +196,16 @@ export async function captureShots(
     options.onStep?.(`exporting ${JSON.stringify(frame.name)}`);
     const result = await exportShapePng(client, frame.id, {
       ...options,
+      onProgress: options.onProgress
+        ? (event) =>
+            options.onProgress?.({
+              ...event,
+              command: "shots",
+              frame: frame.name,
+              index: index + 1,
+              total: selected.length,
+            })
+        : undefined,
       page: params.page,
       stable: true,
     });
@@ -215,13 +236,15 @@ export async function captureShots(
     });
     images.push(result.png);
   }
-  const after = await runOnPage(
-    client,
-    frames({
-      page: params.page,
-    }),
-    params.page,
-    options,
+  const after = await capturePhase(options, "shots", "verify", () =>
+    runOnPage(
+      client,
+      frames({
+        page: params.page,
+      }),
+      params.page,
+      options,
+    ),
   );
   const identity = (entry: Record<string, unknown>) => ({
     fileId: entry.fileId,
@@ -241,7 +264,9 @@ export async function captureShots(
   try {
     for (const [index, bytes] of images.entries()) {
       options.signal?.throwIfAborted();
-      await atomicWriteFile(path.join(staged, path.basename(report.captures[index]!.file)), bytes);
+      await capturePhase(options, "shots", "stage", () =>
+        atomicWriteFile(path.join(staged, path.basename(report.captures[index]!.file)), bytes),
+      );
     }
     options.signal?.throwIfAborted();
     await rename(staged, path.join(folder, generation));
@@ -251,12 +276,14 @@ export async function captureShots(
       ...report.captures.map((entry) => entry.file),
       "penpair-shots.json",
     ];
-    await atomicWriteFile(
-      path.join(folder, "penpair-shots.json"),
-      `${JSON.stringify(report, null, 2)}\n`,
-      {
-        replace: true,
-      },
+    await capturePhase(options, "shots", "publish", () =>
+      atomicWriteFile(
+        path.join(folder, "penpair-shots.json"),
+        `${JSON.stringify(report, null, 2)}\n`,
+        {
+          replace: true,
+        },
+      ),
     );
     return report;
   } finally {

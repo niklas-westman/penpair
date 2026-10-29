@@ -120,6 +120,38 @@ it("activates only the pinned target then proves readiness with one read, withou
   );
 });
 
+it("warns about unsaved changes before dispatching reload and retains the warning in JSON", async () => {
+  connection();
+  const stderr = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const reload = vi.spyOn(browser, "reloadBrowserTarget").mockImplementation(async () => {
+    expect(
+      stderr.mock.calls.some((call) => String(call[0]).includes("discard unsaved editor changes")),
+    ).toBe(true);
+    return {
+      reloaded: true,
+      targetId: "target",
+    };
+  });
+  const result = await runCommand(
+    [
+      "wake",
+      "--debug-port",
+      "9222",
+      "--reload",
+    ],
+    {
+      root,
+    },
+  );
+  expect(result.exitCode).toBe(0);
+  expect(reload).toHaveBeenCalledOnce();
+  expect(result.warnings.join(" ")).toContain("Penpair cannot confirm saved state");
+  expect(result.data).toMatchObject({
+    ready: true,
+    reloaded: true,
+  });
+});
+
 it.each([
   "wrong-file",
   "expected-file",
