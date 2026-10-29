@@ -1,5 +1,21 @@
 # @penpair/docker
 
+## 0.8.1
+
+### Patch Changes
+
+- 934635a: Resolve baseline frame IDs directly instead of recursively scanning the entire
+  page. Large release pages no longer exhaust the 10,000-shape listing budget
+  before capturing explicitly selected frames. Both initial selection and the final
+  source recheck use direct lookup. Mixed name/ID configurations retain top-level
+  name matching without traversing descendants. Missing IDs do not fall back to
+  names; revision, approval, fresh-capture and atomic-publication guards are retained.
+  
+  No budget flag or configuration migration is required: existing `frameId` entries
+  use the corrected selection automatically.
+- Updated dependencies [934635a]
+  - @penpair/core@0.8.1
+
 ## 0.8.0
 
 ### Minor Changes
