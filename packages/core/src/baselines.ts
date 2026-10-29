@@ -244,16 +244,24 @@ export async function exportBaselines(
   validateBaselines(config, (message) => {
     throw new Error(message);
   });
+  const frameIds = config.frames.flatMap((entry) =>
+    entry.frameId
+      ? [
+          entry.frameId.toLowerCase(),
+        ]
+      : [],
+  );
+  const selection = {
+    page: config.page,
+    ...(frameIds.length
+      ? {
+          frameIds,
+          includeTopLevel: config.frames.some((entry) => entry.frameId === undefined),
+        }
+      : {}),
+  };
   const listing = await capturePhase(options, "baselines", "selection", () =>
-    runOnPage(
-      client,
-      frames({
-        page: config.page,
-        recursive: config.frames.some((entry) => entry.frameId !== undefined),
-      }),
-      config.page,
-      options,
-    ),
+    runOnPage(client, frames(selection), config.page, options),
   );
   if (
     listing.ok !== true ||
@@ -536,15 +544,7 @@ export async function exportBaselines(
     captures.set(`${wanted.id}.${format}`, encoded);
   }
   const after = await capturePhase(options, "baselines", "verify", () =>
-    runOnPage(
-      client,
-      frames({
-        page: config.page,
-        recursive: config.frames.some((entry) => entry.frameId !== undefined),
-      }),
-      config.page,
-      options,
-    ),
+    runOnPage(client, frames(selection), config.page, options),
   );
   const source = (value: Record<string, unknown>) => ({
     fileId: value.fileId,

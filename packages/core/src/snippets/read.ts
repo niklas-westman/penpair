@@ -28,20 +28,59 @@ return { ok: true, switched: true };`,
 
 export interface FramesParams {
   page: string;
+  /** Resolve only these IDs using the page lookup API, without walking descendants. */
+  frameIds?: string[];
+  /** In ID mode, also list top-level boards for mixed name/ID baseline selection. */
+  includeTopLevel?: boolean;
   /** Include nested boards with a bounded whole-page search. */
   recursive?: boolean;
 }
 
-/** List top-level frames by default; opt in to a bounded search of every board on the page. */
+/** Resolve explicit IDs directly, otherwise list top-level frames or opt in to a bounded recursive search. */
 export function frames(params: FramesParams): Snippet {
+  if (
+    params.frameIds !== undefined &&
+    (!Array.isArray(params.frameIds) ||
+      params.frameIds.length < 1 ||
+      params.frameIds.length > 1000 ||
+      params.frameIds.some((id) => typeof id !== "string" || !id.trim() || id.length > 64) ||
+      new Set(params.frameIds.map((id) => id.toLowerCase())).size !== params.frameIds.length)
+  ) {
+    throw new Error(
+      "Frame ID selection needs 1–1000 distinct nonempty IDs of at most 64 characters",
+    );
+  }
   return readSnippet(
     "frames",
     `${requirePage}
+const boards = [];
+if (CFG.frameIds !== undefined) {
+  if (typeof penpot.currentPage.getShapeById !== "function") throw new Error("Direct frame ID lookup is unavailable on this page");
+  const found = new Map();
+  const record = (shape, topLevel) => {
+    if (!shape || shape.type !== "board") return;
+    if (typeof shape.id !== "string" || !shape.id) throw new Error("Frame lookup returned a board without an ID");
+    const key = shape.id.toLowerCase();
+    const previous = found.get(key);
+    if (previous) { previous.topLevel = previous.topLevel || topLevel; return; }
+    const frame = { id: shape.id, name: shape.name, width: Math.round(shape.width), height: Math.round(shape.height), ...(topLevel === undefined ? {} : { topLevel }) };
+    found.set(key, frame); boards.push(frame);
+  };
+  for (const id of CFG.frameIds) {
+    const shape = penpot.currentPage.getShapeById(id);
+    if (shape && (typeof shape.id !== "string" || shape.id.toLowerCase() !== id)) throw new Error("Frame ID lookup returned a different shape");
+    record(shape, CFG.includeTopLevel ? false : undefined);
+  }
+  if (CFG.includeTopLevel) {
+    for (const shape of penpot.currentPage.root.children) record(shape, true);
+  }
+  return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
+    frames: boards, truncated: false, complete: true };
+}
 if (!CFG.recursive) {
   return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
     frames: penpot.currentPage.root.children.filter((shape) => shape.type === "board").map((shape) => ({ id: shape.id, name: shape.name, width: Math.round(shape.width), height: Math.round(shape.height) })) };
 }
-const boards = [];
 const budget = 10000;
 const stack = [];
 let visited = 0;
@@ -64,7 +103,14 @@ while (stack.length) {
 }
 return { ok: true, readOnly: true, file: penpot.currentFile.name, fileId: penpot.currentFile.id, revn: penpot.currentFile.revn, page: penpot.currentPage.name, pageId: penpot.currentPage.id,
   frames: boards, visited, truncated, complete: !truncated };`,
-    params,
+    {
+      ...params,
+      ...(params.frameIds === undefined
+        ? {}
+        : {
+            frameIds: params.frameIds.map((id) => id.toLowerCase()),
+          }),
+    },
   );
 }
 
