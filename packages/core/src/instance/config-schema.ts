@@ -362,6 +362,25 @@ export const projectConfigSchema = {
               ],
             },
             properties: {
+              page: {
+                type: "string",
+                minLength: 1,
+                description:
+                  "Source page name, or an expected name when pageId is supplied; defaults to baselines.page for name-only selection.",
+              },
+              pageId: {
+                type: "string",
+                pattern:
+                  "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                description: "Stable source page UUID; ID-only selection survives page renames.",
+              },
+              threshold: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description:
+                  "Maximum differing-pixel ratio for this case; overrides baselines.threshold.",
+              },
               frame: {
                 type: "string",
                 minLength: 1,

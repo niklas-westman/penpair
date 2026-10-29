@@ -7,7 +7,8 @@
       "summary": "reflection: Explicit implementation cases and provider evidence",
       "usages": [
         "penpair reflection plan --map FILE",
-        "penpair reflection check --map FILE --provider FILE"
+        "penpair reflection check --map FILE --provider FILE",
+        "penpair reflection check --map FILE --engine-config FILE --engine-version VERSION [--release-context FILE]"
       ],
       "flags": [
         {
@@ -21,10 +22,23 @@
         {
           "name": "json",
           "type": "boolean"
+        },
+        {
+          "name": "engine-config",
+          "type": "string"
+        },
+        {
+          "name": "engine-version",
+          "type": "string"
+        },
+        {
+          "name": "release-context",
+          "type": "string"
         }
       ],
       "instructions": [
-        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval.",
+        "Native mode loads the trusted project createReflectionConfig(request) export and the project-installed exact engine version. Requires managed immutable reference copies and independently measured capture hooks. Missing proof is incomplete, never approved. Release context binds exact full design inventory; implementation acceptance stays separate."
       ],
       "related": [
         "workflows.iterative-build"
@@ -59,7 +73,8 @@
       "group": "Adapter",
       "summary": "reflection check: Explicit implementation cases and provider evidence",
       "usages": [
-        "penpair reflection check --map FILE --provider FILE"
+        "penpair reflection check --map FILE --provider FILE",
+        "penpair reflection check --map FILE --engine-config FILE --engine-version VERSION [--release-context FILE]"
       ],
       "flags": [
         {
@@ -73,10 +88,23 @@
         {
           "name": "json",
           "type": "boolean"
+        },
+        {
+          "name": "engine-config",
+          "type": "string"
+        },
+        {
+          "name": "engine-version",
+          "type": "string"
+        },
+        {
+          "name": "release-context",
+          "type": "string"
         }
       ],
       "instructions": [
-        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval.",
+        "Native mode loads the trusted project createReflectionConfig(request) export and the project-installed exact engine version. Requires managed immutable reference copies and independently measured capture hooks. Missing proof is incomplete, never approved. Release context binds exact full design inventory; implementation acceptance stays separate."
       ],
       "related": [
         "reflection"

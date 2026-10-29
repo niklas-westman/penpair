@@ -1,5 +1,13 @@
-import { nativeMapRoles, nativeMapTextEntries } from "./content.js";
+import { mapCardAnchorHeight } from "../maps/card-metrics.js";
+import {
+  mapBadgeWidth,
+  mapOriginInk,
+  mapOriginPills,
+  nativeMapRoles,
+  nativeMapTextEntries,
+} from "./content.js";
 import { nativeMapIcons, defaultMapIcon } from "./icons.js";
+import { mapSpotImages, mapSpotSize } from "./spots.js";
 import { mapOriginLabels, mapOriginLegend } from "./status-labels.js";
 import { snippet, type Snippet } from "../snippet.js";
 import type { MapDrawing, MapTarget, NativeMapProjection } from "./types.js";
@@ -64,17 +72,23 @@ const conflicts = [], shapes = [], keys = new Set();
 if (board) {
   const meta = readMeta(board);
   if (meta.schemaVersion !== 1 || meta.owner !== "penpair") conflicts.push("Edited board ownership");
-  for (const shape of board.children) {
+  const nestable = ["node", "badge-well", "annotation-panel"];
+  const visited = new Set();
+  const visit = shape => {
+    visited.add(shape.id);
     const child = readMeta(shape);
-    if (!child || child.owner !== "penpair" || child.schemaVersion !== 1 || child.mapId !== CFG.mapId) { conflicts.push("Unknown or edited ownership: " + shape.id); continue; }
-    if (!${JSON.stringify(nativeMapRoles)}.includes(child.role) || typeof child.logicalId !== "string" || !child.logicalId) { conflicts.push("Unknown managed role or identity: " + shape.id); continue; }
+    if (!child || child.owner !== "penpair" || child.schemaVersion !== 1 || child.mapId !== CFG.mapId) { conflicts.push("Unknown or edited ownership: " + shape.id); return; }
+    if (!${JSON.stringify(nativeMapRoles)}.includes(child.role) || typeof child.logicalId !== "string" || !child.logicalId) { conflicts.push("Unknown managed role or identity: " + shape.id); return; }
     const key = child.role + ":" + child.logicalId;
     if (keys.has(key)) conflicts.push("Duplicate logical ID: " + key);
     keys.add(key);
-    if (shape.children && shape.children.length) conflicts.push("Unexpected nested content: " + shape.id);
+    const nests = shape.type === "board" && nestable.includes(child.role);
+    if (shape.children && shape.children.length && !nests) conflicts.push("Unexpected nested content: " + shape.id);
     shapes.push({shapeId:shape.id,logicalId:child.logicalId,role:child.role,iconKey:child.iconKey || null,interactions:readInteractions(shape),label:shape.type === "text" ? shape.characters : null,x:shape.x,y:shape.y,width:shape.width,height:shape.height,content:shape.type === "path" ? shape.content : null,appearance:{type:shape.type,name:shape.name,fills:shape.fills || [],strokes:shape.strokes || [],fontId:shape.fontId || null,fontFamily:shape.fontFamily || null,fontVariantId:shape.fontVariantId || null,fontSize:shape.fontSize || null,growType:shape.growType || null,borderRadiusTopLeft:shape.borderRadiusTopLeft ?? shape.borderRadius ?? null,borderRadiusTopRight:shape.borderRadiusTopRight ?? shape.borderRadius ?? null,borderRadiusBottomLeft:shape.borderRadiusBottomLeft ?? shape.borderRadius ?? null,borderRadiusBottomRight:shape.borderRadiusBottomRight ?? shape.borderRadius ?? null,opacity:shape.opacity ?? null,blendMode:shape.blendMode ?? null,blur:shape.blur || null},...(child.from ? {from:child.from,to:child.to} : {})});
-  }
-  const childIds = new Set(board.children.map(shape => shape.id));
+    if (nests) for (const nested of shape.children) visit(nested);
+  };
+  for (const shape of board.children) visit(shape);
+  const childIds = visited;
   for (const shape of all) { const child = readMeta(shape); if (shape.id !== board.id && child && child.mapId === CFG.mapId && !childIds.has(shape.id)) conflicts.push("Reparented managed shape: " + shape.id); }
 }
 const observation = {boardId:board ? board.id : null,boardBounds:board ? {x:board.x,y:board.y,width:board.width,height:board.height} : null,contractHash:board ? readMeta(board).contractHash : null,shapes,conflicts};
@@ -131,16 +145,34 @@ const metadata = (shape, role, logicalId, extra = {}) => {
 metadata(root,"board",CFG.mapId,{contractHash:CFG.drawing.contractHash});
 const previous = new Map(shapes.map(shape => [shape.role + ":" + shape.logicalId,shape]));
 const retained = new Set();
-const get = (role,id,create) => { const prior = previous.get(role + ":" + id); const shape = prior ? penpot.currentPage.getShapeById(prior.shapeId) : create(); root.appendChild(shape); retained.add(shape.id);shape.opacity=1;shape.blendMode="normal"; metadata(shape,role,id); return shape; };
-const strongVariants = font.variants.filter(variant => ["600","700"].includes(String(variant.fontWeight)) && (variant.fontStyle || "normal") === "normal").sort((left,right)=>Number(left.fontWeight)-Number(right.fontWeight));
-const textShape = entry => {
-  const shape = get(entry.role,entry.logicalId,() => penpot.createText(entry.text || " "));
-  shape.characters = entry.text || " ";
-  font.applyToText(shape,entry.strong && strongVariants.length ? strongVariants[0] : variants[0]);
-  shape.fontSize = entry.fontSize; shape.resize(entry.width,entry.height); shape.growType = "auto-height";
-  shape.x=root.x+entry.x; shape.y=root.y+entry.y; shape.fills=[{fillColor:entry.color,fillOpacity:1}];
+const get = (role,id,create,parent,type) => {
+  const prior = previous.get(role + ":" + id);
+  let shape = prior ? penpot.currentPage.getShapeById(prior.shapeId) : null;
+  if (shape && type && shape.type !== type) { shape.remove(); shape = null; }
+  if (!shape) shape = create();
+  (parent || root).appendChild(shape); retained.add(shape.id); shape.opacity=1; shape.blendMode="normal"; metadata(shape,role,id);
   return shape;
 };
+const strongVariants = font.variants.filter(variant => ["600","700"].includes(String(variant.fontWeight)) && (variant.fontStyle || "normal") === "normal").sort((left,right)=>Number(left.fontWeight)-Number(right.fontWeight));
+const flex = (shape,dir,gap) => { if (!shape.flex) shape.addFlexLayout(); shape.flex.dir=dir; shape.flex.wrap="nowrap"; shape.flex.rowGap=gap; shape.flex.columnGap=gap; };
+const pad = (shape,top,right,bottom,left) => { shape.flex.paddingType="multiple"; shape.flex.topPadding=top; shape.flex.rightPadding=right; shape.flex.bottomPadding=bottom; shape.flex.leftPadding=left; };
+const textShape = (entry,parent) => {
+  const shape = get(entry.role,entry.logicalId,() => penpot.createText(entry.text || " "),parent);
+  shape.characters = entry.text || " ";
+  font.applyToText(shape,entry.strong && strongVariants.length ? strongVariants[0] : variants[0]);
+  shape.fontSize = entry.fontSize; shape.growType = "auto-height"; if (entry.center) shape.align = "center";
+  shape.fills=[{fillColor:entry.color,fillOpacity:1}];
+  if (parent) {
+    if (!shape.layoutChild) throw new Error("Text layout child unavailable");
+    if (entry.role === "badge") shape.growType = "auto-width"; else shape.layoutChild.horizontalSizing = "fill";
+  } else { shape.resize(entry.width,entry.height); shape.growType = "auto-height"; shape.x=root.x+entry.x; shape.y=root.y+entry.y; }
+  return shape;
+};
+const spotMedia = {};
+for (const [key, data] of Object.entries(CFG.spots)) {
+  const bytes = Uint8Array.from(atob(data), character => character.charCodeAt(0));
+  spotMedia[key] = await penpot.uploadMediaData("penpair-map-" + key, bytes, "image/webp");
+}
 const plannedNodes = CFG.drawing.nodes;
 const nodes = new Map(plannedNodes.map(node => [node.id,node]));
 for (const edge of CFG.drawing.edges) {
@@ -152,23 +184,41 @@ for (const edge of CFG.drawing.edges) {
   metadata(shape,"edge",edge.id,{from:edge.from,to:edge.to});
 }
 for (const node of plannedNodes) {
-  const shape = get("node",node.id,() => penpot.createRectangle());
-  shape.name=node.kind+": "+node.label;shape.resize(node.width,node.height);shape.x=root.x+node.x;shape.y=root.y+node.y;
-  shape.fills=[{fillColor:"#FFFFFF",fillOpacity:1}];shape.strokes=[{strokeColor:"#D0D5DD",strokeWidth:1}];shape.borderRadius=12;
-  const well = get("icon-well",node.id,() => penpot.createRectangle());well.resize(32,32);well.x=shape.x+16;well.y=shape.y+16;well.borderRadius=8;well.fills=[{fillColor:"#EEF2FF",fillOpacity:1}];well.strokes=[];
   const iconKey=node.icon || CFG.iconDefaults[node.id];
-  const glyph=get("icon",node.id,()=>penpot.createPath());
-  glyph.content=CFG.iconPaths[iconKey].replace(/([ML])(-?[0-9.]+) (-?[0-9.]+)/g,(_all,command,x,y)=>command+(shape.x+24+Number(x)*16/24)+" "+(shape.y+24+Number(y)*16/24));
-  glyph.resize(16,16);glyph.x=shape.x+24;glyph.y=shape.y+24;
-  glyph.fills=[];glyph.strokes=[{strokeColor:"#5B5BD6",strokeWidth:1.6,strokeCapStart:"round",strokeCapEnd:"round",strokeJoinStyle:"round"}];metadata(glyph,"icon",node.id,{iconKey});
-  for(const [role,x] of [["port-in",shape.x],["port-out",shape.x+shape.width]]){
-    const port=get(role,node.id,()=>penpot.createEllipse());port.resize(8,8);port.x=x-4;port.y=shape.y+shape.height/2-4;port.fills=[{fillColor:"#FFFFFF",fillOpacity:1}];port.strokes=[{strokeColor:"#98A2B3",strokeWidth:1.25}];
+  const card = get("node",node.id,() => penpot.createBoard(),root,"board");
+  card.name=node.kind+": "+node.label; card.fills=[]; card.strokes=[]; card.clipContent=false; card.borderRadius=12;
+  flex(card,"column",10); card.flex.alignItems="center"; card.flex.justifyContent="start"; pad(card,20,20,16,20);
+  card.resize(node.width,card.height); card.flex.horizontalSizing="fix"; card.flex.verticalSizing="auto";
+  card.x=root.x+node.x; card.y=root.y+node.y;
+  const well = get("icon-well",node.id,() => penpot.createRectangle(),card);
+  well.resize(CFG.spotSize.width,CFG.spotSize.height); well.borderRadius=8; well.fills=[{fillOpacity:1,fillImage:spotMedia[iconKey]}]; well.strokes=[];
+  for (const entry of CFG.textEntries) if (entry.parent === "node:" + node.id) textShape(entry,card);
+  let holder = card;
+  if (node.origin) {
+    const pill = get("badge-well",node.id,() => penpot.createBoard(),card,"board");
+    pill.name="Status: "+node.origin; pill.clipContent=false; pill.borderRadius=12; flex(pill,"row",6); pill.flex.alignItems="center"; pill.flex.justifyContent="center"; pad(pill,5,12,5,10);
+    pill.flex.horizontalSizing="auto"; pill.flex.verticalSizing="auto"; pill.fills=[{fillColor:CFG.originPills[node.origin],fillOpacity:1}]; pill.strokes=[];
+    holder = pill;
+  }
+  const glyph = get("icon",node.id,() => penpot.createPath(),holder);
+  glyph.content = CFG.iconPaths[iconKey].replace(/([ML])(-?[0-9.]+) (-?[0-9.]+)/g,(_all,command,x,y)=>command+(card.x+Number(x)*16/24)+" "+(card.y+Number(y)*16/24));
+  glyph.resize(16,16);
+  glyph.fills=[]; glyph.strokes=[{strokeColor:node.origin ? CFG.originInk[node.origin] : "#98A2B3",strokeWidth:1.6,strokeCapStart:"round",strokeCapEnd:"round",strokeJoinStyle:"round"}]; metadata(glyph,"icon",node.id,{iconKey});
+  if (node.origin) for (const entry of CFG.textEntries) if (entry.parent === "badge-well:" + node.id) textShape(entry,holder);
+  for(const [role,x] of [["port-in",card.x],["port-out",card.x+node.width]]){
+    const port=get(role,node.id,()=>penpot.createEllipse());port.resize(8,8);port.x=x-4;port.y=card.y+CFG.anchorY-4;port.fills=[];port.strokes=[];
   }
 }
 for(const annotation of CFG.drawing.annotations || []){
-  const panel=get("annotation-panel",annotation.id,()=>penpot.createRectangle());panel.resize(annotation.width,annotation.height);panel.x=root.x+annotation.x;panel.y=root.y+annotation.y;panel.borderRadius=12;panel.fills=[{fillColor:"#FFFFFF",fillOpacity:1}];panel.strokes=[{strokeColor:"#E4E7EC",strokeWidth:1}];
+  const panel=get("annotation-panel",annotation.id,()=>penpot.createBoard(),root,"board");
+  panel.name="Notes: "+annotation.id; panel.fills=[]; panel.strokes=[]; panel.clipContent=false;
+  flex(panel,"column",12); panel.flex.alignItems="start"; panel.flex.justifyContent="start"; pad(panel,0,0,8,0);
+  panel.resize(annotation.width,panel.height); panel.flex.horizontalSizing="fix"; panel.flex.verticalSizing="auto";
+  panel.x=root.x+annotation.x; panel.y=root.y+annotation.y;
+  const rule=get("annotation-rule",annotation.id,()=>penpot.createRectangle(),panel); rule.resize(annotation.width,1); rule.fills=[{fillColor:"#D0D5DD",fillOpacity:1}]; rule.strokes=[];
+  for (const entry of CFG.textEntries) if (entry.parent === "annotation-panel:" + annotation.id) textShape(entry,panel);
 }
-for(const entry of CFG.textEntries) textShape(entry);
+for(const entry of CFG.textEntries) if (!entry.parent) textShape(entry);
 for(const node of plannedNodes){
   const clickableRoles=new Set(["node","label","summary","badge","icon-well","icon","port-in","port-out"]);
   for(const id of retained){
@@ -182,7 +232,7 @@ if (typeof penpot.waitForLayoutUpdate === "function") await penpot.waitForLayout
 const right = Math.max(900,...root.children.map(shape => shape.x-root.x+shape.width)) + 64;
 const bottom = Math.max(160,...root.children.map(shape => shape.y-root.y+shape.height)) + 64;
 root.resize(right,bottom);
-for (const prior of shapes) if (!retained.has(prior.shapeId)) penpot.currentPage.getShapeById(prior.shapeId).remove();
+for (const prior of shapes) if (!retained.has(prior.shapeId)) { const stale = penpot.currentPage.getShapeById(prior.shapeId); if (stale) stale.remove(); }
 return {ok:true,boardId:root.id};`,
     {
       target,
@@ -190,6 +240,8 @@ return {ok:true,boardId:root.id};`,
       drawing,
       textEntries: nativeMapTextEntries(drawing),
       iconPaths: nativeMapIcons,
+      spots: mapSpotImages(drawing.nodes.map((node) => node.icon ?? defaultMapIcon(node.kind))),
+      spotSize: mapSpotSize,
       iconDefaults: Object.fromEntries(
         drawing.nodes.map((node) => [
           node.id,
@@ -197,6 +249,15 @@ return {ok:true,boardId:root.id};`,
         ]),
       ),
       originLabels: mapOriginLabels,
+      originPills: mapOriginPills,
+      originInk: mapOriginInk,
+      anchorY: mapCardAnchorHeight / 2,
+      badgeWidths: Object.fromEntries(
+        Object.entries(mapOriginLabels).map(([origin, label]) => [
+          origin,
+          mapBadgeWidth(label),
+        ]),
+      ),
       originLegend: mapOriginLegend,
       expectedDigest: projectionDigest(
         JSON.stringify({

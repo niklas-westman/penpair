@@ -1,6 +1,6 @@
 import path from "node:path";
 import {
-  observationHash,
+  matchingBaselineReference,
   validateBaselineCase,
   type ArtifactProvenance,
   type BaselineCase,
@@ -37,47 +37,11 @@ function validateMapping(mapping: ImplementationMapping): void {
   }
 }
 
-function matchingCaseApproval(
-  result: BaselineResult | undefined,
-  intent: BaselineCase,
-): ArtifactProvenance | undefined {
-  const approved = result?.approved && !("legacy" in result.approved) ? result.approved : undefined;
-
-  if (
-    !result ||
-    !approved?.case ||
-    !result.captured ||
-    approved.approval?.kind === "forced-reference"
-  ) {
-    return undefined;
-  }
-
-  if (
-    ![
-      "same",
-      "new",
-      "changed",
-    ].includes(result.status)
-  ) {
-    return undefined;
-  }
-
-  const matchesCase = observationHash(approved.case) === observationHash(intent);
-  const matchesCapture =
-    approved.sha256 === result.captured.sha256 &&
-    approved.frameId === result.frameId &&
-    approved.fileId === result.captured.fileId &&
-    approved.pageId === result.captured.pageId &&
-    approved.revision === result.captured.revision &&
-    approved.file === result.file;
-
-  return matchesCase && matchesCapture ? approved : undefined;
-}
-
 export function planImplementationCases(
   config: BaselinesConfig,
   results: BaselineResult[],
   mapping: ImplementationMapping,
+  verifiedReferences?: ReadonlyMap<string, ArtifactProvenance>,
 ): CasePlan {
   validateMapping(mapping);
 
@@ -92,7 +56,11 @@ export function planImplementationCases(
     const result = results.find((baselineResult) => baselineResult.id === frame.id);
     const setup = mapping.cases.find((entry) => entry.id === frame.id)?.setup;
     const approved =
-      frame.case && result && setup ? matchingCaseApproval(result, frame.case) : undefined;
+      frame.case && result && setup
+        ? verifiedReferences
+          ? verifiedReferences.get(frame.id)
+          : matchingBaselineReference(config, frame, result)
+        : undefined;
 
     if (!frame.case || !result || !approved || !setup) {
       pending.push({
@@ -102,6 +70,22 @@ export function planImplementationCases(
       });
       continue;
     }
+
+    for (const threshold of [
+      frame.threshold,
+      config.threshold,
+    ]) {
+      if (
+        threshold !== undefined &&
+        (typeof threshold !== "number" ||
+          !Number.isFinite(threshold) ||
+          threshold < 0 ||
+          threshold > 1)
+      ) {
+        throw new Error("Comparison threshold must be a finite number from 0 to 1");
+      }
+    }
+    const threshold = frame.threshold ?? config.threshold ?? 0.05;
 
     validateBaselineCase(frame.case, (message) => {
       throw new Error(message);
@@ -115,8 +99,13 @@ export function planImplementationCases(
         path: path.join(config.root, result.file),
         sha256: approved.sha256,
         scale: approved.scale,
+        source: {
+          fileId: approved.fileId,
+          pageId: approved.pageId,
+          frameId: approved.frameId,
+        },
       },
-      threshold: config.threshold ?? 0.05,
+      threshold,
     });
   }
 

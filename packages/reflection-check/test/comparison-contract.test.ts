@@ -19,6 +19,17 @@ import {
 } from "./helpers/reflection-fixture.js";
 
 describe("comparison contracts across module boundaries", () => {
+  it("binds every planned baseline to its exact approved Penpot source", () => {
+    const plan = planImplementationCases(baselineConfig, baselineResults, implementationMapping);
+    expect(plan.cases[0]!.baseline.source).toEqual({
+      fileId: "file",
+      pageId: "page",
+      frameId: "frame",
+    });
+    plan.cases[0]!.baseline.source!.frameId = "modified-plan";
+    expect((baselineResults[0]!.approved as ArtifactProvenance).frameId).toBe("frame");
+  });
+
   it.each([
     "png",
     "webp",

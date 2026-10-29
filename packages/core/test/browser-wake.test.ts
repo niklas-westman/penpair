@@ -105,6 +105,31 @@ describe("browser target activation", () => {
     ]);
   });
 
+  it("recognizes query-screen workspace routing and redacts its query from page descriptions", async () => {
+    const browser = fakeBrowser([
+      {
+        ...selectedTab,
+        url: `${pinnedFile.origin}/?screen=workspace&file-id=${pinnedFile.fileId}&page-id=page-1&unrelated=omitted`,
+      },
+    ]);
+    const pages = await inspectBrowserPages({
+      ...pinnedFile,
+      fetch: browser.fetch,
+    });
+    expect(pages.matching).toBe(1);
+    expect(pages.pages[0]).toMatchObject({
+      where: `${pinnedFile.origin}/workspace`,
+      state: "pinned-file-workspace",
+    });
+    expect(pages.summary).not.toContain("unrelated");
+    await expect(
+      wakeBrowserTarget({
+        ...pinnedFile,
+        fetch: browser.fetch,
+      }),
+    ).resolves.toHaveProperty("activated", true);
+  });
+
   it("recognizes direct workspace URLs as well as hash routing", async () => {
     const browser = fakeBrowser([
       {
@@ -122,6 +147,11 @@ describe("browser target activation", () => {
 
   it.each([
     `${pinnedFile.origin}/#/view?file-id=file-123`,
+    `${pinnedFile.origin}/?screen=workspace&screen=workspace&file-id=file-123`,
+    `${pinnedFile.origin}/?screen=workspace&file-id=file-123&file-id=file-123`,
+    `${pinnedFile.origin}/?screen=workspace&file-id=file-123&page-id=one&page-id=two`,
+    `${pinnedFile.origin}/?screen=workspace&file-id=file-123#/workspace?file-id=file-123`,
+
     `${pinnedFile.origin}/#/workspace?file-id=file-123&file-id=other`,
     `${pinnedFile.origin}.attacker.test/#/workspace?file-id=file-123`,
     `https://person:secret@design.example.test/#/workspace?file-id=file-123`,

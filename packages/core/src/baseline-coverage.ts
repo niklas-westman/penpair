@@ -1,3 +1,9 @@
+import {
+  matchingBaselineReference,
+  validateBaselineReference,
+  validateBaselineSources,
+} from "./baseline-reference.js";
+import type { ArtifactProvenance } from "./baselines.js";
 import { open } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -52,6 +58,7 @@ export const designCaseKey = (route: string, value: BaselineCase): string =>
 export function baselineCoverage(
   config: BaselinesConfig,
   results: BaselineResult[] = [],
+  verifiedReferences?: ReadonlyMap<string, ArtifactProvenance>,
 ): BaselineCoverage {
   const rows: CoverageRow[] = [];
   for (const requirement of config.coverage?.required ?? []) {
@@ -102,6 +109,20 @@ export function baselineCoverage(
     const approved = captures.some(({ frame, result }) => {
       const evidence = result.approved && "case" in result.approved ? result.approved : undefined;
       return (
+        ((result.status === "changed" && result.captured?.sha256 !== evidence?.sha256) ||
+          Boolean(
+            verifiedReferences
+              ? verifiedReferences.get(frame.id)
+              : matchingBaselineReference(config, frame, result),
+          )) &&
+        (!result.source ||
+          ((frame.pageId
+            ? result.source.pageId.toLowerCase() === frame.pageId.toLowerCase() &&
+              (frame.page === undefined || result.source.page === frame.page)
+            : result.source.page === (frame.page ?? config.page)) &&
+            result.source.route === frame.route &&
+            result.source.pageId === evidence?.pageId &&
+            result.source.fileId === evidence?.fileId)) &&
         evidence?.approval?.kind !== "forced-reference" &&
         ![
           "missing",
@@ -227,6 +248,8 @@ export async function readBaselineCoverage(
     | {
         schemaVersion?: number;
         fileId?: string;
+        page?: string;
+        pages?: unknown;
         frames?: BaselineResult[];
       }
     | undefined;
@@ -241,13 +264,21 @@ export async function readBaselineCoverage(
     return baselineCoverage(config);
   }
   if (
-    manifest.schemaVersion !== 2 ||
+    (manifest.schemaVersion !== 2 && manifest.schemaVersion !== 3) ||
     !Array.isArray(manifest.frames) ||
     manifest.frames.length > 1000
   ) {
     throw new Error(
-      "Coverage needs a bounded schema-2 baseline manifest; regenerate a reviewed capture",
+      "Coverage needs a bounded schema-2 or schema-3 baseline manifest; regenerate a reviewed capture",
     );
+  }
+  validateBaselineSources(manifest);
+  if (
+    manifest.schemaVersion === 2 &&
+    manifest.page !== undefined &&
+    manifest.page !== config.page
+  ) {
+    throw new Error("Coverage manifest page differs from configured source");
   }
   if (expectedFileId && manifest.fileId !== expectedFileId) {
     throw new Error("Coverage manifest belongs to a different pinned file");
@@ -278,6 +309,7 @@ export async function readBaselineCoverage(
   const results = manifest.frames.map((value) => ({
     ...value,
   }));
+  const verifiedReferences = new Map<string, ArtifactProvenance>();
   for (const result of results) {
     if (!result.approved) {
       continue;
@@ -307,6 +339,13 @@ export async function readBaselineCoverage(
       }
       result.imageWidth = size.width;
       result.imageHeight = size.height;
+      const frame = config.frames.find((entry) => entry.id === result.id);
+      if (frame) {
+        const reference = await validateBaselineReference(root, config, frame, result);
+        if (reference) {
+          verifiedReferences.set(frame.id, reference);
+        }
+      }
     } catch (error) {
       result.status = "case-mismatch";
       result.problems = [
@@ -314,5 +353,5 @@ export async function readBaselineCoverage(
       ];
     }
   }
-  return baselineCoverage(config, results);
+  return baselineCoverage(config, results, verifiedReferences);
 }

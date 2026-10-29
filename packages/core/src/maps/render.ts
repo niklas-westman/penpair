@@ -1,3 +1,12 @@
+import {
+  mapCardAnchorHeight,
+  mapCardEstimate,
+  mapCardHeight,
+  mapCardRowGap,
+  mapCardSummaryLimit,
+  mapCardTitleLimit,
+  mapCardWidth,
+} from "./card-metrics.js";
 import { designDataBlock } from "../project-input.js";
 import { mapAnnotationLayout } from "./annotation-layout.js";
 import {
@@ -175,7 +184,7 @@ export function buildMapDrawingPlan(
       160,
       ...crossing.map((edge) => mapEdgeLabelWidth(edge.label) + 64 + crossing.length * 8),
     );
-    columnXs.push(columnXs[column]! + 240 + gap);
+    columnXs.push(columnXs[column]! + mapCardWidth + gap);
   }
   const titleBox = {
     x: 32,
@@ -206,19 +215,40 @@ export function buildMapDrawingPlan(
     legendY,
     height: legendY + 48,
   };
-  const compact = (text: string, limit: number) =>
-    text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
+  /** Cuts at a word boundary and attaches the ellipsis, so it never wraps onto a line of its own. */
+  const compact = (text: string, limit: number) => {
+    if (text.length <= limit) {
+      return text;
+    }
+    const cut = text.slice(0, limit - 1);
+    const space = cut.lastIndexOf(" ");
+    return `${(space > limit / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+  };
   const columnEnds = Array.from(
     {
       length: columns,
     },
     () => Math.max(180, header.height + 32),
   );
+  const cardEstimates = new Map<string, number>();
   const nodes = contract.nodes.map((node) => {
     const column = layers.get(node.id)!;
     const y = columnEnds[column]!;
-    const height = 144;
-    columnEnds[column] = y + height + 160;
+    const height = mapCardAnchorHeight;
+    const cardTitle = compact(node.label, mapCardTitleLimit);
+    const cardSummary =
+      node.summary === undefined ? undefined : compact(node.summary, mapCardSummaryLimit);
+    const estimate = mapCardEstimate({
+      title: cardTitle,
+      ...(cardSummary === undefined
+        ? {}
+        : {
+            summary: cardSummary,
+          }),
+      hasStatus: node.origin !== undefined,
+    });
+    cardEstimates.set(node.id, estimate);
+    columnEnds[column] = y + estimate + mapCardRowGap;
     let detail: MapDetailTarget | undefined;
     if (node.kind === "detail-link") {
       const source = contract.sources.find((entry) => entry.id === node.sourceIds![0])!;
@@ -243,14 +273,14 @@ export function buildMapDrawingPlan(
     }
     return {
       ...node,
-      cardTitle: compact(node.label, 24),
-      ...(node.summary === undefined
+      cardTitle,
+      ...(cardSummary === undefined
         ? {}
         : {
-            cardSummary: compact(node.summary, 42),
+            cardSummary,
           }),
-      ...(node.label.length > 24 ||
-      (node.summary?.length ?? 0) > 42 ||
+      ...(node.label.length > mapCardTitleLimit ||
+      (node.summary?.length ?? 0) > mapCardSummaryLimit ||
       node.description !== undefined
         ? {
             annotationId: `node:${node.id}`,
@@ -263,7 +293,7 @@ export function buildMapDrawingPlan(
         : {}),
       x: columnXs[column]!,
       y,
-      width: 240,
+      width: mapCardWidth,
       height,
     };
   });
@@ -276,10 +306,10 @@ export function buildMapDrawingPlan(
     ) + 80;
   const flowHeight =
     Math.max(
-      ...nodes.map((node) => node.y + node.height),
+      ...nodes.map((node) => node.y + (cardEstimates.get(node.id) ?? mapCardHeight)),
       ...edges.map((edge) => edge.labelBox.y + edge.labelBox.height + 48),
       ...edges.flatMap((edge) => edge.points.map((point) => point.y)),
-    ) + 80;
+    ) + 48;
   const annotations: MapDrawingAnnotation[] = [];
   let annotationY = flowHeight + 32;
   const noteWidth = 1120;
@@ -314,8 +344,9 @@ export function buildMapDrawingPlan(
       ];
     }
   };
+  // The header already carries the summary (or a short goal); notes hold only what it does not.
   if (
-    contract.summary !== undefined ||
+    (contract.summary !== undefined && contract.goal !== contract.summary) ||
     contract.goal.length > 240 ||
     contract.description !== undefined
   ) {
@@ -323,11 +354,6 @@ export function buildMapDrawingPlan(
       id: "map:details",
       title: contract.title,
       goal: contract.goal,
-      ...(contract.summary === undefined
-        ? {}
-        : {
-            summary: contract.summary,
-          }),
       ...(contract.description === undefined
         ? {}
         : {

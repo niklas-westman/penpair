@@ -70,16 +70,16 @@ export function mapNoteTextHeight(
 }
 
 export function mapAnnotationLayout(annotation: AnnotationContent): MapAnnotationLayout {
-  const width = annotation.width - 40;
+  const width = annotation.width;
   const idBox = {
     y: 20,
-    height: 16,
+    height: 18,
   };
-  let y = idBox.y + idBox.height + 8;
+  let y = idBox.y + idBox.height + 10;
   const titleBox = annotation.nodeId
     ? {
         y,
-        height: mapNoteTextHeight(annotation.title, width, 16, 24),
+        height: mapNoteTextHeight(annotation.title, width, 20, 28),
       }
     : undefined;
   if (titleBox) {
@@ -101,15 +101,15 @@ export function mapAnnotationLayout(annotation: AnnotationContent): MapAnnotatio
     if (value === undefined) {
       continue;
     }
-    const height = mapNoteTextHeight(value, width);
+    const height = mapNoteTextHeight(value, width, 16, 24);
     fields.push({
       field,
       headingY: y,
-      headingHeight: 16,
-      y: y + 20,
+      headingHeight: 18,
+      y: y + 24,
       height,
     });
-    y += 20 + height + 14;
+    y += 24 + height + 20;
   }
   return {
     idBox,
@@ -119,6 +119,6 @@ export function mapAnnotationLayout(annotation: AnnotationContent): MapAnnotatio
         }
       : {}),
     fields,
-    height: y + 6,
+    height: y,
   };
 }

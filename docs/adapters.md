@@ -43,7 +43,7 @@ For example, a project whose command/core are **0.3.0** installs this matching
 companion. Use the actual installed version when it differs:
 
 ```sh
-pnpm add -D -E @penpair/reflection-check@0.3.0
+pnpm add -D -E @penpair/reflection-check@0.8.1
 ```
 
 Use the version printed above when it differs. In a pnpm workspace, use the existing dependency location (`-w` when installing at the workspace root). Upgrade directly installed Penpair packages together rather than mixing releases.
@@ -63,7 +63,7 @@ That JSON is a fragment to merge, not a replacement project config. The library 
 - [ ] **Installed and registered:** the matching adapter dependency and config entry exist. `penpair --help` can identify configured extensions without executing them.
 - [ ] **References ready:** configured file pin and baseline frames have current exact approved provenance and explicit case metadata.
 - [ ] **Mapping ready:** `design/implementation-cases.json` maps each baseline case ID to its project setup name.
-- [ ] **Provider ready:** `design/reflection-provider.mjs` exports `runCase` and uses actual browser/checker work; requested inputs are not copied into observed results.
+- [ ] **Execution ready:** a reviewed custom provider exports `runCase`, or the native public-config bridge passes its capability and exact-version checks. Actual browser work supplies observations; requested inputs are not copied into results.
 - [ ] **Verified in the browser:** the plan has no pending cases, the provider executes the intended cases and the owner looks at the resulting images.
 
 ```sh
@@ -80,6 +80,59 @@ comparison, image inspection, implementation fixes and recapture. For simple
 legacy route/viewport checks, the existing generated `reflection-cases.json` and
 `visualSmoke` configuration remain available; richer cases require explicit setup
 and readback.
+
+### Native Reflection for release comparisons
+
+Custom `--provider` modules remain supported. Native mode uses the project's exact
+standalone `reflection-check` version, public CLI and raw run report:
+
+```sh
+pnpm exec penpair reflection check --map design/implementation-cases.json \
+  --engine-config design/reflection-native.ts --engine-version EXACT_VERSION \
+  --release-context design/releases/1.0.1/context.json
+```
+
+`EXACT_VERSION` is a placeholder for a reviewed installed engine release. Published
+Reflection 0.7.0 alone does not enable this path: it lacks the public measured-capture
+and externally-managed-baseline capabilities required by the bridge. An upstream
+extension has been exercised locally; native consumer migration remains pending
+until a reviewed public engine release and project capture/comparator parity are
+available. Do not replace missing proof with copied configuration or use private
+runner imports.
+
+The trusted project module exports `createReflectionConfig(request)`, using the
+adapter's public `NativeReflectionRequest` type and Reflection's public config and
+`BrowserEvidenceHooks` types. Map each request case to its exact content-bound
+`reference`, read-only `baselineRoot`, managed image, unique measured capture root
+and explicit threshold. Hooks provide pre-navigation interception, setup,
+independent DOM state observations and exact expected font family/weight/style.
+Declare relevant app, mapping, fixture, hook, lockfile and policy inputs; the bridge
+freezes and rechecks them. See the [native bridge contract](https://github.com/niklas-westman/penpair/blob/main/packages/reflection-check/README.md#native-reflection-batch-bridge)
+for the public builder fields and capability checks.
+
+A supplied `--release-context` must be ready, finalized and untruncated, with exact
+complete `caseIds`, frozen `caseThresholds` and `releaseReference` pinning the
+canonical finalized record and immutable bundle by project-relative path/SHA-256.
+Generate it with `design-release context --from FINAL_RECORD --out CONTEXT_FILE`;
+regenerate older contexts instead of hand-adding labels or hashes. Both native and
+custom-provider paths reload canonical proof through `loadReleaseComparison` and
+bind approved image hash/scale, source file/page/frame, route, case and threshold.
+Saved readiness and inventory labels alone are insufficient. Missing/pending/extra cases or threshold changes reject
+the release comparison. Use the full context's `proposedBaselines`, including each
+frame's `pageId` and `threshold`, rather than only the latest release page.
+
+Native runs retain `implementation-report.json`, raw engine reports, read-only
+reference copies, screenshots, diffs and hash-bound per-case artifact manifests in
+`.penpair/reflection/native/<unique-invocation>/`. Preserve the run directory for
+review and status; do not reuse screenshot paths across runs. Long-running output
+streams on stderr; cancellation produces incomplete evidence.
+
+Use `design-release status --from RELEASE --comparison REPORT_FILE` to assess the
+current application without editing the frozen design. The context's
+`implementation` is historical; `implementationAssessment` and
+`workflow.implementation` are the current assessment. Passing comparison never
+records owner acceptance. See [design releases](design-releases.md) for the
+separate design and implementation gates.
 
 ## Why explicit companions?
 

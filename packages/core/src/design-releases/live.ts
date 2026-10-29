@@ -118,6 +118,8 @@ export async function assertSourceUnchanged(
   root: string,
   release: DesignRelease,
   source: ReleaseSource,
+  artifact: (reference: import("./types.js").ReleaseArtifactRef) => Promise<Buffer> = (reference) =>
+    readArtifact(root, reference),
 ): Promise<InspectionCapture> {
   const capture = await captureReleaseScreen(client, release.fileId, source.pageId, source.frameId);
   if (inspectionContentHash(capture) !== source.contentHash) {
@@ -130,7 +132,7 @@ export async function assertSourceUnchanged(
     throw new Error("Token-bound source requires a pinned dependency inspection");
   }
   if (source.dependencies) {
-    const before = JSON.parse((await readArtifact(root, source.dependencies)).toString("utf8"));
+    const before = JSON.parse((await artifact(source.dependencies)).toString("utf8"));
     if (before.fileId !== release.fileId) {
       throw new Error("Dependency snapshot belongs to another file");
     }

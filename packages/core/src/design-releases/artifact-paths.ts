@@ -91,7 +91,11 @@ export async function saveArtifact(
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
       throw error;
     }
-    const actual = await readProjectBytes(root, relative, Math.max(bytes.length, 1));
+    const actual = await readProjectBytes(
+      root,
+      relative,
+      Math.max(typeof bytes === "string" ? Buffer.byteLength(bytes) : bytes.byteLength, 1),
+    );
     if (hashBytes(actual) !== sha256) {
       throw new Error("Immutable release artifact already exists with different bytes");
     }

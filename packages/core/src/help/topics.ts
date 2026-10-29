@@ -1,6 +1,16 @@
 /** Durable workflow IDs used by the CLI and the shipped skills. */
 export const workflowTopics = [
   {
+    id: "workflows.design-release",
+    summary: "Operate a native Penpot release using authoritative evidence and status",
+    instructions: [
+      "Read the installed penpair-design-release skill for product design releases. Package versioning and npm publication are a separate workflow.",
+      "Start with design-release status --from RELEASE --json. Use --live when current Penpot freshness is required; follow evidence-backed blockers and next actions.",
+      "Resolve the complete inherited inventory, assemble changed frames and retained links, verify live, review exact artifacts, then finalize with supplied owner words.",
+      "Keep design finalization separate from application comparison and owner acceptance. Partial browser runs cannot establish whole-release verification.",
+    ],
+  },
+  {
     id: "workflows.iterative-build",
     summary: "Build and critique one representative frame before expanding",
     instructions: [

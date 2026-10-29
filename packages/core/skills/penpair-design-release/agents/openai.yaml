@@ -1,6 +1,6 @@
 interface:
   display_name: "Penpair Design Release"
-  short_description: "Assemble and verify a reviewed design handoff"
-  default_prompt: "Use $penpair-design-release to plan, assemble and verify a versioned native design release with reviewed maps and immutable evidence."
+  short_description: "Locate the current release step and verify its evidence"
+  default_prompt: "Use $penpair-design-release to inspect this native Penpot release status, identify its current step and blockers, and continue with the next valid action."
 policy:
   allow_implicit_invocation: true

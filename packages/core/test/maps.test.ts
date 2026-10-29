@@ -8,6 +8,11 @@ import {
   acceptMapProposal,
   buildMapContext,
   buildMapDrawingPlan,
+  mapCardAnchorHeight,
+  mapCardHeight,
+  mapCardWidth,
+  mapCardTitleLimit,
+  mapCardSummaryLimit,
   createArtifactReview,
   createMapProposal,
   findArtifactReview,
@@ -306,10 +311,10 @@ describe("map render projections", () => {
     map.nodes[0]!.icon = "action";
     const plan = buildMapDrawingPlan(map);
     const node = plan.nodes.find((entry) => entry.id === "form")!;
-    expect(node.width).toBe(240);
-    expect(node.height).toBe(144);
-    expect(node.cardTitle.length).toBeLessThanOrEqual(24);
-    expect(node.cardSummary!.length).toBeLessThanOrEqual(42);
+    expect(node.width).toBe(mapCardWidth);
+    expect(node.height).toBe(mapCardAnchorHeight);
+    expect(node.cardTitle.length).toBeLessThanOrEqual(mapCardTitleLimit);
+    expect(node.cardSummary!.length).toBeLessThanOrEqual(mapCardSummaryLimit);
     expect(node.label).toBe(map.nodes[0]!.label);
     const annotation = plan.annotations.find((entry) => entry.nodeId === "form")!;
     expect(annotation.title).toBe(node.label);
@@ -349,7 +354,7 @@ describe("map render projections", () => {
       expect(plan.complete).toBe(true);
       expect(plan.nodes.every((node) => node.y >= 180)).toBe(true);
       if (name === "journey.json") {
-        expect(plan.height).toBeLessThanOrEqual(2600);
+        expect(plan.height).toBeLessThanOrEqual(3200);
         const notes = plan.annotations.filter((annotation) => annotation.nodeId);
         expect(new Set(notes.map((annotation) => annotation.x)).size).toBe(2);
         expect(notes.every((annotation) => annotation.width === 548)).toBe(true);

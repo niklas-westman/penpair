@@ -14,6 +14,10 @@ import { readProjectConfig, type ProjectConfig } from "./instance/config.js";
  */
 export interface AdapterContext {
   output?: CommandOutput;
+  /** Current command cancellation; providers must stop work and preserve incomplete evidence. */
+  signal?: AbortSignal;
+  /** Redacted streaming progress, separate from final warnings. */
+  progress?(message: string): void;
   /** Removes this connection's credentials before recovery evidence is persisted or reported. */
   redact?(text: string): string;
   /** The project's folder. */

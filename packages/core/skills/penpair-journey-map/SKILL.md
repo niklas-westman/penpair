@@ -47,7 +47,7 @@ responsibilities; use `penpair-design-release` for a versioned design handoff.
    keep each delivered snippet below 90 KB. Review the diagram and underlying
    findings, including loading/error/empty states and accessibility unknowns.
 4. **Publish or reconcile.** For an authorized native drawing, use
-   `penpair-diagrams`. Read-only inspect, pin a snapshot, deliver one idempotent
+   `penpair-diagrams`, which builds it as auto layout. Read-only inspect, pin a snapshot, deliver one idempotent
    write, independently read back, settle and inspect exports. Import managed
    edits as a proposal against the exact base hash; accept only reviewed changes.
    An accepted semantic proposal is a new unapproved contract, not owner

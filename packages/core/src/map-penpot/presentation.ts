@@ -1,3 +1,4 @@
+import { mapCardAnchorHeight } from "../maps/card-metrics.js";
 import { observationHash } from "../journal.js";
 import { routeMapEdges, mapDrawingGeometryProblems } from "../maps/layout.js";
 import { buildMapDrawingPlan } from "../maps/render.js";
@@ -237,7 +238,7 @@ export function preserveMapPresentation(
       x: card.x - bounds.x,
       y: card.y - bounds.y,
       width: card.width,
-      height: card.height,
+      height: mapCardAnchorHeight,
     };
   });
   const edges = routeMapEdges(nodes, drawing.edges);

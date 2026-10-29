@@ -18,6 +18,44 @@ the maintained documentation before archiving working notes.
   Session handoffs, review reports and private evidence stay in `.working-docs/`.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
+## Product design releases
+
+For Penpot product release pages, adoption, retained frames, readiness, approval
+or interrupted release work, read
+[penpair-design-release](packages/core/skills/penpair-design-release/SKILL.md)
+first. Use the installed CLI's release status and evidence to identify the current
+step, blockers and next valid action; report design readiness separately from
+implementation acceptance. Preserve owner approval and Penpot write boundaries.
+All design-release work (plan, adopt, assemble, verify, finalize, status) goes
+through that skill and the `design-release` command, which write the release
+records, pointers and approval records; hand edits and ad-hoc scripts do not.
+Publishing Penpair's npm packages follows [the package release guide](docs/releasing.md)
+instead; the product design-release skill does not authorize publication.
+
+## Skills
+
+Two sets, kept apart:
+
+- **Shipped skills** are in `packages/core/skills/` and serve the people who use
+  Penpair. `penpair skills install` copies them into an adopting project and
+  writes a routing table into that project's `AGENTS.md` or `CLAUDE.md`, generated
+  from `packages/core/src/skill-routing.ts`. They are product: a new or renamed
+  skill needs its routing row, passing skill tests
+  ([docs/skill-validation.md](docs/skill-validation.md)) and a changeset.
+- **Repository skills** are in `.agents/skills/` and serve work on Penpair itself
+  (`penpair-code-conventions`). They are never shipped.
+
+## Penpot layout
+
+Everything Penpair builds or generates in Penpot is auto layout: flex boards that
+size to their content, `auto` to hug and `fill` to stretch, with one gap between
+siblings. This covers renderer and snippet code as well as built screens. Only
+connectors and art that bleeds off an edge are absolutely positioned, each with a
+comment saying why. Read
+[auto-layout](packages/core/skills/penpair-design/references/auto-layout.md)
+before writing code that creates Penpot shapes, and check the export with a
+deliberately long title.
+
 ## Code conventions
 
 Before creating or refactoring code, read [docs/conventions](docs/conventions/README.md)

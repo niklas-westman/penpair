@@ -20,13 +20,34 @@ export const nativeMapRoles = [
   "full-summary",
   "description",
   "annotation-panel",
+  "annotation-rule",
   "annotation-id",
   "annotation-heading",
   "icon-well",
+  "badge-well",
   "icon",
   "port-in",
   "port-out",
 ] as const;
+
+const originColors = {
+  observed: "#0B5D45",
+  proposed: "#4A5461",
+  "owner-decision": "#F6F7F8",
+  unknown: "#8791A0",
+} as const;
+
+export const mapOriginInk = originColors;
+
+/** Pill background behind each status label. */
+export const mapOriginPills = {
+  observed: "#D9F7EE",
+  proposed: "#E4E7EB",
+  "owner-decision": "#20262E",
+  unknown: "#F6F7F8",
+} as const;
+
+export const mapBadgeWidth = (label: string): number => Math.ceil(label.length * 7.4 + 28);
 
 export interface NativeMapTextEntry {
   role: ProjectionShape["role"];
@@ -39,6 +60,9 @@ export interface NativeMapTextEntry {
   fontSize: number;
   color: string;
   strong?: boolean;
+  center?: boolean;
+  /** `role:logicalId` of the flex board this text lives in, when it is not a direct child of the map board. */
+  parent?: string;
   semantic?: {
     scope: "map" | "node";
     field: "title" | "goal" | "label" | "summary" | "description";
@@ -49,6 +73,7 @@ export interface NativeMapTextEntry {
 
 export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] {
   const result: NativeMapTextEntry[] = [];
+  let parent: string | undefined;
   const add = (
     role: NativeMapTextEntry["role"],
     logicalId: string,
@@ -61,6 +86,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
     color = "#101828",
     semantic?: NativeMapTextEntry["semantic"],
     strong = false,
+    center = false,
   ) => {
     result.push({
       role,
@@ -82,6 +108,16 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
             strong,
           }
         : {}),
+      ...(center
+        ? {
+            center,
+          }
+        : {}),
+      ...(parent
+        ? {
+            parent,
+          }
+        : {}),
     });
   };
   const titleBox = drawing.header?.titleBox ?? {
@@ -98,7 +134,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
     titleBox.y,
     titleBox.width,
     titleBox.height,
-    24,
+    32,
     "#101828",
     {
       scope: "map",
@@ -125,8 +161,8 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
       box.y,
       box.width,
       box.height,
-      14,
-      "#667085",
+      16,
+      "#475467",
       {
         scope: "map",
         field: drawing.summary !== undefined ? "summary" : "goal",
@@ -142,7 +178,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
       drawing.header?.legendY ?? (headerText ? 132 : 72),
       1000,
       20,
-      10,
+      12,
       "#667085",
     );
   }
@@ -152,15 +188,16 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
       ? node.cardTitle!
       : (node.kind === "decision" ? "Decision: " : node.kind === "detail-link" ? "Details: " : "") +
         node.label;
+    parent = `node:${node.id}`;
     add(
       "label",
       node.id,
       title,
-      node.x + 64,
-      node.y + 18,
-      node.width - 80,
-      32,
-      14,
+      node.x + 20,
+      node.y + 24,
+      node.width - 40,
+      44,
+      16,
       "#101828",
       {
         scope: "node",
@@ -169,6 +206,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
         compact: modern && title !== node.label,
       },
       true,
+      true,
     );
     const summary = node.cardSummary ?? node.summary;
     if (summary) {
@@ -176,9 +214,9 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
         "summary",
         node.id,
         summary,
-        node.x + 64,
-        node.y + 50,
-        node.width - 80,
+        node.x + 20,
+        node.y + 224,
+        node.width - 40,
         48,
         12,
         "#667085",
@@ -188,22 +226,30 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
           nodeId: node.id,
           compact: summary !== node.summary,
         },
+        false,
+        true,
       );
     }
     if (node.origin) {
+      parent = `badge-well:${node.id}`;
+      const width = mapBadgeWidth(mapOriginLabels[node.origin]);
       add(
         "badge",
         node.id,
         mapOriginLabels[node.origin],
-        node.x + 16,
-        node.y + node.height - 24,
-        node.width - 32,
+        node.x + (node.width - width) / 2,
+        node.y + node.height - 40,
+        width,
         16,
-        10,
-        "#667085",
+        12,
+        originColors[node.origin],
+        undefined,
+        false,
+        true,
       );
     }
   }
+  parent = undefined;
   for (const edge of drawing.edges) {
     if (edge.label && edge.labelBox) {
       add(
@@ -225,18 +271,21 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
       : undefined;
     const id = node?.id ?? drawing.mapId;
     const layout = mapAnnotationLayout(annotation);
-    const x = annotation.x + 20;
-    const width = annotation.width - 40;
+    parent = `annotation-panel:${annotation.id}`;
+    const x = annotation.x;
+    const width = annotation.width;
     add(
       "annotation-id",
       annotation.id,
-      node ? `Node · ${node.id}` : "Map context",
+      node ? "Node note" : "Notes",
       x,
       annotation.y + layout.idBox.y,
       width,
       layout.idBox.height,
-      10,
-      "#667085",
+      12,
+      "#0B5D45",
+      undefined,
+      true,
     );
     if (node && layout.titleBox) {
       add(
@@ -247,7 +296,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
         annotation.y + layout.titleBox.y,
         width,
         layout.titleBox.height,
-        16,
+        20,
         "#101828",
         {
           scope: "node",
@@ -268,7 +317,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
         annotation.y + fieldLayout.headingY,
         width,
         fieldLayout.headingHeight,
-        11,
+        12,
         "#667085",
         undefined,
         true,
@@ -290,8 +339,8 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
         annotation.y + fieldLayout.y,
         width,
         fieldLayout.height,
-        14,
-        "#344054",
+        16,
+        "#20262E",
         {
           scope: node ? "node" : "map",
           field,
@@ -304,6 +353,7 @@ export function nativeMapTextEntries(drawing: MapDrawing): NativeMapTextEntry[] 
       );
     }
   }
+  parent = undefined;
   return result;
 }
 
@@ -314,6 +364,11 @@ export function nativeMapShapeKeys(drawing: MapDrawing): Set<string> {
       [
         "node",
         "icon-well",
+        ...(node.origin
+          ? [
+              "badge-well",
+            ]
+          : []),
         "icon",
         "port-in",
         "port-out",
@@ -327,6 +382,9 @@ export function nativeMapShapeKeys(drawing: MapDrawing): Set<string> {
           ]
         : []),
     ]),
-    ...(drawing.annotations ?? []).map((annotation) => `annotation-panel:${annotation.id}`),
+    ...(drawing.annotations ?? []).flatMap((annotation) => [
+      `annotation-panel:${annotation.id}`,
+      `annotation-rule:${annotation.id}`,
+    ]),
   ]);
 }

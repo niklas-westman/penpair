@@ -8,6 +8,13 @@ import { readProjection } from "../map-penpot/index.js";
 import { findArtifactReview, validateArtifactReview } from "../maps/review.js";
 import { withPageSession, selectPage } from "../page-session.js";
 import type { InspectionCapture } from "../inspection.js";
+import { validateReleaseMembership } from "./membership.js";
+import { assertReleaseOverviewLinks } from "./overview-links.js";
+import {
+  captureRetainedMember,
+  checkRetainedEvidence,
+  validateMemberApproval,
+} from "./member-evidence.js";
 import { readArtifact } from "./artifact-paths.js";
 import {
   compareNativeCopy,
@@ -39,6 +46,40 @@ export interface ReleaseBundle {
 
 export function releaseReferences(release: DesignRelease): ReleaseArtifactRef[] {
   const references = [
+    ...(release.base
+      ? [
+          release.base.release,
+          release.base.bundle,
+        ]
+      : []),
+    ...(release.members ?? []).flatMap((member) => [
+      member.source.inspection,
+      ...(member.source.render
+        ? [
+            member.source.render,
+          ]
+        : []),
+      ...(member.source.dependencies
+        ? [
+            member.source.dependencies,
+          ]
+        : []),
+      ...(member.origin
+        ? [
+            member.origin.bundle,
+          ]
+        : []),
+      ...(member.approval
+        ? [
+            member.approval.record,
+            member.approval.image,
+          ]
+        : []),
+    ]),
+    ...(release.memberEvidence ?? []).flatMap((evidence) => [
+      evidence.inspection,
+      evidence.render,
+    ]),
     ...release.sources.flatMap((source) => [
       source.inspection,
       ...(source.render
@@ -88,12 +129,14 @@ export function releaseReferences(release: DesignRelease): ReleaseArtifactRef[] 
 export async function readReleaseBundle(
   root: string,
   release: DesignRelease,
+  artifact: (reference: ReleaseArtifactRef) => Promise<Buffer> = (reference) =>
+    readArtifact(root, reference),
 ): Promise<ReleaseBundle> {
   if (!release.finalized) {
     throw new Error("Finalized bundle pointer missing");
   }
   const bundle = JSON.parse(
-    (await readArtifact(root, release.finalized.bundle)).toString("utf8"),
+    (await artifact(release.finalized.bundle)).toString("utf8"),
   ) as ReleaseBundle;
   if (
     bundle.schemaVersion !== 1 ||
@@ -178,6 +221,7 @@ export async function checkRelease(
         await readArtifact(root, item.snapshot, 64 * 1024 * 1024);
       }
     }
+    await validateReleaseMembership(root, release, artifact);
     await assertReleaseContracts(root, release.contracts, true, artifact, release.fileId);
     for (const reference of releaseReferences(release)) {
       await artifact(reference);
@@ -317,6 +361,44 @@ export async function checkRelease(
         throw new Error("Stored exact pixel fidelity evidence differs from its receipt");
       }
     }
+    for (const member of release.members ?? []) {
+      if (member.disposition === "changed") {
+        continue;
+      }
+      const evidence = release.memberEvidence?.find((item) => item.id === member.id);
+      if (!evidence) {
+        throw new Error(`Live continuity evidence missing for retained member ${member.id}`);
+      }
+      await checkRetainedEvidence(root, release, member, evidence, artifact);
+    }
+    for (const member of release.members ?? []) {
+      if (member.disposition !== "changed") {
+        continue;
+      }
+      const receipt = release.receipts.find((receipt) => receipt.sourceId === member.id);
+      if (!receipt) {
+        throw new Error(`Changed member ${member.id} copy receipt missing`);
+      }
+      const inspection = JSON.parse(
+        (await artifact(receipt.targetInspection)).toString("utf8"),
+      ) as InspectionCapture;
+      await validateMemberApproval(
+        root,
+        release,
+        {
+          ...member,
+          source: {
+            ...member.source,
+            pageId: receipt.targetPageId,
+            frameId: receipt.targetFrameId,
+            inspection: receipt.targetInspection,
+            render: receipt.targetRender,
+            contentHash: inspectionContentHash(inspection),
+          },
+        },
+        artifact,
+      );
+    }
     if (!client) {
       return {
         valid: reasons.length === 0,
@@ -330,6 +412,7 @@ export async function checkRelease(
     client = releaseClient(client, release);
     await withPageSession(client, async () => {
       const observed = await observeRelease(client!, release);
+      await assertReleaseOverviewLinks(client!, release);
       if (
         !observed.pageId ||
         observed.pageId !== release.target.pageId ||
@@ -350,6 +433,11 @@ export async function checkRelease(
           await assertSourceUnchanged(client!, root, release, source);
         }
       }
+      for (const member of release.members ?? []) {
+        if (member.disposition !== "changed") {
+          await captureRetainedMember(client!, root, release, member, options, artifact);
+        }
+      }
       for (const receipt of release.receipts) {
         const original = JSON.parse(
           (await artifact(receipt.sourceInspection)).toString("utf8"),
@@ -361,6 +449,27 @@ export async function checkRelease(
           receipt.targetFrameId,
         );
         compareNativeCopy(original, target, completeNodeMap);
+        if (release.schemaVersion === 2) {
+          const member = release.members!.find((member) => member.id === receipt.sourceId)!;
+          await captureRetainedMember(
+            client!,
+            root,
+            release,
+            {
+              ...member,
+              source: {
+                ...member.source,
+                pageId: receipt.targetPageId,
+                frameId: receipt.targetFrameId,
+                inspection: receipt.targetInspection,
+                render: receipt.targetRender,
+                contentHash: inspectionContentHash(target),
+              },
+            },
+            options,
+            artifact,
+          );
+        }
         const image = await exportShapePng(client!, receipt.targetFrameId, {
           ...options.exportOptions,
           stable: true,

@@ -27,6 +27,10 @@ export interface CoverageConfig {
 
 /** One frame of a Penpot page that becomes an approved reference image. */
 export interface BaselineFrame {
+  /** Exact source page name; defaults to baselines.page. */
+  page?: string;
+  /** Stable source page UUID. With page, the name is an assertion, not a fallback. */
+  pageId?: string;
   /** Exact top-level frame name, or an expected name when frameId is supplied. */
   frame?: string;
   /** Stable board UUID, resolved at any depth on the configured page. */
@@ -36,6 +40,8 @@ export interface BaselineFrame {
   /** The route in the implementation this frame is the design of. Frames without one are exported but not given a check. */
   route?: string;
   case?: BaselineCase;
+  /** Allowed differing-pixel share for this frame; overrides baselines.threshold. */
+  threshold?: number;
 }
 
 /** What `penpair baselines` exports: the frames of one page, as images in a folder of the project. */
@@ -87,6 +93,15 @@ export function validateBaselines(
     if (typeof f !== "object" || f === null) {
       fail("every entry in baselines.frames must be an object");
     }
+    if (
+      f.pageId !== undefined &&
+      (typeof f.pageId !== "string" || !frameIdPattern.test(f.pageId))
+    ) {
+      fail("baselines.frames pageId must be a UUID");
+    }
+    if (f.page !== undefined && (typeof f.page !== "string" || !f.page.trim())) {
+      fail("baselines.frames page must be a nonempty page name");
+    }
     if (f.frame === undefined && f.frameId === undefined) {
       fail("every baselines.frames entry needs frame or frameId");
     }
@@ -112,6 +127,15 @@ export function validateBaselines(
       fail(`baselines.frames id ${JSON.stringify(f.id)} is used twice`);
     }
     seen.add(f.id as string);
+    if (
+      f.threshold !== undefined &&
+      (typeof f.threshold !== "number" ||
+        !Number.isFinite(f.threshold) ||
+        f.threshold < 0 ||
+        f.threshold > 1)
+    ) {
+      fail("baselines.frames threshold must be a number from 0 to 1");
+    }
     if (f.case !== undefined) {
       validateBaselineCase(f.case, fail);
       if (typeof f.route !== "string" || !f.route) {

@@ -51,6 +51,9 @@ export const mapBooleanOptions = new Set([
 ]);
 
 export const releaseOptions = {
+  comparison: {
+    type: "string",
+  },
   from: {
     type: "string",
   },
@@ -87,7 +90,13 @@ export const releaseOptions = {
 } as const satisfies NonNullable<ParseArgsConfig["options"]>;
 export const releaseActions: Record<string, string[]> = {
   plan: [],
+  adopt: [],
+  status: [
+    "live",
+    "comparison",
+  ],
   assemble: [
+    "receipts",
     "apply",
     "resume",
   ],
@@ -102,9 +111,11 @@ export const releaseActions: Record<string, string[]> = {
   ],
   check: [
     "live",
+    "comparison",
   ],
   context: [
     "draft",
+    "comparison",
   ],
 };
 export const copyOptions = {

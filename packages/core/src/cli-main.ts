@@ -33,6 +33,7 @@ import { tokenEditOperation, validateTokenEdit, type TokenEdit } from "./token-e
 import {
   withCommandSignal,
   commandSignal,
+  commandProgress,
   commandSleep,
   commandOutput as output,
   commandFailure,
@@ -60,6 +61,7 @@ import { resolveProjectOutput } from "./project-input.js";
 import { mkdir } from "node:fs/promises";
 import { captureShots, exportShapeByName, findShapesByName } from "./shots.js";
 import { exportShapePng } from "./export.js";
+import { isCapturePolicy, nativeExportProfile } from "./capture-policy.js";
 import { exportBaselines, resolveBaselineImageFormat } from "./baselines.js";
 import { encodeBaselineImage } from "./image-codec.js";
 import type { BaselineImageFormat } from "./image-evidence.js";
@@ -76,7 +78,8 @@ import { checkSkills } from "./skill-check.js";
 import { checkProjectSnippets, loadProjectSnippets } from "./project-snippets.js";
 import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } from "./registry.js";
 import { runSnippet } from "./snippet.js";
-import { audit, pages, tree } from "./snippets/read.js";
+import { selectPage } from "./page-session.js";
+import { audit, pages, tree, frames as baselineFrames } from "./snippets/read.js";
 import { diffEffective, effectiveValues, parseTokenDump, type TokenDump } from "./tokens-diff.js";
 import {
   ConfigError,
@@ -150,6 +153,12 @@ async function loadCommandConfig(root: string): Promise<ProjectConfig> {
   }
   return config;
 }
+const capturePolicyOption = (value: string | undefined) =>
+  isCapturePolicy(value)
+    ? {
+        capturePolicy: value,
+      }
+    : {};
 const projectRoot = () => commandProjects.getStore()?.root ?? process.cwd();
 const projectEndpoint = async (root: string) => {
   const config = await loadOptionalConfig(root);
@@ -193,6 +202,9 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   if (values.format && values.format !== "png" && values.format !== "webp") {
     throw new CommandArgumentError("--format must be png or webp");
+  }
+  if (values["capture-policy"] !== undefined && !isCapturePolicy(values["capture-policy"])) {
+    throw new CommandArgumentError(`--capture-policy must be ${nativeExportProfile}`);
   }
   if (values["migrate-format"] && (!values.format || (values.apply && !values.update))) {
     throw new CommandArgumentError(
@@ -1844,6 +1856,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         forceReason: values["force-reason"],
         format: values.format as BaselineImageFormat | undefined,
         migrateFormat: values["migrate-format"],
+        ...capturePolicyOption(values["capture-policy"]),
       });
       output.result(report);
       for (const r of report.results) {
@@ -2002,19 +2015,63 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       let intent: import("./baselines-config.js").BaselineCase | undefined;
       let imageFormat: BaselineImageFormat =
         (values.format as BaselineImageFormat | undefined) ?? "webp";
+      let approvalPage: string | undefined = values.page;
+      let approvalPageId: string | undefined;
       if (values.case) {
         const baseline = projectConfig?.baselines;
         const wanted = baseline?.frames.find((f) => f.id === values.case);
-        if (!wanted?.case || baseline?.page !== values.page) {
+        if (!wanted?.case || (!wanted.pageId && (wanted.page ?? baseline?.page) !== values.page)) {
           throw new Error(
             "Approval case must reference an explicitly configured frame on this page",
           );
+        }
+        if (wanted.pageId) {
+          await selectPage(
+            client,
+            {
+              id: wanted.pageId.toLowerCase(),
+            },
+            options,
+          );
+          const observed = await runOnPage(
+            client,
+            baselineFrames({
+              pageId: wanted.pageId.toLowerCase(),
+              frameIds: [
+                values.frame.toLowerCase(),
+              ],
+            }),
+            undefined,
+            options,
+          );
+          if (
+            observed.pageId !== wanted.pageId.toLowerCase() ||
+            (wanted.page !== undefined && observed.page !== wanted.page) ||
+            (values.page.toLowerCase() !== wanted.pageId.toLowerCase() &&
+              values.page !== observed.page)
+          ) {
+            throw new Error("Approval page ID and configured or supplied page name do not match");
+          }
+          const selected = Array.isArray(observed.frames)
+            ? (observed.frames as {
+                id: string;
+                name: string;
+              }[])
+            : [];
+          if (
+            selected.length !== 1 ||
+            (wanted.frame !== undefined && selected[0]!.name !== wanted.frame)
+          ) {
+            throw new Error("Approval frame does not match the configured case on this page");
+          }
+          approvalPageId = wanted.pageId.toLowerCase();
+          approvalPage = undefined;
         }
         if (wanted.frameId) {
           if (wanted.frameId.toLowerCase() !== values.frame.toLowerCase()) {
             throw new Error("Approval frame ID does not match the configured case");
           }
-        } else {
+        } else if (!wanted.pageId) {
           const found = await findShapesByName(client, wanted.frame!, values.page);
           if (found.matches.length !== 1 || found.matches[0]!.id !== values.frame) {
             throw new Error("Approval frame ID does not match the configured case");
@@ -2027,9 +2084,13 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       }
       const captured = await exportShapePng(client, values.frame, {
         ...options,
-        page: values.page,
+        ...capturePolicyOption(values["capture-policy"]),
+        page: approvalPage,
         stable: true,
       });
+      if (approvalPageId && captured.capture.pageId !== approvalPageId) {
+        throw new Error("Approval capture changed the configured page identity");
+      }
       if (!captured.stable) {
         throw new Error("Approval export did not stabilize");
       }
@@ -2292,6 +2353,8 @@ async function adapterContext(root: string, args: string[]): Promise<AdapterCont
   const rawConfig = await readRawConfig(root);
   let redact = (text: string) => redactEndpoint(text);
   const context: AdapterContext = {
+    signal: commandSignal(),
+    progress: commandProgress,
     redact: (text) => redact(text),
     root,
     config,

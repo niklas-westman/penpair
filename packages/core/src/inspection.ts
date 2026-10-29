@@ -225,7 +225,22 @@ if (CFG.kind === "shape") {
         }
       }
       if (CFG.fields.includes("metadata")) {
-        row.metadata = {interactions:read(s,"interactions",unknowns)};
+        let observedInteractions=null;
+        try {
+          const interactions=s.interactions;
+          if(!Array.isArray(interactions))throw new Error("Interaction list unavailable");
+          observedInteractions=interactions.map(interaction=>{
+            const action=interaction.action;
+            if(!action || typeof action!=="object")throw new Error("Interaction action unavailable");
+            const destination=action.destination;
+            if(destination!==null && destination!==undefined && typeof destination==="object"){
+              if(typeof destination.id!=="string" || !destination.id)throw new Error("Interaction destination identity unavailable");
+              return clone({...interaction,action:{...action,destination:{id:destination.id}}},unknowns,"metadata.interactions");
+            }
+            return clone(interaction,unknowns,"metadata.interactions");
+          });
+        }catch{unknowns.push("metadata.interactions");}
+        row.metadata = {interactions:observedInteractions};
         try { if (typeof s.getSharedPluginData !== "function") throw new Error(); row.metadata.penpairSpec=s.getSharedPluginData("penpair","spec") || null; } catch { row.metadata.penpairSpec=null; unknowns.push("metadata.penpairSpec"); }
       }
       const size = utf8Bytes(JSON.stringify(row));

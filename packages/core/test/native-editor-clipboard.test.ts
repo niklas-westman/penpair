@@ -203,6 +203,52 @@ describe("native editor clipboard transport", () => {
     ).toBe(true);
     await expect(session.paste("source")).rejects.toThrow(/cannot be replayed/);
   });
+  it("uses query-screen workspace routing for both target metadata and focused page checks", async () => {
+    const setup = fixture();
+    const workspace = `${options.origin}/?screen=workspace&file-id=${options.fileId}&page-id=source`;
+    setup.options.fetch = vi.fn(async () =>
+      Response.json([
+        {
+          ...target,
+          url: workspace,
+        },
+      ]),
+    ) as unknown as typeof fetch;
+    setup.socket.state.href = workspace;
+    const session = await connected(setup);
+    await session.copy("source", [
+      frameId,
+    ]);
+    await session.paste("source");
+    expect(
+      setup.socket.commands.filter((command) => command.method === "Input.dispatchKeyEvent"),
+    ).toHaveLength(4);
+  });
+
+  it.each([
+    `/?screen=workspace&file-id=${options.fileId}`,
+    `/?screen=workspace&file-id=${options.fileId}&page-id=other`,
+    `/?screen=workspace&file-id=${options.fileId}&page-id=source&page-id=source`,
+    `/?screen=workspace&file-id=${options.fileId}&file-id=${options.fileId}&page-id=source`,
+    `/?screen=workspace&screen=workspace&file-id=${options.fileId}&page-id=source`,
+    `/?screen=workspace&file-id=${options.fileId}#/workspace?file-id=${options.fileId}&page-id=source`,
+  ])(
+    "rejects missing, wrong or ambiguous query-screen clipboard page %# before keys",
+    async (route) => {
+      const setup = fixture();
+      setup.socket.state.href = `${options.origin}${route}`;
+      const session = await connected(setup);
+      await expect(
+        session.copy("source", [
+          frameId,
+        ]),
+      ).rejects.toThrow(/pinned editor canvas/);
+      expect(
+        setup.socket.commands.some((command) => command.method === "Input.dispatchKeyEvent"),
+      ).toBe(false);
+    },
+  );
+
   it("uses Control shortcuts on other platforms", async () => {
     const setup = fixture();
     setup.socket.state.platform = "Linux x86_64";

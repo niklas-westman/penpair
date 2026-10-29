@@ -44,6 +44,9 @@ export const commandOptions = {
   "migrate-format": {
     type: "boolean",
   },
+  "capture-policy": {
+    type: "string",
+  },
   "force-reason": {
     type: "string",
   },
@@ -303,6 +306,7 @@ export function allowedCommandFlags(command: string, rest: string[] = []): strin
       "case",
       "write",
       "format",
+      "capture-policy",
     ],
     spec: [
       "from",
@@ -426,6 +430,7 @@ export function allowedCommandFlags(command: string, rest: string[] = []): strin
       "force-reason",
       "format",
       "migrate-format",
+      "capture-policy",
     ],
     probe: [
       "deep",

@@ -3,6 +3,7 @@ import { waitForStableLayout, type LayoutResult } from "./layout.js";
 import { capturePhase } from "./capture-progress.js";
 import { PenpairError } from "./errors.js";
 import { commandSleep } from "./command-result.js";
+import { applyCapturePolicy, type CapturePolicyName } from "./capture-policy.js";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import type { PenpotToolClient } from "./client.js";
@@ -18,6 +19,8 @@ export interface ExportOptions extends OperationOptions {
   /** Exports until two in a row are identical, because the first export after a write or a page switch can be a stale render. */
   stable?: boolean;
   maxExports?: number;
+  /** Opt-in capture profile; stamped on each capture when its evidence is present. */
+  capturePolicy?: CapturePolicyName;
 }
 
 export interface CaptureIdentity {
@@ -34,6 +37,8 @@ export interface CaptureIdentity {
   penpotApiVersion: string | null;
   renderEnvironment: string | null;
   activeThemes: string[];
+  /** Present only for an opt-in profile; it becomes part of the approval fingerprint. */
+  capturePolicy?: CapturePolicyName;
 }
 export interface ExportResult {
   layout?: LayoutResult;
@@ -163,7 +168,7 @@ async function exportInSession(
         }
         return {
           png,
-          capture,
+          capture: applyCapturePolicy(capture, options.capturePolicy),
         };
       } catch (error) {
         if (attempt >= attempts) {

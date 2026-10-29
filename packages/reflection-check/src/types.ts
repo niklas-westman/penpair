@@ -17,6 +17,11 @@ export interface ImplementationCase {
     path: string;
     sha256: string;
     scale: number;
+    source?: {
+      fileId: string;
+      pageId: string;
+      frameId: string;
+    };
   };
   threshold: number;
 }
@@ -89,6 +94,11 @@ export interface ProviderEvidence {
   capture?: BrowserCaptureMetadata;
   /** Independently captured static lossless WebP (preferred) or legacy PNG evidence. */
   screenshot: string;
+  /** Immutable capture/reference/diff inventory, independently verified by consumers. */
+  artifactManifest?: {
+    path: string;
+    sha256: string;
+  };
   diffPixelRatio: number;
   provider: {
     name: string;
@@ -104,6 +114,7 @@ export interface ImplementationCaseReport {
   id: string;
   complete: boolean;
   withinThreshold?: boolean;
+  threshold?: number;
   evidence?: ProviderEvidence;
   screenshotHash?: string;
   reason?: string;
@@ -118,4 +129,20 @@ export interface ImplementationReport {
   visualApproval: false;
   verdict: "owner-review-required";
   accessibility: "not-assessed";
+  /** Exact finalized design inventory; comparison does not confer owner acceptance. */
+  release?: {
+    designHash: string;
+    caseIds: string[];
+    caseThresholds?: Record<string, number>;
+    reference?: {
+      record: {
+        path: string;
+        sha256: string;
+      };
+      bundle: {
+        path: string;
+        sha256: string;
+      };
+    };
+  };
 }

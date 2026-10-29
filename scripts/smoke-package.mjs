@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { createReleaseSmokeInputs } from "./lib/release-smoke-inputs.mjs";
 
 const execFileAsync = promisify(execFile);
 const repo = fileURLToPath(new URL("../", import.meta.url));
@@ -235,8 +236,9 @@ check(
     "penpair-recipes",
     "penpair-handoff",
     "penpair-verify",
+    "penpair-design-release",
   ].every((name) => skills.includes(name)),
-  `the six skills ship (${skills.join(", ")})`,
+  `the consumer workflows ship (${skills.join(", ")})`,
 );
 const help = await penpair(web, "--help");
 check(
@@ -301,6 +303,123 @@ for (const [agent, instructions] of [
     `${agent} discovery and routing pass from installed tarballs`,
   );
 }
+for (const [agent, instructions] of [
+  [
+    "codex",
+    "AGENTS.md",
+  ],
+  [
+    "claude",
+    "CLAUDE.md",
+  ],
+]) {
+  const releaseSkill = JSON.parse(
+    await penpair(
+      web,
+      "skills",
+      "check",
+      "--only",
+      "penpair-design-release",
+      "--agent",
+      agent,
+      "--agents",
+      instructions,
+      "--json",
+    ),
+  );
+  check(
+    releaseSkill.data.ready && releaseSkill.data.skills[0].entrypoint === "current",
+    `${agent} discovers the current release skill and its conditional resources`,
+  );
+}
+for (const action of [
+  "status",
+  "adopt",
+]) {
+  const topic = JSON.parse(await penpair(web, "help", "design-release", action, "--json"));
+  check(
+    topic.exitCode === 0 && topic.data.topics.length === 1,
+    `installed help discovers design-release ${action}`,
+  );
+}
+const adoptionInput = await createReleaseSmokeInputs(web, async (relative) =>
+  (
+    await run(
+      "node",
+      [
+        "--input-type=module",
+        "-e",
+        'import { readFile } from "node:fs/promises"; import { hashMapContract } from "@penpair/core"; console.log(hashMapContract(JSON.parse(await readFile(process.argv[1], "utf8"))));',
+        relative,
+      ],
+      {
+        cwd: web,
+      },
+    )
+  ).trim(),
+);
+const adoptedRelease = JSON.parse(
+  await penpair(
+    web,
+    "design-release",
+    "adopt",
+    "--from",
+    adoptionInput.path,
+    "--out",
+    "release-evidence/release.json",
+    "--json",
+  ),
+);
+check(
+  adoptedRelease.exitCode === 0 &&
+    adoptedRelease.data.schemaVersion === 2 &&
+    adoptedRelease.data.status === "planned" &&
+    adoptedRelease.data.members.length === 1 &&
+    adoptedRelease.data.members[0].disposition === "adopted" &&
+    !adoptedRelease.data.members[0].approval &&
+    adoptedRelease.data.receipts.length === 0,
+  "installed adoption preserves existing sources without manufacturing copy receipts or approval",
+);
+let releaseStatusEnvelope;
+try {
+  await execFileAsync(
+    "npx",
+    [
+      "--no-install",
+      "penpair",
+      "design-release",
+      "status",
+      "--from",
+      "release-evidence/release.json",
+      "--json",
+    ],
+    {
+      cwd: web,
+    },
+  );
+  throw new Error("synthetic unapproved release status unexpectedly passed");
+} catch (statusError) {
+  check(
+    statusError.code === 3,
+    "installed status returns incomplete for an unverified adopted release",
+  );
+  releaseStatusEnvelope = JSON.parse(statusError.stdout);
+}
+check(
+  releaseStatusEnvelope.data.kind === "design-release-status" &&
+    releaseStatusEnvelope.data.recordedState === "planned" &&
+    releaseStatusEnvelope.data.step === "review" &&
+    releaseStatusEnvelope.data.inventory.adopted === 1 &&
+    !releaseStatusEnvelope.data.nextActions.some((action) => action.id === "assemble") &&
+    releaseStatusEnvelope.data.design.ready === false &&
+    releaseStatusEnvelope.data.freshness.scope === "saved-evidence" &&
+    releaseStatusEnvelope.data.freshness.verified === false &&
+    releaseStatusEnvelope.data.blockers.length > 0 &&
+    releaseStatusEnvelope.data.nextActions.some(
+      (action) => action.id === "supply-member-evidence" && action.kind === "input-required",
+    ),
+  "installed status reports the real step, blockers and offline freshness without Penpot access",
+);
 check(
   (await realpath(join(web, ".agents/skills/penpair-setup"))) ===
     (await realpath(join(web, ".claude/skills/penpair-setup"))),

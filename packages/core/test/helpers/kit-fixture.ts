@@ -1,3 +1,4 @@
+import { layoutFlex, type FlexNode } from "./flex-layout.js";
 export function kitFixture() {
   let next = 0;
   const events: string[] = [];
@@ -219,9 +220,17 @@ export function kitFixture() {
     fonts: {
       findByName: (name: string) => (name === "Test Sans" ? font : undefined),
     },
-    waitForLayoutUpdate: async () => {
+    async waitForLayoutUpdate(this: {
+      currentPage: {
+        root: unknown;
+      };
+    }) {
       events.push("layout");
+      layoutFlex(this.currentPage.root as FlexNode);
     },
+    uploadMediaData: async (name: string) => ({
+      id: `media-${name}`,
+    }),
     createBoard: () => create("board"),
     createRectangle: () => create("rect"),
     createEllipse: () => create("ellipse"),

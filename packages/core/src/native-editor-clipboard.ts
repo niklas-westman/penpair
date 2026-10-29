@@ -1,3 +1,4 @@
+import { parsePenpotWorkspaceUrl } from "./penpot-workspace-url.js";
 import { randomUUID } from "node:crypto";
 import { open, readFile, unlink } from "node:fs/promises";
 import os from "node:os";
@@ -68,22 +69,13 @@ function targetMatches(
         local(url) &&
         local(expected) &&
         url.port === expected.port);
-    const route = url.hash.slice(1);
-    const query = route.indexOf("?");
-    const parameters =
-      query >= 0 && route.slice(0, query) === "/workspace"
-        ? new URLSearchParams(route.slice(query + 1))
-        : url.pathname === "/workspace" && !url.hash
-          ? url.searchParams
-          : undefined;
+    const workspace = parsePenpotWorkspaceUrl(url);
     return (
       sameOrigin &&
       !url.username &&
       !url.password &&
-      parameters?.getAll("file-id").length === 1 &&
-      parameters.get("file-id") === options.fileId &&
-      (expectedPageId === undefined ||
-        (parameters.getAll("page-id").length === 1 && parameters.get("page-id") === expectedPageId))
+      workspace?.fileId === options.fileId &&
+      (expectedPageId === undefined || workspace.pageId === expectedPageId)
     );
   } catch {
     return false;

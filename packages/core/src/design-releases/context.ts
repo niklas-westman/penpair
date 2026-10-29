@@ -1,12 +1,18 @@
+import { releaseStatus } from "./status.js";
 import { releaseContractContexts } from "./store.js";
 import { observationHash } from "../journal.js";
 import type { MapContext } from "../maps/types.js";
-import { readArtifact } from "./artifact-paths.js";
+import { readArtifact, hashBytes } from "./artifact-paths.js";
+import { readProjectBytes } from "../bounded-file.js";
 import { checkRelease, readReleaseBundle } from "./check.js";
 import { hashDesignRelease, validateDesignRelease } from "./validation.js";
-import type { DesignRelease, ReleaseArtifactRef, ReleaseContext } from "./types.js";
+import type { DesignRelease, ReleaseArtifactRef, ReleaseContext, ReleaseOptions } from "./types.js";
 
-export async function releaseContext(root: string, raw: DesignRelease): Promise<ReleaseContext> {
+export async function releaseContext(
+  root: string,
+  raw: DesignRelease,
+  options: ReleaseOptions = {},
+): Promise<ReleaseContext> {
   const release = validateDesignRelease(raw);
   const checked = await checkRelease(undefined, root, release);
   const bundle =
@@ -39,13 +45,8 @@ export async function releaseContext(root: string, raw: DesignRelease): Promise<
       }
     }
   }
-  if (release.implementation.status !== "verified") {
-    nextActions.push(
-      `Implementation verification is ${release.implementation.status}; implement the approved requirements and collect independent implementation evidence.`,
-    );
-  }
   const context: ReleaseContext = {
-    schemaVersion: 1,
+    schemaVersion: release.schemaVersion,
     kind: "release-context",
     id: release.id,
     productVersion: release.productVersion,
@@ -74,25 +75,112 @@ export async function releaseContext(root: string, raw: DesignRelease): Promise<
       contractHash: map.contractHash,
     })),
     nextActions,
-    screens: release.sources.map((source) => ({
+    screens: (release.schemaVersion === 2
+      ? (release.members ?? []).map((member) => member.source)
+      : release.sources
+    ).map((source) => ({
       id: source.id,
       label: source.label,
       sourceFrameId: source.frameId,
       targetFrameId:
-        release.receipts.find((receipt) => receipt.sourceId === source.id)?.targetFrameId ?? null,
+        release.receipts.find((receipt) => receipt.sourceId === source.id)?.targetFrameId ??
+        (release.members?.find((member) => member.id === source.id)?.disposition !== "changed" &&
+        release.schemaVersion === 2
+          ? source.frameId
+          : null),
+      ...(release.schemaVersion === 2
+        ? {
+            effectivePageId:
+              release.receipts.find((receipt) => receipt.sourceId === source.id)?.targetPageId ??
+              source.pageId,
+            effectiveFrameId:
+              release.receipts.find((receipt) => receipt.sourceId === source.id)?.targetFrameId ??
+              source.frameId,
+            disposition: release.members?.find((member) => member.id === source.id)?.disposition,
+          }
+        : {}),
     })),
     contracts: release.contracts,
     proposedBaselines: {
       page: release.target.name,
       root: `design/releases/${release.productVersion}/baselines`,
       format: "webp",
-      frames: release.receipts.map((receipt) => ({
-        id: `screen-${observationHash(receipt.sourceId).slice(0, 24)}`,
-        frameId: receipt.targetFrameId,
-      })),
+      frames:
+        release.schemaVersion === 2
+          ? (release.members ?? []).map((member) => {
+              const receipt = release.receipts.find(
+                (candidate) => candidate.sourceId === member.id,
+              );
+              return {
+                id: member.id,
+                frameId: receipt?.targetFrameId ?? member.source.frameId,
+                pageId: receipt?.targetPageId ?? member.source.pageId,
+                threshold: member.comparisonThreshold ?? 0.05,
+                ...(member.route
+                  ? {
+                      route: member.route,
+                    }
+                  : {}),
+                ...(member.case
+                  ? {
+                      case: member.case,
+                    }
+                  : {}),
+              };
+            })
+          : release.receipts.map((receipt) => ({
+              id: `screen-${observationHash(receipt.sourceId).slice(0, 24)}`,
+              frameId: receipt.targetFrameId,
+            })),
     },
     truncated: mapContexts.some((map) => map.truncated),
   };
+  if (release.status === "final" && checked.valid && options.pointerPath) {
+    const bytes = await readProjectBytes(root, options.pointerPath, 16 * 1024 * 1024);
+    const recorded = validateDesignRelease(JSON.parse(bytes.toString("utf8")));
+    if (observationHash(recorded) !== observationHash(release)) {
+      throw new Error("Release context record path differs from the verified finalized release");
+    }
+    context.releaseReference = {
+      record: {
+        path: options.pointerPath,
+        sha256: hashBytes(bytes),
+      },
+      bundle: release.finalized!.bundle,
+    };
+  }
+  context.caseIds =
+    release.schemaVersion === 2
+      ? (release.members ?? []).filter((member) => member.route).map((member) => member.id)
+      : [];
+  context.caseThresholds = Object.fromEntries(
+    (release.members ?? [])
+      .filter((member) => member.route)
+      .map((member) => [
+        member.id,
+        member.comparisonThreshold ?? 0.05,
+      ]),
+  );
+  context.workflow = await releaseStatus(root, release, {
+    ...options,
+    checked,
+  });
+  context.implementationAssessment = context.workflow.implementation;
+  const assessment = context.implementationAssessment;
+  if (assessment.comparison === "passed") {
+    context.nextActions.push(
+      "Current implementation comparison passed; independent owner acceptance remains unrecorded. Frozen implementation status records the design-release handoff only.",
+    );
+  } else if (assessment.comparison === "drift") {
+    context.nextActions.push(
+      "Current implementation comparison has measured drift; fix and recheck the application without rewriting the approved design.",
+    );
+  } else {
+    context.nextActions.push(
+      `Current implementation comparison is ${assessment.comparison}; collect complete evidence for the frozen inventory. Frozen implementation status is historical.`,
+    );
+    context.nextActions.push(...assessment.reasons);
+  }
   const collections = [
     "screens",
     "contracts",

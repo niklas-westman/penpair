@@ -14,6 +14,8 @@ export const flagGuidance: Record<string, string> = {
   scale: "PNG render scale, greater than 0 and at most 8; default 1.",
   format:
     "Baseline png|webp; new references default to lossless WebP, existing formats stay until explicit migration.",
+  "capture-policy":
+    "Opt-in capture profile penpot-native-export-v1 for Penpot sandboxes that hide the browser. It binds into new approvals, leaves browser identity unknown, and never promotes older approvals; omit for the strict default.",
   "migrate-format":
     "Baseline format migration requires --apply --update; inspect the proposal first.",
   apply:

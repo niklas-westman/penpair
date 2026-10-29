@@ -18,9 +18,9 @@ export const commandData = [
   {
     command: "design-release",
     group: "Design agreements and release pages",
-    summary: "design-release plan|assemble|verify|finalize|check|context --from FILE",
+    summary: "design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
     usages: [
-      "penpair design-release plan|assemble|verify|finalize|check|context --from FILE",
+      "penpair design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
       "penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply]",
     ],
   },
