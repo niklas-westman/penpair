@@ -27,7 +27,7 @@ owner approval.
 Penpot supplies design evidence; the project's component library and declared tokens supply its vocabulary. Work within the owner's authorized scope and keep personal MCP keys in the private connection flow.
 
 
-Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
+Build every board as auto layout; read [auto-layout.md](references/auto-layout.md) before the first script. Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
 
 For an approved-reference variant, retain the actual source image and inspection,
 preserved regions and declared deviations. Use the project-owned comparative
@@ -41,7 +41,7 @@ pending even when token and overflow audits pass.
 4. **Verify.** Settle layout, export until stable and inspect the image twice. Export by exact ID or `--name` plus page; ambiguous names refuse. Use `shots` for ad-hoc top-level captures. Done when mechanical verification and visual findings are reported separately.
 5. **Review.** Present exact artifacts and unresolved choices; retain approval only from the owner's explicit words. Done when **Changed**, **Validated**, **Risks** include every material unverified claim.
 
-For page construction, use `penpair-recipes` when installed. For implementation evidence/approvals, use `penpair-handoff`. For library structure, read [library-in-penpot.md](references/library-in-penpot.md); for layout choices, read [auto-layout.md](references/auto-layout.md). Read conditional references only for the selected work.
+For page construction, use `penpair-recipes` when installed. For implementation evidence/approvals, use `penpair-handoff`. For library structure, read [library-in-penpot.md](references/library-in-penpot.md). Read conditional references only for the selected work.
 
 When the task reaches a running frontend, use `penpair-verify` when installed for
 real browser comparison and the inspect/fix/recapture loop. A design export does

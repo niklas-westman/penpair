@@ -2,7 +2,18 @@
 
 ## The rule
 
-A frame is one flat stack. The gap token between children carries all spacing; children carry no padding of their own and no wrapper board exists only to hold spacing. In code this is the library's stack primitive with a gap token; in Penpot it is a board with flex layout. A person's own wording of the rule is usually "auto-layout with the same gap between each element, not spacing layered in a folder structure".
+Auto layout is the default for everything built in Penpot: every group of content is a flex board that sizes to its content (`auto` hugs, `fill` stretches), so it grows when text grows.
+
+A frame is one flat stack. The gap token between siblings carries all spacing, and no wrapper board exists only to hold spacing. A board that draws a surface (a card, chip, pill or panel) carries its own padding as the inset of that surface. In code this is the library's stack primitive with a gap token; in Penpot it is a board with flex layout. A person's own wording of the rule is usually "auto-layout with the same gap between each element, not spacing layered in a folder structure".
+
+## Generated output
+
+Code that creates Penpot shapes (renderers, release pages, map cards, plugin snippets) follows the same rule as a built screen: a text column, a row of tags, a card or a notes section is a flex board, and its size comes from its content, never from an estimate.
+
+- Position absolutely only what flex cannot hold: connectors between nodes, and art that bleeds off an edge. Add a comment saying why.
+- Read measured sizes after layout settles (`waitForLayoutUpdate`), and place whatever follows from those, so later content follows the real height.
+- Stress the result: export with a deliberately long title and long text, and look at the image twice. A wrapped title that lands on the next element means a fixed position slipped in.
+- API traps are in [penpot-plugin-gotchas.md](penpot-plugin-gotchas.md#layout).
 
 ## Mapping
 

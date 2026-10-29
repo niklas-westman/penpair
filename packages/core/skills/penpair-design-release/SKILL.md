@@ -51,6 +51,9 @@ have matching versions. Do not fetch a global replacement or invent flags.
 
 ## Operating rules
 
+- Penpot content the release writes (cover, overview, maps) is auto layout that
+  sizes to its content; see the `penpair-design` auto-layout reference. Export
+  with a long title and long text, and look at the image before reporting.
 - A release page contains changed frames and an overview linking to retained
   frames on earlier pages. The complete frozen inventory, not just the new page,
   defines coverage. Stay inside the pinned Penpot file; never use name matching

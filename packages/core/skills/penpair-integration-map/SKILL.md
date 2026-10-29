@@ -45,7 +45,7 @@ source/component evidence and `penpair-verify` for a running frontend.
    keyboard/focus and accessibility work as applicable.
 4. **Check and render.** Use installed command help for `integration-map` actions.
    Check source/review freshness, render and inspect the resulting map. For
-   native publication use `penpair-diagrams`, compile snippets and retain pinned
+   native publication use `penpair-diagrams` (auto layout by default), compile snippets and retain pinned
    inspection, one idempotent write, independent readback and stable visual
    exports. Keep each snippet below 90 KB and do not retry uncertain writes.
 5. **Approve deliberately.** Import native managed changes as a base-hash-bound

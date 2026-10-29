@@ -21,6 +21,8 @@ Each one cost real time. They are written as the behaviour to use. Penpot 2.18.3
 - A **text box height does not recompute** when characters change; set it with `resize(width, height)` per line count. After swapping text, widths can stay stale; set an explicit width.
 - `clipContent = true` on a wrapper board cuts off shadows of children that touch its edge. Set it to `false` on wrappers around cards.
 - Image fills stretch by default; set `keepAspectRatio: true` on the fill.
+- **`resize()` switches a board to fixed sizing.** After resizing, set `flex.verticalSizing` and `flex.horizontalSizing` back to `"auto"` on every axis that should hug; otherwise the board keeps its resized height and its content overflows it.
+- **A board child set to `layoutChild.horizontalSizing = "fill"` reports `fill` for its own sizing**, and Penpair's fidelity check accepts only `auto` or `fix` for boards. Give a wrapping row of tags a fixed width with `resize` and `flex.verticalSizing = "auto"`; use `fill` on text and other non-board children.
 - Layout settles slowly (seconds, sometimes 30). Use bounded layout observations before independent readback and stable exports; elapsed time alone proves nothing.
 
 ## Tokens

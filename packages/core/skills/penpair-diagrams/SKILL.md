@@ -13,7 +13,9 @@ Penpot objects are derived views tied to its exact hash. Never replace canonical
 intent with text inferred from arbitrary artwork.
 
 1. **Readiness.** Validate the contract, source hashes and exact pinned file/page.
-   Check the live capabilities and selected font before writing. Use neutral,
+   Check the live capabilities and selected font before writing. Build native diagrams from
+   auto-layout boards (cards, status pills, notes) that grow with their text; see
+   the `penpair-design` auto-layout reference. Use neutral,
    self-contained presentation with clear hierarchy, short readable titles,
    one-line summaries, semantic icons and a legend. Keep
    long explanations in managed notes; preserve all evidence and unknowns in

@@ -29,6 +29,17 @@ implementation acceptance. Preserve owner approval and Penpot write boundaries.
 Publishing Penpair's npm packages follows [the package release guide](docs/releasing.md)
 instead; the product design-release skill does not authorize publication.
 
+## Penpot layout
+
+Everything Penpair builds or generates in Penpot is auto layout: flex boards that
+size to their content, `auto` to hug and `fill` to stretch, with one gap between
+siblings. This covers renderer and snippet code as well as built screens. Only
+connectors and art that bleeds off an edge are absolutely positioned, each with a
+comment saying why. Read
+[auto-layout](packages/core/skills/penpair-design/references/auto-layout.md)
+before writing code that creates Penpot shapes, and check the export with a
+deliberately long title.
+
 ## Code conventions
 
 Before creating or refactoring code, read [docs/conventions](docs/conventions/README.md)

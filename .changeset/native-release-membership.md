@@ -16,3 +16,5 @@ Add a native batch comparison bridge using public pinned-engine CLI/report APIs,
 Add the opt-in `penpot-native-export-v1` capture policy (`--capture-policy` on `approve` and `baselines`) for Penpot sandboxes that hide the browser. The strict default is unchanged; the profile binds into new approval fingerprints and never promotes earlier approvals. Release status now reports partial assemblies whose map journals are failed or absent.
 
 Multi-page capture changes generated snippets. Preserve existing journal compatibility checks: older runs may require inspection and a fresh reviewed plan rather than resume. No saved or offline check implies current live Penpot or application freshness.
+
+Make auto layout the stated default for everything built or generated in Penpot. The `penpair-design` auto-layout reference now opens with the rule, covers generated output and points to two new Penpot API traps (`resize()` fixes sizing; `fill` on a board is rejected by fidelity). The release, diagram, journey-map and integration-map skills point to it.
