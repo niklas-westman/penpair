@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { capturePhase, type ProgressOptions } from "../capture-progress.js";
 import { lstat } from "node:fs/promises";
 import type { PenpotToolClient } from "../client.js";
 import { commandSignal, commandSleep } from "../command-result.js";
@@ -48,7 +49,7 @@ import {
 
 export type { CopyRequest } from "./copy-plan.js";
 
-export interface CopyOptions {
+export interface CopyOptions extends ProgressOptions {
   apply?: boolean;
   resume?: boolean;
   runId?: string;
@@ -145,7 +146,9 @@ export async function copyReleaseBoards(
         ),
         request,
       );
-    const current = await inspect();
+    const current = await capturePhase(options, "design-release copy", "selection", () =>
+      inspect(),
+    );
     if (!options.apply) {
       return {
         schemaVersion: 1,
@@ -164,6 +167,28 @@ export async function copyReleaseBoards(
     if (!/^[A-Za-z0-9-]{1,100}$/.test(runId)) {
       throw new Error("Invalid native copy run ID");
     }
+    const evidenceProgress = {
+      signal: options.signal,
+      onProgress: options.onProgress
+        ? (event: import("../capture-progress.js").CaptureProgress) =>
+            options.onProgress?.({
+              ...event,
+              runId,
+            })
+        : undefined,
+    };
+    options.onProgress?.({
+      schemaVersion: 1,
+      kind: "progress",
+      command: "design-release copy",
+      phase: "prepare",
+      status: "started",
+      elapsedMs: 0,
+      runId,
+      message: options.resume
+        ? "Reconciling the recorded transfer; paste is not replayed automatically"
+        : "Collecting source evidence before journaled writes; no paste has been dispatched",
+    });
     const assertNoConflictingRuns = async (): Promise<void> => {
       const records = await listJournals(root);
       for (const previous of records.filter(
@@ -227,6 +252,10 @@ export async function copyReleaseBoards(
         request.frameIds,
         `${prefix}/source`,
         options.redact,
+        {
+          ...evidenceProgress,
+          phase: "prepare",
+        },
       );
       payload = {
         kind: "native-release-copy-plan",
@@ -369,6 +398,10 @@ export async function copyReleaseBoards(
           ids,
           `${prefix}/pasted-${randomUUID()}`,
           options.redact,
+          {
+            ...evidenceProgress,
+            phase: "verify",
+          },
         );
         pairs = matchCopiedFrames(payload.sources, targets);
         await saveArtifact(
@@ -612,6 +645,10 @@ export async function copyReleaseBoards(
               pairs.map((pair) => pair.targetFrameId),
               `${prefix}/target-${randomUUID()}`,
               options.redact,
+              {
+                ...evidenceProgress,
+                phase: "verify",
+              },
             );
             const verifiedPairs = matchCopiedFrames(payload.sources, targets);
             if (observationHash(verifiedPairs) !== observationHash(pairs)) {
@@ -626,6 +663,10 @@ export async function copyReleaseBoards(
               request.frameIds,
               `${prefix}/source-readback-${randomUUID()}`,
               options.redact,
+              {
+                ...evidenceProgress,
+                phase: "verify",
+              },
             );
             if (sourceEvidenceHash(originals) !== sourceEvidenceHash(payload.sources)) {
               throw new Error(

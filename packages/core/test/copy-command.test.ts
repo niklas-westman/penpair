@@ -121,6 +121,74 @@ it("preserves incomplete evidence as exit 3 rather than claiming verified releas
   expect(await runDesignReleaseCommand(args, context)).toBe(3);
 });
 
+it.each([
+  "human",
+  "json",
+  "off",
+])("streams copy progress in %s mode without turning it into warnings", async (mode) => {
+  const stderr = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  context.redact = (text) => text.replaceAll("PRIVATE", "[redacted]");
+  vi.mocked(copyReleaseBoards).mockImplementation(async (_client, _root, _request, options) => {
+    options?.onProgress?.({
+      schemaVersion: 1,
+      kind: "progress",
+      command: "design-release copy",
+      phase: "prepare",
+      status: "waiting",
+      frame: "Board\nPRIVATE",
+      index: 1,
+      total: 2,
+      elapsedMs: 5000,
+      runId: "copy-run",
+    });
+    options?.onStep?.("journal PRIVATE step");
+    return result("preview");
+  });
+  expect(
+    await runDesignReleaseCommand(
+      [
+        ...args,
+        "--progress",
+        mode,
+      ],
+      context,
+    ),
+  ).toBe(0);
+  expect(context.output.error).not.toHaveBeenCalled();
+  expect(context.output.log).toHaveBeenCalledOnce();
+  if (mode === "off") {
+    expect(stderr).not.toHaveBeenCalled();
+  } else {
+    expect(stderr).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(stderr.mock.calls)).not.toContain("PRIVATE");
+    if (mode === "json") {
+      expect(JSON.parse(String(stderr.mock.calls[0]?.[0]))).toMatchObject({
+        runId: "copy-run",
+        frame: "Board\n[redacted]",
+        index: 1,
+        total: 2,
+      });
+      expect(JSON.parse(String(stderr.mock.calls[1]?.[0])).phase).toBe("journal");
+    } else {
+      expect(String(stderr.mock.calls[0]?.[0])).toContain('"Board\\n[redacted]"');
+    }
+  }
+});
+
+it("rejects invalid progress modes before acquiring any connection", async () => {
+  await expect(
+    runDesignReleaseCommand(
+      [
+        ...args,
+        "--progress",
+        "tail",
+      ],
+      context,
+    ),
+  ).rejects.toThrow("--progress");
+  expect(context.withPenpot).not.toHaveBeenCalled();
+});
+
 it("explains the copy command without requiring a release JSON file or connection", async () => {
   expect(
     await runDesignReleaseCommand(

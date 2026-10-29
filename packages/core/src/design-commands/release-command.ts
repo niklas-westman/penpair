@@ -1,3 +1,4 @@
+import { releaseOptions, releaseActions } from "./options.js";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { parseCommandArgs, CommandArgumentError } from "../cli-arguments.js";
@@ -86,66 +87,11 @@ export async function runDesignReleaseCommand(
   const parsed = parseCommandArgs({
     args,
     allowPositionals: true,
-    options: {
-      from: {
-        type: "string",
-      },
-      out: {
-        type: "string",
-      },
-      receipts: {
-        type: "string",
-      },
-      apply: {
-        type: "boolean",
-      },
-      live: {
-        type: "boolean",
-      },
-      draft: {
-        type: "boolean",
-      },
-      resume: {
-        type: "string",
-      },
-      by: {
-        type: "string",
-      },
-      note: {
-        type: "string",
-      },
-      json: {
-        type: "boolean",
-      },
-      help: {
-        type: "boolean",
-      },
-    },
+    options: releaseOptions,
   });
   const { values, positionals } = parsed;
   const [action] = positionals;
-  const allowed: Record<string, string[]> = {
-    plan: [],
-    assemble: [
-      "apply",
-      "resume",
-    ],
-    verify: [
-      "receipts",
-    ],
-    finalize: [
-      "apply",
-      "resume",
-      "by",
-      "note",
-    ],
-    check: [
-      "live",
-    ],
-    context: [
-      "draft",
-    ],
-  };
+  const allowed = releaseActions;
   if (values.help) {
     context.output.log(releaseUsage);
     return 0;

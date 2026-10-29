@@ -276,7 +276,7 @@ export interface BrowserReloadResult {
   reloaded: true;
   targetId: string;
 }
-/** Reloads the one tab on the pinned file's workspace through the browser's debugging socket. It evaluates no page code and replays no write. */
+/** Reloads the pinned workspace; callers must first verify saving finished. This does not detect unsaved changes, evaluate page code or replay writes. */
 export async function reloadBrowserTarget(
   options: BrowserTargetOptions,
 ): Promise<BrowserReloadResult> {

@@ -5,6 +5,28 @@ description: Create, review or update a Penpair user journey map. Use when a fea
 
 # Journey map
 
+Read the installed CLI's matching help before unfamiliar work. When supported,
+use `penpair help journey-map`, `penpair help export batch` and
+`penpair help workflows.capture-evidence`; fall back to actual command help on
+older versions without inventing flags or fetching a global replacement.
+
+Source evidence may be lossless WebP: retain its actual path and hash its exact
+stored bytes. PNG-to-WebP conversion changes byte identity and must update the
+source reference and pass the normal review process; equal pixels do not preserve
+an old approval. Keep cached ad-hoc review exports distinct from fresh evidence.
+
+Use cheap bounded probes for names, frame counts, missing states, geometry and
+duplicate IDs before exporting. Start with one representative frame and visually
+critique it. Prefer frame exports and a reviewed contact sheet over a giant section
+render. For a final review family use `export --frames ID=NAME,... --page PAGE`;
+add `--cache` only when reuse is acceptable. Keep stderr visible in the foreground,
+or use `tee` with `pipefail`; never `tail -N` or buffered child stderr.
+
+Re-running `import --out FILE` can reuse byte-identical proposal files. A changed
+proposal needs a new output path; preserve earlier evidence. Do not delete a lock
+or projection blindly to work around an error. Before `wake --reload`, verify that
+the editor finished saving; an observed revision is not a durable-save receipt.
+
 Read [the detailed workflow](references/workflow.md) for coverage, review and
 recovery boundaries.
 

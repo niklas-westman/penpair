@@ -604,6 +604,7 @@ it("keeps publication preview read-only and persists actual PNG evidence only af
 
 it("imports observed native edits as a proposal without replacing the canonical map", async () => {
   const f = await fixture();
+  await writeFile(path.join(f.root, ".proposal.json.tmp"), "left by an interrupted older tool");
   const saved = projection(f.map);
   const shapes = saved.shapes.map((shape) =>
     shape.role === "label"
@@ -638,6 +639,33 @@ it("imports observed native edits as a proposal without replacing the canonical 
     ]),
   ).toBe(0);
   const proposal = JSON.parse(await readFile(path.join(f.root, "proposal.json"), "utf8"));
+  const originalBytes = await readFile(path.join(f.root, "proposal.json"));
+  expect(
+    await f.run([
+      "import",
+      "--board-id",
+      "board",
+      "--out",
+      "proposal.json",
+    ]),
+  ).toBe(0);
+  expect(await readFile(path.join(f.root, "proposal.json"))).toEqual(originalBytes);
+  await writeFile(path.join(f.root, "proposal.json.lock"), "held by another writer");
+  await expect(
+    f.run([
+      "import",
+      "--board-id",
+      "board",
+      "--out",
+      "proposal.json",
+    ]),
+  ).rejects.toMatchObject({
+    code: "EEXIST",
+  });
+  await rm(path.join(f.root, "proposal.json.lock"));
+  expect(await readFile(path.join(f.root, ".proposal.json.tmp"), "utf8")).toBe(
+    "left by an interrupted older tool",
+  );
   expect(proposal).toMatchObject({
     kind: "map-proposal",
     baseHash: hashMapContract(f.map),
@@ -651,6 +679,28 @@ it("imports observed native edits as a proposal without replacing the canonical 
     },
   });
   expect(JSON.parse(await readFile(path.join(f.root, "map.json"), "utf8"))).toEqual(f.map);
+  await writeFile(path.join(f.root, "proposal.json"), "different existing evidence");
+  await expect(
+    f.run([
+      "import",
+      "--board-id",
+      "board",
+      "--out",
+      "proposal.json",
+    ]),
+  ).rejects.toThrow();
+  expect(await readFile(path.join(f.root, "proposal.json"), "utf8")).toBe(
+    "different existing evidence",
+  );
+  expect(
+    await f.run([
+      "import",
+      "--board-id",
+      "board",
+      "--out",
+      "proposal-2.json",
+    ]),
+  ).toBe(0);
   await expect(
     f.run([
       "import",

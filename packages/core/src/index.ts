@@ -142,3 +142,5 @@ export * from "./image-codec.js";
 export * from "./maps/index.js";
 export * from "./map-penpot/index.js";
 export * from "./design-releases/index.js";
+
+export type { CaptureProgress, CapturePhase } from "./capture-progress.js";

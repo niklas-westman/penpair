@@ -29,7 +29,8 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "help.json"
   ],
   "keywords": [
     "penpot",
@@ -52,5 +53,8 @@
   "dependencies": {
     "@penpair/core": "workspace:*",
     "jiti": "^2.4.2"
+  },
+  "penpair": {
+    "help": "./help.json"
   }
 }

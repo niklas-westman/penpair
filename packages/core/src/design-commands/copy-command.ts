@@ -1,11 +1,13 @@
+import { copyOptions } from "./options.js";
 import { CommandArgumentError, parseCommandArgs } from "../cli-arguments.js";
 import { commandSignal } from "../command-result.js";
+import { progressReporter } from "../capture-progress.js";
 import { copyReleaseBoards } from "../design-releases/copy.js";
 import { connectNativeClipboard } from "../native-editor-clipboard.js";
 import type { DesignCommandContext } from "./context.js";
 
 const copyUsage =
-  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply] [--resume RUN_ID]";
+  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply] [--resume RUN_ID] [--progress human|json|off]";
 
 function boundedText(value: string | undefined): value is string {
   return (
@@ -24,33 +26,7 @@ export async function runDesignReleaseCopyCommand(
   const { values, positionals } = parseCommandArgs({
     args,
     allowPositionals: true,
-    options: {
-      "source-page": {
-        type: "string",
-      },
-      frame: {
-        type: "string",
-        multiple: true,
-      },
-      release: {
-        type: "string",
-      },
-      "debug-port": {
-        type: "string",
-      },
-      apply: {
-        type: "boolean",
-      },
-      resume: {
-        type: "string",
-      },
-      json: {
-        type: "boolean",
-      },
-      help: {
-        type: "boolean",
-      },
-    },
+    options: copyOptions,
   });
   if (values.help) {
     context.output.log(copyUsage);
@@ -91,6 +67,10 @@ export async function runDesignReleaseCopyCommand(
     throw new CommandArgumentError("Native copy requires the project's owner-confirmed file pin");
   }
 
+  const progress = progressReporter(values.progress, "design-release copy", (text) =>
+    context.redact(text),
+  );
+  const started = Date.now();
   const result = await context.withPenpot((client) =>
     copyReleaseBoards(
       client,
@@ -106,7 +86,18 @@ export async function runDesignReleaseCopyCommand(
         resume: !!values.resume,
         runId: values.resume,
         redact: (text) => context.redact(text),
-        onStep: (message) => context.output.error(`… ${message}`),
+        signal: commandSignal(),
+        onProgress: progress,
+        onStep: (message) =>
+          progress({
+            schemaVersion: 1,
+            kind: "progress",
+            command: "design-release copy",
+            phase: "journal",
+            status: "info",
+            elapsedMs: Date.now() - started,
+            message,
+          }),
         ...(values.apply
           ? {
               clipboard: () =>

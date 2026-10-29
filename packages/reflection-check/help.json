@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "topics": [
+    {
+      "id": "reflection",
+      "group": "Adapter",
+      "summary": "reflection: Explicit implementation cases and provider evidence",
+      "usages": [
+        "penpair reflection plan --map FILE",
+        "penpair reflection check --map FILE --provider FILE"
+      ],
+      "flags": [
+        {
+          "name": "map",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "workflows.iterative-build"
+      ]
+    },
+    {
+      "id": "reflection.plan",
+      "group": "Adapter",
+      "summary": "reflection plan: Explicit implementation cases and provider evidence",
+      "usages": [
+        "penpair reflection plan --map FILE"
+      ],
+      "flags": [
+        {
+          "name": "map",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "reflection"
+      ]
+    },
+    {
+      "id": "reflection.check",
+      "group": "Adapter",
+      "summary": "reflection check: Explicit implementation cases and provider evidence",
+      "usages": [
+        "penpair reflection check --map FILE --provider FILE"
+      ],
+      "flags": [
+        {
+          "name": "map",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "type": "boolean"
+        }
+      ],
+      "instructions": [
+        "Requires this adapter in the project configuration. Read the relevant package guide before applying writes. Inspection and captured files do not constitute owner approval."
+      ],
+      "related": [
+        "reflection"
+      ]
+    }
+  ]
+}

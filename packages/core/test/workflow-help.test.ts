@@ -19,11 +19,11 @@ it("discovers the complete workflow from installed help without loading adapters
   for (const command of [
     "penpair spec check --from",
     "penpair snapshot diff",
-    "penpair reflection check",
     "--layout auto|native|geometry",
     "--timeout-ms 5000",
   ]) {
     expect(help).toContain(command);
   }
+  expect(help).toContain("penpair help TOPIC");
   expect(help).not.toContain("--update also replaces images whose design changed (approving");
 });

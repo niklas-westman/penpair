@@ -1,3 +1,4 @@
+import { mapActions as actions, mapBooleanOptions as booleanOptions } from "./options.js";
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -46,57 +47,7 @@ import { resolveProjectOutput } from "../project-input.js";
 import { runSnippet, snippet } from "../snippet.js";
 import type { DesignCommandContext } from "./context.js";
 
-const actions = {
-  check: [
-    "live",
-    "projection",
-    "reviews",
-  ],
-  render: [
-    "out",
-  ],
-  publish: [
-    "page-id",
-    "board-id",
-    "projection",
-    "apply",
-    "resume",
-  ],
-  import: [
-    "page-id",
-    "board-id",
-    "projection",
-    "out",
-  ],
-  accept: [
-    "projection",
-    "proposal",
-    "write",
-  ],
-  approve: [
-    "projection",
-    "reviews",
-    "write",
-    "by",
-    "note",
-  ],
-  context: [
-    "reviews",
-    "out",
-    "draft",
-  ],
-} as const;
-
 type Action = keyof typeof actions;
-
-const booleanOptions = new Set([
-  "live",
-  "apply",
-  "write",
-  "draft",
-  "json",
-  "help",
-]);
 
 function sha256(bytes: string | Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -749,6 +700,7 @@ Native publication previews by default. Captured source paths establish offline 
           );
           await writeMapProposal(context.root, stringValue("out")!, proposal, {
             redact: context.redact,
+            allowIdentical: true,
           });
         }
         emit(proposal);

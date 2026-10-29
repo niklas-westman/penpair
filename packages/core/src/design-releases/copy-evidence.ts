@@ -6,6 +6,11 @@ import { saveArtifact } from "./artifact-paths.js";
 import { captureReleaseScreen } from "./live.js";
 import { compareNativeCopy, decodedPixels, deriveNodeMap } from "./fidelity.js";
 import type { ReleaseArtifactRef } from "./types.js";
+import { capturePhase, type ProgressOptions } from "../capture-progress.js";
+
+interface CopyEvidenceProgressOptions extends ProgressOptions {
+  phase?: "prepare" | "verify";
+}
 
 export interface CopyFrameEvidence {
   frameId: string;
@@ -46,6 +51,7 @@ export async function captureCopyEvidence(
   frameIds: string[],
   prefix: string,
   redact?: (text: string) => string,
+  options: CopyEvidenceProgressOptions = {},
 ): Promise<CopyFrameEvidence[]> {
   if (
     !frameIds.length ||
@@ -58,28 +64,62 @@ export async function captureCopyEvidence(
 
   const evidence: CopyFrameEvidence[] = [];
   for (const [index, frameId] of frameIds.entries()) {
-    const { inspection, image } = await captureFramePair(client, fileId, pageId, frameId);
-    const first = orderedNodes(inspection, frameId)[0]!.node;
-    if (typeof first.name !== "string") {
-      throw new Error("Copy frame name was not observed");
-    }
-    const pixels = await decodedPixels(image.png);
-    const stem = `${prefix}/frame-${index}`;
-    const inspectionRef = await saveArtifact(
-      root,
-      `${stem}.json`,
-      JSON.stringify(inspection),
-      redact,
-    );
-    const render = await saveArtifact(root, `${stem}.png`, image.png, redact);
-    evidence.push({
+    let frameName = frameId;
+    const progress = {
+      signal: options.signal,
+      onProgress: options.onProgress
+        ? (event: import("../capture-progress.js").CaptureProgress) => {
+            if (event.frame && event.frame !== frameId) {
+              frameName = event.frame;
+            }
+            options.onProgress?.({
+              ...event,
+              command: "design-release copy",
+              frame: frameName,
+              index: index + 1,
+              total: frameIds.length,
+            });
+          }
+        : undefined,
+    };
+    const captured = await capturePhase(
+      progress,
+      "design-release copy",
+      options.phase ?? "prepare",
+      async () => {
+        const { inspection, image } = await captureFramePair(
+          client,
+          fileId,
+          pageId,
+          frameId,
+          progress,
+        );
+        const first = orderedNodes(inspection, frameId)[0]!.node;
+        if (typeof first.name !== "string") {
+          throw new Error("Copy frame name was not observed");
+        }
+        const pixels = await decodedPixels(image.png);
+        const stem = `${prefix}/frame-${index}`;
+        const inspectionRef = await saveArtifact(
+          root,
+          `${stem}.json`,
+          JSON.stringify(inspection),
+          redact,
+        );
+        const render = await saveArtifact(root, `${stem}.png`, image.png, redact);
+        frameName = first.name;
+        return {
+          frameId,
+          name: first.name,
+          inspection,
+          inspectionRef,
+          render,
+          pixels,
+        };
+      },
       frameId,
-      name: first.name,
-      inspection,
-      inspectionRef,
-      render,
-      pixels,
-    });
+    );
+    evidence.push(captured);
   }
   return evidence;
 }
@@ -90,15 +130,37 @@ async function captureFramePair(
   fileId: string,
   pageId: string,
   frameId: string,
+  options: ProgressOptions,
 ): Promise<{
   inspection: InspectionCapture;
   image: ExportResult;
 }> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const inspection = await captureReleaseScreen(client, fileId, pageId, frameId);
-    orderedNodes(inspection, frameId);
+    const inspection = await capturePhase(
+      options,
+      "design-release copy",
+      "selection",
+      () => captureReleaseScreen(client, fileId, pageId, frameId),
+      frameId,
+    );
+    const frameName = orderedNodes(inspection, frameId)[0]?.node.name;
     const image = await exportShapePng(client, frameId, {
       stable: true,
+      ...(options.signal
+        ? {
+            signal: options.signal,
+          }
+        : {}),
+      ...(options.onProgress
+        ? {
+            onProgress: (event) =>
+              options.onProgress?.({
+                ...event,
+                command: "design-release copy",
+                frame: typeof frameName === "string" ? frameName : frameId,
+              }),
+          }
+        : {}),
     });
     if (
       !image.stable ||

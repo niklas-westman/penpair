@@ -1,5 +1,6 @@
 import { withPageSession } from "./page-session.js";
 import { waitForStableLayout, type LayoutResult } from "./layout.js";
+import { capturePhase } from "./capture-progress.js";
 import { PenpairError } from "./errors.js";
 import { commandSleep } from "./command-result.js";
 import { createHash } from "node:crypto";
@@ -111,7 +112,13 @@ async function exportInSession(
   }> => {
     for (let attempt = 1; ; attempt++) {
       try {
-        const record = await runOnPage(client, exportSnippet(shapeId, scale, page), page, options);
+        const record = await capturePhase(
+          options,
+          "export",
+          "render",
+          () => runOnPage(client, exportSnippet(shapeId, scale, page), page, options),
+          shapeId,
+        );
         const capture = record.capture as CaptureIdentity | undefined;
         if (
           !capture ||
@@ -169,11 +176,18 @@ async function exportInSession(
   let previous = await once();
   let layout: LayoutResult | undefined;
   if (options.layout !== false) {
-    layout = await waitForStableLayout(client, {
+    layout = await capturePhase(
+      options,
+      "export",
+      "layout",
+      () =>
+        waitForStableLayout(client, {
+          shapeId,
+          sleep,
+          ...options.layout,
+        }),
       shapeId,
-      sleep,
-      ...options.layout,
-    });
+    );
     if (!layout.stable) {
       throw new PenpairError(
         "incomplete-output",
@@ -191,7 +205,7 @@ async function exportInSession(
   }
   const hash = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
   for (let count = 2; count <= maxExports; count++) {
-    await sleep(2_000);
+    await capturePhase(options, "export", "stability", () => sleep(2_000), shapeId);
     const next = await once();
     const identity = ({ designSize: _size, ...value }: CaptureIdentity) => value;
     if (JSON.stringify(identity(next.capture)) !== JSON.stringify(identity(previous.capture))) {
