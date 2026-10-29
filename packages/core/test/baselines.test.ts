@@ -76,6 +76,8 @@ interface FakeShape {
 }
 interface Fake {
   roots?: FakeShape[];
+  onRootRead?(): void;
+  onLookup?(id: string): void;
   activeThemeIds?: string[];
   revision?: number;
   fileId?: string;
@@ -119,13 +121,32 @@ function penpot(fake: Fake): PenpotToolClient {
           truncated: false,
         });
       }
-      if (fake.roots && code.includes("const boards = []")) {
+      if (code.includes("const boards = []")) {
         const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const page = {
           id: "page",
           name: "Candidate",
+          getShapeById(id: string) {
+            fake.onLookup?.(id);
+            const frame = fake.frames.find((entry) => entry.id === id);
+            return frame
+              ? {
+                  type: "board",
+                  ...frame,
+                }
+              : null;
+          },
           root: {
-            children: fake.roots,
+            get children() {
+              fake.onRootRead?.();
+              return (
+                fake.roots ??
+                fake.frames.map((frame) => ({
+                  type: "board",
+                  ...frame,
+                }))
+              );
+            },
           },
         };
         return reply(
@@ -1458,12 +1479,12 @@ describe("baseline frame IDs", () => {
     ]);
   });
 
-  it("rejects truncated listings before capture and preserves publication after a truncated recheck", async () => {
+  it("captures explicit IDs on a large page without reading the page tree", async () => {
     const root = await project();
     const fake = fixture();
     fake.roots = Array.from(
       {
-        length: 10001,
+        length: 20001,
       },
       (_, index) => ({
         ...roots[0]!,
@@ -1471,13 +1492,68 @@ describe("baseline frame IDs", () => {
         children: [],
       }),
     );
+    let rootReads = 0;
+    fake.roots.push(roots[0]!);
+    const lookedUp: string[] = [];
+    fake.onRootRead = () => {
+      rootReads++;
+    };
+    fake.onLookup = (id) => {
+      lookedUp.push(id);
+    };
+    const report = await exportBaselines(penpot(fake), root, byId, {
+      ...fast,
+      apply: true,
+    });
+    expect(report.complete).toBe(true);
+    expect(rootReads).toBe(0);
+    expect(lookedUp).toEqual([
+      frameId,
+      secondId,
+      frameId,
+      secondId,
+    ]);
+    expect(report.results.map((entry) => entry.frameId)).toEqual([
+      frameId,
+      secondId,
+    ]);
+  });
+
+  it("refuses partial initial lookup evidence before exporting or publishing", async () => {
+    const root = await project();
+    const fake = fixture();
+    let exported = false;
+    fake.onExport = () => {
+      exported = true;
+    };
+    const client = penpot(fake);
+    const call = client.callTool.bind(client);
+    client.callTool = async (name, args) =>
+      String(args.code).includes("const boards = []")
+        ? reply({
+            ok: true,
+            fileId: "file",
+            pageId: "page",
+            revn: 7,
+            frames: [
+              nested[0],
+            ],
+            truncated: true,
+            complete: false,
+          })
+        : call(name, args);
     await expect(
-      exportBaselines(penpot(fake), root, byId, {
+      exportBaselines(client, root, byId, {
         ...fast,
         apply: true,
       }),
     ).rejects.toThrow(/truncated/);
+    expect(exported).toBe(false);
     expect(await readdir(root)).toEqual([]);
+  });
+
+  it("preserves publication after a truncated recheck", async () => {
+    const root = await project();
     const client = penpot(fixture());
     const call = client.callTool.bind(client);
     let listings = 0;
@@ -1497,6 +1573,55 @@ describe("baseline frame IDs", () => {
       }),
     ).rejects.toThrow(/source changed/);
     expect(await readdir(root)).toEqual([]);
+  });
+
+  it("keeps mixed name selection top-level on a large page and does not duplicate directly selected roots", async () => {
+    const fake = fixture();
+    let traversed = false;
+    const unrelated = {
+      ...roots[0]!,
+      id: "unrelated",
+    };
+    Object.defineProperty(unrelated, "children", {
+      get() {
+        traversed = true;
+        throw new Error("must not traverse");
+      },
+    });
+    fake.roots = [
+      unrelated,
+      ...Array.from(
+        {
+          length: 10001,
+        },
+        (_, index) => ({
+          ...nested[1]!,
+          id: `other-${index}`,
+          name: `Other ${index}`,
+        }),
+      ),
+      nested[0]!,
+    ];
+    const report = await exportBaselines(
+      penpot(fake),
+      await project(),
+      {
+        ...byId,
+        frames: [
+          byId.frames[0]!,
+          {
+            id: "named-desktop",
+            frame: "Desktop",
+          },
+        ],
+      },
+      fast,
+    );
+    expect(report.results.map((entry) => entry.frameId)).toEqual([
+      frameId,
+      frameId,
+    ]);
+    expect(traversed).toBe(false);
   });
 
   it("matches owner approval for a nested frame by exact capture identity", async () => {

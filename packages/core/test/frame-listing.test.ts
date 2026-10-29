@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frames } from "../src/snippets/read.js";
+import { frames, type FramesParams } from "../src/snippets/read.js";
 import { compiles } from "../src/snippet.js";
 import { projectConfigSchema } from "../src/instance/config-schema.js";
 
@@ -12,16 +12,23 @@ interface Shape {
   children?: Shape[];
 }
 
-async function list(children: Shape[], recursive = true) {
+async function list(
+  children: Shape[],
+  recursive = true,
+  selection: Partial<FramesParams> = {},
+  lookup?: (id: string) => Shape | null,
+) {
   const generated = frames({
     page: "Release",
     recursive,
+    ...selection,
   });
   expect(compiles(generated.code)).toBeUndefined();
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   const page = {
     id: "page",
     name: "Release",
+    getShapeById: lookup,
     root: {
       children,
     },
@@ -49,6 +56,139 @@ const board = (id: string, children: Shape[] = []): Shape => ({
 });
 
 describe("bounded page frame listing", () => {
+  it("looks up only explicit IDs and never traverses unrelated descendants", async () => {
+    const unrelated = board("section");
+    Object.defineProperty(unrelated, "children", {
+      get() {
+        throw new Error("must not traverse unrelated section");
+      },
+    });
+    const lookups: string[] = [];
+    const result = await list(
+      [
+        unrelated,
+      ],
+      true,
+      {
+        frameIds: [
+          "FRAME-A",
+          "missing",
+          "text",
+        ],
+      },
+      (id) => {
+        lookups.push(id);
+        return id === "frame-a"
+          ? board(id)
+          : id === "text"
+            ? {
+                id,
+                type: "text",
+              }
+            : null;
+      },
+    );
+    expect(lookups).toEqual([
+      "frame-a",
+      "missing",
+      "text",
+    ]);
+    expect(result).toMatchObject({
+      ok: true,
+      complete: true,
+      truncated: false,
+      frames: [
+        {
+          id: "frame-a",
+        },
+      ],
+    });
+    expect(result.frames).toHaveLength(1);
+    expect(result.frames[0]).not.toHaveProperty("topLevel");
+  });
+
+  it("merges top-level names for mixed selection without duplicating an ID or walking its children", async () => {
+    const root = board("frame-a");
+    Object.defineProperty(root, "children", {
+      get() {
+        throw new Error("must not traverse selected board");
+      },
+    });
+    const result = await list(
+      [
+        root,
+        board("named"),
+      ],
+      true,
+      {
+        frameIds: [
+          "frame-a",
+        ],
+        includeTopLevel: true,
+      },
+      () => root,
+    );
+    expect(result.frames.map((frame: { id: string }) => frame.id)).toEqual([
+      "frame-a",
+      "named",
+    ]);
+    expect(result.frames[0].topLevel).toBe(true);
+  });
+
+  it("rejects unsupported or inconsistent ID lookup without scanning the page", async () => {
+    expect(
+      await list([], true, {
+        frameIds: [
+          "frame-a",
+        ],
+      }),
+    ).toMatchObject({
+      ok: false,
+      message: expect.stringContaining("lookup is unavailable"),
+    });
+    expect(
+      await list(
+        [],
+        true,
+        {
+          frameIds: [
+            "frame-a",
+          ],
+        },
+        () => board("different"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      message: expect.stringContaining("different shape"),
+    });
+    for (const ids of [
+      [],
+      [
+        "",
+      ],
+      [
+        "a",
+        "A",
+      ],
+      [
+        "a".repeat(65),
+      ],
+      Array.from(
+        {
+          length: 1001,
+        },
+        (_, index) => String(index),
+      ),
+    ]) {
+      expect(() =>
+        frames({
+          page: "Release",
+          frameIds: ids,
+        }),
+      ).toThrow("Frame ID selection");
+    }
+  });
+
   it("tracks parent boards and top-level identity through groups at any depth", async () => {
     const result = await list([
       board("section", [
