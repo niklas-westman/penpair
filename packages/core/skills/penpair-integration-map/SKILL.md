@@ -5,6 +5,23 @@ description: Create, review or reconcile Penpair integration maps connecting a u
 
 # Integration map
 
+Before unfamiliar commands, read the installed help for `integration-map` and
+`export`; newer versions also offer `help export batch` and
+`help workflows.capture-evidence`. Use actual supported help on older versions.
+Lossless WebP is valid source evidence when its path and exact byte hash are
+recorded. Converting an approved PNG changes artifact identity and requires the
+normal source/review update. Cache hits are reused review images, not fresh proof.
+
+Probe frame names, counts and geometry before expensive captures. Critique one
+representative frame before a batch; export frames instead of whole sections.
+Use `export --frames ID=NAME,... --page PAGE` for the complete family, adding
+`--cache` only for ad-hoc reuse. Stream stderr in the foreground or through `tee`
+with `pipefail`; never hide it with `tail -N` or buffered subprocess capture.
+Identical `import --out` proposals may be reused; changed output requires a new
+path. Preserve previous artifacts and inspect locks/projections before recovery.
+Before recommending `wake --reload`, verify that saving finished in the editor;
+reload can discard unsaved changes and an editor revision is not save proof.
+
 Read [the detailed workflow](references/workflow.md) for coverage, review and
 recovery boundaries.
 

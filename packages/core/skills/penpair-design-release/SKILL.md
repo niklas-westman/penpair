@@ -5,6 +5,37 @@ description: Prepare and verify a Penpair design release in the pinned Penpot fi
 
 # Design release
 
+Before unfamiliar work, read the installed `penpair --help`, then
+`penpair help design-release copy` and `penpair help workflows.capture-evidence`
+when supported. On an older CLI use its actual command help; do not invent flags
+or fetch a global replacement.
+
+For a one-off release transfer, offer guided manual native copy/paste first while
+automated transfer performance remains unverified. Keep the selected source IDs,
+record target IDs and independently compare native fields and pixels either way;
+manual paste is not automatic fidelity proof. Avoid same-name matching across
+pages. Automated copy returns explicit ID pairs and a private receipt.
+
+Start with one representative board, inspect its export and critique it before
+expansion. Use bounded read-only probes to count frames, gaps, clipped geometry
+and duplicate/empty IDs before expensive capture. Export individual frames rather
+than entire sections. Use `export --frames ID=NAME,... --page PAGE --cache` for
+ad-hoc review batches; cached is not fresh pixel proof and never replaces fresh
+release/baseline evidence. A contact sheet can aid review but does not replace the
+individual verified artifacts.
+
+Keep stderr visible: foreground or `tee` with `pipefail`, never `tail -N` or a
+subprocess that buffers child stderr. Automated copy supports
+`--progress human|json|off` and reports selection, source preparation, per-frame
+capture and verification. The early preparation run ID is not proof of a journal,
+a paste or a resumable write. If preparation fails, inspect its phase and actual
+destination; use `--resume` only when the corresponding journal exists and its
+unchanged inputs have been reviewed. Do not start a duplicate background copy.
+
+Before any suggested `wake --reload`, verify in the editor that saving finished.
+Reload may discard unsaved changes; a readable editor revision or a verified write
+does not prove persistence. Penpair currently cannot confirm saved state.
+
 Read [the detailed workflow](references/workflow.md) for coverage, review and
 recovery boundaries.
 

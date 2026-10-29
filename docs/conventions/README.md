@@ -44,6 +44,13 @@ Penpair with their designs.
 
 ## Coverage and exceptions
 
+CLI argument names/types and action flag lists are shared with the offline help
+catalog. Update the catalog's syntax, descriptions, stable IDs and workflow links
+with behavior changes; keep first-party static adapter manifests current and
+packed. See [CLI help and progress](../cli-help-progress.md) for the discovery and
+stream contracts. Progress belongs on stderr, separately from result warnings;
+awaited capture phases must clear waiting timers on completion and cancellation.
+
 - Generated `dist/`, dependencies, ignored local artifacts and data fixtures are
   outside formatting. Keep captured evidence unchanged.
 - Internal completion reports, trial evidence and upstream drafts belong in

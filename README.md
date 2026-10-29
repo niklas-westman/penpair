@@ -132,3 +132,7 @@ Use the pnpm version declared in `package.json`. Read [CONTRIBUTING](https://git
 | Validate a source build or prepare a release | [Validation](https://github.com/niklas-westman/penpair/blob/main/docs/validation.md) · [Releasing](https://github.com/niklas-westman/penpair/blob/main/docs/releasing.md) |
 
 [Changelog](https://github.com/niklas-westman/penpair/blob/main/CHANGELOG.md) · [MIT licence](https://github.com/niklas-westman/penpair/blob/main/LICENSE)
+
+Discover installed commands offline with `penpair help --all`, `penpair help export batch`
+and `penpair help --search progress`. Read [CLI help and streaming progress](docs/cli-help-progress.md)
+for iterative builds, capture workflows and wrapper guidance.

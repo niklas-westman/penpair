@@ -58,7 +58,8 @@ in two tabs (two sessions drop the plugin connection), the tab sitting on the
 dashboard or the account Integrations page, or no workspace tab at all.
 `wake` names the same tabs when it refuses ("Tabs seen: ...").
 
-If the tab is the right one but the plugin has dropped its connection, reload it:
+If the tab is the right one but the plugin has dropped its connection, first
+verify in the editor that Penpot finished saving, then reload it:
 
 ```sh
 penpair wake --debug-port 9222 --reload
@@ -71,6 +72,12 @@ the budget ends (default 20 s with `--reload`, up to 30 s). It refuses a socket
 that is not this loopback browser's page socket. It evaluates no page code and
 replays no write: a reload does not tell you whether an earlier write completed.
 Reconcile an uncertain run from its journal before resuming it.
+
+Reload can discard unsaved editor work. The CLI prints this warning before
+dispatching `Page.reload` and retains it in JSON warnings. It does not inspect
+Penpot's save indicator or confirm durable storage. Transport health, independent
+readback and an advanced editor revision are not save receipts. If saving cannot
+be confirmed, preserve the session and recover the connection without reload.
 
 When a writer lock blocks a run, the message names the holding run, its operation,
 process and command line. `penpair locks` lists the local locks and

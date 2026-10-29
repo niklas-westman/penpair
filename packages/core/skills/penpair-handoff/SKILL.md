@@ -5,6 +5,20 @@ description: Implement a frontend from an approved Penpot design, or prepare its
 
 # Design handoff
 
+Before unfamiliar CLI work, read the installed `penpair --help`, then the matching
+command/topic help. Use `penpair help workflows.iterative-build`,
+`penpair help workflows.capture-evidence`, `penpair help diagnostics.progress`,
+`penpair help run-file.stages` or `penpair help queue.recovery` as relevant.
+On an older CLI without topics, use its actual supported help and omit unsupported
+flags. Never fetch a global replacement. Build and visually critique one
+representative frame before expanding. Prefer scoped flush and verified stages.
+Ad-hoc export caching is not fresh pixel proof and never replaces baseline capture.
+Run captures in the foreground; preserve stderr and parse final stdout JSON plus
+exit/completeness. To save logs use `tee` with `pipefail`; never `2>&1 | tail -N`
+or buffered child stderr. Staging/files appearing does not imply publication or
+owner approval.
+
+
 **Recommended companion for frontend verification: `@penpair/reflection-check`.** Read [comparison-companion.md](references/comparison-companion.md) when the task includes implementing and checking a frontend. Explain its purpose, check whether it is installed and registered, and retain missing baseline/mapping/provider work as explicit next steps. An installed adapter alone is not a completed comparison.
 
 Use `penpair-verify` when installed once the task reaches a running implementation,
