@@ -1,3 +1,4 @@
+import { mapCardAnchorHeight } from "../maps/card-metrics.js";
 import { nativeMapShapeKeys, nativeMapTextEntries } from "./content.js";
 import { importNativeContent } from "./import-content.js";
 import { requireResolvedMapDetails } from "./details.js";
@@ -121,7 +122,7 @@ export function importMapProposal(
       x: card.x,
       y: card.y,
       width: card.width,
-      height: card.height,
+      height: mapCardAnchorHeight,
     });
   }
   for (const edge of drawing.edges) {
@@ -159,7 +160,7 @@ export function importMapProposal(
             shape.role === "node" &&
             (((Math.abs(shape.x + (side === "from" ? shape.width : 0) - coordinates?.x!) < 0.01 ||
               (side === "from" && Math.abs(shape.x - coordinates?.x!) < 0.01)) &&
-              Math.abs(shape.y + shape.height / 2 - coordinates?.y!) < 0.01) ||
+              Math.abs(shape.y + mapCardAnchorHeight / 2 - coordinates?.y!) < 0.01) ||
               (side === "to" &&
                 Math.abs(shape.x + shape.width / 2 - coordinates?.x!) < 0.01 &&
                 Math.abs(shape.y - coordinates?.y!) < 0.01)),

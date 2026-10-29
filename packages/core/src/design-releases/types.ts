@@ -1,9 +1,36 @@
 import type { ArtifactReview, MapKind, MapContext } from "../maps/types.js";
+import type { BaselineCase } from "../baselines-config.js";
 import type { ExportOptions } from "../export.js";
 
 export interface ReleaseArtifactRef {
   path: string;
   sha256: string;
+}
+
+export interface ReleaseComparisonReference {
+  record: ReleaseArtifactRef;
+  bundle: ReleaseArtifactRef;
+}
+
+export interface ReleaseComparisonCase {
+  id: string;
+  fileId: string;
+  pageId: string;
+  frameId: string;
+  sha256: string;
+  scale: number;
+  route: string;
+  intent: BaselineCase;
+  threshold: number;
+}
+
+export interface ReleaseComparisonProof {
+  reference: ReleaseComparisonReference;
+  designHash: string;
+  fileId: string;
+  caseIds: string[];
+  caseThresholds: Record<string, number>;
+  cases: ReleaseComparisonCase[];
 }
 
 export interface ReleaseScreenInput {
@@ -29,7 +56,7 @@ export interface ReleaseContract extends ReleaseContractInput {
   id: string;
 }
 
-export interface DesignReleasePlanInput {
+export interface LegacyDesignReleasePlanInput {
   schemaVersion: 1;
   kind: "design-release-plan";
   id: string;
@@ -40,7 +67,83 @@ export interface DesignReleasePlanInput {
   contracts: ReleaseContractInput[];
 }
 
+export interface ReleaseBaseReference {
+  release: ReleaseArtifactRef;
+  bundle: ReleaseArtifactRef;
+}
+
+export interface ReleaseMemberApproval {
+  record: ReleaseArtifactRef;
+  recordId: string;
+  image: ReleaseArtifactRef;
+}
+
+export interface ReleaseMemberInput extends ReleaseScreenInput {
+  comparisonThreshold?: number;
+  approval?: ReleaseMemberApproval;
+  route?: string;
+  case?: BaselineCase;
+}
+
+export interface ReleaseMember {
+  comparisonThreshold?: number;
+  id: string;
+  disposition: "changed" | "retained" | "adopted";
+  source: ReleaseSource;
+  origin?: {
+    releaseId: string;
+    productVersion: string;
+    bundle: ReleaseArtifactRef;
+  };
+  approval?: ReleaseMemberApproval;
+  route?: string;
+  case?: BaselineCase;
+}
+
+export interface ReleaseMemberEvidence {
+  id: string;
+  inspection: ReleaseArtifactRef;
+  render: ReleaseArtifactRef;
+  contentHash: string;
+  decodedPixelsHash: string;
+  width: number;
+  height: number;
+}
+
+export interface DeltaDesignReleasePlanInput {
+  schemaVersion: 2;
+  kind: "design-release-plan";
+  id: string;
+  title: string;
+  productVersion: string;
+  fileId: string;
+  base?: ReleaseBaseReference;
+  changes: {
+    add: ReleaseMemberInput[];
+    replace: ReleaseMemberInput[];
+    remove: Array<{
+      id: string;
+      reason: string;
+    }>;
+  };
+  contracts: ReleaseContractInput[];
+}
+
+export type DesignReleasePlanInput = LegacyDesignReleasePlanInput | DeltaDesignReleasePlanInput;
+
+export interface DesignReleaseAdoptionInput {
+  schemaVersion: 2;
+  kind: "design-release-adoption";
+  id: string;
+  title: string;
+  productVersion: string;
+  fileId: string;
+  screens: ReleaseMemberInput[];
+  contracts: ReleaseContractInput[];
+}
+
 export interface ReceiptInput {
+  approval?: ReleaseMemberApproval;
   sourceId: string;
   targetFrameId: string;
 }
@@ -85,7 +188,18 @@ export interface ReleaseOverviewEvidence {
 }
 
 export interface DesignRelease {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  base?: ReleaseBaseReference;
+  members?: ReleaseMember[];
+  changes?: {
+    added: string[];
+    replaced: string[];
+    removed: Array<{
+      id: string;
+      reason: string;
+    }>;
+  };
+  memberEvidence?: ReleaseMemberEvidence[];
   kind: "design-release";
   id: string;
   title: string;
@@ -118,6 +232,8 @@ export interface DesignRelease {
 }
 
 export interface ReleaseOptions {
+  comparison?: ReleaseArtifactRef;
+  receipts?: ReceiptInput[];
   apply?: boolean;
   runId?: string;
   resume?: boolean;
@@ -128,6 +244,7 @@ export interface ReleaseOptions {
 }
 
 export interface ReleaseCheck {
+  workflow?: import("./status-types.js").ReleaseStatus;
   valid: boolean;
   finalized: boolean;
   live: boolean;
@@ -137,7 +254,12 @@ export interface ReleaseCheck {
 }
 
 export interface ReleaseContext {
-  schemaVersion: 1;
+  releaseReference?: ReleaseComparisonReference;
+  implementationAssessment?: import("./status-types.js").ReleaseImplementationStatus;
+  caseThresholds?: Record<string, number>;
+  workflow?: import("./status-types.js").ReleaseStatus;
+  caseIds?: string[];
+  schemaVersion: 1 | 2;
   kind: "release-context";
   id: string;
   productVersion: string;
@@ -151,6 +273,9 @@ export interface ReleaseContext {
     label: string;
     sourceFrameId: string;
     targetFrameId: string | null;
+    effectivePageId?: string;
+    effectiveFrameId?: string;
+    disposition?: ReleaseMember["disposition"];
   }>;
   contracts: ReleaseContract[];
   mapContexts: MapContext[];
@@ -170,6 +295,11 @@ export interface ReleaseContext {
     frames: Array<{
       id: string;
       frameId: string;
+      page?: string;
+      pageId?: string;
+      route?: string;
+      case?: BaselineCase;
+      threshold?: number;
     }>;
   };
   truncated: boolean;

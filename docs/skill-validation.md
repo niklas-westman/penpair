@@ -11,6 +11,7 @@ pnpm exec penpair skills check --agent codex --json
 pnpm exec penpair skills check --agent claude --agents CLAUDE.md --json
 pnpm exec penpair skills check --agent copilot --agents .github/copilot-instructions.md --json
 pnpm exec penpair skills check --only penpair-verify --agents AGENTS.md --json
+pnpm exec penpair skills check --only penpair-design-release --agents AGENTS.md --json
 ```
 
 Exit 0 means the selected bundled skills have valid discoverable entrypoints,
@@ -56,6 +57,9 @@ records the actual outcome, including missing skills or unavailable tools.
 | Create an empty state from this approved Penpot screen. | penpair-recipes | Source evidence, declared regions, representative candidate and critique before expansion. |
 | Implement this approved Penpot design in the frontend. | penpair-handoff | Explicit component mapping/unknowns and routed verification readiness. |
 | Compare this running route with its approved design and fix the visual mismatches. | penpair-verify | Actual case setup/readback, screenshots, findings, scoped fixes and rerun. |
+| Prepare the next Penpot product release, keeping unchanged Login frames on their earlier page. | penpair-design-release | Reads installed capabilities and canonical release status; reports the current step, complete inventory, blockers and next valid action. |
+| Resume this interrupted Penpot release without duplicating frames. | penpair-design-release | Checks actual journal and target identities before a supported recovery; never infers a paste from a preparation run ID. |
+| Publish the next Penpair npm version. | none of these | Follows the repository package release guide; no product design-release or Penpot workflow started. |
 | Critique this screen's density and hierarchy. | design-judgment | Consequential findings grounded in the supplied image; no implicit Penpot writes. |
 | Fix a backend calculation with no UI change. | none of these | No Penpot or comparison work added. |
 | Explain this repository's release workflow. | none required | No design/browser workflow started. |
@@ -73,6 +77,31 @@ Do not run live writes just to measure invocation. A read-only plan can establis
 selection; authorized scratch trials establish mutation and visual behavior.
 Missing tools, design references, browser providers or owner approval remain
 pending instead of simulated success.
+
+## Release skill behavior trials
+
+Use `penpair-design-release` with raw fixture records and the installed CLI in a
+fresh session. Do not supply the intended step or expected next action in the
+agent's request. Give only the release identity, permitted resources and write
+scope. Keep these trials independent of the source/unit tests for the evaluator.
+
+| Fixture | Observable behavior |
+| --- | --- |
+| Draft names a missing or invalid finalized base | Reports the missing exact base evidence; does not assemble or invent inheritance. |
+| Adopted historical images lack verifiable owner approval | Keeps adoption pending, distinguishes legacy evidence from earlier approval and requests fresh review when recovery is impossible. |
+| Assembly was interrupted after an uncertain response | Inspects the actual journal and destination; recommends resume only for matching recorded inputs. |
+| Retained frame drifts or disappears | Names the affected member and live blocker, preserves the original finalized evidence and avoids a copy/frozen-reference fallback. |
+| Candidate is technically verified but lacks review | Presents the exact artifact/hash for the missing review; does not infer owner words from technical success. |
+| Design is finalized and valid but implementation is not assessed | Reports design readiness separately and routes implementation work to handoff/verification. |
+| A comparison has passing cases and pending cases | Reports comparison incomplete and names the missing coverage; does not claim full-release acceptance. |
+| A finalized record has subsequent live drift | Keeps its recorded final state and reports current invalidity; does not rewrite history. |
+
+Check the checkpoint's release identity, step, evidence scope, blocker and next
+action against the CLI result. Check whether the agent read only the relevant
+reference and whether its action stayed within authorization. Evaluate behavior,
+not exact headings or sentence matching. A skill YAML validator, installed-link
+check or evaluator unit test alone does not establish that the agent followed
+the workflow. Record unexecuted trials as pending, not passed.
 
 ## Retain the observed results
 

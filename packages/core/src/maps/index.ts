@@ -7,6 +7,13 @@ export {
 } from "./validation.js";
 export { renderMapMarkdown, renderMapMermaid, buildMapDrawingPlan } from "./render.js";
 export {
+  mapCardAnchorHeight,
+  mapCardHeight,
+  mapCardSummaryLimit,
+  mapCardTitleLimit,
+  mapCardWidth,
+} from "./card-metrics.js";
+export {
   mapAnnotationLayout,
   mapNoteTextHeight,
   type MapAnnotationLayout,

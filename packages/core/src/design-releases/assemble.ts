@@ -1,11 +1,16 @@
+import { childMapRunId } from "./child-journals.js";
 import { randomUUID } from "node:crypto";
 import type { PenpotToolClient } from "../client.js";
 import { exportShapePng } from "../export.js";
 import { runJournaledSteps, readJournalTarget, observationHash, readJournal } from "../journal.js";
 import { withPageSession, rememberPage } from "../page-session.js";
-import { runSnippet } from "../snippet.js";
+import { runSnippet, snippet } from "../snippet.js";
 import { assembleReleaseMaps } from "../map-penpot/index.js";
-import { saveArtifact } from "./artifact-paths.js";
+import { publishReleaseOverviewLinks, releaseOverviewTargets } from "./overview-links.js";
+import { hashDesignRelease } from "./validation.js";
+import { captureRetainedMember } from "./member-evidence.js";
+import type { NativeMapProjection } from "../map-penpot/types.js";
+import { readArtifact, saveArtifact, hashBytes } from "./artifact-paths.js";
 import { decodedPixels, inspectionContentHash } from "./fidelity.js";
 import {
   assertSourceUnchanged,
@@ -15,7 +20,7 @@ import {
   type ReleaseObservation,
 } from "./live.js";
 import { readReleaseContract, assertReleaseContracts } from "./store.js";
-import { assembleReleaseSnippet } from "./snippets.js";
+import { assembleReleaseSnippet, releaseOverviewHeight } from "./snippets.js";
 import { validateDesignRelease } from "./validation.js";
 import type { DesignRelease, ReleaseOptions } from "./types.js";
 
@@ -26,6 +31,9 @@ export async function assembleRelease(
   options: ReleaseOptions = {},
 ): Promise<DesignRelease> {
   const release = validateDesignRelease(raw);
+  if (options.receipts) {
+    releaseOverviewTargets(release, options.receipts);
+  }
   const encoded = JSON.stringify(release);
   if (options.redact && options.redact(encoded) !== encoded) {
     throw new Error("Protected data in release record; no native writes applied");
@@ -45,8 +53,28 @@ export async function assembleRelease(
   }
   client = releaseClient(client, release);
   return withPageSession(client, async () => {
+    if (options.receipts) {
+      const targets = releaseOverviewTargets(release, options.receipts);
+      await runSnippet(
+        client,
+        snippet(
+          "release-overview-target-preflight",
+          `if(penpot.currentFile.id!==CFG.fileId)throw new Error("Pinned release file changed"); for(const target of CFG.targets){const pages=penpot.currentFile.pages.filter(page=>page.id===target.pageId);const shape=pages.length===1?pages[0].getShapeById(target.frameId):null;if(!shape || shape.type!=="board" || shape.id!==target.frameId)throw new Error("Overview receipt target unavailable: "+target.id);}return {ok:true};`,
+          {
+            fileId: release.fileId,
+            targets,
+          },
+          "read",
+        ),
+      );
+    }
     for (const source of release.sources) {
       await assertSourceUnchanged(client, root, release, source);
+    }
+    for (const member of release.members ?? []) {
+      if (member.disposition !== "changed") {
+        await captureRetainedMember(client, root, release, member, options);
+      }
     }
     const initial = await observeRelease(client, release);
     if (initial.marker && initial.marker.status !== "draft") {
@@ -99,6 +127,12 @@ export async function assembleRelease(
         runId,
         resume: options.resume,
         operation: "design-release-assemble",
+        payload: {
+          kind: "design-release-operation",
+          releaseId: release.id,
+          productVersion: release.productVersion,
+          designHash: hashDesignRelease(release),
+        },
         input: {
           id: release.id,
           version: release.productVersion,
@@ -122,6 +156,7 @@ export async function assembleRelease(
         overviewFrameId: observed.overviewFrameId!,
       },
     };
+    await publishReleaseOverviewLinks(client, root, assembled, runId, options);
     const journals: Record<
       string,
       {
@@ -130,10 +165,7 @@ export async function assembleRelease(
       }
     > = {};
     for (const [index, contract] of contracts.entries()) {
-      const mapRunId = `map-${observationHash({
-        runId,
-        index,
-      }).slice(0, 48)}`;
+      const mapRunId = childMapRunId(runId, index);
       let resume = false;
       if (options.resume) {
         try {
@@ -150,6 +182,28 @@ export async function assembleRelease(
         resume,
       };
     }
+    const origin = await runSnippet(
+      client,
+      snippet(
+        "release-overview-origin",
+        'const pages=penpot.currentFile.pages.filter(page=>page.id===CFG.pageId); const board=pages.length===1?pages[0].getShapeById(CFG.id):null; if(!board || board.getSharedPluginData("penpair","release-overview")!==CFG.ownerKey)throw new Error("Owned overview unavailable"); return {ok:true,x:board.x,y:board.y,height:board.height};',
+        {
+          id: observed.overviewFrameId!,
+          pageId: observed.pageId!,
+          ownerKey: release.target.ownerKey,
+        },
+        "read",
+      ),
+    );
+    if (!Number.isFinite(origin.x) || !Number.isFinite(origin.y)) {
+      throw new Error("Release overview position unavailable");
+    }
+    const projections: Record<string, NativeMapProjection> = {};
+    for (const map of release.maps) {
+      projections[`${map.kind}:${map.id}`] = JSON.parse(
+        (await readArtifact(root, map.projection)).toString("utf8"),
+      ) as NativeMapProjection;
+    }
     const maps = await assembleReleaseMaps(
       client,
       root,
@@ -162,10 +216,16 @@ export async function assembleRelease(
         ...options.exportOptions,
         apply: true,
         journals,
+        projections,
         redact: options.redact,
         origin: {
-          x: 0,
-          y: 1000,
+          x: Number(origin.x),
+          y:
+            Number(origin.y) +
+            (Number.isFinite(origin.height)
+              ? Number(origin.height)
+              : releaseOverviewHeight(release)) +
+            200,
         },
         onStep: options.onStep,
       },
@@ -179,6 +239,7 @@ export async function assembleRelease(
       assembled.maps = assembled.maps.filter(
         (item) => item.kind !== map.mapKind || item.id !== map.mapId,
       );
+      const serializedProjection = `${JSON.stringify(projection, null, 2)}\n`;
       assembled.maps.push({
         kind: map.mapKind,
         id: map.mapId,
@@ -186,8 +247,8 @@ export async function assembleRelease(
         contractHash: map.contractHash,
         projection: await saveArtifact(
           root,
-          `${prefix}-${projection.fingerprint}.json`,
-          `${JSON.stringify(projection, null, 2)}\n`,
+          `${prefix}-${hashBytes(serializedProjection)}.json`,
+          serializedProjection,
           options.redact,
         ),
         render: await saveArtifact(

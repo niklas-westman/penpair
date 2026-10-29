@@ -1,3 +1,4 @@
+import { mapCardHeight } from "./card-metrics.js";
 import type { MapContract } from "./types.js";
 
 export interface MapRoutingNode {
@@ -327,7 +328,11 @@ export function routeMapEdges<T extends MapRoutingEdge>(
     });
   }
   let bottom =
-    Math.max(180, ...nodes.map((node) => node.y + node.height), ...corridorEnds.values()) + 100;
+    Math.max(
+      180,
+      ...nodes.map((node) => node.y + Math.max(node.height, mapCardHeight)),
+      ...corridorEnds.values(),
+    ) + 100;
   for (const { edge, from, to } of pending) {
     const sourceTrack = takeTrack(`right:${from.x + from.width}`);
     const targetTrack = takeTrack(`left:${to.x}`);

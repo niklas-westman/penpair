@@ -1,3 +1,4 @@
+import { layoutFlex, type FlexNode } from "./helpers/flex-layout.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -11,12 +12,16 @@ import {
   inspectionFields,
   type InspectionCapture,
 } from "../src/inspection.js";
+import { exportShapePng } from "../src/export.js";
+import { recordApproval } from "../src/approvals.js";
 import { observationHash } from "../src/journal.js";
 import { createArtifactReview } from "../src/maps/review.js";
 import { hashMapContract } from "../src/maps/validation.js";
 import type { MapContract } from "../src/maps/types.js";
 import {
   planRelease,
+  loadReleaseComparison,
+  adoptRelease,
   assembleRelease,
   verifyRelease,
   finalizeRelease,
@@ -77,6 +82,7 @@ function nativeFixture() {
   let next = 0;
   let revision = 1;
   let freshPages = false;
+  let renderEnvironment: string | undefined = "release-test-browser";
   let beforeCall: ((code: string) => void) | undefined;
   let afterCall: ((code: string) => void) | undefined;
   const metadata = new Map<string, string>();
@@ -113,9 +119,9 @@ function nativeFixture() {
     verticalAlign = "top";
     textTransform = null;
     textDecoration = null;
-    flex = null;
+    flex: Record<string, unknown> | null = null;
     grid = null;
-    layoutChild = null;
+    layoutChild: Record<string, unknown> | null = null;
     layoutCell = null;
     clipContent = false;
     showInViewMode = true;
@@ -151,7 +157,41 @@ function nativeFixture() {
       }
       child.parent = this;
       this.children.push(child);
+      if (this.flex && !child.layoutChild) {
+        child.layoutChild = {
+          absolute: false,
+          zIndex: 0,
+          horizontalSizing: "auto",
+          verticalSizing: "auto",
+          alignSelf: "auto",
+          topMargin: 0,
+          rightMargin: 0,
+          bottomMargin: 0,
+          leftMargin: 0,
+          minWidth: null,
+          maxWidth: null,
+          minHeight: null,
+          maxHeight: null,
+        };
+      }
       revision++;
+    }
+    addFlexLayout(): void {
+      this.flex = {
+        dir: "row",
+        wrap: "nowrap",
+        alignItems: "start",
+        alignContent: "start",
+        justifyContent: "start",
+        rowGap: 0,
+        columnGap: 0,
+        topPadding: 0,
+        rightPadding: 0,
+        bottomPadding: 0,
+        leftPadding: 0,
+        horizontalSizing: "auto",
+        verticalSizing: "auto",
+      };
     }
     resize(width: number, height: number): void {
       this.width = width;
@@ -290,6 +330,9 @@ function nativeFixture() {
     openPage: async (page: typeof current) => {
       current = page;
     },
+    uploadMediaData: async (name: string) => ({
+      id: `media-${name}`,
+    }),
     createBoard: () => create("board"),
     createRectangle: () => create("rectangle"),
     createEllipse: () => create("ellipse"),
@@ -299,7 +342,9 @@ function nativeFixture() {
       text.characters = value;
       return text;
     },
-    waitForLayoutUpdate: async () => {},
+    waitForLayoutUpdate: async () => {
+      layoutFlex(current.root as unknown as FlexNode);
+    },
   };
   const source = penpot.createBoard();
   source.name = "Source";
@@ -312,8 +357,15 @@ function nativeFixture() {
       const result = await runInNewContext(`(async()=>{${code}\n})()`, {
         penpot,
         console,
+        navigator:
+          renderEnvironment === undefined
+            ? undefined
+            : {
+                userAgent: renderEnvironment,
+              },
         Uint8Array,
         btoa: (value: string) => Buffer.from(value, "binary").toString("base64"),
+        atob: (value: string) => Buffer.from(value, "base64").toString("binary"),
       });
       afterCall?.(code);
       return {
@@ -356,6 +408,9 @@ function nativeFixture() {
     pages,
     Shape,
     copy,
+    setRenderEnvironment: (value: string | undefined) => {
+      renderEnvironment = value;
+    },
     setFreshPages: (value: boolean) => {
       freshPages = value;
     },
@@ -1068,7 +1123,11 @@ describe("frozen release bundle validation", () => {
     expect(
       context.mapContexts.find((map) => map.mapKind === "integration-map")?.nodes[0]?.label,
     ).toBe("Route /complete uses success state");
-    expect(context.nextActions.join(" ")).toMatch(/Implementation verification is not-assessed/);
+    expect(context.implementationAssessment).toMatchObject({
+      comparison: "not-assessed",
+      complete: false,
+      ownerAcceptance: "not-recorded",
+    });
   });
 });
 
@@ -1646,5 +1705,373 @@ describe("release native write privacy preflight", () => {
     ).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+});
+
+describe("native retained release lifecycle", () => {
+  it("adopts existing frames, finalizes their live proof and retains original identities across a later release", async () => {
+    const local = await planned();
+    local.native.pages[0]!.name = "release/1.2.3";
+    const exported = await exportShapePng(local.native.client, local.native.source.id, {
+      ...fast.exportOptions,
+      stable: true,
+    });
+    const approval = await recordApproval(local.root, exported, {
+      by: "Owner",
+      note: "Approve this original exact frame",
+    });
+    const approvalReference = {
+      record: await save(local.root, "inputs/original-approval.json", approval),
+      recordId: approval.id,
+      image: {
+        path: approval.image,
+        sha256: approval.sha256,
+      },
+    };
+    const adopted = await adoptRelease(local.root, {
+      schemaVersion: 2,
+      kind: "design-release-adoption",
+      id: "adopted",
+      title: "Adopted release",
+      productVersion: "1.2.3",
+      fileId: "file",
+      screens: [
+        {
+          ...local.input.screens[0]!,
+          approval: approvalReference,
+        },
+      ],
+      contracts: local.input.contracts,
+    });
+    const assembled = await assembleRelease(local.native.client, local.root, adopted, {
+      ...fast,
+      runId: "adopt-assembly",
+    });
+    expect(local.native.source.id).toBe(adopted.members![0]!.source.frameId);
+    expect(local.native.pages).toHaveLength(1);
+    const verified = await verifyRelease(local.native.client, local.root, assembled, [], fast);
+    expect(verified.receipts).toHaveLength(0);
+    expect(verified.memberEvidence).toHaveLength(1);
+    const review = createArtifactReview({
+      artifactKind: "design-release",
+      artifactId: verified.id,
+      artifactHash: releaseDesignHash(verified),
+      by: "Owner",
+      note: "Approve exact adopted design release",
+    });
+    const final = await finalizeRelease(local.native.client, local.root, verified, review, {
+      ...fast,
+      pointerPath: "design/releases/1.2.3/release.json",
+    });
+    expect((await checkRelease(local.native.client, local.root, final, fast)).valid).toBe(true);
+    const baseReference = await save(local.root, "inputs/finalized-base.json", final);
+    const next = await planRelease(local.root, {
+      schemaVersion: 2,
+      kind: "design-release-plan",
+      id: "next",
+      title: "Unchanged next release",
+      productVersion: "1.2.4",
+      fileId: "file",
+      base: {
+        release: baseReference,
+        bundle: final.finalized!.bundle,
+      },
+      changes: {
+        add: [],
+        replace: [],
+        remove: [],
+      },
+      contracts: local.input.contracts,
+    });
+    expect(next.sources).toHaveLength(0);
+    expect(next.members![0]!.source.frameId).toBe(local.native.source.id);
+    expect(next.members![0]!.source.pageId).toBe(local.native.pages[0]!.id);
+    expect(next.members![0]!.approval!.image.sha256).toBe(approval.sha256);
+    expect(next.members![0]!.approval!.image.path).toContain("approved/artifacts/");
+    const nextAssembly = await assembleRelease(local.native.client, local.root, next, {
+      ...fast,
+      runId: "next-assembly",
+    });
+    const nextVerified = await verifyRelease(
+      local.native.client,
+      local.root,
+      nextAssembly,
+      [],
+      fast,
+    );
+    expect((await checkRelease(local.native.client, local.root, nextVerified, fast)).valid).toBe(
+      true,
+    );
+    const forgedPolicy = structuredClone(nextVerified);
+    forgedPolicy.members![0]!.comparisonThreshold = 0.5;
+    expect(
+      (await checkRelease(undefined, local.root, forgedPolicy, fast)).reasons.join(" "),
+    ).toContain("release membership");
+    const replacementChild = local.native.copy(local.native.child, local.native.source);
+    local.native.child.remove();
+    await expect(
+      verifyRelease(local.native.client, local.root, nextAssembly, [], fast),
+    ).rejects.toThrow("pinned descendant identities changed");
+    replacementChild.characters = "Changed after approval";
+    const drift = await checkRelease(local.native.client, local.root, nextVerified, fast);
+    expect(drift.valid).toBe(false);
+    expect(drift.reasons.join(" ")).toContain("source changed");
+  });
+});
+
+describe("delta release copied target approval", () => {
+  it("requires target approval and an explicitly refreshed overview, then inherits the copied target", async () => {
+    const local = await planned();
+    const intent = {
+      viewport: {
+        width: 1,
+        height: 1,
+      },
+      theme: "light",
+      state: "empty",
+      fixture: "default",
+    };
+    const draft = await planRelease(local.root, {
+      schemaVersion: 2,
+      kind: "design-release-plan",
+      id: "delta",
+      title: "Changed design",
+      productVersion: "1.2.3",
+      fileId: "file",
+      changes: {
+        add: [
+          {
+            ...local.input.screens[0]!,
+            route: "/complete",
+            case: intent,
+            comparisonThreshold: 0.02,
+          },
+        ],
+        replace: [],
+        remove: [],
+      },
+      contracts: local.input.contracts,
+    });
+    const assembled = await assembleRelease(local.native.client, local.root, draft, {
+      ...fast,
+      runId: "delta-initial",
+    });
+    const page = local.native.pages.find((page) => page.id === assembled.target.pageId)!;
+    const target = local.native.copy(local.native.source, page.root);
+    const receipt = {
+      sourceId: "screen",
+      targetFrameId: target.id,
+    };
+    await expect(
+      verifyRelease(
+        local.native.client,
+        local.root,
+        assembled,
+        [
+          receipt,
+        ],
+        fast,
+      ),
+    ).rejects.toThrow("overview");
+    await local.native.penpot.openPage(page);
+    const exported = await exportShapePng(local.native.client, target.id, {
+      ...fast.exportOptions,
+      stable: true,
+    });
+    const approval = await recordApproval(
+      local.root,
+      exported,
+      {
+        by: "Owner",
+        note: "Approve exact copied target",
+      },
+      intent,
+    );
+    const approvedReceipt = {
+      ...receipt,
+      approval: {
+        record: await save(local.root, "inputs/copied-approval.json", approval),
+        recordId: approval.id,
+        image: {
+          path: approval.image,
+          sha256: approval.sha256,
+        },
+      },
+    };
+    const linked = await assembleRelease(local.native.client, local.root, assembled, {
+      ...fast,
+      runId: "delta-links",
+      receipts: [
+        approvedReceipt,
+      ],
+    });
+    await expect(
+      verifyRelease(
+        local.native.client,
+        local.root,
+        linked,
+        [
+          receipt,
+        ],
+        fast,
+      ),
+    ).rejects.toThrow("original owner approval");
+    const verified = await verifyRelease(
+      local.native.client,
+      local.root,
+      linked,
+      [
+        approvedReceipt,
+      ],
+      fast,
+    );
+    expect(verified.members![0]!.approval!.recordId).toBe(approval.id);
+    const final = await finalizeRelease(
+      local.native.client,
+      local.root,
+      verified,
+      ownerReview(verified),
+      {
+        ...fast,
+        pointerPath: "design/releases/1.2.3/release.json",
+      },
+    );
+    const comparison = await save(local.root, "inputs/implementation.json", {
+      schemaVersion: 1,
+      kind: "implementation-case-evidence",
+      complete: true,
+      pending: [],
+      release: {
+        designHash: releaseDesignHash(final),
+        caseIds: [
+          "screen",
+        ],
+      },
+      cases: [
+        {
+          id: "screen",
+          complete: true,
+          threshold: 0.02,
+          withinThreshold: true,
+          screenshotHash: sha(png),
+          evidence: {
+            id: "screen",
+            route: "/complete",
+            baselineHash: approval.sha256,
+            observed: intent,
+            fonts: [],
+            fontsReady: true,
+            diffPixelRatio: 0,
+            screenshot: (await save(local.root, "inputs/browser.png", png)).path,
+          },
+        },
+      ],
+    });
+    const context = await releaseContext(local.root, final, {
+      comparison,
+      pointerPath: "design/releases/1.2.3/release.json",
+    });
+    expect(context.implementation.status).toBe("not-assessed");
+    expect(context.implementationAssessment?.comparison).toBe("passed");
+    expect(context.workflow?.step).toBe("implementation-review");
+    expect(context.nextActions.join(" ")).toContain("Current implementation comparison passed");
+    expect(context.nextActions.join(" ")).not.toContain(
+      "Current implementation comparison is not-assessed",
+    );
+    expect(context.proposedBaselines.frames[0]).toMatchObject({
+      pageId: page.id,
+      threshold: 0.02,
+    });
+    expect(context.caseThresholds).toEqual({
+      screen: 0.02,
+    });
+    expect(context.releaseReference?.record.path).toBe("design/releases/1.2.3/release.json");
+    const proof = await loadReleaseComparison(local.root, context.releaseReference!);
+    expect(proof.cases).toContainEqual(
+      expect.objectContaining({
+        id: "screen",
+        pageId: page.id,
+        frameId: target.id,
+        sha256: approval.sha256,
+        threshold: 0.02,
+        route: "/complete",
+        intent,
+      }),
+    );
+    await expect(
+      loadReleaseComparison(local.root, {
+        ...context.releaseReference!,
+        record: {
+          ...context.releaseReference!.record,
+          sha256: "f".repeat(64),
+        },
+      }),
+    ).rejects.toThrow();
+    const inherited = await planRelease(local.root, {
+      schemaVersion: 2,
+      kind: "design-release-plan",
+      id: "next-delta",
+      title: "Next delta",
+      productVersion: "1.2.4",
+      fileId: "file",
+      base: {
+        release: await save(local.root, "inputs/delta-base.json", final),
+        bundle: final.finalized!.bundle,
+      },
+      changes: {
+        add: [],
+        replace: [],
+        remove: [],
+      },
+      contracts: local.input.contracts,
+    });
+    expect(inherited.members![0]!.source.frameId).toBe(target.id);
+    expect(inherited.members![0]!.source.pageId).toBe(page.id);
+    expect(inherited.members![0]!.approval!.recordId).toBe(approval.id);
+  });
+});
+
+describe("retained release unknown capture environment", () => {
+  it("does not treat two unknown browser environments as cross-revision evidence", async () => {
+    const local = await planned();
+    local.native.setRenderEnvironment(undefined);
+    const exported = await exportShapePng(local.native.client, local.native.source.id, {
+      ...fast.exportOptions,
+      stable: true,
+    });
+    expect(exported.capture.renderEnvironment).toBeNull();
+    const approval = await recordApproval(local.root, exported, {
+      by: "Owner",
+      note: "Approve exact original frame with recorded unknown environment",
+    });
+    const draft = await adoptRelease(local.root, {
+      schemaVersion: 2,
+      kind: "design-release-adoption",
+      id: "unknown-environment",
+      title: "Unknown environment",
+      productVersion: "1.2.3",
+      fileId: "file",
+      screens: [
+        {
+          ...local.input.screens[0]!,
+          approval: {
+            record: await save(local.root, "inputs/unknown-approval.json", approval),
+            recordId: approval.id,
+            image: {
+              path: approval.image,
+              sha256: approval.sha256,
+            },
+          },
+        },
+      ],
+      contracts: local.input.contracts,
+    });
+    const assembled = await assembleRelease(local.native.client, local.root, draft, {
+      ...fast,
+      runId: "unknown-assembly",
+    });
+    await expect(
+      verifyRelease(local.native.client, local.root, assembled, [], fast),
+    ).rejects.toThrow("cross-revision capture environment is unknown");
   });
 });

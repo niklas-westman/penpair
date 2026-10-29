@@ -1,3 +1,4 @@
+import { planDeltaRelease } from "./membership.js";
 import { open, unlink } from "node:fs/promises";
 import { readProjectBytes } from "../bounded-file.js";
 import { atomicWriteFile } from "../atomic-output.js";
@@ -191,6 +192,9 @@ export async function planRelease(
   options: ReleaseOptions = {},
 ): Promise<DesignRelease> {
   const input = validateReleasePlan(raw);
+  if (input.schemaVersion === 2) {
+    return planDeltaRelease(root, input, options);
+  }
   const safe = (value: unknown): void => {
     const serialized = JSON.stringify(value);
     if (options.redact && options.redact(serialized) !== serialized) {

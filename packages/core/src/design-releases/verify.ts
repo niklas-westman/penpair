@@ -15,6 +15,8 @@ import {
   observeRelease,
   releaseClient,
 } from "./live.js";
+import { assertReleaseOverviewLinks } from "./overview-links.js";
+import { verifyRetainedMember, captureRetainedMember } from "./member-evidence.js";
 import { assertReleaseContracts } from "./store.js";
 import { validateDesignRelease } from "./validation.js";
 import type { DesignRelease, ReceiptInput, ReleaseOptions, ReleaseReceipt } from "./types.js";
@@ -64,6 +66,13 @@ export async function verifyRelease(
     if (owned.marker?.status !== "draft") {
       throw new Error("Release is not an owned mutable draft");
     }
+    await assertReleaseOverviewLinks(client, {
+      ...release,
+      receipts: inputs.map((input) => ({
+        ...input,
+        targetPageId: release.target.pageId!,
+      })),
+    } as DesignRelease);
     const observations = [];
     const fullMap: Record<string, string> = {};
     for (const source of release.sources) {
@@ -91,6 +100,13 @@ export async function verifyRelease(
         original,
         copied,
       });
+    }
+    const memberEvidence = [];
+    for (const member of release.members ?? []) {
+      if (member.disposition !== "changed") {
+        options.onStep?.(`Verify retained source ${member.id} on page ${member.source.pageId}`);
+        memberEvidence.push(await verifyRetainedMember(client, root, release, member, options));
+      }
     }
     const receipts: ReleaseReceipt[] = [];
     for (const { source, input, original, copied } of observations) {
@@ -164,6 +180,36 @@ export async function verifyRelease(
         throw new Error("Source changed during fidelity capture");
       }
       const prefix = `design/releases/${release.productVersion}/evidence/screens/${source.id}`;
+      if (release.schemaVersion === 2) {
+        const member = release.members!.find((member) => member.id === source.id)!;
+        const approvedMember = {
+          ...member,
+          approval: input.approval,
+          source: {
+            ...source,
+            pageId: release.target.pageId!,
+            frameId: input.targetFrameId,
+            inspection: source.inspection,
+            render: source.render,
+            contentHash: inspectionContentHash(targetAfter),
+          },
+        };
+        const targetInspection = await saveArtifact(
+          root,
+          `${prefix}-approval-${observationHash(targetAfter)}.json`,
+          `${JSON.stringify(targetAfter, null, 2)}\n`,
+          options.redact,
+        );
+        const targetRender = await saveArtifact(
+          root,
+          `${prefix}-approval-${after.hash}.png`,
+          targetImage.png,
+          options.redact,
+        );
+        approvedMember.source.inspection = targetInspection;
+        approvedMember.source.render = targetRender;
+        await captureRetainedMember(client, root, release, approvedMember, options);
+      }
       receipts.push({
         ...input,
         sourceFrameId: source.frameId,
@@ -204,11 +250,31 @@ export async function verifyRelease(
       ...release,
       status: "verified",
       receipts,
+      ...(release.schemaVersion === 2
+        ? {
+            memberEvidence,
+            members: release.members!.map((member) =>
+              member.disposition === "changed"
+                ? {
+                    ...member,
+                    approval: inputs.find((input) => input.sourceId === member.id)?.approval,
+                  }
+                : member,
+            ),
+          }
+        : {}),
       fidelity: {
         schemaVersion: 1,
         kind: "design-release-fidelity",
         verifiedAt: new Date().toISOString(),
-        receiptsHash: observationHash(receipts),
+        receiptsHash: observationHash(
+          release.schemaVersion === 2
+            ? {
+                receipts,
+                memberEvidence,
+              }
+            : receipts,
+        ),
         exactDecodedPixels: true,
         nativeStructure: true,
       },

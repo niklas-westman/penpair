@@ -9,6 +9,7 @@ import {
 } from "../design-commands/options.js";
 import { commandData } from "./command-data.js";
 import { workflowTopics } from "./topics.js";
+import { releaseGuidance } from "./release-guidance.js";
 import { flagGuidance } from "./flag-guidance.js";
 
 export interface HelpTopic {
@@ -263,7 +264,14 @@ export function coreHelpTopics(local: boolean): HelpTopic[] {
         related: [
           command,
         ],
-        summary: `${command} ${action}: ${topic.summary}`,
+        summary:
+          command === "design-release" && releaseGuidance[action]
+            ? releaseGuidance[action]!.summary
+            : `${command} ${action}: ${topic.summary}`,
+        instructions:
+          command === "design-release" && releaseGuidance[action]
+            ? releaseGuidance[action]!.instructions
+            : topic.instructions,
       });
     }
   }

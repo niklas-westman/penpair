@@ -27,7 +27,9 @@ return { ok: true, switched: true };`,
 }
 
 export interface FramesParams {
-  page: string;
+  page?: string;
+  /** Expected current page identity; callers select this page before listing. */
+  pageId?: string;
   /** Resolve only these IDs using the page lookup API, without walking descendants. */
   frameIds?: string[];
   /** In ID mode, also list top-level boards for mixed name/ID baseline selection. */
@@ -52,7 +54,8 @@ export function frames(params: FramesParams): Snippet {
   }
   return readSnippet(
     "frames",
-    `${requirePage}
+    `if (CFG.pageId && penpot.currentPage.id !== CFG.pageId) return {ok:false,message:"Frame listing is on a different page identity"};
+${requirePage}
 const boards = [];
 if (CFG.frameIds !== undefined) {
   if (typeof penpot.currentPage.getShapeById !== "function") throw new Error("Direct frame ID lookup is unavailable on this page");

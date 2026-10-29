@@ -1,5 +1,6 @@
 import { releaseOptions, releaseActions } from "./options.js";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { parseCommandArgs, CommandArgumentError } from "../cli-arguments.js";
 import { atomicWriteFile } from "../atomic-output.js";
@@ -8,6 +9,8 @@ import { resolveProjectOutput } from "../project-input.js";
 import { createArtifactReview } from "../maps/index.js";
 import {
   planRelease,
+  adoptRelease,
+  validateReleaseApprovalReference,
   assembleRelease,
   verifyRelease,
   finalizeRelease,
@@ -19,10 +22,11 @@ import {
   type ReceiptInput,
 } from "../design-releases/index.js";
 import type { DesignCommandContext } from "./context.js";
+import { releaseStatus } from "../design-releases/status.js";
 import { runDesignReleaseCopyCommand } from "./copy-command.js";
 
 const releaseUsage =
-  "design-release plan|assemble|verify|finalize|check|context --from FILE [--out FILE]\n" +
+  "design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE [--out FILE]\n" +
   "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply] [--resume RUN_ID]";
 
 async function readReleaseJson(context: DesignCommandContext, file: string): Promise<unknown> {
@@ -63,15 +67,22 @@ function validateReceiptInput(raw: unknown): ReceiptInput[] {
       !record.sourceId ||
       typeof record.targetFrameId !== "string" ||
       !record.targetFrameId ||
-      Object.keys(record).some((key) => key !== "sourceId" && key !== "targetFrameId")
+      Object.keys(record).some(
+        (key) => key !== "sourceId" && key !== "targetFrameId" && key !== "approval",
+      )
     ) {
       throw new CommandArgumentError(
-        "Every transfer receipt needs only sourceId and targetFrameId",
+        "Every transfer receipt needs only sourceId, targetFrameId and optional approval",
       );
     }
     return {
       sourceId: record.sourceId,
       targetFrameId: record.targetFrameId,
+      ...(record.approval !== undefined
+        ? {
+            approval: validateReleaseApprovalReference(record.approval),
+          }
+        : {}),
     };
   });
 }
@@ -122,8 +133,9 @@ export async function runDesignReleaseCommand(
       "Finalization previews by default; --apply requires --by and --note with the owner's exact words",
     );
   }
-  if (action === "plan") {
-    const planned = await planRelease(context.root, await readReleaseJson(context, values.from), {
+  if (action === "plan" || action === "adopt") {
+    const planner = action === "adopt" ? adoptRelease : planRelease;
+    const planned = await planner(context.root, await readReleaseJson(context, values.from), {
       redact: context.redact,
     });
     if (values.out) {
@@ -136,13 +148,31 @@ export async function runDesignReleaseCommand(
     return 0;
   }
   const release = await readDesignRelease(context.root, values.from);
+  const comparison = values.comparison
+    ? {
+        path: values.comparison,
+        sha256: createHash("sha256")
+          .update(await readProjectBytes(context.root, values.comparison, 16 * 1024 * 1024))
+          .digest("hex"),
+      }
+    : undefined;
   const options = {
+    ...(comparison
+      ? {
+          comparison,
+        }
+      : {}),
     apply: values.apply === true,
     resume: !!values.resume,
     runId: values.resume,
     pointerPath: values.out ?? values.from,
     redact: (value: string) => context.redact(value),
     onStep: (message: string) => context.output.error(`… ${message}`),
+    ...(values.receipts
+      ? {
+          receipts: validateReceiptInput(await readReleaseJson(context, values.receipts)),
+        }
+      : {}),
   };
   if (action === "assemble") {
     const assembled = await context.withPenpot((client) =>
@@ -160,12 +190,12 @@ export async function runDesignReleaseCommand(
     return assembled.status === "final" || assembled.status === "verified" ? 0 : 3;
   }
   if (action === "verify") {
-    if (!values.receipts) {
+    if (!values.receipts && !(release.schemaVersion === 2 && release.sources.length === 0)) {
       throw new CommandArgumentError(
         "design-release verify requires --receipts FILE with explicit source/target frame IDs",
       );
     }
-    const receipts = validateReceiptInput(await readReleaseJson(context, values.receipts));
+    const receipts = options.receipts ?? [];
     const verified = await context.withPenpot((client) =>
       verifyRelease(client, context.root, release, receipts, options),
     );
@@ -206,10 +236,36 @@ export async function runDesignReleaseCommand(
     context.output.log(JSON.stringify(finalized, null, 2));
     return finalized.status === "final" ? 0 : 3;
   }
+  if (action === "status") {
+    const status = values.live
+      ? await context.withPenpot((client) =>
+          releaseStatus(context.root, release, {
+            ...options,
+            from: values.from,
+            client,
+          }),
+        )
+      : await releaseStatus(context.root, release, {
+          ...options,
+          from: values.from,
+        });
+    if (values.out) {
+      await writeReleaseOutput(context, values.out, status);
+    }
+    context.output.result(status);
+    context.output.log(JSON.stringify(status, null, 2));
+    return status.design.valid ? 0 : 3;
+  }
   if (action === "check") {
     const checked = values.live
       ? await context.withPenpot((client) => checkRelease(client, context.root, release))
       : await checkRelease(undefined, context.root, release);
+    const workflow = await releaseStatus(context.root, release, {
+      ...options,
+      from: values.from,
+      checked,
+    });
+    checked.workflow = workflow;
     if (values.out) {
       await writeReleaseOutput(context, values.out, checked);
     }
@@ -226,7 +282,10 @@ export async function runDesignReleaseCommand(
       "Release context requires a finalized release; use --draft to inspect explicitly unapproved context",
     );
   }
-  const generated = await releaseContext(context.root, release);
+  const generated = await releaseContext(context.root, release, {
+    ...options,
+    pointerPath: values.from,
+  });
   if (values.out) {
     await writeReleaseOutput(context, values.out, generated);
   }

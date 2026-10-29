@@ -1,3 +1,10 @@
+import {
+  validateDeltaReleasePlan,
+  validateReleaseMembers,
+  validateMemberEvidence,
+  validateBaseReference,
+  validateReleaseApprovalReference,
+} from "./membership-validation.js";
 import { observationHash } from "../journal.js";
 import { validateArtifactReview } from "../maps/review.js";
 import { mapObject, mapText, mapId, mapHash, mapPath } from "../maps/validation.js";
@@ -21,7 +28,7 @@ export function releaseReference(raw: unknown): ReleaseArtifactRef {
   };
 }
 
-function screen(raw: unknown, planned = true): ReleaseScreenInput {
+export function screen(raw: unknown, planned = true): ReleaseScreenInput {
   const value = mapObject(raw, "Release screen", [
     "id",
     "label",
@@ -55,7 +62,7 @@ function screen(raw: unknown, planned = true): ReleaseScreenInput {
   };
 }
 
-function contract(raw: unknown, planned = true): ReleaseContractInput {
+export function contract(raw: unknown, planned = true): ReleaseContractInput {
   const value = mapObject(raw, "Release contract", [
     "path",
     "sha256",
@@ -80,7 +87,7 @@ function contract(raw: unknown, planned = true): ReleaseContractInput {
   };
 }
 
-function releaseHeader(value: Record<string, unknown>): {
+export function releaseHeader(value: Record<string, unknown>): {
   id: string;
   title: string;
   productVersion: string;
@@ -116,6 +123,9 @@ function unique(values: string[], label: string): void {
 }
 
 export function validateReleasePlan(raw: unknown): DesignReleasePlanInput {
+  if (raw && typeof raw === "object" && "schemaVersion" in raw && raw.schemaVersion === 2) {
+    return validateDeltaReleasePlan(raw);
+  }
   const value = mapObject(raw, "Design release plan", [
     "schemaVersion",
     "kind",
@@ -156,6 +166,7 @@ export function validateReleasePlan(raw: unknown): DesignReleasePlanInput {
 
 function receipt(raw: unknown): ReleaseReceipt {
   const value = mapObject(raw, "Release receipt", [
+    "approval",
     "sourceId",
     "targetFrameId",
     "sourceFrameId",
@@ -195,6 +206,11 @@ function receipt(raw: unknown): ReleaseReceipt {
     throw new Error("Receipt requires exact image dimensions");
   }
   return {
+    ...(value.approval === undefined
+      ? {}
+      : {
+          approval: validateReleaseApprovalReference(value.approval),
+        }),
     sourceId: mapId(value.sourceId, "Receipt source ID"),
     targetFrameId: mapId(value.targetFrameId, "Receipt target frame ID"),
     sourceFrameId: mapId(value.sourceFrameId, "Receipt source frame ID"),
@@ -232,9 +248,16 @@ export function validateDesignRelease(raw: unknown): DesignRelease {
     "implementation",
     "createdAt",
     "finalized",
+    "base",
+    "members",
+    "memberEvidence",
+    "changes",
   ]);
   if (
-    value.schemaVersion !== 1 ||
+    ![
+      1,
+      2,
+    ].includes(Number(value.schemaVersion)) ||
     value.kind !== "design-release" ||
     ![
       "planned",
@@ -245,7 +268,11 @@ export function validateDesignRelease(raw: unknown): DesignRelease {
   ) {
     throw new Error("Unsupported design release schema or state");
   }
-  const sources = boundedList(value.sources, "Release sources", 100).map((entry) => {
+  const rawSources =
+    value.schemaVersion === 2 && Array.isArray(value.sources) && !value.sources.length
+      ? []
+      : boundedList(value.sources, "Release sources", 100);
+  const sources = rawSources.map((entry) => {
     const source = screen(entry, false);
     return {
       ...source,
@@ -299,7 +326,7 @@ export function validateDesignRelease(raw: unknown): DesignRelease {
     throw new Error("Invalid release receipt/review list");
   }
   const result: DesignRelease = {
-    schemaVersion: 1,
+    schemaVersion: value.schemaVersion as 1 | 2,
     kind: "design-release",
     ...releaseHeader(value),
     status: value.status as DesignRelease["status"],
@@ -348,6 +375,116 @@ export function validateDesignRelease(raw: unknown): DesignRelease {
     },
     createdAt: mapText(value.createdAt, "Release creation time", 100),
   };
+  if (result.schemaVersion === 2) {
+    result.members = validateReleaseMembers(value.members);
+    if (value.changes !== undefined) {
+      const changes = mapObject(value.changes, "Resolved release changes", [
+        "added",
+        "replaced",
+        "removed",
+      ]);
+      if (
+        !Array.isArray(changes.added) ||
+        !Array.isArray(changes.replaced) ||
+        !Array.isArray(changes.removed) ||
+        changes.added.length + changes.replaced.length + changes.removed.length > 300
+      ) {
+        throw new Error("Invalid resolved release changes");
+      }
+      result.changes = {
+        added: changes.added.map((id) => mapId(id, "Added member ID")),
+        replaced: changes.replaced.map((id) => mapId(id, "Replaced member ID")),
+        removed: changes.removed.map((raw) => {
+          const entry = mapObject(raw, "Removed release member", [
+            "id",
+            "reason",
+          ]);
+          return {
+            id: mapId(entry.id, "Removed member ID"),
+            reason: mapText(entry.reason, "Removal reason", 2000),
+          };
+        }),
+      };
+      unique(
+        [
+          ...result.changes.added,
+          ...result.changes.replaced,
+          ...result.changes.removed.map((entry) => entry.id),
+        ],
+        "resolved release changes",
+      );
+      const changedIds = result.members
+        .filter((member) => member.disposition === "changed")
+        .map((member) => member.id)
+        .sort();
+      if (
+        observationHash(changedIds) !==
+          observationHash(
+            [
+              ...result.changes.added,
+              ...result.changes.replaced,
+            ].sort(),
+          ) ||
+        result.changes.removed.some((entry) =>
+          result.members!.some((member) => member.id === entry.id),
+        )
+      ) {
+        throw new Error("Resolved release changes do not match full membership");
+      }
+    }
+    result.memberEvidence = validateMemberEvidence(value.memberEvidence ?? []);
+    if (value.base !== undefined) {
+      result.base = validateBaseReference(value.base);
+    }
+    const changed = result.members.filter((member) => member.disposition === "changed");
+    if (
+      observationHash(changed.map((member) => member.source)) !== observationHash(result.sources)
+    ) {
+      throw new Error("Changed release members must match the pinned source list");
+    }
+    for (const member of result.members) {
+      if (
+        member.origin &&
+        (member.origin.releaseId === result.id ||
+          member.origin.productVersion === result.productVersion)
+      ) {
+        throw new Error("Release membership cannot inherit itself");
+      }
+    }
+    if (
+      (result.status === "verified" || result.status === "final") &&
+      result.members.some((member) => !member.approval)
+    ) {
+      throw new Error("Verified release members require original owner approval references");
+    }
+    const expected = result.members
+      .filter((member) => member.disposition !== "changed")
+      .map((member) => member.id);
+    const observed = result.memberEvidence.map((evidence) => evidence.id);
+    if (
+      observed.some((id) => !expected.includes(id)) ||
+      ((result.status === "verified" || result.status === "final") &&
+        observationHash(
+          [
+            ...expected,
+          ].sort(),
+        ) !==
+          observationHash(
+            [
+              ...observed,
+            ].sort(),
+          ))
+    ) {
+      throw new Error("Release continuity evidence must bind every retained/adopted member");
+    }
+  } else if (
+    value.members !== undefined ||
+    value.base !== undefined ||
+    value.memberEvidence !== undefined ||
+    value.changes !== undefined
+  ) {
+    throw new Error("Legacy releases cannot contain delta membership fields");
+  }
   if (
     result.target.name !== `release/${result.productVersion}` ||
     result.target.ownerKey !==
@@ -417,7 +554,15 @@ export function validateDesignRelease(raw: unknown): DesignRelease {
       evidence.kind !== "design-release-fidelity" ||
       evidence.exactDecodedPixels !== true ||
       evidence.nativeStructure !== true ||
-      mapHash(evidence.receiptsHash, "Receipts hash") !== observationHash(result.receipts) ||
+      mapHash(evidence.receiptsHash, "Receipts hash") !==
+        observationHash(
+          result.schemaVersion === 2
+            ? {
+                receipts: result.receipts,
+                memberEvidence: result.memberEvidence,
+              }
+            : result.receipts,
+        ) ||
       result.receipts.length !== sources.length
     ) {
       throw new Error("Fidelity evidence does not bind all screen receipts");

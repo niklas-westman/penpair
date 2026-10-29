@@ -1,3 +1,5 @@
+import { parsePenpotWorkspaceUrl } from "./penpot-workspace-url.js";
+
 export interface BrowserTargetOptions {
   origin: string;
   fileId: string;
@@ -371,6 +373,9 @@ export async function reloadBrowserTarget(
 }
 
 function routeOf(url: URL): string {
+  if (parsePenpotWorkspaceUrl(url)) {
+    return "/workspace";
+  }
   const hashRoute = url.hash.slice(1);
   const route = hashRoute.startsWith("/") ? hashRoute.split("?")[0]! : url.pathname;
   return route.slice(0, 80) || "/";
@@ -456,16 +461,8 @@ function matchesFile(targetUrl: string, request: BrowserRequest): boolean {
     return false;
   }
 
-  const hashRoute = url.hash.slice(1);
-  const hashQuery = hashRoute.indexOf("?");
-  const parameters =
-    hashQuery >= 0 && hashRoute.slice(0, hashQuery) === "/workspace"
-      ? new URLSearchParams(hashRoute.slice(hashQuery + 1))
-      : url.pathname === "/workspace" && !url.hash
-        ? url.searchParams
-        : undefined;
-  const fileIds = parameters?.getAll("file-id");
-  return fileIds?.length === 1 && fileIds[0] === request.fileId;
+  const workspace = parsePenpotWorkspaceUrl(url);
+  return workspace?.fileId === request.fileId;
 }
 
 async function readTargetList(response: Response): Promise<string> {

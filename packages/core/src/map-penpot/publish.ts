@@ -1,3 +1,4 @@
+import { mapCardAnchorHeight } from "../maps/card-metrics.js";
 import { nativeMapShapeKeys, nativeMapTextEntries } from "./content.js";
 import { defaultMapIcon, identifyMapIcon } from "./icons.js";
 import { mapOriginLabels, mapOriginLegend } from "./status-labels.js";
@@ -45,12 +46,7 @@ export function verificationProblems(drawing: MapDrawing, observed: NativeMapPro
   }
   for (const shape of observed.shapes) {
     const style = shape.appearance as Record<string, unknown> | undefined;
-    const radius =
-      shape.role === "node" || shape.role === "annotation-panel"
-        ? 12
-        : shape.role === "icon-well"
-          ? 8
-          : undefined;
+    const radius = shape.role === "node" ? 12 : shape.role === "icon-well" ? 8 : undefined;
     if (
       radius !== undefined &&
       [
@@ -156,7 +152,7 @@ export function verificationProblems(drawing: MapDrawing, observed: NativeMapPro
     if (actual?.label !== entry.text) {
       problems.push(`Native text differs: ${entry.role}:${entry.logicalId}`);
     }
-    if (actual && actual.height > entry.height + 0.01) {
+    if (!entry.parent && actual && actual.height > entry.height + 0.01) {
       problems.push(`Native text exceeds reserved space: ${entry.role}:${entry.logicalId}`);
     }
   }
@@ -203,9 +199,9 @@ export function verificationProblems(drawing: MapDrawing, observed: NativeMapPro
       !to ||
       !vertices ||
       !(close(start?.x, from.x + from.width) || close(start?.x, from.x)) ||
-      !close(start?.y, from.y + from.height / 2) ||
+      !close(start?.y, from.y + mapCardAnchorHeight / 2) ||
       !(
-        (close(end?.x, to.x) && close(end?.y, to.y + to.height / 2)) ||
+        (close(end?.x, to.x) && close(end?.y, to.y + mapCardAnchorHeight / 2)) ||
         (edge.from === edge.to && close(end?.x, to.x + to.width / 2) && close(end?.y, to.y))
       )
     ) {
@@ -220,7 +216,7 @@ export function verificationProblems(drawing: MapDrawing, observed: NativeMapPro
         x: shape.x - bounds.x,
         y: shape.y - bounds.y,
         width: shape.width,
-        height: shape.height,
+        height: mapCardAnchorHeight,
       }));
     const edges = drawing.edges.flatMap((edge) => {
       const path = observed.shapes.find(

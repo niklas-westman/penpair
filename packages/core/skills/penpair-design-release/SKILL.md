@@ -1,86 +1,83 @@
 ---
 name: penpair-design-release
-description: Prepare and verify a Penpair design release in the pinned Penpot file. Use to assemble reviewed journeys, integration maps and fidelity-checked native screens into release/<product-version> for later implementation.
+description: Plan, resume, verify and finalize a native Penpot product design release. Use for release pages, inherited frames, release readiness, adoption and approval blockers; publishing Penpair packages follows the repository release guide instead.
 ---
 
 # Design release
 
-Before unfamiliar work, read the installed `penpair --help`, then
-`penpair help design-release copy` and `penpair help workflows.capture-evidence`
-when supported. On an older CLI use its actual command help; do not invent flags
-or fetch a global replacement.
+Use the pinned project's installed CLI. Start with `penpair --help` and
+`penpair help design-release`; read the relevant subcommand help before an
+unfamiliar action. Check capabilities rather than assuming this skill and CLI
+have matching versions. Do not fetch a global replacement or invent flags.
 
-For a one-off release transfer, offer guided manual native copy/paste first while
-automated transfer performance remains unverified. Keep the selected source IDs,
-record target IDs and independently compare native fields and pixels either way;
-manual paste is not automatic fidelity proof. Avoid same-name matching across
-pages. Automated copy returns explicit ID pairs and a private receipt.
+## Locate the current step
 
-Start with one representative board, inspect its export and critique it before
-expansion. Use bounded read-only probes to count frames, gaps, clipped geometry
-and duplicate/empty IDs before expensive capture. Export individual frames rather
-than entire sections. Use `export --frames ID=NAME,... --page PAGE --cache` for
-ad-hoc review batches; cached is not fresh pixel proof and never replaces fresh
-release/baseline evidence. A contact sheet can aid review but does not replace the
-individual verified artifacts.
+1. Identify the requested product version and canonical release file. Inspect
+   existing project records before creating a new draft. If multiple releases
+   plausibly match the request, ask which one to work on.
+2. Run `penpair design-release status --from RELEASE_FILE`. Read the entire
+   command envelope, including completeness, blockers and next actions. Use
+   `--live` when fresh Penpot evidence is needed; offline status cannot establish
+   live freshness. If this CLI lacks `status`, use its documented `check` and
+   `context` commands, state the limitation and do not infer a missing phase.
+3. Report a short checkpoint at entry and after meaningful actions:
 
-Keep stderr visible: foreground or `tee` with `pipefail`, never `tail -N` or a
-subprocess that buffers child stderr. Automated copy supports
-`--progress human|json|off` and reports selection, source preparation, per-frame
-capture and verification. The early preparation run ID is not proof of a journal,
-a paste or a resumable write. If preparation fails, inspect its phase and actual
-destination; use `--resume` only when the corresponding journal exists and its
-unchanged inputs have been reviewed. Do not start a duplicate background copy.
+   ```text
+   Release: <product version and canonical record>
+   Step: <reported current step>
+   Completed evidence: <verified prerequisites, with scope>
+   Blocker: <reported blocker, or none>
+   Next: <valid action; preview, read-only or approval-dependent>
+   Design: <readiness and live freshness>
+   Implementation: <comparison completeness and acceptance>
+   ```
 
-Before any suggested `wake --reload`, verify in the editor that saving finished.
-Reload may discard unsaved changes; a readable editor revision or a verified write
-does not prove persistence. Penpair currently cannot confirm saved state.
+4. Follow the reported next valid action. Supply exact commands only when the
+   required inputs are known; otherwise identify the missing input. Read only
+   the reference relevant to the active step:
 
-Read [the detailed workflow](references/workflow.md) for coverage, review and
-recovery boundaries.
+   | Current work | Read |
+   | --- | --- |
+   | Adoption or inherited membership | [Historical adoption](references/adoption.md) |
+   | Assembly, retained frames, verification or review | [Native release workflow](references/workflow.md) |
+   | Interrupted operation, stale evidence or unclear phase | [Status and recovery](references/status-and-recovery.md) |
+   | Current-app comparison or implementation acceptance | [Comparison and handoff](references/comparison.md) |
 
-Freeze evidence for a reviewed design package while keeping implementation
-verification separate. The explicit product SemVer is independent of the
-installed Penpair package version. Do not bump or publish npm packages here.
+5. Refresh status after actions. A saved lifecycle label, command acknowledgment,
+   previous chat summary or checked Markdown box is not current readiness proof.
+   A finalized release can remain finalized while later Penpot drift makes it
+   invalid. Before finalization obtain a fresh live check and the owner's actual
+   words for the exact candidate.
 
-1. **Plan.** Read the reviewed journey and integration contracts, exact source
-   screen identities and complete inspections. Check hashes, required cases,
-   unknowns and blockers. Use `design-release` help for plan/assemble/verify/
-   finalize/check/context arguments. Store working release records in the
-   project's design folder, never inside installed skill folders.
-2. **Assemble.** Preview the owned `release/<version>` page in the same pinned
-   file. Apply only within the owner's authorized scope. Compile snippets, keep
-   each below 90 KB, and retain pinned snapshot, one idempotent write and
-   independent readback. Assemble the overview/maps, then guide native
-   copy/paste of the selected source frames. Do not detach, redraw from images,
-   normalize geometry, or switch auto height to fixed height. No cross-file
-   transfer or unsupported clone fallback.
-3. **Verify transfer.** Record explicit source-to-target root IDs, derive child
-   correspondence from ordered topology/type and independently verify native
-   fields, dependencies, overrides, tokens, assets and remapped interactions.
-   Unobservable required fidelity remains blocking. Read the linked workflow's
-   current limits: component override state, missing mask observations and
-   unknown text ranges can block selected screens entirely. After uncertain paste,
-   inspect candidates and reconcile receipts before any retry. Inspect stable
-   source/target exports twice and compare exact dimensions and pixels.
-4. **Review evidence.** Keep immutable inspections/images and exact hashes.
-   New baselines default to static lossless WebP; keep existing PNG approvals
-   unchanged unless explicit migration goes through normal exact-byte review.
-   Source image approval does not approve a newly copied target identity. Map
-   review, image approval and release review are distinct.
-5. **Finalize.** Present the verified release candidate and record only actual
-   supplied owner words for its exact hash. Save immutable evidence before the
-   guarded remote release marker, independently verify that marker, then publish
-   the local finalized pointer. Reconcile a partial journal; do not claim a
-   transaction across the local filesystem and Penpot. Mutable native objects
-   can drift through shared components/tokens after release.
-6. **Hand off.** Check saved artifacts and, when requested, live drift. Emit
-   bounded approved context with scope and truncation explicit. Design release
-   finalization does not accept implementation: keep it `not-assessed` until
-   actual application evidence exists. Continue with `penpair-handoff`, followed
-   by `penpair-verify` for real browser work.
+## Operating rules
 
-Report **Changed**, **Validated**, **Risks**. A disconnected editor permits local
-preparation and tests, not claims of native transfer or live visual proof.
+- A release page contains changed frames and an overview linking to retained
+  frames on earlier pages. The complete frozen inventory, not just the new page,
+  defines coverage. Stay inside the pinned Penpot file; never use name matching
+  across pages to infer identity.
+- Keep original reference bytes, identities and approval records immutable.
+  Membership in an old release, equal-looking pixels or a successful browser
+  comparison does not establish an earlier per-frame approval.
+- Preserve separate gates for native fidelity, image approval, map review,
+  release review and implementation acceptance. Design finalization does not
+  assert that the application matches it.
+- Start unfamiliar capture/transfer work with one representative board. Inspect
+  its actual export before expanding. Unknown native fidelity remains blocking;
+  never detach, flatten, redraw from screenshots or normalize sizing to pass.
+- Keep stderr visible in the foreground or through `tee` with `pipefail`; never
+  hide progress behind `tail -N` or buffered child output. Partial, cancelled and
+  pending results remain incomplete regardless of passing returned cases.
+- For every authorized Penpot write: read-only inspection, pinned snapshot, one
+  idempotent write, independent readback and stable exports that are looked at.
+  Keep snippets below 90 KB. Skill invocation grants no additional write scope
+  and supplies no owner approval.
+- A first export after a write/page switch may be stale; inspect stable exports
+  twice. Cached ad-hoc exports and contact sheets assist review but do not prove
+  fresh release/baseline fidelity.
+- Before suggesting `wake --reload`, verify saving in the editor. A readable
+  revision does not prove persistence; reload may discard unsaved changes.
+- Store project release records and evidence in the project, never in installed
+  skill folders. Product SemVer is separate from the Penpair package version.
 
-See the [design-release guide](https://github.com/niklas-westman/penpair/blob/main/docs/design-releases.md).
+Report **Changed**, **Validated**, **Risks**, retaining the current checkpoint.
+A disconnected editor permits local preparation, not claims of live proof.

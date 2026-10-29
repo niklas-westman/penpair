@@ -144,3 +144,9 @@ export * from "./map-penpot/index.js";
 export * from "./design-releases/index.js";
 
 export type { CaptureProgress, CapturePhase } from "./capture-progress.js";
+
+export {
+  matchingBaselineReference,
+  validateBaselineReference,
+  validateBaselineSources,
+} from "./baseline-reference.js";

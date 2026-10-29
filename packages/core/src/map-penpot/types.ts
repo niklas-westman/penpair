@@ -93,9 +93,11 @@ export interface ProjectionShape {
     | "full-summary"
     | "description"
     | "annotation-panel"
+    | "annotation-rule"
     | "annotation-id"
     | "annotation-heading"
     | "icon-well"
+    | "badge-well"
     | "icon"
     | "port-in"
     | "port-out";

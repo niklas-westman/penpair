@@ -130,6 +130,11 @@ function projection(
       ...(
         [
           "icon-well",
+          ...(node.origin
+            ? [
+                "badge-well",
+              ]
+            : []),
           "icon",
           "port-in",
           "port-out",
@@ -180,6 +185,18 @@ function projection(
       y: annotation.y,
       width: annotation.width,
       height: annotation.height,
+      appearance: {},
+    });
+    shapes.push({
+      shapeId: `rule-${annotation.id}`,
+      logicalId: annotation.id,
+      role: "annotation-rule",
+      label: null,
+      content: null,
+      x: annotation.x,
+      y: annotation.y,
+      width: annotation.width,
+      height: 1,
       appearance: {},
     });
   }

@@ -1,3 +1,4 @@
+import { mapCardAnchorHeight } from "../src/maps/card-metrics.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -51,7 +52,7 @@ const drawing: MapDrawing = {
       x: 400,
       y: 180,
       width: 280,
-      height: 120,
+      height: mapCardAnchorHeight,
     },
     {
       id: "done",
@@ -60,7 +61,7 @@ const drawing: MapDrawing = {
       x: 1160,
       y: 180,
       width: 280,
-      height: 120,
+      height: mapCardAnchorHeight,
     },
   ],
   edges: [
@@ -147,6 +148,7 @@ function fixture() {
         console,
         Uint8Array,
         btoa: (value: string) => Buffer.from(value, "binary").toString("base64"),
+        atob,
       });
       return {
         text: JSON.stringify({
@@ -457,7 +459,7 @@ describe("native map projection", () => {
       line as unknown as {
         content: string;
       }
-    ).content = "M1440 240 L400 240";
+    ).content = "M1440 266 L400 266";
     const label = first.projection.shapes.find((shape) => shape.role === "edge-label")!;
     local.shapes.find((shape) => shape.id === label.shapeId)!.characters = "Retry";
     const proposed = importMapProposal(
@@ -500,6 +502,8 @@ describe("native map projection", () => {
     const stale = publishMapSnippet(target, drawing, before);
     const result = await runInNewContext(`(async () => {${stale.code}\n})()`, {
       penpot: local.penpot,
+      atob,
+      Uint8Array,
     });
     expect(result).toMatchObject({
       ok: false,
@@ -797,10 +801,10 @@ describe("native map projection", () => {
     expect(first.report.verified).toBe(true);
     expect(first.projection.conflicts).toEqual([]);
     const normalizedPath = first.projection.shapes.find((shape) => shape.role === "edge")?.content;
-    expect(normalizedPath).toContain("M680,240L");
+    expect(normalizedPath).toContain("M680,266L");
     expect(readMapPathPoints(normalizedPath)?.at(-1)).toEqual({
       x: 1160,
-      y: 240,
+      y: 266,
     });
     const second = await publishMap(local.client, target, drawing, {
       apply: true,
@@ -834,7 +838,7 @@ describe("native map projection", () => {
           fontSize: number;
         }
       ).fontSize,
-    ).toBe(24);
+    ).toBe(32);
   });
 
   it("selects exact fonts from all rather than fuzzy findByName matches", async () => {
@@ -963,6 +967,8 @@ describe("native map projection", () => {
       const initial = await readProjection(local.client, target, native.mapId);
       await runInNewContext(`(async()=>{${publishMapSnippet(target, native, initial).code}\n})()`, {
         penpot: local.penpot,
+        atob,
+        Uint8Array,
       });
       const firstProjection = await readProjection(local.client, target, native.mapId);
       expect(verificationProblems(native, firstProjection)).toEqual([]);
@@ -1646,6 +1652,8 @@ describe("native map projection", () => {
       `(async()=>{${publishMapSnippet(target, native, before).code}\n})()`,
       {
         penpot: local.penpot,
+        atob,
+        Uint8Array,
       },
     );
     expect(result.ok).toBe(true);
@@ -1716,10 +1724,10 @@ describe("native map projection", () => {
     expect(
       vertices.every(
         (point) =>
-          point.x >= native.nodes[0]!.x + 24 &&
-          point.x <= native.nodes[0]!.x + 40 &&
-          point.y >= native.nodes[0]!.y + 24 &&
-          point.y <= native.nodes[0]!.y + 40,
+          point.x >= native.nodes[0]!.x &&
+          point.x <= native.nodes[0]!.x + 16 &&
+          point.y >= native.nodes[0]!.y &&
+          point.y <= native.nodes[0]!.y + 16,
       ),
     ).toBe(true);
     const setText = (role: string, value: string, id = native.mapId) => {
@@ -1892,5 +1900,47 @@ describe("native map projection", () => {
         expected: first.projection,
       }),
     ).rejects.toThrow("matching prior projection");
+  });
+});
+
+describe("measured two-line native card titles", () => {
+  it("reserves room for observed 34px Inter titles without overlapping summaries and rejects actual overflow", async () => {
+    const local = fixture();
+    const native: MapDrawing = {
+      ...drawing,
+      nodes: drawing.nodes.map((node) => ({
+        ...node,
+        height: mapCardAnchorHeight,
+        cardTitle: "Proposed /poc/welcome",
+        cardSummary: "A compact summary",
+      })),
+    };
+    const publication = await publishMap(local.client, target, native, {
+      apply: true,
+      journal: await journal(),
+      layout: false,
+      export: false,
+    });
+    const observed = structuredClone(publication.projection);
+    const label = observed.shapes.find(
+      (shape) => shape.role === "label" && shape.logicalId === "form",
+    )!;
+    label.height = 34;
+    expect(verificationProblems(native, observed)).toEqual([]);
+    const entries = nativeMapTextEntries(native);
+    const labelEntry = entries.find(
+      (entry) => entry.role === "label" && entry.logicalId === "form",
+    )!;
+    const summaryEntry = entries.find(
+      (entry) => entry.role === "summary" && entry.logicalId === "form",
+    )!;
+    expect(labelEntry.y + labelEntry.height).toBeLessThan(summaryEntry.y);
+    const card = observed.shapes.find(
+      (shape) => shape.role === "node" && shape.logicalId === "form",
+    )!;
+    label.height = card.height + 1;
+    expect(verificationProblems(native, observed)).toContain(
+      "Node label exceeds card bounds: form",
+    );
   });
 });

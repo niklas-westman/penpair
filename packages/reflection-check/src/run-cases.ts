@@ -58,6 +58,7 @@ async function collectCaseEvidence(
   return {
     id: implementationCase.id,
     complete: true,
+    threshold: implementationCase.threshold,
     withinThreshold: evidence.diffPixelRatio <= implementationCase.threshold,
     evidence,
     screenshotHash: hashImageBytes(implementationImage.bytes),
@@ -78,6 +79,7 @@ export async function runImplementationCases(
       reports.push({
         id: implementationCase.id,
         complete: false,
+        threshold: implementationCase.threshold,
         reason: String((error as Error).message),
       });
     }

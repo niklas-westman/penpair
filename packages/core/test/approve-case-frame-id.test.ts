@@ -7,6 +7,8 @@ import { runCli } from "../src/cli-main.js";
 import * as clientModule from "../src/client.js";
 import * as endpointModule from "../src/endpoint.js";
 import * as exportModule from "../src/export.js";
+import * as pageSessionModule from "../src/page-session.js";
+import * as operationModule from "../src/operation.js";
 import * as shotsModule from "../src/shots.js";
 
 const frameId = "abcdef01-2345-6789-abcd-0123456789ab";
@@ -25,7 +27,9 @@ afterEach(async () => {
   );
 });
 
-async function approvalProject(selector: Pick<BaselineFrame, "frame" | "frameId">) {
+async function approvalProject(
+  selector: Pick<BaselineFrame, "frame" | "frameId" | "page" | "pageId">,
+) {
   const root = await mkdtemp(path.join(os.tmpdir(), "penpair-approve-case-"));
   projectRoots.push(root);
   await writeFile(
@@ -91,7 +95,7 @@ async function approvalProject(selector: Pick<BaselineFrame, "frame" | "frameId"
   const capture = vi.spyOn(exportModule, "exportShapePng").mockResolvedValue({
     capture: {
       fileId: "file",
-      pageId: "page",
+      pageId: selector.pageId ?? "page",
       frameId,
       revision: 1,
       scale: 1,
@@ -111,11 +115,11 @@ async function approvalProject(selector: Pick<BaselineFrame, "frame" | "frameId"
   };
 }
 
-function approve(selectedFrameId: string): Promise<number> {
+function approve(selectedFrameId: string, page = "Page"): Promise<number> {
   return runCli([
     "approve",
     "--page",
-    "Page",
+    page,
     "--frame",
     selectedFrameId,
     "--case",
@@ -171,5 +175,76 @@ it("refuses a name-only case when its resolved frame differs", async () => {
 
   expect(await approve(otherFrameId)).toBe(1);
   expect(project.lookup).toHaveBeenCalledWith(project.client, "Desktop", "Page");
+  expect(project.capture).not.toHaveBeenCalled();
+});
+
+const sourcePageId = "12345678-1234-4234-8234-123456789abc";
+
+it.each([
+  sourcePageId,
+  "Renamed source",
+])("approves ID-selected source pages using %s without default-name fallback", async (page) => {
+  const project = await approvalProject({
+    frameId,
+    pageId: sourcePageId,
+  });
+  const select = vi.spyOn(pageSessionModule, "selectPage").mockResolvedValue({
+    fileId: "file",
+    pageId: sourcePageId,
+  });
+  vi.spyOn(operationModule, "runOnPage").mockResolvedValue({
+    ok: true,
+    fileId: "file",
+    pageId: sourcePageId,
+    page: "Renamed source",
+    frames: [
+      {
+        id: frameId,
+        name: "Desktop",
+      },
+    ],
+  });
+  expect(await approve(frameId, page)).toBe(0);
+  expect(select).toHaveBeenCalledWith(
+    project.client,
+    {
+      id: sourcePageId,
+    },
+    expect.anything(),
+  );
+  expect(project.lookup).not.toHaveBeenCalled();
+  expect(project.capture).toHaveBeenCalledWith(
+    project.client,
+    frameId,
+    expect.objectContaining({
+      page: undefined,
+      stable: true,
+    }),
+  );
+});
+
+it("rejects conflicting configured page names before approval capture", async () => {
+  const project = await approvalProject({
+    frameId,
+    pageId: sourcePageId,
+    page: "Wrong expected name",
+  });
+  vi.spyOn(pageSessionModule, "selectPage").mockResolvedValue({
+    fileId: "file",
+    pageId: sourcePageId,
+  });
+  vi.spyOn(operationModule, "runOnPage").mockResolvedValue({
+    ok: true,
+    fileId: "file",
+    pageId: sourcePageId,
+    page: "Renamed source",
+    frames: [
+      {
+        id: frameId,
+        name: "Desktop",
+      },
+    ],
+  });
+  expect(await approve(frameId, sourcePageId)).toBe(1);
   expect(project.capture).not.toHaveBeenCalled();
 });

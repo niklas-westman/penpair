@@ -219,6 +219,12 @@ export async function finalizeRelease(
         {
           root,
           operation: "design-release-finalize",
+          payload: {
+            kind: "design-release-operation",
+            releaseId: release.id,
+            productVersion: release.productVersion,
+            designHash,
+          },
           input: {
             designHash,
             bundleHash: bundleReference.sha256,

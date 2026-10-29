@@ -128,6 +128,13 @@ to review/record the same encoding; PNG approval cannot approve WebP bytes.
 See [approval and migration details](approvals.md#image-format-and-migration).
 Public `export` and `shots` remain PNG.
 
+For rich release comparisons, use the [comparison adapter's native bridge or
+reviewed custom provider](adapters.md#native-reflection-for-release-comparisons).
+The native bridge binds full case coverage, explicit thresholds and a finalized
+release context; published Reflection 0.7.0 alone lacks its required capability
+extension. Generated review-only cases below are a legacy convenience, not a
+complete release acceptance gate.
+
 The generated `reflection-cases.json` holds, per route, the viewports (the image's exact size) and the `visualSmoke` cases (review-only, `strict: false`). A Reflection config uses it like this; only the route's own expectations are written by hand:
 
 ```ts

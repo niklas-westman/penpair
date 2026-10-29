@@ -18,6 +18,17 @@ the maintained documentation before archiving working notes.
   Session handoffs, review reports and private evidence stay in `.working-docs/`.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
+## Product design releases
+
+For Penpot product release pages, adoption, retained frames, readiness, approval
+or interrupted release work, read
+[penpair-design-release](packages/core/skills/penpair-design-release/SKILL.md)
+first. Use the installed CLI's release status and evidence to identify the current
+step, blockers and next valid action; report design readiness separately from
+implementation acceptance. Preserve owner approval and Penpot write boundaries.
+Publishing Penpair's npm packages follows [the package release guide](docs/releasing.md)
+instead; the product design-release skill does not authorize publication.
+
 ## Code conventions
 
 Before creating or refactoring code, read [docs/conventions](docs/conventions/README.md)

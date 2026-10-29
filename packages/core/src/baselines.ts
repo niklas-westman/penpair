@@ -1,3 +1,5 @@
+import { matchingBaselineReference, validateBaselineReference } from "./baseline-reference.js";
+import { selectPage, withPageSession } from "./page-session.js";
 import { capturePhase } from "./capture-progress.js";
 import { matchingApproval } from "./approvals.js";
 import { matchesDesignViewport } from "./design-viewport.js";
@@ -56,6 +58,14 @@ export interface ArtifactProvenance extends CaptureIdentity {
   file: string;
 }
 export interface BaselineResult {
+  /** Resolved configured source; schema-2 records may omit this. */
+  source?: {
+    page: string;
+    pageId: string;
+    fileId: string;
+    frameId?: string;
+    route?: string;
+  };
   case?: BaselineCase;
   problems?: string[];
   captured?: ArtifactProvenance;
@@ -85,8 +95,12 @@ export interface BaselinesReport {
   coverage: BaselineCoverage;
   complete: boolean;
   fileId: string;
-  pageId: string;
-  page: string;
+  pageId?: string;
+  page?: string;
+  pages?: {
+    page: string;
+    pageId: string;
+  }[];
   penpotFile: string;
   revn: number;
   results: BaselineResult[];
@@ -109,6 +123,9 @@ export interface BaselinesOptions extends ExportOptions {
 }
 
 const sha = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
+
+const pageKey = (config: BaselinesConfig, frame: BaselinesConfig["frames"][number]): string =>
+  frame.pageId ? `id:${frame.pageId.toLowerCase()}` : `name:${frame.page ?? config.page}`;
 
 async function readIfExists(file: string, maximum = 64 * 1024 * 1024): Promise<Buffer | undefined> {
   try {
@@ -202,7 +219,9 @@ export async function resolveBaselineImageFormat(
   const previous = bytes ? JSON.parse(bytes.toString("utf8")) : undefined;
   if (
     previous &&
-    ((previous.schemaVersion !== undefined && previous.schemaVersion !== 2) ||
+    ((previous.schemaVersion !== undefined &&
+      previous.schemaVersion !== 2 &&
+      previous.schemaVersion !== 3) ||
       !Array.isArray(previous.frames) ||
       previous.frames.length > 1000)
   ) {
@@ -225,6 +244,17 @@ export async function exportBaselines(
   config: BaselinesConfig,
   options: BaselinesOptions = {},
 ): Promise<BaselinesReport> {
+  return withPageSession(client, () =>
+    exportBaselinesInSession(client, projectRoot, config, options),
+  );
+}
+
+async function exportBaselinesInSession(
+  client: PenpotToolClient,
+  projectRoot: string,
+  config: BaselinesConfig,
+  options: BaselinesOptions,
+): Promise<BaselinesReport> {
   if (options.format !== undefined && options.format !== "png" && options.format !== "webp") {
     throw new Error("Baseline format must be png or webp");
   }
@@ -244,48 +274,94 @@ export async function exportBaselines(
   validateBaselines(config, (message) => {
     throw new Error(message);
   });
-  const frameIds = config.frames.flatMap((entry) =>
-    entry.frameId
-      ? [
-          entry.frameId.toLowerCase(),
-        ]
-      : [],
-  );
-  const selection = {
-    page: config.page,
-    ...(frameIds.length
-      ? {
-          frameIds,
-          includeTopLevel: config.frames.some((entry) => entry.frameId === undefined),
-        }
-      : {}),
-  };
-  const listing = await capturePhase(options, "baselines", "selection", () =>
-    runOnPage(client, frames(selection), config.page, options),
-  );
-  if (
-    listing.ok !== true ||
-    typeof listing.fileId !== "string" ||
-    !listing.fileId ||
-    typeof listing.pageId !== "string" ||
-    !listing.pageId ||
-    !Number.isInteger(listing.revn) ||
-    !Array.isArray(listing.frames)
-  ) {
-    throw new Error("Baseline listing lacks file/page/revision evidence");
+  const groups = new Map<string, typeof config.frames>();
+  for (const frame of config.frames) {
+    const key = pageKey(config, frame);
+    groups.set(key, [
+      ...(groups.get(key) ?? []),
+      frame,
+    ]);
   }
-  if (listing.truncated === true) {
-    throw new Error(
-      "Baseline frame search truncated at the page shape budget; nothing was captured",
+  const listings = new Map<
+    string,
+    {
+      selection: Parameters<typeof frames>[0];
+      listing: Awaited<ReturnType<typeof runOnPage>>;
+    }
+  >();
+  for (const [key, selected] of groups) {
+    const pageId = selected[0]!.pageId?.toLowerCase();
+    const page = pageId ? undefined : (selected[0]!.page ?? config.page);
+    options.onStep?.(`selecting baseline page ${pageId ?? page} (${selected.length} frames)`);
+    const frameIds = selected.flatMap((entry) =>
+      entry.frameId
+        ? [
+            entry.frameId.toLowerCase(),
+          ]
+        : [],
     );
+    const selection = {
+      ...(pageId
+        ? {
+            pageId,
+          }
+        : {
+            page,
+          }),
+      ...(frameIds.length
+        ? {
+            frameIds,
+            includeTopLevel: selected.some((entry) => !entry.frameId),
+          }
+        : {}),
+    };
+    const listing = await capturePhase(options, "baselines", "selection", async () => {
+      if (pageId) {
+        await selectPage(
+          client,
+          {
+            id: pageId,
+          },
+          options,
+        );
+      }
+      return runOnPage(client, frames(selection), page, options);
+    });
+    if (
+      pageId &&
+      (listing.pageId !== pageId ||
+        typeof listing.page !== "string" ||
+        !listing.page ||
+        selected.some((frame) => frame.page !== undefined && frame.page !== listing.page))
+    ) {
+      throw new Error("Baseline page ID and expected page name do not match the observed source");
+    }
+    if (
+      listing.ok !== true ||
+      typeof listing.fileId !== "string" ||
+      !listing.fileId ||
+      typeof listing.pageId !== "string" ||
+      !listing.pageId ||
+      !Number.isInteger(listing.revn) ||
+      !Array.isArray(listing.frames)
+    ) {
+      throw new Error("Baseline listing lacks file/page/revision evidence");
+    }
+    if (listing.truncated === true) {
+      throw new Error(
+        "Baseline frame search truncated at the page shape budget; nothing was captured",
+      );
+    }
+    const first = listings.values().next().value?.listing;
+    if (first && (listing.fileId !== first.fileId || listing.revn !== first.revn)) {
+      throw new Error("Baseline source changed between pages; nothing was published");
+    }
+    listings.set(key, {
+      selection,
+      listing,
+    });
   }
-  const found = listing.frames as {
-    id: string;
-    name: string;
-    width: number;
-    height: number;
-    topLevel?: boolean;
-  }[];
+  const firstListing = listings.values().next().value!.listing;
   const results: BaselineResult[] = [];
   const wrote: string[] = [];
   const folder = await resolveProjectOutput(projectRoot, config.root);
@@ -302,7 +378,9 @@ export async function exportBaselines(
     : undefined;
   if (
     previous &&
-    ((previous.schemaVersion !== undefined && previous.schemaVersion !== 2) ||
+    ((previous.schemaVersion !== undefined &&
+      previous.schemaVersion !== 2 &&
+      previous.schemaVersion !== 3) ||
       !Array.isArray(previous.frames))
   ) {
     throw new Error("Existing baseline manifest is invalid; preserve and inspect it");
@@ -310,7 +388,38 @@ export async function exportBaselines(
   const runId = randomUUID();
   const generation = `captures/${runId}`;
   const captures = new Map<string, Buffer>();
-  for (const [index, wanted] of config.frames.entries()) {
+  const orderedFrames = [
+    ...groups.values(),
+  ].flat();
+  let currentCapturePage: string | undefined;
+  for (const [index, wanted] of orderedFrames.entries()) {
+    const key = pageKey(config, wanted);
+    const listing = listings.get(key)!.listing;
+    const page = String(listing.page ?? wanted.page ?? config.page);
+    if (wanted.pageId && currentCapturePage !== key) {
+      await selectPage(
+        client,
+        {
+          id: wanted.pageId.toLowerCase(),
+        },
+        options,
+      );
+    }
+    currentCapturePage = key;
+    const found = listing.frames as {
+      id: string;
+      name: string;
+      width: number;
+      height: number;
+      topLevel?: boolean;
+    }[];
+    const source = {
+      page,
+      pageId: String(listing.pageId),
+      fileId: String(listing.fileId),
+      frameId: wanted.frameId,
+      route: wanted.route,
+    };
     options.signal?.throwIfAborted();
     const old = previous?.frames?.find((entry) => entry.id === wanted.id);
     const existingEvidence = await existingBaseline(projectRoot, config, wanted.id, old);
@@ -336,6 +445,7 @@ export async function exportBaselines(
               case: wanted.case,
             }
           : {}),
+        source,
         id: wanted.id,
         frame: wanted.frame ?? wanted.frameId!,
         frameId: wanted.frameId,
@@ -347,12 +457,13 @@ export async function exportBaselines(
     }
     if (matches.length > 1) {
       throw new Error(
-        `more than one top-level frame on ${config.page} is named ${JSON.stringify(wanted.frame)}; rename one so the design reference is unambiguous`,
+        `more than one top-level frame on ${page} is named ${JSON.stringify(wanted.frame)}; rename one so the design reference is unambiguous`,
       );
     }
     const frame = matches[0]!;
     if (wanted.frameId && wanted.frame !== undefined && wanted.frame !== frame.name) {
       results.push({
+        source,
         id: wanted.id,
         frame: wanted.frame,
         frameId: frame.id,
@@ -366,7 +477,7 @@ export async function exportBaselines(
       });
       continue;
     }
-    options.onStep?.(`exporting ${frame.name}`);
+    options.onStep?.(`exporting ${frame.name} on ${page} (${index + 1}/${config.frames.length})`);
     const exported = await exportShapePng(client, frame.id, {
       ...options,
       onProgress: options.onProgress
@@ -374,15 +485,25 @@ export async function exportBaselines(
             options.onProgress?.({
               ...event,
               command: "baselines",
+              message: [
+                event.message,
+                `page ${page}`,
+              ]
+                .filter(Boolean)
+                .join("; "),
               frame: frame.name,
               index: index + 1,
               total: config.frames.length,
             })
         : undefined,
-      page: config.page,
+      page: wanted.pageId ? undefined : page,
       stable: true,
     });
     const base = {
+      source: {
+        ...source,
+        frameId: frame.id,
+      },
       ...(wanted.case
         ? {
             case: wanted.case,
@@ -484,9 +605,29 @@ export async function exportBaselines(
             "legacy" in old.approved ||
             (old.approved.fileId === captured.fileId &&
               old.approved.pageId === captured.pageId &&
-              old.approved.frameId === captured.frameId))
+              old.approved.frameId === captured.frameId &&
+              (!old.source ||
+                ((wanted.pageId
+                  ? old.source.pageId === captured.pageId
+                  : old.source.page === page) &&
+                  old.source.route === wanted.route))))
         ? "same"
         : "changed";
+    if (status === "new" && options.apply) {
+      const record = await matchingApproval(
+        projectRoot,
+        exported.capture,
+        captured.sha256,
+        wanted.case,
+      );
+      if (record) {
+        captured.approval = {
+          kind: "owner-words",
+          id: record.id,
+          recordHash: record.hash,
+        };
+      }
+    }
     const promoteWaiver =
       status === "same" &&
       old?.approved &&
@@ -501,6 +642,18 @@ export async function exportBaselines(
         wanted.case,
       );
       if (record) {
+        if (
+          old?.source &&
+          old.source.route !== wanted.route &&
+          old.approved &&
+          "approval" in old.approved &&
+          old.approved.approval?.kind === "owner-words" &&
+          old.approved.approval.id === record.id
+        ) {
+          throw new Error(
+            "Retargeting a baseline route requires fresh owner words; the earlier image approval cannot be reused",
+          );
+        }
         captured.approval = {
           kind: "owner-words",
           id: record.id,
@@ -543,24 +696,52 @@ export async function exportBaselines(
     });
     captures.set(`${wanted.id}.${format}`, encoded);
   }
-  const after = await capturePhase(options, "baselines", "verify", () =>
-    runOnPage(client, frames(selection), config.page, options),
-  );
-  const source = (value: Record<string, unknown>) => ({
+  const sourceIdentity = (value: Record<string, unknown>) => ({
     fileId: value.fileId,
     pageId: value.pageId,
     revision: value.revn,
     frames: value.frames,
   });
-  if (
-    after.ok !== true ||
-    after.truncated === true ||
-    observationHash(source(listing)) !== observationHash(source(after))
-  ) {
-    throw new Error(
-      "Baseline source changed before publication; previous artifacts were preserved",
-    );
+  for (const { listing, selection } of listings.values()) {
+    const after = await capturePhase(options, "baselines", "verify", async () => {
+      if (selection.pageId) {
+        await selectPage(
+          client,
+          {
+            id: selection.pageId,
+          },
+          options,
+        );
+      }
+      return runOnPage(client, frames(selection), selection.page, options);
+    });
+    if (
+      after.ok !== true ||
+      after.truncated === true ||
+      observationHash(sourceIdentity(listing)) !== observationHash(sourceIdentity(after))
+    ) {
+      throw new Error(
+        "Baseline source changed before publication; previous artifacts were preserved",
+      );
+    }
   }
+  const pages = [
+    ...new Map(
+      [
+        ...listings.values(),
+      ].map((value) => [
+        String(value.listing.pageId),
+        {
+          page: String(value.listing.page ?? value.selection.page),
+          pageId: String(value.listing.pageId),
+        },
+      ]),
+    ).values(),
+  ];
+  const multiPage = config.frames.some(
+    (frame) => frame.page !== undefined || frame.pageId !== undefined,
+  );
+  const listing = firstListing;
   const complete =
     results.length === config.frames.length &&
     results.every(
@@ -570,6 +751,17 @@ export async function exportBaselines(
         result.status !== "unstable" &&
         result.status !== "case-mismatch",
     );
+  const verifiedReferences = new Map<string, ArtifactProvenance>();
+  for (const result of results) {
+    const frame = config.frames.find((entry) => entry.id === result.id)!;
+    const reference =
+      result.status === "new" || (options.update && result.file === result.captured?.file)
+        ? matchingBaselineReference(config, frame, result)
+        : await validateBaselineReference(projectRoot, config, frame, result);
+    if (reference) {
+      verifiedReferences.set(frame.id, reference);
+    }
+  }
   if (options.apply && complete) {
     const evidence = JSON.stringify({
       config,
@@ -642,14 +834,23 @@ export async function exportBaselines(
           (result.status === "new" || options.update === true);
       }
       const manifest = {
-        schemaVersion: 2,
+        schemaVersion: multiPage ? 3 : 2,
+        ...(multiPage
+          ? {
+              pages,
+            }
+          : {}),
         complete: true,
         captureId: runId,
         penpotFile: listing.file,
         fileId: listing.fileId,
-        page: config.page,
-        pageId: listing.pageId,
-        coverage: baselineCoverage(config, results),
+        ...(multiPage
+          ? {}
+          : {
+              page: config.page,
+              pageId: listing.pageId,
+            }),
+        coverage: baselineCoverage(config, results, verifiedReferences),
         capturedRevision: listing.revn,
         casesFile: `${generation}/reflection-cases.json`,
         note: "Capture provenance and approved provenance are separate. Changed references require exact-artifact owner words or a recorded forced-reference waiver.",
@@ -684,11 +885,16 @@ export async function exportBaselines(
     }
   }
   return {
-    coverage: baselineCoverage(config, results),
+    coverage: baselineCoverage(config, results, verifiedReferences),
     complete,
-    fileId: listing.fileId,
-    pageId: listing.pageId,
-    page: config.page,
+    fileId: String(listing.fileId),
+    ...(multiPage
+      ? {}
+      : {
+          pageId: String(listing.pageId),
+          page: config.page,
+        }),
+    pages,
     penpotFile: String(listing.file),
     revn: Number(listing.revn),
     results,
@@ -779,7 +985,7 @@ export function reflectionCases(
       baselineRoot: config.root,
       baseline: result.file,
       threshold: {
-        maxDiffPixelRatio: config.threshold ?? 0.05,
+        maxDiffPixelRatio: wanted.threshold ?? config.threshold ?? 0.05,
       },
       strict: false,
       ref: `penpair:${wanted.id}`,
