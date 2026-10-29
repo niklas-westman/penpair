@@ -155,6 +155,15 @@ export function mapLabelHeight(text: string, width: number): number {
   return lines * 24 + 16;
 }
 
+/** Edge labels are 12px and sized to fit their width on one line where they can. */
+export function mapEdgeLabelHeight(text: string, width: number): number {
+  const charactersPerLine = Math.max(1, Math.floor((width - 16) / 7));
+  const lines = text
+    .split(/\r?\n/)
+    .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / charactersPerLine)), 0);
+  return lines * 18 + 6;
+}
+
 export function mapEdgeLabelWidth(label: string): number {
   return Math.max(
     80,
@@ -231,7 +240,7 @@ export function routeMapEdges<T extends MapRoutingEdge>(
       `${cyclic ? "left" : "right"}:${cyclic ? from.x : from.x + from.width}`,
     );
     const targetTrack = takeTrack(`left:${to.x}`);
-    const labelHeight = mapLabelHeight(edge.label, labelWidth);
+    const labelHeight = mapEdgeLabelHeight(edge.label, labelWidth);
     const naturalY = to.y + to.height / 2 - labelHeight - 12;
     const direct =
       !cyclic &&
@@ -257,8 +266,14 @@ export function routeMapEdges<T extends MapRoutingEdge>(
       width: labelWidth,
       height: labelHeight,
     };
+    let routeY = labelBox.y + labelBox.height + 16;
+    // A run that misses the target's middle by a few pixels would end in a visible jog; run level with it.
+    const snapped = !direct && !cyclic && Math.abs(routeY - (to.y + to.height / 2)) <= 24;
+    if (snapped) {
+      routeY = to.y + to.height / 2;
+      labelBox.y = routeY - 16 - labelBox.height;
+    }
     corridorEnds.set(corridorKey, labelBox.y + labelBox.height + 80);
-    const routeY = labelBox.y + labelBox.height + 16;
     const start = {
       x: cyclic ? from.x : from.x + from.width,
       y: from.y + from.height / 2,
@@ -301,26 +316,39 @@ export function routeMapEdges<T extends MapRoutingEdge>(
             },
             finish,
           ]
-        : [
-            start,
-            {
-              x: start.x + 24 + sourceTrack * 8,
-              y: start.y,
-            },
-            {
-              x: start.x + 24 + sourceTrack * 8,
-              y: routeY,
-            },
-            {
-              x: finish.x - 24 - targetTrack * 8,
-              y: routeY,
-            },
-            {
-              x: finish.x - 24 - targetTrack * 8,
-              y: finish.y,
-            },
-            finish,
-          ];
+        : snapped
+          ? [
+              start,
+              {
+                x: start.x + 24 + sourceTrack * 8,
+                y: start.y,
+              },
+              {
+                x: start.x + 24 + sourceTrack * 8,
+                y: routeY,
+              },
+              finish,
+            ]
+          : [
+              start,
+              {
+                x: start.x + 24 + sourceTrack * 8,
+                y: start.y,
+              },
+              {
+                x: start.x + 24 + sourceTrack * 8,
+                y: routeY,
+              },
+              {
+                x: finish.x - 24 - targetTrack * 8,
+                y: routeY,
+              },
+              {
+                x: finish.x - 24 - targetTrack * 8,
+                y: finish.y,
+              },
+              finish,
+            ];
     routed.push({
       ...edge,
       points,
@@ -341,7 +369,7 @@ export function routeMapEdges<T extends MapRoutingEdge>(
       x: Math.min(from.x, to.x) + Math.max(from.width, to.width) + 32,
       y: bottom,
       width: labelWidth,
-      height: mapLabelHeight(edge.label, labelWidth),
+      height: mapEdgeLabelHeight(edge.label, labelWidth),
     };
     const routeY = labelBox.y + labelBox.height + 16;
     const start = {

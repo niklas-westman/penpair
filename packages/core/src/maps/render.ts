@@ -1,6 +1,8 @@
 import {
   mapCardAnchorHeight,
+  mapCardEstimate,
   mapCardHeight,
+  mapCardRowGap,
   mapCardSummaryLimit,
   mapCardTitleLimit,
   mapCardWidth,
@@ -228,11 +230,25 @@ export function buildMapDrawingPlan(
     },
     () => Math.max(180, header.height + 32),
   );
+  const cardEstimates = new Map<string, number>();
   const nodes = contract.nodes.map((node) => {
     const column = layers.get(node.id)!;
     const y = columnEnds[column]!;
     const height = mapCardAnchorHeight;
-    columnEnds[column] = y + mapCardHeight + 160;
+    const cardTitle = compact(node.label, mapCardTitleLimit);
+    const cardSummary =
+      node.summary === undefined ? undefined : compact(node.summary, mapCardSummaryLimit);
+    const estimate = mapCardEstimate({
+      title: cardTitle,
+      ...(cardSummary === undefined
+        ? {}
+        : {
+            summary: cardSummary,
+          }),
+      hasStatus: node.origin !== undefined,
+    });
+    cardEstimates.set(node.id, estimate);
+    columnEnds[column] = y + estimate + mapCardRowGap;
     let detail: MapDetailTarget | undefined;
     if (node.kind === "detail-link") {
       const source = contract.sources.find((entry) => entry.id === node.sourceIds![0])!;
@@ -257,11 +273,11 @@ export function buildMapDrawingPlan(
     }
     return {
       ...node,
-      cardTitle: compact(node.label, mapCardTitleLimit),
-      ...(node.summary === undefined
+      cardTitle,
+      ...(cardSummary === undefined
         ? {}
         : {
-            cardSummary: compact(node.summary, mapCardSummaryLimit),
+            cardSummary,
           }),
       ...(node.label.length > mapCardTitleLimit ||
       (node.summary?.length ?? 0) > mapCardSummaryLimit ||
@@ -290,10 +306,10 @@ export function buildMapDrawingPlan(
     ) + 80;
   const flowHeight =
     Math.max(
-      ...nodes.map((node) => node.y + mapCardHeight),
+      ...nodes.map((node) => node.y + (cardEstimates.get(node.id) ?? mapCardHeight)),
       ...edges.map((edge) => edge.labelBox.y + edge.labelBox.height + 48),
       ...edges.flatMap((edge) => edge.points.map((point) => point.y)),
-    ) + 80;
+    ) + 48;
   const annotations: MapDrawingAnnotation[] = [];
   let annotationY = flowHeight + 32;
   const noteWidth = 1120;
