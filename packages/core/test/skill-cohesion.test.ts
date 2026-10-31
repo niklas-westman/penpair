@@ -243,6 +243,25 @@ describe("the ten skills read as one set", () => {
     expect(cycles.join("\n")).toBe("");
   });
 
+  it("gives every conditional boundary a stopping rule instead of 'within scope'", async () => {
+    // An exclusion says "never mine"; it cannot say "mine unless". Where a skill may act only
+    // under conditions, the body must state them. "Within scope" names no condition, so an
+    // agent reading it has nothing to stop on.
+    const problems: string[] = [];
+    for (const name of await listBundledSkills()) {
+      (await skillBody(name)).split("\n").forEach((line, index) => {
+        if (/\bwithin scope\b/i.test(line)) {
+          problems.push(`${name}/SKILL.md:${index + 1} says "within scope" without defining it`);
+        }
+      });
+    }
+    const verify = await skillBody("penpair-verify");
+    if (!/at most twice/.test(verify)) {
+      problems.push("penpair-verify/SKILL.md states no recapture limit for its own repairs");
+    }
+    expect(problems.join("\n")).toBe("");
+  });
+
   it("keeps the shared CLI preamble identical to its fixture, in exactly the skills that carry it", async () => {
     const preamble = await readFile(preambleFixture, "utf8");
     const carrying: string[] = [];

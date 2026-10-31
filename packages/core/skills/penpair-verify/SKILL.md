@@ -67,10 +67,16 @@ common format.
    3 means incomplete evidence. An execution error establishes no comparison.
 4. **Inspect and repair.** Look at the approved image and actual browser image;
    inspect a diff image when the checker produces one. Record consequential
-   findings as location, impact, evidence, proposed fix and rerun case. Fix
-   implementation mismatches within scope, then recapture affected cases. Do
-   not overwrite approved references, change case intent or loosen thresholds
-   merely to pass. A design change goes back through design review and approval.
+   findings as location, impact, evidence, proposed fix and rerun case. Fix a
+   mismatch yourself only when the approved reference, component mapping and
+   case already exist, the change stays in the markup or styling of the component
+   under test, and it adds no component, mapping, case intent or threshold. Then
+   recapture the affected case, at most twice. A mismatch that fails any of those
+   conditions, or still fails after the second recapture, is not yours to fix:
+   report it with its evidence as outside this skill (see the ownership section
+   above) and continue to the checkpoint. Do not overwrite approved references,
+   change case intent or loosen thresholds merely to pass. A design change goes
+   back through design review and approval.
 5. **Checkpoint and report.** If repeated failures or substantial tooling work
    prevent a representative visual result, report the evidence and revised
    approach before expanding tools or cases. Retain case IDs, image paths,

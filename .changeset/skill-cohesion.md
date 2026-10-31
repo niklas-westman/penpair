@@ -48,6 +48,14 @@ asserted byte-for-byte, and is now the only maintained list of which skills
 exist; six pages that each kept their own list, two of them with counts that had
 been wrong for several releases, link to it instead.
 
+**`penpair-verify` now says when it may fix a mismatch itself.** The step told
+the agent to fix mismatches "within scope" and never defined the scope, so the
+boundary with `penpair-handoff` had no stopping rule. It now fixes only where the
+approved reference, mapping and case already exist, the change stays in the
+component's markup or styling, and nothing new is added, and it recaptures at
+most twice. Anything else is reported as outside the skill. A check fails if a
+skill again says "within scope" without defining it.
+
 Internal: six checks plus a cycle check and routing coverage enforce all of the
 above, each one landed only after its failure was observed. Two of those checks
 were found to be passing while testing nothing before that step caught them.
