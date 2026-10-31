@@ -1,6 +1,6 @@
 {
   "name": "@penpair/docker",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Everything in @penpair/core, plus running Penpot in Docker on your computer: one instance per project, generated secrets, up and down, backup, verify and restore.",
   "license": "MIT",
   "repository": {
