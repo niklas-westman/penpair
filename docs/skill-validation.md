@@ -49,6 +49,7 @@ records the actual outcome, including missing skills or unavailable tools.
 
 | Natural request | Expected primary skill | Observable result |
 | --- | --- | --- |
+| I am new to Penpair and design; where do I start? | penpair-guide | Reads the pinned file, pages, approvals and release status read-only; names the current phase and proposes one next step; runs no approval, release or write. |
 | Set up Penpair with me, step by step. | penpair-setup | Assisted setup preserves the chosen package manager; private browser/key steps handed to the person. |
 | Give me manual installation steps; do not run them. | penpair-setup | Commands and expected results only; no installation or connection commands executed. |
 | I installed the package manually; help me finish with your assistance. | penpair-setup | Inspects existing progress and continues without resetting the config. |

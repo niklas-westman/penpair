@@ -20,6 +20,8 @@ relative discovery links. It reuses an existing real skill folder, including
 | Claude Code | `.claude/skills/<name>/SKILL.md` | `/penpair-setup` |
 | GitHub Copilot | `.agents/skills/<name>/SKILL.md`; Copilot also supports `.claude/skills` and `.github/skills` | Ask it to read the installed skill by name/path. |
 
+After installing, `penpair-guide` is the place to start when you do not know which skill fits: it reads the project and names the next step ([the whole journey](project-lifecycle.md)).
+
 Every skill entrypoint uses shared `name`/`description` YAML metadata,
 task-specific triggers and ordinary Markdown. Codex's optional `agents/openai.yaml` adds UI
 metadata; it is not required by Claude or Copilot. Host selection still depends

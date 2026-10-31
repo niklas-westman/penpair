@@ -66,4 +66,4 @@ Whichever route you choose, check:
 - Personal credentials remain private; teammates each connect with their own key.
 - Companion installation is recorded separately from approved references, browser-provider setup and completed visual checks.
 
-See [skill installation](skill-installation.md), [troubleshooting](troubleshooting.md) and the [first task](../README.md#try-your-first-task) for what comes next.
+Not sure what to do next? Ask your assistant to use `penpair-guide`, or read [from a first idea to a released design](project-lifecycle.md). See also [skill installation](skill-installation.md), [troubleshooting](troubleshooting.md) and the [first task](../README.md#try-your-first-task) for what comes next.

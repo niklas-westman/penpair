@@ -10,6 +10,7 @@ consumer evidence.
 | Path | Documents |
 | --- | --- |
 | Skills and vocabulary | [Which skills exist](skills.md) (generated), [glossary](glossary.md) — the words that mean more than one thing here: revision, recipe, verify, contract, design, successor, prerequisite |
+| Start here / the whole journey | [From a first idea to a released design](project-lifecycle.md) |
 | First run / shared file | [Choose an installation route](installation.md), [manual installation](getting-started.md), [team](team.md), [validation](validation.md) |
 | Intent / release | [Journey maps](journey-maps.md), [integration maps](integration-maps.md), [design releases](design-releases.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [job queue](queue.md), [handoff](handoff.md) |

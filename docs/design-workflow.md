@@ -8,7 +8,7 @@
 6. Generate a [structured handoff](handoff.md) with explicit component mappings. Implement behavior, responsive rules and accessibility from an actual application contract rather than inferred appearance.
 7. Use the recommended [Reflection Check companion](adapters.md#check-the-frontend-against-the-design) and a real project browser provider to capture the actual implementation case with stable fonts/data. Inspect comparison evidence and images, resolve drift, and report changed behavior, validation and remaining risks. Missing provider/setup work remains pending.
 
-These seven steps are the documentation's view of the work. The installed skills
+These seven steps are the implementer's view. For the whole journey from a first idea to a released design, including the moodboard, site pages, device sizes and the release, see [the project lifecycle](project-lifecycle.md). These seven steps are the documentation's view of the work. The installed skills
 are the agent's view of the same work, and they do not map one-to-one onto these
 steps: see [which skills exist](skills.md), then each skill's own
 `## What this owns` section for where its responsibility starts and stops.
