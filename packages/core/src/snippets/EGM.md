@@ -2,13 +2,14 @@
 
 ## Overview
 
-Snippet factories for the two general-purpose housekeeping operations: moving
+Snippet factories for the two general-purpose housekeeping operations (moving
 stray boards into an archive board, and removing ghost shapes left behind by an
-interrupted build.
+interrupted build) plus a third group of read-only inspectors in `read.ts`
+(`pages`, `switchPage`, `frames`, `tree`, `audit`, `tokensDump`).
 
 Every function here is pure. It returns a `Snippet` object — `{ name, code,
 effect }` — holding JavaScript destined for the Penpot plugin sandbox, and
-executes nothing. Transport and execution live in `../client.ts`. Each operation
+executes nothing. Transport and execution live in `../client.ts`. Each housekeeping operation
 comes as a triple that mirrors the repository's write protocol: an `inspect`
 read, an idempotent `apply`, and an independent `readback`.
 
@@ -85,8 +86,8 @@ file directly.
 - **One synchronous throw at construction time**, before any Penpot connection
   is touched: `PenpairError("snippet-too-large")` above 90 KB. That is the only
   check `snippet()` performs — it does **not** parse the body. Syntax validation
-  is the separate exported `compiles(code)`, called by `kit.ts` and `run-file.ts`
-  but never by `snippet()`, so a syntactically invalid body is constructed
+  is the separate exported `compiles(code)`, called by `kit.ts`, `run-file.ts` and
+  `registry.ts` but never by `snippet()`, so a syntactically invalid body is constructed
   silently here and fails only once the editor executes it.
 - **No stdout.** Errors propagate as thrown exceptions.
 

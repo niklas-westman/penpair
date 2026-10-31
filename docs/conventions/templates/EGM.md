@@ -39,12 +39,14 @@ Upstream dependencies, all by relative path into the workspace:
   `templates/**/*.test.ts`. A template that only looks right is a failing template.
 - **Validation comes first and throws.** `formatFrameLabel` trims, then throws on an
   empty page or frame name; `createFrameInspection` throws on a blank frame name.
+  The test asserts the `formatFrameLabel` refusal, not the blank-name throw.
   Returning a degraded value instead of throwing breaks the pattern being taught.
 - **Generated sandbox bodies must be uniquely resolvable.** The snippet returns
   `{ ok: false }` unless exactly one matching board exists — the repository's
   ambiguity rule, in miniature.
 - **Sandbox snippets declare their mode.** `createFrameInspection` passes `"read"`
-  as the fourth `snippet()` argument. A read snippet must not mutate.
+  as the fourth `snippet()` argument (not asserted by a test). A read snippet must
+  not mutate.
 - **JavaScript inside a template string is string data to Biome.** Format the snippet
   body deliberately and test the generated output; never run blind whitespace
   rewriting over it. The test compiles the body as an async function body and
@@ -55,8 +57,9 @@ Upstream dependencies, all by relative path into the workspace:
 - **The neutral core still applies.** These templates may name `@penpair/core` APIs;
   they must not push project or component-library knowledge back into the core.
 - File and directory names stay kebab-case — enforced by Biome and by
-  `check-code-paths.mjs`, whose own `docs/conventions/` rule is exercised by the test
-  in this directory.
+  `check-code-paths.mjs`. The test passes a valid `docs/conventions/` path but never
+  an invalid one, so that root's inclusion in the script's code roots is not asserted
+  by a test; the `skills/` rule is tested both ways.
 - Keep templates minimal: add one only when a real feature needs the pattern, and
   never introduce a framework or dependency just for a template.
 

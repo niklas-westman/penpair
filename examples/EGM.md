@@ -27,8 +27,8 @@ This directory holds no direct source of its own.
 - **theme-preview**: [`./theme-preview/EGM.md`](./theme-preview/EGM.md) — projects one
   resolved theme color onto an owned scratch root and records its provenance. Setting
   the fill directly **removes any fill binding**; it is never native theme binding.
-- **trials**: [`./trials/EGM.md`](./trials/EGM.md) — deliberate failure paths: a held
-  writer lease, a fault *after* a successful owned write, and a wrong-file read the
+- **trials**: [`./trials/EGM.md`](./trials/EGM.md) — deliberate failure paths: a
+  contended write window, a fault *after* a successful owned write, and a wrong-file read the
   guard must block.
 - **component-pilot**: [`./component-pilot/EGM.md`](./component-pilot/EGM.md) —
   `measure(cases)`, a Playwright renderer that reads the computed anatomy of the
@@ -54,8 +54,11 @@ No direct source files. The shared conventions across every child:
 - **The write protocol is not optional.** Inspect read-only, pin a snapshot, perform
   one idempotent write, read back independently, then export and *look at it*. A
   first export after a write or a page switch can be stale — look twice.
-- **Every sandbox body declares its role in its first line**: `// penpair: read`,
-  `// penpair: write`, `// penpair: idempotent`. The pragma is load-bearing.
+- **Every sandbox body declares its role in its leading comments**: the first line
+  is `// penpair: read` or `// penpair: write`, and a write body also carries
+  `// penpair: idempotent` in the comment block before the first line of code.
+  `packages/core/src/run-file.ts` reads the first line for the role and looks for
+  the idempotent line among the leading comments. The pragma is load-bearing.
 - **The pinned snapshot is re-checked at write time.** A source that changed between
   inspect and apply refuses the write; it is never reconciled silently.
 - **Ambiguity refuses rather than guesses.** A duplicate name, a moved or duplicated

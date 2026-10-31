@@ -30,7 +30,7 @@ package supplies the admission and validation contract.
 
 The adapter plugs into `@penpair/core` through `defineAdapter`. The core loads it
 from the adopting project's `adapters` list in `penpair.config.json` and names it
-nowhere; the dependency runs one way only. It is usable independently of
+nowhere in code; the dependency runs one way only. It is usable independently of
 `@penpair/marwes-ui`.
 
 ## Interface
@@ -55,8 +55,13 @@ Re-exported from `index.ts`, and therefore the package's public surface:
   validates the raw report, then delegates to `runImplementationCases` with a
   synthetic provider backed by the validated evidence. It returns an all-incomplete
   report, without running the engine, when the plan is incomplete, has pending
-  cases, is empty or repeats a case id, and converts any thrown engine error into
-  an incomplete report.
+  cases, is empty or repeats a case id. Errors raised while the engine runs and
+  its report is read and validated become an incomplete report; errors from the
+  steps before that (release-binding validation, engine resolution, a changed
+  approved baseline or an unsafe case id or reference type, the project config
+  and `validateNativeConfiguration`, missing engine inputs) are thrown. With
+  `options.release` set, release validation runs before the incomplete-plan
+  check.
 - Types: `ImplementationMapping`, `ImplementationCase`, `CasePlan`,
   `BrowserCaptureMetadata`, `ProviderEvidence`, `ImplementationProvider`,
   `ImplementationCaseReport`, `ImplementationReport`,
@@ -107,7 +112,9 @@ This directory has no subdirectories.
 **Adapter boundary**
 
 - The dependency runs one way: this package imports `@penpair/core`, and the core
-  never imports this package. The core must keep naming neither adapter.
+  never imports this package. The core's code names neither adapter; its shipped
+  skills do recommend this one by name. The core's neutrality test forbids only a
+  fixed list of project names, so this is not asserted by a test.
 - The adapter may contribute CLI commands, an optional `status()` and build kits.
   It must not register MCP tools or registry snippets, and must not claim a
   reserved command name. It currently claims only `reflection`.
@@ -121,7 +128,7 @@ This directory has no subdirectories.
 - The baseline manifest is required to carry a `frames` array and to have a
   `fileId` equal to the configured file pin (`context.config.file.id`). Schema
   version `2` or `3` is accepted; anything else is refused. Enforced in
-  `command.ts:89`.
+  `command.ts`.
 - `CasePlan.kind` is `"implementation-case-plan"`;
   `ImplementationReport.kind` is `"implementation-case-evidence"`.
 
@@ -141,7 +148,10 @@ This directory has no subdirectories.
   `case`; a matching `BaselineResult` exists; the mapping supplies an explicit
   `setup`; and approved provenance is available (either from `verifiedReferences`
   or from `matchingBaselineReference`). Everything else goes to `pending` with a
-  reason. No setup is ever silently defaulted.
+  reason. No setup is ever silently defaulted. An admitted case still throws on
+  a `frame.threshold` or `config.threshold` that is not a finite number from 0
+  to 1, and when `validateBaselineCase` rejects `frame.case`;
+  `validateProviderEvidence` also requires `evidence.schemaVersion === 1`.
 - **A frame with no `route` is out of scope, not pending.** `baselines-config.ts`
   defines such frames as exported but never checked, so the planning loop skips
   them before any admission test. The one case that *is* reported: if the mapping
@@ -149,19 +159,19 @@ This directory has no subdirectories.
   cannot be performed, so it becomes `pending` with reason
   `"Mapping names a configured baseline that has no implementation route, so it is exported but cannot be checked"`.
   A mapping id matching no configured frame at all gets a different reason.
-  Enforced in `case-plan.ts:112–130`.
+  Enforced in `case-plan.ts`.
 - Mapping validation: `schemaVersion === 1`, at most 1000 cases, unique non-empty
   string ids, and each `setup` matching `/^[a-zA-Z][\w.-]{0,100}$/`.
 - `complete` is true only when `pending` is empty *and* at least one case was
-  planned. An empty plan is not a pass. Enforced in `case-plan.ts:137`.
+  planned. An empty plan is not a pass. Enforced in `case-plan.ts`.
 - `threshold` falls back to `0.05` when both `frame.threshold` and `config.threshold`
-  are unset. Enforced in `case-plan.ts:88`.
+  are unset. Enforced in `case-plan.ts`.
 - The intent is deep-copied (`structuredClone`) into the case, and copied again
   before being handed to the provider, so a provider cannot mutate the plan.
 
 **Release binding — the package's strongest guarantee**
 
-- `assertReleaseComparisonBinding` (enforced in `native-types.ts:53–75`) is a
+- `assertReleaseComparisonBinding` (enforced in `native-types.ts`) is a
   structural pre-check that throws
   `"Release comparison requires the exact complete release case inventory"` if
   any of these fail: `binding.reference` is absent; `binding.designHash` is not
@@ -169,7 +179,7 @@ This directory has no subdirectories.
   duplicates; the sorted case-id list does not match the plan's sorted case-id
   list exactly; `binding.caseThresholds` does not cover every case with matching
   per-case thresholds; or `plan.complete` is false or `plan.pending` is non-empty.
-- `validateReleaseComparison` (enforced in `release-binding.ts:6–53`) then loads
+- `validateReleaseComparison` (enforced in `release-binding.ts`) then loads
   the canonical finalized evidence from the core and throws
   `"Release context differs from its canonical finalized evidence"` if any
   top-level field diverges: `canonical.fileId` (when an expected file id is
@@ -182,7 +192,7 @@ This directory has no subdirectories.
   a release context that changes mid-run is caught.
 - When `--release-context` is supplied to `check`, the loaded file must carry
   `finalized: true`, `ready: true`, and no `truncated` flag. Enforced in
-  `command.ts:147–158`.
+  `command.ts`.
 
 **Native engine admission rules**
 
@@ -190,19 +200,19 @@ This directory has no subdirectories.
   The resolved package name must be `"reflection-check"` and its `package.json`
   `version` must equal the pinned value exactly. The package must expose a
   `bin.reflection` entry that is relative and path-traversal-free. Enforced in
-  `native-engine.ts:15–65`.
+  `native-engine.ts`.
 - The loaded API must carry `reflectionCapabilities.browserCaptureObservation === 1`
   and `reflectionCapabilities.externallyManagedBaselines === 1`, and must export
   `hashReportInputs` and `computeResultHash` as functions. A package lacking these
-  capabilities is rejected. Enforced in `native-engine.ts:43–52`.
+  capabilities is rejected. Enforced in `native-engine.ts`.
 - Native case IDs must match `/^[a-z0-9][a-z0-9_-]{0,63}$/` and baseline images
-  must be PNG or WebP. Enforced in `native-runner.ts:62–65`.
+  must be PNG or WebP. Enforced in `native-runner.ts`.
 - Engine inputs are hashed before and after execution; any change throws
   `"Native engine inputs or approved references changed during execution"`.
-  Enforced in `native-runner.ts:191–193`.
+  Enforced in `native-runner.ts`.
 - The native config returned by `createReflectionConfig` must not set
   `lifecycle.beforeRun` — mutations before the run are not permitted. Enforced in
-  `native-config.ts:46–52`.
+  `native-config.ts`.
 
 **Evidence validation rules**
 
@@ -225,7 +235,10 @@ This directory has no subdirectories.
   derived from `rootBox` by `floor`/`ceil` with clip dimensions equal to the
   intent viewport, `layoutSamples >= 3` as an integer, the pointer outside the
   root with zero hovered controls, finite scroll offsets, and — if occlusion is
-  reported — at least one sample with `blocked === 0`.
+  reported — an integer `samples >= 1` with `blocked === 0` (no blocked
+  samples overall). `rootBox.x` and `.y` must be `>= 0` and its width and height
+  `> 0`; every `capture.fonts` entry needs a family, weight and style and
+  status `"loaded"`, and every expected font must be present.
 
 **Command contract**
 
@@ -234,7 +247,7 @@ This directory has no subdirectories.
   `--release-context`. `check` requires exactly one of `--provider` or
   `--engine-config`; if `--engine-config` is given, `--engine-version` is also
   required. `--release-context` is optional with either check form. Enforced in
-  `command.ts:51–69`.
+  `command.ts`.
 - Exit codes are part of the contract: `0` complete evidence within thresholds,
   `2` measured drift, `3` missing or incomplete evidence.
 
@@ -265,6 +278,9 @@ This directory has no subdirectories.
 - **Delegates uncontrolled work** to `provider.runCase()` (provider path) or the
   engine child process (native path), which may launch a browser, make network
   calls and write screenshot files. None of that is bounded by this package.
+- **Writes engine progress** on the native path: the engine's output lines go
+  to `context.progress`, or to `process.stderr` when that is absent, with URLs
+  replaced by `[redacted-url]`.
 - **Writes to stdout**, emitting the report as pretty-printed JSON through
   `context.output?.log ?? console.log`, and passing it to `context.output?.result`.
 - **Returns a process exit code**, and throws `Error` for usage, configuration and

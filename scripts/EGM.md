@@ -28,16 +28,16 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
 | `check-versions.mjs` | `pnpm check:versions`, last step of `pnpm check` | Runs `checkVersions(root)` and `checkReleaseGroup(root)`. |
 | `check-code-paths.mjs` | `pnpm check:style` | **Exports `findInvalidCodeDirectories(filePaths)`** (pure). As a CLI it shells out to `git ls-files --cached --others --exclude-standard -z`, so it covers untracked files — and so it **needs a git checkout or worktree**. |
 | `check-pr-changeset.mjs` | CI | Requires a new `.changeset/<id>.md` (never `README.md`) when `packages/` or `scripts/` changed. Reads `PENPAIR_PR_BASE_SHA`, `PENPAIR_PR_HEAD`. When `PENPAIR_PR_HEAD` is `changeset-release/main` it runs `checkReleaseCommit` instead; any other PR that changes the source version throws "Only the reviewed Changesets version PR may bump versions". |
-| `release-gate.cjs` | GitHub Actions | **Exports `releaseGate({ github, context, core, root })`.** The CI gate that decides whether a publish may happen at all. |
+| `release-gate.cjs` | GitHub Actions | **Exports `releaseGate({ github, context, core, root })`.** The CI gate that decides whether a publish may happen at all. In order: release-history check, merged-release-PR lookup for the SHA, protocol check, `git checkout --detach`, snapshot check, then the committed-version check. A push whose SHA has no merged release PR does not throw: it logs that nothing is to publish and sets `publish` to `false`; only `workflow_dispatch` throws there. The other outputs are set only on a full pass. |
 
 ### Release flow (mutating)
 
 | Entry point | Invoked as | Contract |
 | --- | --- | --- |
-| `version-packages.mjs` | `pnpm version-packages` | The sanctioned version author: `checkReleaseGroup`, `checkVersions` and a pending-changesets check (throws if none), then `pnpm changeset version`, then `syncSourceVersion()`, then `pnpm install --lockfile-only --ignore-scripts`; throws if changesets remain. Run on the generated release PR. |
+| `version-packages.mjs` | `pnpm version-packages` | The sanctioned version author: `checkReleaseGroup`, `checkVersions` and a pending-changesets check (throws if none), then `pnpm changeset version`, then `syncSourceVersion()` (throws "Changesets did not bump the package family" if the version is unchanged), then a check that no changesets remain, then `pnpm install --lockfile-only --ignore-scripts`. Run on the generated release PR. |
 | `bump.mjs` | `pnpm bump <patch\|minor\|major\|x.y.z>` | **Owner-led emergency tool only.** Writes every `packages/*/package.json` and `packages/core/src/version.ts`. |
-| `release.mjs` | `pnpm release` | The only sanctioned publish path. Dry run by default; `--publish` publishes. Also `--continue`, `--except <name>`, `--otp <code>`, `--trusted-publishing`, `--confirm-version`, `--release-sha`. |
-| `ci-release.mjs` | CI | Wraps `pnpm release --publish`; writes the GitHub step summary. |
+| `release.mjs` | `pnpm release` | The only sanctioned publish path. Dry run by default, but the dry run still runs `pnpm check` and `pnpm smoke:package`, requires a clean working tree and runs `git fetch origin main`; without `--release-sha` it requires branch `main` equal to `origin/main`. `--publish` publishes, prompting for the version on a TTY unless `--confirm-version` is given. Also `--continue`, `--except <name>`, `--otp <code>`, `--trusted-publishing`, `--confirm-version`, `--release-sha`. |
+| `ci-release.mjs` | CI | Wraps `pnpm release --publish --trusted-publishing --release-sha <sha> --confirm-version <v>` (plus `--continue` when `PENPAIR_CONTINUE_RELEASE` is `true`); requires `PENPAIR_EXPECTED_VERSION` to match `x.y.z` and `PENPAIR_CONTINUE_RELEASE` to be exactly `true` or `false`. Writes the GitHub step summary. |
 | `release-protocol.json` | read at the release SHA | `{ "version": 1 }` — the protocol marker `assertReleaseProtocol` requires. |
 
 ### Documentation and smoke tests
@@ -45,8 +45,8 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
 | Entry point | Invoked as | Contract |
 | --- | --- | --- |
 | `generate-troubleshooting.mjs` | `pnpm docs:generate` | **Exports `troubleshootingMarkdown()`**; as a CLI writes `docs/troubleshooting.md` from `@penpair/core`'s `errorRemedies` (needs a built core). |
-| `generate-skill-index.mjs` | `pnpm docs:generate` | **Exports `skillIndexMarkdown()`** (async); as a CLI writes `docs/skills.md` from the bundled skills' own `name`/`description` metadata via `@penpair/core`'s `listBundledSkills` and `parseSkillMetadata` (needs a built core). Links use absolute GitHub URLs because `packages/core/skills/` is not in the published tarballs, so a relative link would be dead there. |
-| `copy-package-docs.mjs` | `@penpair/web`'s `prepack` only | Copies the repository `README.md`, `docs/` and `examples/` into `packages/<target>/` for the tarball. It accepts six targets, but `packages/web/package.json` is the single invocation anywhere; every other package's `prepack` is plain `pnpm build`, and `penpair` has no `prepack` at all. A package that maintains its own `README.md` keeps it; only a package without one receives the project README. It recursively force-removes `packages/<target>/docs` and `packages/<target>/examples` before re-copying; the docs copy excludes `assets`, `designs`, `node_modules` and `.working-docs`, and the examples copy excludes `node_modules`, `artifacts`, `.penpair` and `.working-docs`. |
+| `generate-skill-index.mjs` | `pnpm docs:generate` | **Exports `skillIndexMarkdown()`** (async); as a CLI writes `docs/skills.md` from the bundled skills' own `name`/`description` metadata via `@penpair/core`'s `listBundledSkills` and `parseSkillMetadata` (needs a built core). Links are absolute GitHub URLs (`sourceUrl` in the script) rather than relative paths, so the page's links resolve wherever the page is read. |
+| `copy-package-docs.mjs` | `prepack` of `@penpair/web` and `@penpair/docker` | Copies the repository `README.md`, `docs/` and `examples/` into `packages/<target>/` for the tarball. It accepts six targets and defaults to `core` when given none; only `packages/web/package.json` and `packages/docker/package.json` invoke it, every other package's `prepack` is plain `pnpm build`, and `penpair` has no `prepack` at all. A package that maintains its own `README.md` keeps it; only a package without one receives the project README. It recursively force-removes `packages/<target>/docs` and `packages/<target>/examples` before re-copying; the docs copy excludes `assets`, `designs`, `node_modules` and `.working-docs`, and the examples copy excludes `node_modules`, `artifacts`, `.penpair` and `.working-docs`. |
 | `generate-layout-source.mjs` | `pnpm sandbox:generate`; `pnpm sandbox:check`; and as `--check` inside the core's `build` script | **Exports `updateLayoutSource({ sourcePath, outputPath, check })`**. Reads `packages/core/src/layout-settling.ts`, verifies it contains exactly one `settleLayout` function with no runtime imports, strips types and the `export` keyword, minifies via esbuild, formats via biome, and writes the result as a TypeScript string constant to `packages/core/src/generated/layout-settling-source.ts`. With `check: true` it throws `"Sandbox source is missing or stale; run pnpm sandbox:generate"` instead of writing. Because the core's `build` script runs `--check`, a stale or missing generated file fails `pnpm build` and therefore `pnpm check`. `pnpm sandbox:generate` is the deliberate developer action that regenerates it. |
 | `smoke-package.mjs` | `pnpm smoke:package` | Packs all six packages, installs them into empty projects, runs the commands and typechecks the declarations. Reads `scripts/fixtures/kit-consumer-check.mjs` as the consumer check. |
 | `smoke-browser.mjs` | `pnpm smoke:browser` | Plumbing trial for [`examples/reflection-browser`](../examples/reflection-browser/EGM.md). |
@@ -78,8 +78,9 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
 - **A PR touching `packages/` or `scripts/` must add a changeset.**
 - **A release commit must be a merged release PR on `main`.** `release-gate.cjs`
   throws unless `context.ref` is `refs/heads/main` and the event is `push` or
-  `workflow_dispatch`, then validates the merged PR for that SHA and asserts release
-  history, snapshot and protocol.
+  `workflow_dispatch`, then asserts release history, looks up the merged release PR
+  for that SHA, and asserts protocol and snapshot. A `push` with no such PR only
+  sets `publish=false`; a manual dispatch throws.
 - **Trusted publishing is pinned and token-free.** `--trusted-publishing` requires an
   explicitly reviewed `--release-sha`, and is incompatible with `--otp` and `--except`.
 - **An incomplete release is reported, not hidden.** When not every required package
@@ -104,8 +105,10 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
 ## Side Effects
 
 - **Irreversible, network:** `release.mjs` with `--publish` (and `ci-release.mjs`,
-  which calls it) **publishes tarballs to npm** via `lib/trusted-package.mjs`. A
-  publish cannot be undone.
+  which calls it) **publishes tarballs to npm**: through `lib/trusted-package.mjs` with
+  `--trusted-publishing` (concurrency 3), otherwise `pnpm publish --access public`
+  with `PENPAIR_RELEASE=1` (concurrency 1). `ci-release.mjs` always uses the trusted
+  path. A publish cannot be undone.
 - **Source writes:** `bump.mjs` and `version-packages.mjs` rewrite every
   `packages/*/package.json`, `packages/core/src/version.ts` and the lockfile.
   `generate-troubleshooting.mjs` writes `docs/troubleshooting.md` and
@@ -118,7 +121,8 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
   them, so removed working documents cannot linger. Those copies are generated and
   git-ignored; the repository holds the one source.
 - **Git subprocesses:** `check-code-paths.mjs` (`git ls-files`),
-  `check-pr-changeset.mjs` (`git diff`, `git show`), `release-gate.cjs`
+  `check-pr-changeset.mjs` (`git diff`, `git show`), `release.mjs` (`git status
+  --porcelain`, `git fetch origin main`, `git rev-parse`), `release-gate.cjs`
   (**`git checkout --detach <releaseSha>`** — it moves the working tree — plus
   `git show`), and `lib/release-snapshot.mjs`.
 - **Live Penpot writes:** `smoke-live.mjs` connects to a Penpot instance and may
@@ -137,7 +141,9 @@ is tested elsewhere: `check-code-paths.mjs`, `release-gate.cjs`,
 - Environment variables read here: `PENPAIR_RELEASE`, `PENPAIR_RELEASE_SHA`,
   `PENPAIR_EXPECTED_VERSION`, `PENPAIR_CONTINUE_RELEASE`,
   `PENPAIR_RELEASE_EXCLUDE_PENPAIR`, `PENPAIR_PR_BASE_SHA`, `PENPAIR_PR_HEAD`,
-  `PENPAIR_MCP_URL`, `GITHUB_STEP_SUMMARY`; and, through `lib/release-auth.mjs` for
+  `PENPAIR_MCP_URL`, `GITHUB_STEP_SUMMARY`; for `smoke-browser.mjs`,
+  `PENPAIR_PLAYWRIGHT_MODULE`, `PENPAIR_BROWSER_EXECUTABLE` and
+  `PENPAIR_BROWSER_CHANNEL` (it sets `PENPAIR_EXAMPLE_PORT` for the server it forks); and, through `lib/release-auth.mjs` for
   trusted publishing, `PENPAIR_RELEASE_PR`, `PENPAIR_RELEASE_ENVIRONMENT`, `GITHUB_*`
   and `ACTIONS_ID_TOKEN_*`.
 

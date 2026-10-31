@@ -28,8 +28,10 @@ no command, and this package is the command for Penpot on the web.
   path such as `@penpair/core/dist/...` is forbidden and asserted by
   `packages/core/test/boundary.test.ts` ("depends on the core as a dependency and
   reaches it only through its public entry").
-- **The dependency goes one way.** The core must never import this package; this
-  package's only dependency is `@penpair/core` at `workspace:*`.
+- **The dependency goes one way.** The core must never import this package (not
+  asserted by a test; the boundary test's core-side check is written only for
+  `@penpair/docker`); this package's only dependency is `@penpair/core` at
+  `workspace:*`.
 - **The exit code is the contract.** `cli.ts` sets `process.exitCode` and never
   calls `process.exit()`, so pending stdout/stderr flushes complete. Preserve
   that: an early `process.exit` can truncate output.
@@ -56,7 +58,8 @@ no command, and this package is the command for Penpot on the web.
   than passing vacuously.
 - Type and build check: `pnpm typecheck` (or `pnpm build`) in
   `packages/web`.
-- The invariants above are enforced from the core: `pnpm test` in
-  `packages/core`,
-  which runs `test/boundary.test.ts` (command-package dependency, public-entry
-  import, exactly one `penpair` bin per command package) and the version check.
+- Part of the invariants above are asserted from the core: `pnpm test` in
+  `packages/core`, which runs `test/boundary.test.ts` (command-package
+  dependency on the core, public-entry import, the `penpair` bin of each
+  command package) and the version check. The core-never-imports-web direction
+  is not covered.

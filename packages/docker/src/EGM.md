@@ -34,14 +34,17 @@ nine methods.
 ### Scaffolding — `init.ts`
 
 - `initDocker(root, options?)` — writes `penpair.config.json`, the compose file
-  and the `.env` secrets file; the `LocalProfile.init` implementation.
+  and the `.env` secrets file; the `LocalProfile.init` implementation. Throws
+  `ConfigError` for a project that uses an external Penpot.
 - `isPortFree(port, host?)` — TCP probe.
 - `firstFreePort(from, avoid?, free?)` — scans up to 200 ports from `from`;
   throws if none is free.
 
 ### Lifecycle — `lifecycle.ts`
 
-- `up(c)`, `down(c)`, `status(c)`, `doctor(c, options?)`, `backup(c, label?)`,
+- `up(c)`, `down(c)`, `status(c)`, `doctor(c, options?)` (returns early when
+  Docker does not answer; otherwise checks the secrets file, containers,
+  frontend and backend, and with `options.mcp` the editor and plugin), `backup(c, label?)`,
   `verifyBackup(c, directory)`, `restore(c, directory, options)`.
 - `composeArgs(c, ...rest)` — builds the `docker compose` argument array
   (project name, `-f`, `--env-file`) for one instance.
@@ -88,7 +91,9 @@ contract.
   diagnosing a stopped daemon is its job and it gates on `docker version` itself.
 - **Init is idempotent in the directions that matter.** `penpair.config.json` is
   written only when absent, the compose file is regenerated on every init, and
-  the `.env` is never replaced unless `overwrite` is explicitly passed.
+  the `.env` is never replaced: `initDocker` has no overwrite option and calls
+  `writeSecretFile` with its default of not overwriting. Only
+  `writeSecretFile` itself accepts `overwrite`.
 - **`.env` stays mode `0o600` and uncommitted.** `doctor` checks the mode and
   the presence of both secret keys. Secrets reach Docker only through
   `--env-file`, never as command-line arguments and never in log output.
@@ -104,9 +109,10 @@ contract.
   `<composeProject>_penpot_assets`, and the instance directory defaults to
   `.penpair`. Never hand-build a `docker compose` invocation or a volume name for
   the same instance — divergent project names create a second, invisible stack.
-- **Container resolution is required, not assumed.** `backup` and `restore`
-  throw `LifecycleError` when `penpot-postgres` or `penpot-backend` cannot be
-  resolved, rather than operating on a partially running stack.
+- **Container resolution is required, not assumed.** `backup` throws
+  `LifecycleError` when `penpot-postgres` or `penpot-backend` cannot be
+  resolved; `restore` resolves only `penpot-postgres`, and its `pre-restore`
+  safety backup tolerates a "not running" `LifecycleError` and carries on.
 - **`verifyBackup` never touches the live instance.** It restores into a
   throwaway `postgres:15` container named `penpair-verify-<6 random chars>` and
   removes it in a `finally` block regardless of outcome.
@@ -121,11 +127,12 @@ contract.
 ### Disk
 
 - `{root}/penpair.config.json` — written when absent; this one is committed.
-- `{root}/{config.directory}/docker-compose.yml` — generated, gitignored,
+- `{root}/{config.directory}/docker-compose.yaml` — generated, gitignored,
   overwritten on re-init.
 - `{root}/{config.directory}/.env` — mode `0o600`, carries both secrets, never
-  overwritten without `overwrite=true`.
-- `{root}/.gitignore` — appended to when `options.gitignore` is set.
+  overwritten by `initDocker`.
+- `{root}/.gitignore` — appended to when `options.gitignore` is set (the
+  instance directory, and the key file via `ensureKeyFileIgnored`).
 - `{root}/{config.directory}/backups/{ISO-timestamp}[-label]/` — `db.dump`
   (`pg_dump -Fc`), `assets.tgz` (`tar czf` of `/opt/data/assets`) and
   `manifest.json`.

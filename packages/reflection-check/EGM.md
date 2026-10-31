@@ -18,8 +18,9 @@ owns activation, capture and pixel comparison with the project's own pinned
 stack; the owner owns approval. Baselines remain owned by the core.
 
 It depends on `@penpair/core` and plugs in through `defineAdapter`. The core loads
-it by specifier and names it nowhere; the dependency runs one way only. It is
-usable independently of `@penpair/marwes-ui`.
+it by specifier and loads it from the project's `adapters` list; the dependency
+runs one way only in code, but the core's shipped skills do recommend this
+package by name. It is usable independently of `@penpair/marwes-ui`.
 
 See [`README.md`](./README.md) for the user-facing guide, including the provider
 contract and evidence format, and [`CHANGELOG.md`](./CHANGELOG.md) for release
@@ -86,8 +87,10 @@ including the validation internals that are not re-exported, is in the
 ## Global Invariants
 
 - **One-way dependency.** This adapter depends on `@penpair/core`; the core never
-  depends on it. `packages/core` must name neither this package nor any other
-  project — a test fails the build if it does.
+  depends on it. No core code imports it. The core's shipped skills (setup and
+  handoff guidance) do name it as a recommended companion, and the core's
+  neutrality test forbids only a fixed list of project names (not this
+  package), so its absence from the core is not asserted by a test.
 - **An adapter cannot do everything.** It may contribute CLI commands, an
   optional `status()` line and build kits. It may **not** register MCP tools or
   registry snippets, and it may not claim a reserved command name.

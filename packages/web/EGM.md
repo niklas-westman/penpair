@@ -31,8 +31,11 @@ neither is documented.
 
 - **One way only.** `@penpair/core` must never import `@penpair/web`. This
   package's sole dependency is `@penpair/core` at `workspace:*`, reached through
-  its public entry — never a deep `dist/` path. Enforced by
-  `packages/core/test/boundary.test.ts`.
+  its public entry — never a deep `dist/` path;
+  `packages/core/test/boundary.test.ts` asserts the dependency and the
+  public-entry import. That test's core-side check (no core file or manifest
+  mention) is written only for `@penpair/docker`, so "core never imports
+  `@penpair/web`" is not asserted by a test.
 - **No features live here.** Anything a user can do belongs in the core, so that
   `@penpair/web` and `@penpair/docker` cannot drift into two different commands.
 - **Exactly one bin, named `penpair`**, pointing at `dist/cli.js`. The sibling
@@ -49,8 +52,10 @@ neither is documented.
   guard to get a release through.
 - **The published surface is fixed by `files`**: `dist`, `docs`, `examples`,
   `LICENSE`, `README.md`. `prepack` builds and then runs
-  `scripts/copy-package-docs.mjs web` to assemble the docs — the published
-  `README.md` and docs are generated at pack time, not maintained here.
+  `scripts/copy-package-docs.mjs web` to assemble the docs. `docs` and
+  `examples` are regenerated at pack time; `README.md` is copied from the
+  repository root only when the package has none yet, so an existing
+  git-ignored `packages/web/README.md` is not refreshed by a later prepack.
 - **ESM, Node >= 22.** `"type": "module"`, exports map with `.`, `./cli` and
   `./package.json`. The `./cli` subpath is load-bearing: the `penpair` wrapper
   package imports it.
@@ -77,8 +82,8 @@ neither is documented.
   `packages/web`.
 - The invariants above are tested from the core: `pnpm test` in
   `packages/core`
-  (`test/boundary.test.ts` for the one-way dependency, the public-entry import
-  and the bin names; `test/release-guard.test.ts` and
+  (`test/boundary.test.ts` for the dependency on the core, the public-entry
+  import and the bin names; `test/release-guard.test.ts` and
   `test/release-exclusions.test.ts` for the publish guards; the version check
   for the single-version rule).
 - End to end, from the repository root: `pnpm smoke:package`, which packs all

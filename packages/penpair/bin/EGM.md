@@ -52,9 +52,10 @@ without a scope, which is why it is a `bin` entry and nothing more.
 - Smoke check that the forward actually resolves and runs:
   `pnpm smoke:package` from the repository root, which packs all six packages,
   installs them in an empty project and runs the commands.
-- Nothing in the core's tests asserts the single bin `bin/penpair.js`, the sole
-  `@penpair/web` dependency or the `@penpair/web/cli` import:
-  `test/boundary.test.ts` covers only `web` and `docker`. The release tests in
+- `test/boundary.test.ts` in `packages/core` asserts that the wrapper's
+  `@penpair/web` dependency is a `workspace:` one and that its version matches
+  the core's. It does not assert the single bin `bin/penpair.js`, that
+  `@penpair/web` is the only dependency, or the `@penpair/web/cli` import. The release tests in
   `packages/core` (`test/release-exclusions.test.ts`,
   `test/release-guard.test.ts`) cover the wrapper's release handling, and
   `pnpm smoke:package` runs the installed `penpair` bin.

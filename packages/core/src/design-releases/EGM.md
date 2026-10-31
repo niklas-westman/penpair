@@ -95,7 +95,7 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
 
 **Context** (`context.ts`)
 
-- `releaseContext(client, root, release, options)` — assembles a size-bounded
+- `releaseContext(root, raw, options)` — validates the release, runs an offline `checkRelease` (no client) and assembles a size-bounded
   context document for the release.
 
 **Status** (`status.ts`)
@@ -110,8 +110,9 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
 
 - `evaluateReleaseStatus(release, checked, implementation, options)` — pure
   function that derives a `ReleaseStatus` from pre-computed inputs.
-- `releaseCaseIds(release)` — returns the member ids that carry a `route`
-  (used to correlate implementation cases).
+- `releaseCaseIds(release)` — for a `schemaVersion` 2 release, returns the
+  member ids that carry a `route` (used to correlate implementation cases); for
+  v1 it returns `[]`.
 
 **Membership** (`membership.ts`, `membership-validation.ts`)
 
@@ -144,8 +145,9 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
   `"verified"` → `"final"`. `assembleRelease` refuses `"verified"` or `"final"`
   status (`assemble.ts`). `verifyRelease` refuses `"final"` status (`verify.ts`).
   `writeDesignRelease` refuses to overwrite a `"final"` record or to change `id`
-  or `productVersion` (`store.ts:54`). `finalizeRelease` requires `"verified"`
-  (or `"final"`, as a no-op when not applying).
+  or `productVersion` (`store.ts`). `finalizeRelease` accepts only `"verified"` or
+  `"final"`; it returns the release unchanged when not applying or when it is
+  already `"final"`, before the owner-review check.
 - **Assemble precedes verify.** `verifyRelease` requires the target page id, the
   overview frame id, the overview itself and all map evidence to exist first.
 - **Artifact writes are idempotent by content address.** `saveArtifact` reuses
@@ -155,15 +157,15 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
 - **Finalization writes the local pointer last.** The remote marker is written
   first, then re-observed independently, and the marker and review hashes must
   match before the local `"final"` pointer is written. The Penpot file revision
-  is captured before the check and asserted unchanged immediately before the
-  remote write and again before the local write.
+  is read before and after the independent check and must match, is read again
+  before the marker is written, and the marker write is itself revision-guarded.
+  Before the local pointer is written a full live `checkRelease` runs again.
 - **Approval is cryptographically bound.** `finalizeRelease` requires an owner
   review matching `"design-release"`, the release id, and
   `hashDesignRelease(release)` exactly. Without it, it throws before any write.
-- **Both map kinds are required.** `assertReleaseContracts` — at `store.ts:168`,
-  called from `planRelease`, `assembleRelease`, `verifyRelease`, `checkRelease`, and the `draft`
+- **Both map kinds are required.** `assertReleaseContracts` (`store.ts`), called from `planRelease`, `assembleRelease`, `verifyRelease`, `checkRelease`, and the `draft`
   helper backing `adoptRelease` and delta-plan releases — requires at least one
-  journey map and one integration map (`store.ts:106-110`). On the finalization path
+  journey map and one integration map. On the finalization path
   every contract and detail contract must additionally carry an exact owner
   review and be ready.
 - **Ceilings.** 16 MiB per artifact (`maximumArtifactBytes`) and per native copy
@@ -190,8 +192,12 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
 - **Filesystem**, under `design/releases/<productVersion>/`: `release.json`,
   `approved/bundle.json`, `approved/artifacts/<sha256>.bin`, and screen fidelity
   evidence under `evidence/screens/` (a JSON and a PNG per screen for both the
-  original and the copy). Everything goes through `atomicWriteFile` or
-  `saveArtifact`; no direct writes.
+  original and the copy), `evidence/maps/` and `evidence/overview-<hash>.png`
+  from assembly, and `evidence/retained/<id>` for retained members
+  (`member-evidence.ts`). Artifacts and the release record go through
+  `atomicWriteFile` or `saveArtifact`; the exceptions are the exclusive-create
+  `<release file>.write-lock` opened directly in `writeDesignRelease`, and the
+  journals written by `runJournaledSteps`.
 - **Private evidence** under the gitignored `.penpair/native-copy/<runId>/`:
   the transfer plan, observations of the original and the pasted result, a
   readback, a mapping, a durable paste fence (`paste-attempt.json`) and a
@@ -200,7 +206,9 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
 - **Journal files** written under the root by `runJournaledSteps`, keyed
   `"design-release-assemble"`, `"design-release-copy"`,
   `"design-release-finalize"` and `"design-release-overview-links"` (from
-  `overview-links.ts`).
+  `overview-links.ts`). Assembly also opens one child map journal per release
+  contract (operation `publish-map`; run id from `childMapRunId` in
+  `child-journals.ts`), which `releaseRecovery` checks.
 - **Penpot**: snippets dispatched through the tool client. Reads inspect the
   native copy, the projection, the journal target and the release observation.
   Writes create the destination page, select, arrange, and write the released
@@ -208,8 +216,9 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
   overview.
 - **Clipboard** only through the explicitly injected transport, and never unless
   applying.
-- **Progress** through the optional `onStep(message)` callback; no other stdout
-  contract.
+- **Progress** through the optional `onStep(message)` callback. `CopyOptions`
+  also extends `ProgressOptions`, so copy additionally reports structured
+  `onProgress` events. No other stdout contract.
 
 ## Verification
 

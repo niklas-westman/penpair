@@ -55,9 +55,11 @@ Full symbol-level detail is in the source contract.
 ## Global Invariants
 
 - **One-way dependency.** This adapter depends on `@penpair/core`; the core never
-  depends on it. `packages/core` must name neither this package nor any other
-  project or component library — a test fails the build if it does. Project
-  knowledge belongs here, in the adopting project, or in the examples.
+  depends on it. `packages/core` must not name this library or other
+  adopting projects; `neutrality.test.ts` enforces that with a short forbidden
+  word list (it does not forbid every adapter name — the core's skills name the
+  Reflection Check companion). Project knowledge belongs here, in the adopting
+  project, or in the examples.
 - **An adapter cannot do everything.** It may contribute CLI commands, an
   optional `status()` line and build kits. It may **not** register MCP tools or
   registry snippets, and it may not claim a reserved command name. The core's
@@ -68,7 +70,9 @@ Full symbol-level detail is in the source contract.
   `File changed during token inspection`) and not optional: read-only inspect, a pinned snapshot, one
   idempotent write, an independent readback, and an export that is looked at. A
   first export after a write or a page switch can be stale, so look twice — the
-  code enforces this with settle-or-throw reads and double sampling.
+  code does this with settle-or-throw reads and double sampling, except that
+  `applyPlan` and the mode trial skip the layout settle when called with
+  `layout: false`.
 - **Snippets sent to Penpot stay under 90 KB.** The ceiling is enforced in the
   core (`maxSnippetBytes`); this package keeps the margin by batching at 40
   tokens and 45 KB.
@@ -95,7 +99,10 @@ Full symbol-level detail is in the source contract.
 - **Penpot**, reached only through the core's `PenpotToolClient` over the MCP
   proxy. A `push --apply` mutates a real design file: it creates and updates
   token sets, tokens and themes, and activates a theme. Destructive actions are
-  guarded inside Penpot and refuse any name absent from the verified ancestor.
+  guarded twice: `applyPlan` refuses, on the client before any snippet runs, a
+  prune of any name absent from the verified ancestor, and the snippet itself
+  re-runs `assertSafeDestruction` (binding counts and token references) inside
+  Penpot.
 - **The adopting project's working tree**: the committed token snapshot
   (default `design/marwes-tokens.snapshot.json`), adopt proposals, preview and
   migrate output, the component pilot snapshot, and the mode-trial output tree of

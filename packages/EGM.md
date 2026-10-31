@@ -19,8 +19,8 @@ The two adapters sit on the other side of the same boundary. `@penpair/marwes-ui
 carries a component library's token and component knowledge; `@penpair/reflection-check`
 plans which approved baselines may be checked and then polices the evidence a
 project's browser provider returns. Both plug in through `defineAdapter`, are
-loaded from the adopting project's `adapters` list, and are named nowhere in the
-core.
+loaded from the adopting project's `adapters` list. The core does not name the
+Marwes adapter; its skills do name `@penpair/reflection-check` as a companion.
 
 ## Subdirectories & Boundaries
 
@@ -45,18 +45,22 @@ core.
 ## Global Invariants
 
 - **The dependency runs one way.** Adapters and command packages depend on
-  `@penpair/core`; the core imports from none of them and names neither adapter.
-  Enforcement is split across two tests and does not cover every limb:
-  `boundary.test.ts` asserts the one-way rule against `@penpair/docker` only, and
-  that `@penpair/web` and `@penpair/docker` import the core through its public
-  entry rather than a deep `dist/` path. It says nothing about either adapter.
-  That the core names neither adapter comes from `neutrality.test.ts`'s forbidden
-  substring list, a different mechanism in a different file. Nothing tests that an
-  adapter imports the core at a sane depth.
+  `@penpair/core`; the core imports from none of them. Enforcement is split across
+  two tests and does not cover every limb: `boundary.test.ts` asserts the one-way
+  rule against `@penpair/docker` only, and that `@penpair/web` and `@penpair/docker`
+  import the core through its public entry rather than a deep `dist/` path. It says
+  nothing about either adapter. Nothing tests that an adapter imports the core at a
+  sane depth. Naming is a separate matter, see the next invariant.
 - **Neutral core.** No file under `packages/core/src` or `packages/core/skills`
   may name an adopting project or component library, in code, comment or
   documentation. `packages/core/test/neutrality.test.ts` fails the build on a
-  substring hit and scans Markdown, so these contract files are in scope too.
+  case-insensitive substring hit from a short forbidden list (two project names and
+  the Marwes library), so the core is kept free of the Marwes adapter and of named
+  projects. It scans every file under `packages/core/src` and `packages/core/skills`
+  (so the contract files inside `core/src` are in scope) and `packages/docker/src`;
+  this file and the other contracts outside those directories are not scanned. The
+  list does not cover `@penpair/reflection-check`: core's shipped skills name it as
+  the recommended companion for frontend verification, and no test forbids that.
 - **An adapter's surface is bounded.** It may contribute CLI commands, an optional
   `status()` line and build kits. It may not register MCP tools or registry
   snippets, and it may not claim one of the 42 reserved command names — which is
@@ -89,9 +93,9 @@ core.
 - **Ceilings are enforced, not advisory.** Snippets stay under 90 KB
   (`maxSnippetBytes = 90 * 1024` in `core/src/client.ts`, checked when a snippet is
   constructed) because Penpot's proxy refuses bodies around 110 KB. Kit sources
-  are capped at 32768 bytes each and 49152 combined, as inline literals in
-  `core/src/kit.ts`. The kit size check measures the core kit's headroom against
-  those caps (see `core/src/kit.ts`), and it is small, so a new helper belongs in an included kit such as `@instances` — and the budget is
+  are capped per kit and combined, as inline literals in `core/src/kit.ts`
+  (`checkKits` enforces the combined cap; `kit.test.ts` asserts only that the
+  core kit stays under the per-kit cap, and no test measures headroom). Headroom is small, so a new helper belongs in an included kit such as `@instances` — and the budget is
   measured against whichever copy the consumer loads, which is why a change can
   pass `packages/core`'s own tests and still fail an adapter package that imports
   the built core.

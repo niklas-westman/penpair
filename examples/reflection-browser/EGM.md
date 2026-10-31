@@ -26,9 +26,9 @@ provenance live in [`README.md`](./README.md) — do not fold them into here.
 | `fixture-hooks.mjs` | `hooks` — the local fixture's `route`, `setup`, `prepareCapture`, `observe`, `captureRoot`, `expectedFonts`. **Repository fixture only.** |
 | `serve.mjs` | No exports. A loopback static server for `fixture/index.html` and `fixture/Abel-Regular.ttf`. Side-effecting entry point. |
 
-Required project hooks (`capture.mjs` enforces the first four at call time):
-`route(test)`, `setup(page, test)`, `observe(page, test)`, `captureRoot(test)`,
-`expectedFonts(test)`, and optional `prepareCapture(page, test, root)`.
+Required project hooks: `route(test)` (checked as a function by `createBrowserProvider`),
+`setup(page, test)`, `observe(page, test)`, `captureRoot(test)` and
+`expectedFonts(test)` (checked as functions by `captureCase` at call time), and optional `prepareCapture(page, test, root)`.
 
 `runCase` returns `schemaVersion: 1` evidence with `baselineHash`, `observed`,
 `fonts`, `screenshot` path, `diffPixelRatio`, full `capture` metadata and
@@ -52,7 +52,8 @@ Required project hooks (`capture.mjs` enforces the first four at call time):
   `document.fonts`. System-font fallback is not evidence.
 - **Layout must settle, provably.** Three *equal* consecutive root boxes across
   animation frames, within `timeoutMs`, capped at 120 frames; otherwise
-  `"Capture root did not settle"`.
+  `"Capture root did not settle"`, or `"Capture layout deadline exceeded"` when a
+  frame does not arrive before the deadline.
 - **The capture root resolves uniquely** and must have at least a 2×2 observable
   viewport area.
 - **Occlusion and hover are refused, not hidden.** Five sampled points must all hit

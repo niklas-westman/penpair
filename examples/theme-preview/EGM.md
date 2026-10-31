@@ -16,8 +16,9 @@ usage instructions live in [`README.md`](./README.md) — do not fold them into 
 
 ## Interface
 
-Each file's first line is a load-bearing pragma (`// penpair: read`,
-`// penpair: write`, `// penpair: idempotent`) declaring its protocol role.
+Each file opens with load-bearing pragma comments declaring its protocol role:
+`// penpair: read` or `// penpair: write` on the first line, and for a write body
+`// penpair: idempotent` on the next.
 
 | File | Role | Contract |
 | --- | --- | --- |

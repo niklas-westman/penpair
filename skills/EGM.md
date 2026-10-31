@@ -22,7 +22,11 @@ where the installer, the skill tests and the neutral-core rule all apply.
   only, so a reader who follows an old link is sent onward rather than given a
   second, divergent copy.
 - **Nothing here is imported or executed** by any package, script, test or
-  example in this repository.
+  example in this repository. The core does know the folder *name*: `skills.ts`
+  and `skill-check.ts` in `packages/core/src` hard-code `penpair-setup-guide` so
+  that `skills install` and `skills check` can report installed copies of it as
+  legacy folders. Renaming this folder would not break those, but they would stop
+  describing it.
 - **It is still gated as code.** The directory holds a `.mjs` snippet, so
   `skills/` is one of the roots `scripts/check-code-paths.mjs` scans for
   kebab-case paths — and it is in scope for this repository's architectural
@@ -42,4 +46,6 @@ where the installer, the skill tests and the neutral-core rule all apply.
 
 - `pnpm check:style` (`scripts/check-code-paths.mjs`) gates path naming; `pnpm conventions:check` only unit-tests `findInvalidCodeDirectories` against fixture strings.
 - `pnpm test` in `packages/core` — covers the canonical skills in
-  `packages/core/skills`, not this tree.
+  `packages/core/skills`, not the files in this tree. It does cover the core's
+  legacy-folder report for installed `penpair-setup-guide` copies
+  (`skill-check.test.ts`, `skills.test.ts`), which never reads this directory.

@@ -28,7 +28,11 @@ place.
   project two setup skills that can disagree, which is the failure it exists to
   prevent.
 - **It is not what the installer ships.** `penpair skills install` installs from
-  `packages/core/skills`; this folder is reached only by an old link.
+  `packages/core/skills`; this folder is reached by an old link. Separately, the
+  core detects and reports installed copies of a `penpair-setup-guide` folder in
+  the project skill folders (`skills.ts`, `skill-check.ts`,
+  [docs/skill-installation.md](../../docs/skill-installation.md)); that is the
+  legacy-folder report `SKILL.md` refers to.
 - **Removal advice stays conservative:** preview a refresh, read the
   legacy-folder report, preserve customizations. An agent must not delete a
   project's installed folder on this document's word.
@@ -44,5 +48,7 @@ place.
 
 - `pnpm test` in `packages/core` covers skill discovery and installation for the
   canonical skills under `packages/core/skills`; this folder is outside that set
-  by design.
+  by design. Tests in `skill-check.test.ts` and `skills.test.ts` also cover the
+  legacy-folder report for installed `penpair-setup-guide` copies, without reading
+  this folder.
 - `pnpm check:style` (`scripts/check-code-paths.mjs`) gates the path naming; `pnpm conventions:check` only unit-tests the function against fixture strings.

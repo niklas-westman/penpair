@@ -17,15 +17,16 @@ usage instructions live in [`README.md`](./README.md) — do not fold them into 
 
 ## Interface
 
-Each file's first line is a load-bearing pragma (`// penpair: read`,
-`// penpair: write`, `// penpair: idempotent`) that declares its protocol role.
+Each file opens with load-bearing pragma comments that declare its protocol role:
+`// penpair: read` or `// penpair: write` on the first line, and for a write body
+`// penpair: idempotent` on the next.
 
 | File | Role | Contract |
 | --- | --- | --- |
 | `helpers.js` | `// penpair: read` | `inspectHelloExample()` — the shared observation. Returns `{ expected, actual, id, satisfied, rootIds }`. Included into the other three via `--include`. |
 | `inspect.js` | `// penpair: read` | Pre-write inspection. Returns `{ ok: true, ...observation }`; throws if an owned example exists but differs. |
 | `build.js` | `// penpair: write`, `// penpair: idempotent` | The single write. Returns `{ ok: true, rootId, layout, phases, slowest }`, or `{ ok: true, alreadyBuilt: true, rootId }` when already satisfied. |
-| `readback.js` | `// penpair: read` | Independent verification. Returns `{ ok: true, rootId, verification: { expected, actual } }`. |
+| `readback.js` | `// penpair: read` | Independent verification. Always returns `{ ok: true, rootId, verification: { expected, actual } }`, even when the root is missing (`rootId: null`, `actual: { missing: true }`) or unsatisfied; the caller must compare `expected` and `actual`. |
 
 Required `CFG` parameters: `name`, `marker`, `typo`, `color`, `space`, `radius`
 (all non-empty strings), plus `CFG.inspection` — the pinned snapshot — for `build.js`.

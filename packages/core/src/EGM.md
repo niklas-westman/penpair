@@ -147,8 +147,8 @@ accepted route forms into a routing identity; strips all other parameters).
   a run.
 - **The first export after a write or a page switch can be stale.**
   `ExportOptions.stable` defaults to `true` and loops until two consecutive
-  exports are byte-identical under a matching capture identity (2 s apart, four
-  attempts by default). Independently, `settleLayout` requires three
+  exports are byte-identical under a matching capture identity (2 s apart, up to
+  `maxExports` exports; `attempts` is a separate option, see `export.ts`). Independently, `settleLayout` requires three
   geometry-identical samples before calling layout stable, and
   `waitForStableLayout` must succeed before an export proceeds. Look twice.
 - **The sandbox JavaScript for `settleLayout` is generated, not serialised at
@@ -167,7 +167,8 @@ accepted route forms into a routing identity; strips all other parameters).
   field. An approval recorded without a policy cannot match one recorded with
   one, and vice versa. `applyCapturePolicy` (in `capture-policy.ts`) stamps a
   freshly observed capture with the named profile only when all the required
-  evidence fields are present; a missing or unknown policy throws.
+  evidence fields are present. An absent policy returns the capture unchanged; an
+  unknown policy, or missing evidence, throws.
 
 ### Secrets
 
@@ -209,8 +210,9 @@ accepted route forms into a routing identity; strips all other parameters).
 - **Exit codes are a closed set**: `{0, 1, 2, 3, 4, 124, 130}` — success,
   failure, drift, incomplete, uncertain, deadline, cancelled. Anything else from
   an adapter is normalised to `1` with a warning.
-- **The core knows no adapter by name.** `loadAdapters` runs only when `argv[0]`
-  is absent from `reservedCommands`; help lists configured names without
+- **The core knows no adapter by name.** In command dispatch `loadAdapters` runs
+  only when `argv[0]` is present, does not start with `--` and is absent from
+  `reservedCommands`; `status --adapters` also calls it. Help lists configured names without
   importing a module. An adapter must `export default defineAdapter({...})`, may
   not claim a reserved or already-claimed command name, and is skipped with a
   recorded problem rather than throwing.
@@ -231,7 +233,8 @@ accepted route forms into a routing identity; strips all other parameters).
   accepts only `.js` and `.mjs`.
 - **`guardFile` refuses everything but `execute_code`** with a string `code`
   argument, and throws `PenpairError("file-mismatch")` on a failed inline file-id
-  check.
+  check. It returns the client unguarded (with a warning) when no file is pinned
+  or `anyFile` is set, and in mode `"warn"` a mismatch is logged rather than thrown.
 - **Determinism where a hash depends on it.** `structuralJson` sorts keys,
   `designSource` sorts nodes by id, `importDtcg` sorts tokens by path, and
   `checkDesignSpec` compares by exact string equality, so any provenance change
@@ -249,13 +252,20 @@ accepted route forms into a routing identity; strips all other parameters).
 
 ## Side Effects
 
-- **Filesystem writes.** Most go through `atomicWriteFile`, but not all — three
-  paths have their own mechanism and the distinction matters when reasoning about
+- **Filesystem writes.** Most go through `atomicWriteFile`, but not all — these
+  have their own mechanism and the distinction matters when reasoning about
   crash safety:
   - `.penpair/locks/<sha256-of-fileId>.json` — `open(…, "wx", 0o600)` then
     `handle.writeFile`, because exclusive creation *is* the lock.
   - `.penpair/runs/<runId>.json` — a temp write plus `link`/`rename` performed
     inside `journal.ts` itself.
+  - Other exclusive-create `.lock` files: `design/approvals.json.lock`
+    (`approvals.ts`), the snapshot pointer's `.lock` (`structure-snapshot.ts`),
+    and one per target in `maps/store.ts` and `design-releases/store.ts`.
+  - `.penpair/queues/<id>.json` — temp file written with `wx`, then `rename`
+    (`queue.ts`).
+  - `reflection-cases.json` — written with `wx` inside a staged capture folder
+    that is then renamed (`baselines.ts`).
   - The `.penpair/` git-ignore entry is a line appended to the project's
     `<root>/.gitignore` by `ensureGitignoreEntry`. There is no
     `.penpair/.gitignore` file; nothing writes one.
@@ -275,7 +285,9 @@ accepted route forms into a routing identity; strips all other parameters).
   oversized request can end the connection.
 - **Browser debug protocol**, loopback only and validated: `/json/list` and
   `/json/activate/<targetId>` over HTTP to focus a tab, and a WebSocket to
-  dispatch copy and paste key events. Clipboard text never leaves the page.
+  dispatch copy and paste key events. `wake --reload` additionally sends
+  `Page.reload` over a WebSocket (`browser-wake.ts`). Clipboard text never leaves
+  the page.
 - **Environment**: reads `PENPAIR_MCP_URL`, `PENPAIR_MCP_URL_FILE`,
   `PENPAIR_MCP_URL_COMMAND` (only to reject it), the home directory and the
   working directory.

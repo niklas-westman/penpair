@@ -85,8 +85,9 @@ and names it nowhere; the dependency runs one way only.
   `assertSafeDestruction(actions, live, bindingCounts)`,
   `readSyncAncestor(root, fileId)`,
   `saveSyncAncestor(root, fileId, snapshot, expectedAncestor?)` (`ownership.ts`).
-- `actionSatisfied`, `reconcileAction` returning `"complete" | "pending" | "conflict"`,
-  `remainingAction` (`reconciliation.ts`).
+- `reconciliation.ts` holds `actionSatisfied`, `reconcileAction` (returning
+  `"complete" | "pending" | "conflict"`) and `remainingAction`; `index.ts` does
+  not re-export them, and `penpot.ts` imports them for the journaled path.
 - `numericExpression` (re-export), `ResolvedExpectation`, `expectedResolved`,
   `compareResolved` (`resolved-values.ts`).
 
@@ -142,7 +143,8 @@ This directory has no subdirectories.
   forced.** The core's `reservedCommands` list includes both `tokens` and
   `snapshot`, and `packages/core/src/adapters.ts` rejects an adapter claiming any
   reserved name at load time. Renaming `marwesCommand.name` to a reserved word
-  breaks adapter loading, not this file.
+  makes `loadAdapters` record a problem and drop that command; the adapter
+  itself is still loaded.
 - Released at the same version as every other package in the repository. Never
   bump a version by hand.
 
@@ -155,13 +157,18 @@ collapse any of its reads:
 - `readPenpot` pins the file with `guardFile` on the journal target's `fileId`,
   reads, then re-reads the target and throws `File changed during token inspection`
   if the id or revision moved.
-- `applyPlan` pins with `guardFile`, fingerprints structure and reads live state
-  *before* writing, runs one action per journaled step under
-  `guardRevision(guarded, target)`, then independently re-reads live state and
-  re-fingerprints. It sets `verified` only when the drift is in sync *and* the
-  structure hash is unchanged across the write.
+- `applyPlan` pins with `guardFile` when `options.expectedFileId` or
+  `options.journal` is set, fingerprints structure and reads live state
+  *before* writing, then independently re-reads live state and re-fingerprints.
+  With `options.journal` it runs one step per batch of an action under
+  `guardRevision(guarded, target)`. Without a journal it takes the plain path:
+  it writes each batch behind a destruction guard, with no `guardRevision` and
+  no per-step readback, and reads back once at the end. It sets `verified` only
+  when the drift is in sync *and* the structure hash is unchanged across the
+  write.
 - **Look twice.** Every readback is preceded by `settle()` → `waitForStableLayout`,
-  which throws rather than returning an unsettled read. `mode-trial.ts` goes
+  which throws rather than returning an unsettled read. `applyPlan`'s `settle()`
+  and the mode trial's do nothing when called with `layout: false`. `mode-trial.ts` goes
   further: `stableMode()` demands two consecutive identical `resolved`
   observations across 2–20 samples within a 5 s deadline, and after
   `exportShapePng` it re-reads and throws `Mode changed during export` unless
@@ -180,14 +187,19 @@ the plain path. Raising either constant narrows the margin against the core limi
 
 ### Idempotency and ordering
 
-- Every write snippet is idempotent, and each reports what it skipped rather than
-  treating it as a failure: `marwes-create-set` returns `{ existed: true }`;
+- Not every write snippet is idempotent or reports a skip.
+  `marwes-update-tokens` and `marwes-replace-tokens` report per-token failures
+  in `failed`; `marwes-remove-tokens` is not idempotent (a name already gone
+  lands in `failed`, and the plain caller throws on a non-empty `failed`); and
+  `marwes-sync-theme` only returns the resulting sets. The snippets that do
+  report a skip: `marwes-create-set` returns `{ existed: true }`;
   `marwes-add-tokens` moves names already present into `skipped`, keeping
   `failed` for genuine errors, because the plain caller throws on any non-empty
   `failed`; `marwes-create-theme` returns `{ existed: true, added }` and attaches
   only the wanted sets it finds missing — it never removes one, since removing a
   set from a theme is a planned destruction; `marwes-activate-theme` returns
-  `{ alreadyActive: true }`. `findSet` and the theme lookups still throw on a
+  `{ alreadyActive: true }` whenever any theme is active, not only when the
+  wanted one is. `findSet` and the theme lookups still throw on a
   missing or ambiguous target rather than guessing.
 - Replaying a satisfied plan is a supported path, not only a planned no-op. The
   plan layer already returns an empty plan after a successful push, but a resumed
@@ -207,8 +219,9 @@ the plain path. Raising either constant narrows the margin against the core limi
 
 - `removeTokens` and `replaceTokens` carry an in-snippet `destructionGuard` that
   re-reads tokens and bindings and re-runs `assertSafeDestruction` *inside*
-  Penpot.
-- Pruning refuses any name absent from the verified ownership ancestor.
+  Penpot. That inner guard checks binding counts and token references only.
+- Pruning refuses any name absent from the verified ownership ancestor; that
+  check is in `applyPlan` on the client, before any snippet runs.
 - Only sets named by the expectation are ever judged or touched; unmanaged live
   sets and tokens are reported, never modified.
 - `assertSafeDestruction` is deliberately conservative across all sets, including

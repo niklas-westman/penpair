@@ -19,8 +19,9 @@ be re-read before a result is trusted, and what is refused outright.
 `index.ts` is the public boundary of the directory, and it exports only
 `runDesignCommand` and the type `DesignCommandContext`. The three handlers below
 are internal: `runMapCommand` comes from `map-command.ts`, and
-`runDesignReleaseCommand` and `runDesignReleaseCopyCommand` from
-`release-command.ts` (not re-exported by `index.ts`).
+`runDesignReleaseCommand` from `release-command.ts`, which dispatches `copy` to
+`runDesignReleaseCopyCommand`, defined in `copy-command.ts` (none re-exported by
+`index.ts`).
 
 | Symbol | Role |
 | --- | --- |
@@ -56,10 +57,11 @@ need them.
   surface rests on.
 - **`--resume RUN_ID` requires `--apply`.** Enforced for map publish and for
   release assemble and finalize; resuming a journalled run is a write.
-- **Redact before any filesystem write.** `writeOutput` and
+- **Redact before a text or JSON filesystem write.** `writeOutput` and
   `writeReleaseOutput` pass the serialised output through `context.redact()` and
   throw — writing nothing — if the result differs from the input. A protected
-  value that survives redaction is a hard failure, not a warning.
+  value that survives redaction is a hard failure, not a warning. `writeOutput`
+  skips that check for a Buffer, so the evidence PNG is not redacted.
 - **An output path may not overwrite a canonical input.** `outputTarget`
   verifies the destination is neither the contract file nor any of its declared
   source paths, and throws before any write.
@@ -67,10 +69,12 @@ need them.
   `accept`, the projection fingerprint is read again from Penpot; if the live map
   moved after the import step, the acceptance is aborted and neither the contract
   nor the baseline is touched.
-- **Re-verify after the export, before saving evidence.** Once the PNG is
-  exported, the live projection is read again to confirm the fingerprint is
-  unchanged and the on-disk contract is re-hashed. Evidence is written only if
-  both still match.
+- **Re-verify after the export, before saving evidence — presentation accept
+  only.** In the `map-presentation-proposal` `accept` path, once the PNG is
+  exported the live projection is read again to confirm the fingerprint is
+  unchanged and the on-disk contract is re-hashed; evidence is written only if
+  both still match. `publish --apply` saves evidence through
+  `persistNativeEvidence` without such a re-read.
 - **Approval requires fresh inputs and no open blocking finding.** The
   `approve --write` path requires `freshness === "matches-supplied-inputs"` and
   no `severity === "blocking"` finding still `"open"`; either condition throws.
@@ -99,14 +103,15 @@ need them.
   file, and the release JSON.
 - **Penpot**, through `context.withPenpot`: `check --live` reads only; `publish`
   reads the live file id then writes shapes when applying; `import` and `accept`
-  read the projection; `accept` also exports a PNG; `assemble`, `verify` and
+  read the projection; `accept` of a map-presentation-proposal also exports a PNG (native canonical-proposal accept does not); `assemble`, `verify` and
   `finalize` each call their release counterpart against the live file.
 - **Native clipboard**, on `copy --apply` only: connects to a browser debug port
   for the configured origin and file id, with a 30-second timeout, cancellable
   through the command signal.
 - **Stdout**: a structured `result` for machine consumers plus a human-readable
   JSON `log`, with progress on stderr. Exit codes are `0` success or ready,
-  `2` drift detected, `3` incomplete, unverified or not ready.
+  `3` incomplete, unverified or not ready. `2` (drift) is returned only by
+  `design-release check`.
 - No process spawning.
 
 ## Verification

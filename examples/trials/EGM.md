@@ -22,7 +22,7 @@ Three trials, each following the inspect / write / readback shape.
 | File | Role | Contract |
 | --- | --- | --- |
 | `hold-inspect.js` | `// penpair: read` | Confirms the authorized scratch `fileId`/`pageId`, an empty page, and that `CFG.marker` is a non-empty string (freshness is enforced in `hold-writer.js`). Returns `{ ok, fileId, pageId, children: 0 }`. |
-| `hold-writer.js` | `// penpair: write`, `// penpair: idempotent` | Holds the writer lease for `CFG.holdMs`. Returns `{ ok: true, heldMilliseconds }`. |
+| `hold-writer.js` | `// penpair: write`, `// penpair: idempotent` | Writes a `trial-hold-<marker>` record, sleeps `CFG.holdMs` to open a contention window, then marks it `complete`. Returns `{ ok: true, heldMilliseconds }`. |
 | `hold-readback.js` | `// penpair: read` | Reads the trial record back and reports `expected` vs `actual`, including `state: "complete"`. |
 | `recovery-inspect.js` | `// penpair: read` | Returns `{ ok, existingId, width, height, rootIds }` for the resume decision. |
 | `recovery-build.js` | `// penpair: write`, `// penpair: idempotent` | Creates one 160×80 owned board; throws after the write when `CFG.failAfterWrite === "true"`. |
@@ -72,8 +72,9 @@ for both write bodies.
 - **Mutates an owner-authorized scratch Penpot file.** `hold-writer.js` writes file-level
   shared plugin data under `penpair`/`trial-hold-<marker>` (twice: `holding`, then
   `complete`). `recovery-build.js` creates one board and writes `penpair`/`trial`.
-- **Deliberately holds a writer lease** for up to 30 seconds, blocking concurrent
-  writers for that window.
+- **Deliberately keeps the write execution open** for up to 30 seconds (`holdMs`).
+  The body itself takes no lease; the operation runner's advisory writer lease is
+  what concurrent writers meet during that window.
 - **Deliberately leaves inconsistent state** when `failAfterWrite` is set: an owned
   object with no acknowledgment, requiring explicit inspected resume.
 - Trial markers accumulate in the scratch file's shared plugin data; each run needs a

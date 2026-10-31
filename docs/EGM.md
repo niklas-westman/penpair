@@ -36,7 +36,8 @@ command. The filter lives in `scripts/copy-package-docs.mjs`.
 The same script will not replace a package's own README. `@penpair/docker`
 maintains one and keeps it; `@penpair/web` maintains none and receives the
 project README at pack time. That rule lives in `copy-package-docs.mjs`, is
-asserted by `package-docs.test.ts` and checked by `smoke-package.mjs`;
+asserted by `package-docs.test.ts`; `smoke-package.mjs` only checks that the
+installed `@penpair/web` README equals the repository one;
 `scripts/guard-publish.mjs` enforces only `PENPAIR_RELEASE=1` and version
 consistency.
 
@@ -73,9 +74,10 @@ consistency.
   `packages/core/test/docs.test.ts` walks `docs/**` plus `README.md`, `AGENTS.md`,
   `CONTRIBUTING.md` and `SECURITY.md` and checks each target and fragment.
 - A documented command, flag or limit must match the code. Several pages carry
-  exact figures — the 90 KB snippet ceiling, the 10,000 ms settle default against
-  a 30,000 ms refusal ceiling, the kit byte budgets — and a stale figure here is a
-  defect, not a cosmetic issue.
+  exact figures — the 90 KB snippet ceiling, the layout-settling budget and its
+  refusal ceiling ([layout-settling.md](./layout-settling.md)), the `pp.flush`
+  timeout default ([build-kit.md](./build-kit.md)), the kit byte budgets — and a
+  stale figure here is a defect, not a cosmetic issue.
 - Anything added to this tree ships inside both command packages, `@penpair/web` and `@penpair/docker`.
 
 ## Global Side Effects

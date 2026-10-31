@@ -15,7 +15,7 @@ These are ES modules with named exports. None of them is a CLI.
 
 | Module | Exports |
 | --- | --- |
-| `changesets.mjs` | `checkReleaseGroup(root)` — validates `.changeset/config.json` is one fixed group holding every package exactly once, then returns the sorted package names; `pendingChangesets(root)` — lists `.changeset/*.md`; `syncSourceVersion(root)` — writes `packages/core/src/version.ts` from the Changesets-written `package.json` |
+| `changesets.mjs` | `checkReleaseGroup(root)` — validates `.changeset/config.json` is one fixed group holding every package exactly once, then returns the sorted package names; `pendingChangesets(root)` — lists `.changeset/*.md` except `README.md`; `syncSourceVersion(root)` — writes `packages/core/src/version.ts` from the Changesets-written `package.json` |
 | `versions.mjs` | `guardScript` (`"node ../../scripts/guard-publish.mjs"`), `loadPackages(root)`, `sourceVersion(root)`, `checkVersions(root)` → `{ ok, version, packages, problems }`, `publishOrder(packages)` — topological dependency order, `isPublished(name, version, { timeoutMs })`, `latestPublishedVersion(name, { timeoutMs })` |
 | `release-exclusions.mjs` | `releaseExclusions(value)` — parses `PENPAIR_RELEASE_EXCLUDE_PENPAIR`, returning `[]` or `["penpair"]` and nothing else; `releaseTargets(packages, value)` → `{ required, excluded }` |
 | `release-auth.mjs` | `trustedPublishingContext(environment, versions)` → `{ mode, provenance, environment }`; `confirmReleaseVersion(expected, supplied)` |
@@ -101,7 +101,8 @@ Everything else reads disk, spawns a child process, or reaches the npm registry.
   `pnpm test`.
 - Read-only consistency check, from the repository root: `node scripts/check-versions.mjs`
   (exercises `checkVersions` and `checkReleaseGroup`).
-- The repository's full gate is `pnpm check`. It cannot run in this working tree:
-  its first step shells out to `git ls-files` and there is no `.git` directory here.
+- The repository's full gate is `pnpm check`. It needs a git checkout or worktree,
+  because its first step shells out to `git ls-files`; in a copy without `.git`, run
+  the stages individually and report partial validation.
 - Do not run `scripts/release.mjs`, `scripts/ci-release.mjs` or anything that calls
   `publishTrustedPackage` as verification. They publish.

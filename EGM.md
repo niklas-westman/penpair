@@ -91,8 +91,12 @@ changeset configuration and the instruction files.
   `packages/core/src/version.ts`. Never bumped by hand. No package can publish
   alone, `pnpm release` is the only path, and publishing is the owner's act.
 - **No secret in the repository, in output or in logs.** The MCP URL carries a
-  personal key: it lives in `.env.local` at mode `0600`, is git-ignored before the
-  write returns, and is redacted to origin and pathname before any error is thrown.
+  personal key. When `connect` is given a pasted URL it lives in `.env.local` at
+  mode `0600` and is git-ignored before the write returns; a configured credential
+  reference (file or keychain) or `PENPAIR_MCP_URL_FILE` keeps it outside the
+  repository, and `connect` then does not copy it into `.env.local`
+  ([docs/credentials.md](./docs/credentials.md)). Error text has the full URL,
+  its query and the `userToken` value replaced with `[redacted]`.
 - **Snippets stay under 90 KB**; Penpot's proxy refuses bodies around 110 KB.
   Kit sources are held to a per-source and a combined byte ceiling, enforced in
   `packages/core/src/kit.ts`. The numbers have one canonical home in

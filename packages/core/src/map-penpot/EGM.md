@@ -35,10 +35,10 @@ write once, read back independently, then export and look at it.
 | Errors and assets | `MapExportEvidenceError` (`evidence-error.ts`); `nativeMapIcons`, `defaultMapIcon` (`icons.ts`). |
 
 Internal helpers not re-exported: `import-content.ts`, `path-geometry.ts`,
-`status-labels.ts`, `spots.ts` (`mapSpotSize`, `mapSpotImages` — loads
-bundled lossless WebP illustrations from `assets/map-spots/` at module
-evaluation time; only the icons actually used in a drawing travel inside
-the publish snippet).
+`status-labels.ts`, `spots.ts` (`mapSpotSize`, `mapSpotImages` — reads
+bundled lossless WebP illustrations from `assets/map-spots/` synchronously on
+first use per icon and caches them; only the icons actually used in a drawing
+travel inside the publish snippet).
 
 ## Invariants
 
@@ -60,7 +60,9 @@ the publish snippet).
 - **Graph limits** (`validateDrawing`): at most 1,000 nodes and 2,000 edges;
   node labels ≤ 4,000 characters, summaries ≤ 240, descriptions ≤ 4,000; nodes
   at least 64 × 32; edge `points` between 2 and 32; map title ≤ 1,000
-  characters; edge path content ≤ 65,536 characters (a `content.length` check, not bytes).
+  characters. Separately, `readMapPathPoints` (`path-geometry.ts`), used when
+  verifying a readback and in import, rejects edge path content over 65,536
+  characters (a `content.length` check, not bytes); `validateDrawing` does not.
 - **Text budgets** (`content-validation.ts`): map goal and description ≤ 8,000
   characters with summary ≤ 240; annotation title ≤ 4,000, node-scoped
   annotation description ≤ 4,000 and map-scoped ≤ 8,000; at most 1,001
@@ -85,9 +87,12 @@ the publish snippet).
   and set are identical, and every shape's role, logical id and appearance hash
   are unchanged. Only `x`, `y`, `width` and `height` may differ.
 - **Geometry is checked, not assumed.** Text shapes taller than their reserved
-  height are flagged; node labels must fit inside their card bounds; edges must
-  terminate within 0.01 px of the horizontal midpoint of an endpoint node's left
-  or right edge, with a self-loop exception at the top centre.
+  height are flagged; node labels must fit inside their card bounds; in the
+  verified readback an edge must start within 0.01 px of the source node's left or
+  right edge, at the vertical anchor `mapCardAnchorHeight / 2` below the node's
+  top, and must end at the target node's left edge at the same anchor height; a
+  self-loop may instead end at the node's top centre. Only the start may use
+  either side.
 
 ## Side Effects
 
@@ -100,7 +105,8 @@ the publish snippet).
 - **PNG export**: after a verified write, `publishMap` calls `exportShapePng`
   when applying and export is not disabled, attaching the result.
 - **Filesystem reads**: `resolveMapDetails` reads contract JSON through the
-  bounded reader at paths under the journal root. There are **no** filesystem
+  bounded reader at paths under the journal root, and `mapSpotImages` reads the
+  bundled `assets/map-spots/<icon>.webp` files. There are **no** filesystem
   writes in this directory.
 - **Operation journal**: `runOperation` persists a pre-write snapshot; applying
   without a journal is rejected at runtime. The journal itself lives outside

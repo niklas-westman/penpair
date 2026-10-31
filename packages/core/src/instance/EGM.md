@@ -92,9 +92,10 @@ in a log line, never in an error message.
   `.env.local` (mode `0600`), a keychain reference, or an external file
   reference. `PENPAIR_MCP_URL_COMMAND` is refused outright — arbitrary command
   execution is not a credential source.
-- **`.env.local` is git-ignored before the write returns.** `writeKeyFile` calls
-  `ensureKeyFileIgnored` immediately, so there is no window in which the key sits
-  un-ignored. `keyFileCheck` independently re-checks permissions and git's own
+- **`.env.local` is git-ignored before the write returns.** `writeKeyFile` writes
+  the file at mode `0600` and then calls `ensureKeyFileIgnored`, so the ignore
+  entry is in place by the time the function returns; there is a short window
+  between the write and the ignore entry. `keyFileCheck` independently re-checks permissions and git's own
   view, and looks for prior exposure in history.
 - **`schemaVersion` must be absent or `1`.** Anything else is a `ConfigError`;
   this package carries no migration path, so a schema change is a breaking
@@ -107,8 +108,8 @@ in a log line, never in an error message.
   different file id unless `anyFile` is passed explicitly.
 - **Init precedes connect, and the pin is re-checked.** `connectProject`
   re-reads `penpair.config.json` before writing a file pin and throws if the
-  configuration changed in between, so a concurrent edit is never silently
-  overwritten.
+  configuration is missing or a `file` pin has appeared in the meantime, so a
+  concurrent pin is never silently overwritten; other edits are preserved.
 - **Field constraints.** `instance` matches `^[a-z][a-z0-9-]{0,30}$` and must be
   stable, since it names the compose project; `composeProject`, when given,
   matches `^[a-z0-9][a-z0-9_-]*$`; `directory` must be relative; `snippets` and

@@ -78,8 +78,11 @@ human-maintained npm readme and is not part of this contract.
 - The real check that the forward resolves and runs is `pnpm smoke:package` from
   the repository root, which packs all six packages, installs them in an empty
   project and runs the commands.
-- `test/boundary.test.ts` in `packages/core` covers only `web` and `docker`; it
-  does not assert this wrapper's bin name or its `@penpair/web` dependency. The
+- `test/boundary.test.ts` in `packages/core` asserts that this wrapper's version
+  equals the core's and that its `@penpair/web` dependency is a `workspace:`
+  one; its bin and core-dependency assertions cover only `web` and `docker`, so
+  the wrapper's bin name, the `@penpair/web/cli` import and the absence of other
+  dependencies are not asserted by a test. The
   release exception and the wrapper's place in release order are asserted by
   `pnpm test` in `packages/core` (`test/release-exclusions.test.ts`,
   `test/release-guard.test.ts`, `test/changesets.test.ts`); the installed

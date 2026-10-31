@@ -98,8 +98,11 @@ evaluation, and no failure mode worse than a missing topic.
 ## Verification
 
 - `pnpm test` from `packages/core` — `test/help-catalog.test.ts` covers the core
-  catalogue and `test/adapter-help-manifests.test.ts` covers manifest discovery,
-  including the refusal paths.
+  catalogue and one happy-path discovery of a static installed adapter manifest.
+  `test/adapter-help-manifests.test.ts` checks that the shipped adapters' help
+  manifests match the parser vocabulary. The refusal paths in `adapter-help.ts`
+  (byte budget, `..`, symlink escape, topic count, `schemaVersion`) are implemented
+  but not tested.
 - `penpair help --all`, `penpair help --search <term>` and
   `penpair help <topic>` exercise it by hand. See
   [CLI help and streaming progress](../../../../docs/cli-help-progress.md).

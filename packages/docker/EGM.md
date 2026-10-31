@@ -38,8 +38,8 @@ and `node_modules/` are outside it too.
 - **Docker knowledge is confined to this package.** `@penpair/core` must never
   gain Docker code or a dependency on this package;
   `packages/core/test/boundary.test.ts` rejects core files named `compose`,
-  `lifecycle`, `secrets` or `template` and asserts the core's `package.json`
-  mentions this package nowhere.
+  `lifecycle`, `secrets` or `template` and asserts this package is absent from
+  the core's `dependencies`, `peerDependencies` and `optionalDependencies`.
 - **One way only.** The dependency is `@penpair/core` at `workspace:*`, reached
   through its public entry. `LocalProfile` is imported from the core, never
   redefined.
@@ -74,8 +74,9 @@ and `node_modules/` are outside it too.
   repository holds the one source. `README.md` is **maintained here**, not
   generated: the copy script skips a package that already has one, so unlike
   `@penpair/web` this package keeps its own. `packages/core/test/release-guard.test.ts`
-  fails the build if any promised top-level file is missing or if `LICENSE`
-  differs from the repository's.
+  fails the build if `LICENSE` is missing or differs from the repository's. It
+  does not check `README.md` here: it skips the README of any package whose
+  `prepack` runs `copy-package-docs`, and this package's does.
 - **ESM, Node >= 22**; the exports map offers only `.` and `./package.json` —
   there is no `./cli` subpath here, unlike `@penpair/web`.
 
@@ -84,7 +85,7 @@ and `node_modules/` are outside it too.
 - **The user's machine runs containers.** `docker compose up -d` / `down` /
   `ps`, `docker exec`, and `docker run --rm` against a per-project Penpot stack.
 - **Project files are written**: `penpair.config.json` (committed), and inside
-  `.penpair/` the generated `docker-compose.yml`, the `0o600` `.env`, and
+  `.penpair/` the generated `docker-compose.yaml`, the `0o600` `.env`, and
   `backups/<timestamp>/{db.dump,assets.tgz,manifest.json}`. `.gitignore` is
   appended to when asked.
 - **Postgres and the assets volume are mutated by `restore`**: drop and recreate

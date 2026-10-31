@@ -77,8 +77,9 @@ reasoned about, hashed and reviewed without a live design tool.
   never absolute, and contain no `..` segment.
 - **References must resolve.** Edges must name existing nodes; requirement ids
   on nodes and edges must exist in `requirements`; source ids on nodes and
-  requirements must exist in `sources`. Anything with `observed` origin needs at
+  requirements must exist in `sources`. A node or requirement with `observed` origin needs at
   least one source id — an observation without a source is not an observation.
+  Edges carry no source ids, so this applies to nodes and requirements only.
 - **A proposal is bound to the contract it was made against.**
   `createMapProposal` requires the same id and kind and a changed hash;
   `acceptMapProposal` rejects a proposal whose `baseHash` no longer matches the
@@ -93,8 +94,9 @@ reasoned about, hashed and reviewed without a live design tool.
   non-empty `resolution`.
 - **Detail links are pinned to one file.** A detail-link node carries exactly
   one source of kind `"contract"` with `path`, `fileId`, `pageId` and `frameId`
-  populated, every detail link in a map must share the same pinned `fileId`, and
-  a contract may hold at most 64 of them.
+  populated and non-empty `requirementIds`. When a map has any detail link, all of
+  its sources together may name at most one distinct `fileId`. A contract may hold
+  at most 64 detail links.
 - **Layout is deterministic.** `routeMapEdges` sorts edges (aligned direct
   connections first, then by id) before routing, so identical input node
   positions and edge lists yield identical geometry.
