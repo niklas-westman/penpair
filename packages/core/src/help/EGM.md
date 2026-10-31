@@ -21,7 +21,7 @@ evaluation, and no failure mode worse than a missing topic.
 **Request detection and entry point** (`command.ts`)
 
 - `isHelpRequest(argv)` — true for an empty argument list, a leading `help`
-  word, `--help`, `-h`, or `--help-id[=ID]`.
+  word, `--help`, `-h`, or `--help-id[=ID]`. The unfiltered overview (no ID, no `--all`, no `--search`) opens with a "New here?" block listing the five setup commands in order; a test fixes that order.
 - `runHelp(argv, root, local, configured?)` — renders the catalogue and returns
   an exit code.
 

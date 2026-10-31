@@ -114,6 +114,11 @@ export async function runHelp(
       commandOutput.log(
         "Penpair help — offline command and workflow discovery\nUse penpair help TOPIC, penpair help --all, penpair help --search TEXT, or penpair --help --help-id export.batch.\n",
       );
+      if (!parsed.values.all && !parsed.values.search) {
+        commandOutput.log(
+          "New here? Set a project up in this order:\n  penpair init --external https://design.penpot.app --gitignore   write penpair.config.json\n  penpair connect                                                 store your MCP address privately\n  penpair doctor                                                  check the connection\n  penpair pages                                                   list the pages of the pinned file\n  penpair skills install --agents AGENTS.md                       give the assistant its rules\nSteps and prerequisites: https://github.com/niklas-westman/penpair/blob/main/docs/installation.md\nEverything below is the full command list.\n",
+        );
+      }
       for (const group of new Set(selected.map((topic) => topic.group))) {
         commandOutput.log(
           `${group}:\n${selected

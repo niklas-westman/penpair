@@ -797,6 +797,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       commandRedactor(endpointRedactor(endpoint));
       return {
         origin: endpoint.description.origin,
+        source: endpoint.description.source,
         connect: async (request) => {
           if (!request) {
             throw new Error("Doctor requires a fresh challenge");
@@ -1125,7 +1126,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         `${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`,
       );
       output.log(
-        "next: in Penpot switch on Account, Integrations, MCP Server and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)",
+        "next: in Penpot switch on Profile image, Your account, Integration and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)",
       );
       return 0;
     }
@@ -1178,7 +1179,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           : {
               remedy:
                 found.matching === 0
-                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integrations page), then run wake."
+                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integration page), then run wake."
                   : "Close the duplicate tab: two sessions on one file make the plugin connection drop.",
             }),
       };

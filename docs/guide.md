@@ -73,7 +73,7 @@ Things to know:
 - The database password must not change while the database volume exists; the secrets file is never regenerated.
 - The frontend answers a few seconds before the backend; `up` and `doctor` look at `/readyz`.
 - `doctor` compares the MCP key's port with the instance's, because a key for another instance silently drives the wrong file.
-- Penpot's accounts come from the first registration in the browser; the MCP key is made in Account, Integrations, MCP Server and goes in `.env.local` as `PENPAIR_MCP_URL`.
+- Penpot's accounts come from the first registration in the browser; the MCP key is made in Profile image, Your account, Integration and goes in `.env.local` as `PENPAIR_MCP_URL`.
 
 Native capability presence appears in `penpair probe`; `penpair probe --integrity` optionally checks file referential integrity without changing the document. Unsupported integrity checks are explicit, not successful validation. See [native API compatibility](compatibility.md#capability-driven-native-apis).
 

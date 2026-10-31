@@ -55,7 +55,7 @@ The `browser tabs` check lists the tabs on the project's Penpot origin, by origi
 and route only (query strings can carry tokens and are never shown), and says which
 one is the pinned file's workspace. The usual causes it makes visible: the file open
 in two tabs (two sessions drop the plugin connection), the tab sitting on the
-dashboard or the account Integrations page, or no workspace tab at all.
+dashboard or your account's Integration page, or no workspace tab at all.
 `wake` names the same tabs when it refuses ("Tabs seen: ...").
 
 If the tab is the right one but the plugin has dropped its connection, first

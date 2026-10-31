@@ -173,7 +173,7 @@ Install it as a dev dependency so the whole team gets the same version. Install 
 
 The plugin comes first because `penpair connect` (step 6) waits for it, and then confirms right away.
 
-1. In Penpot, open your **account menu** (your name or avatar), then **Integrations**, then **MCP Server**. Switch it on and **copy the address** it shows. It is your personal key; treat it like a password, and do not paste it here.
+1. In Penpot, click your **profile image**, choose **Your account**, then **Integration**. Toggle **MCP** to enabled, then **copy the full URL** shown on that page, not only the token. It is your personal key; treat it like a password, and do not paste it here.
 2. Open the design file. Choose **File**, then **MCP Server**, then **Connect**. A small window may appear; leave it.
 3. **Keep this browser tab visible** while the assistant works. A tab in the background goes to sleep and the connection pauses; bringing it to the front resumes it.
 

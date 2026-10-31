@@ -44,7 +44,7 @@ and follow its recommended assisted route to set up Penpair in this project.
 Keep my MCP key out of chat and check with me before changing a design file.
 ```
 
-You need **Node.js 22 or newer**, a project folder and a Penpot account. Your assistant helps check the prerequisites; you handle your personal key and browser. No clone of this repository is needed. Prefer a terminal wizard? The [installation guide](https://github.com/niklas-westman/penpair/blob/main/docs/installation.md#prefer-a-terminal-wizard) covers that too.
+You need **Node.js 22 or newer**, a Mac or Linux computer (the guides do not cover Windows), a project folder and a Penpot account. Your assistant helps check the prerequisites; you handle your personal key and browser. No clone of this repository is needed. Prefer a terminal wizard? The [installation guide](https://github.com/niklas-westman/penpair/blob/main/docs/installation.md#prefer-a-terminal-wizard) covers that too.
 
 ## Try your first task
 

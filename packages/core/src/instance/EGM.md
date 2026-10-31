@@ -46,7 +46,7 @@ in a log line, never in an error message.
 
 - `frontendUrl(config)`, `endpointIsInstance(origin, config)`,
   `assertEndpointIsInstance(endpoint, config)`.
-- `LifecycleError`, and the `Check`, `DoctorCheck` and `DoctorOptions` types.
+- `LifecycleError`, and the `Check`, `DoctorCheck` and `DoctorOptions` types. `DoctorOptions.mcp.source` is optional; when the endpoint came from an assistant's own config (`claude-config`, `codex-config`) a cross-instance mismatch names that source and tells the person to run `connect`.
 - `fileIdentityCheck(config, actual)` — a `DoctorCheck` comparing the pinned
   file id against the live one.
 - `doctorEditor(config, options)`, `doctorExternal(config, options)` — layered

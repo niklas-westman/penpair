@@ -670,7 +670,7 @@ export async function doctor(c: Context, options: DoctorOptions = {}): Promise<D
       "editor and plugin",
       false,
       `the MCP endpoint points at ${options.mcp.origin}, which is not this instance (${frontendUrl(c.config)})`,
-      "Put this instance's MCP URL (Account, Integrations, MCP Server) in this project's .env.local as PENPAIR_MCP_URL.",
+      "Put this instance's MCP URL (Profile image, Your account, Integration) in this project's .env.local as PENPAIR_MCP_URL.",
     );
   } else if (options.mcp) {
     out.push(...(await doctorEditor(c.config, options)));

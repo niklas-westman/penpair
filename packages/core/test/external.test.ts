@@ -145,6 +145,27 @@ describe("an external Penpot as a project", () => {
     ).toThrow(/uses https:\/\/design\.penpot\.app/);
   });
 
+  it("names the config an endpoint came from when it points at another Penpot", async () => {
+    const config = validateProjectConfig(hosted) as Parameters<typeof doctorExternal>[0];
+    const answering = (async () => ({
+      status: 200,
+    })) as unknown as typeof fetch;
+    const checks = await doctorExternal(config, {
+      fetch: answering,
+      mcp: {
+        origin: "http://localhost:9001",
+        source: "claude-config",
+        connect: async () => {
+          throw new Error("must not connect to another instance");
+        },
+      },
+    });
+    const editor = checks.find((check) => check.check === "editor and plugin");
+    expect(`${editor?.detail}\n${editor?.remedy}`).toMatch(
+      /from claude-config.*localhost:9001[\s\S]*assistant's own config[\s\S]*penpair connect/,
+    );
+  });
+
   it("is checked by a doctor that does not ask for Docker", async () => {
     const config = validateProjectConfig(hosted) as Parameters<typeof doctorExternal>[0];
     const answering = (async () => ({

@@ -412,7 +412,7 @@ const stateText: Record<BrowserPageState, string> = {
   "pinned-file-workspace": "the pinned file's workspace",
   "other-file-workspace": "another file's workspace",
   "not-a-workspace":
-    "not a workspace (a dashboard, settings or Integrations page does not hold the plugin connection)",
+    "not a workspace (a dashboard, settings or Integration page does not hold the plugin connection)",
   "other-origin": "another site",
 };
 function summarize(pages: BrowserPage[]): string {

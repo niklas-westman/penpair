@@ -4,9 +4,9 @@ Generated from the core error remedy inventory. Regenerate with `pnpm docs:gener
 
 | Core code | Cause and next action |
 | --- | --- |
-| `auth-rejected` | Penpot rejected the MCP key. Use the key from Account, Integrations, MCP Server. |
+| `auth-rejected` | Penpot rejected the MCP key. Use the key from Profile image, Your account, Integration. |
 | `endpoint-invalid` | The configured MCP URL must be a complete http or https URL. |
-| `endpoint-unconfigured` | Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Account, Integrations, MCP Server; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code. |
+| `endpoint-unconfigured` | Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Profile image, Your account, Integration; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code. |
 | `file-mismatch` | Open the project's pinned design file and reconnect its MCP plugin. Use --any-file only when you intend to act on another file. |
 | `incomplete-output` | Required output is missing, truncated or unstable. Narrow the scope or resolve the capture problem before accepting it as complete. |
 | `mcp-unavailable` | Start the Penpot instance and check the MCP URL. Run `penpair probe` to see what answers. |
