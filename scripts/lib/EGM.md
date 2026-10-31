@@ -102,7 +102,7 @@ Everything else reads disk, spawns a child process, or reaches the npm registry.
 - Read-only consistency check, from the repository root: `node scripts/check-versions.mjs`
   (exercises `checkVersions` and `checkReleaseGroup`).
 - The repository's full gate is `pnpm check`. It needs a git checkout or worktree,
-  because its first step shells out to `git ls-files`; in a copy without `.git`, run
+  because the code-path check in its first step (`check:style`) shells out to `git ls-files`; in a copy without `.git`, run
   the stages individually and report partial validation.
 - Do not run `scripts/release.mjs`, `scripts/ci-release.mjs` or anything that calls
   `publishTrustedPackage` as verification. They publish.

@@ -26,7 +26,7 @@ Each file opens with load-bearing pragma comments that declare its protocol role
 | `helpers.js` | `// penpair: read` | `inspectHelloExample()` — the shared observation. Returns `{ expected, actual, id, satisfied, rootIds }`. Included into the other three via `--include`. |
 | `inspect.js` | `// penpair: read` | Pre-write inspection. Returns `{ ok: true, ...observation }`; throws if an owned example exists but differs. |
 | `build.js` | `// penpair: write`, `// penpair: idempotent` | The single write. Returns `{ ok: true, rootId, layout, phases, slowest }`, or `{ ok: true, alreadyBuilt: true, rootId }` when already satisfied. |
-| `readback.js` | `// penpair: read` | Independent verification. Always returns `{ ok: true, rootId, verification: { expected, actual } }`, even when the root is missing (`rootId: null`, `actual: { missing: true }`) or unsatisfied; the caller must compare `expected` and `actual`. |
+| `readback.js` | `// penpair: read` | Independent verification. Returns `{ ok: true, rootId, verification: { expected, actual } }`, even when the root is missing (`rootId: null`, `actual: { missing: true }`) or unsatisfied, so the caller must compare `expected` and `actual`; it still throws on invalid `CFG` or an ambiguous or unowned root. |
 
 Required `CFG` parameters: `name`, `marker`, `typo`, `color`, `space`, `radius`
 (all non-empty strings), plus `CFG.inspection` — the pinned snapshot — for `build.js`.

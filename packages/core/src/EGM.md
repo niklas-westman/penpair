@@ -261,7 +261,7 @@ accepted route forms into a routing identity; strips all other parameters).
     inside `journal.ts` itself.
   - Other exclusive-create `.lock` files: `design/approvals.json.lock`
     (`approvals.ts`), the snapshot pointer's `.lock` (`structure-snapshot.ts`),
-    and one per target in `maps/store.ts` and `design-releases/store.ts`.
+    one `.lock` per target in `maps/store.ts`, and a `.write-lock` per destination in `design-releases/store.ts`.
   - `.penpair/queues/<id>.json` — temp file written with `wx`, then `rename`
     (`queue.ts`).
   - `reflection-cases.json` — written with `wx` inside a staged capture folder

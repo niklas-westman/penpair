@@ -99,7 +99,7 @@ Full symbol-level detail is in the source contract.
 - **Penpot**, reached only through the core's `PenpotToolClient` over the MCP
   proxy. A `push --apply` mutates a real design file: it creates and updates
   token sets, tokens and themes, and activates a theme. Destructive actions are
-  guarded twice: `applyPlan` refuses, on the client before any snippet runs, a
+  guarded twice: `applyPlan` refuses, on the client before any write snippet runs, a
   prune of any name absent from the verified ancestor, and the snippet itself
   re-runs `assertSafeDestruction` (binding counts and token references) inside
   Penpot.

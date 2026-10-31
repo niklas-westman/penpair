@@ -221,7 +221,7 @@ the plain path. Raising either constant narrows the margin against the core limi
   re-reads tokens and bindings and re-runs `assertSafeDestruction` *inside*
   Penpot. That inner guard checks binding counts and token references only.
 - Pruning refuses any name absent from the verified ownership ancestor; that
-  check is in `applyPlan` on the client, before any snippet runs.
+  check is in `applyPlan` on the client, before any write snippet runs (the settle, fingerprint and live-read snippets run first).
 - Only sets named by the expectation are ever judged or touched; unmanaged live
   sets and tokens are reported, never modified.
 - `assertSafeDestruction` is deliberately conservative across all sets, including
