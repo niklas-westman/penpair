@@ -1,6 +1,6 @@
 {
   "name": "penpair",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Design together. Build together. The short name for @penpair/web: connect AI agents and people to a Penpot design file. Run `npx penpair setup`.",
   "license": "MIT",
   "repository": {

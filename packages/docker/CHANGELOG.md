@@ -1,5 +1,148 @@
 # @penpair/docker
 
+## 0.10.0
+
+### Minor Changes
+
+- 675b630: Nine correctness and packaging fixes found by reviewing the architecture contracts against the code
+  
+  Replaying an already-satisfied Marwes token push no longer fails. Pushing the
+  same plan twice — after a resume, or from a stale plan — used to abort with
+  `theme exists` as an *uncertain* outcome, and token names already present were
+  counted as failures. `marwes-create-theme` is now idempotent, attaching only the
+  wanted sets it finds missing and never removing one, and `marwes-add-tokens`
+  reports already-present names as `skipped` rather than `failed`.
+  
+  `penpair run` now refuses a project snippet whose body cannot parse, instead of
+  sending it to Penpot and failing inside the editor. A project snippet is code
+  from outside the core; it was validated only when someone ran
+  `penpair snippets check`. Built-in snippets are unaffected.
+  
+  The local lifecycle commands now check what the instance runs on before they do
+  anything. `penpair up`, `down` and `status` run the local profile's preflight
+  first, so a stopped Docker reports "Docker is not running. Start Docker Desktop"
+  rather than a raw daemon error from whichever subcommand happened to run.
+  `penpair doctor` is deliberately exempt — diagnosing a stopped daemon is what it
+  is for. Scaffolding a configuration still works with Docker stopped, because
+  `init` writes files and needs no daemon.
+  
+  `penpair reflection plan` no longer drops a mapped baseline that has no
+  implementation route. A frame without a route is exported but never checked,
+  which is deliberate — but naming one in the mapping is a request to check it, and
+  that request was disappearing from both the case list and the pending list while
+  the plan still reported itself complete. It is now reported as pending with its
+  own reason.
+  
+  `@penpair/docker` now ships `docs/` and `examples/`, as `@penpair/web` already
+  did, so someone who installs the Docker command gets the same documentation.
+  Relatedly, the packaging step no longer replaces a package's own README with the
+  project one — only a package that maintains no README of its own receives it, and
+  the repository's own design records are excluded from the published tarball
+  because they are contributor history rather than product documentation.
+  
+  Every package now ships the `LICENSE` file it declares in `files`. Five of the
+  six promised one and did not include it, so those tarballs carried no licence
+  text. A test now fails the build if a package promises a file it does not ship,
+  or ships a `LICENSE` that differs from the repository's.
+  
+  Internal: the convention examples now execute the adapter-command template
+  rather than only type-checking it; `skills/` is gated by the code-path naming
+  check like every other code root; and the doctor row for a skipped browser-tab
+  census is a named function with a unit test, rather than an object literal inside
+  a command path that cannot be tested without git.
+- 675b630: `penpair-guide`, a skill for someone who does not know where to start
+  
+  The guide reads the project (pinned file, pages, approvals, release status), says
+  in plain words which phase it is in and proposes exactly one next step, handing the
+  work to the skill that owns it. It never approves a design, writes to the file or
+  finishes a release; approval stays the owner's actual words.
+  
+  The common path it follows is now written down in `docs/project-lifecycle.md`: a
+  `Mood` page for references, one Penpot page per site page, `Desktop` (1440),
+  `Tablet` (768) and `Mobile` (390) frames derived from the approved desktop frame, and a
+  release the guide proposes when every page is approved and leaves for the owner to
+  decide. `penpair-construct` now says explicitly that a device-size frame is derived
+  from the approved desktop frame of the same page.
+  
+  A test keeps the guide a pure entry point: it routes to every phase's skill and no
+  skill routes back to it, so the order it describes never becomes a dependency.
+- 675b630: The ten shipped skills now state what each one owns, and two are renamed
+  
+  **`penpair-design-release` is now `penpair-release`, and `penpair-recipes` is now
+  `penpair-construct`.** Both old names misled. "Release" meant a Penpot design
+  release and an npm publication, and the skill opened by disclaiming the second.
+  "Recipe" meant three different things — a kit recipe in shipped code
+  (`RecipeInfo`, the `recipes` command), a default composition for a screen
+  archetype, and that skill — and the skill held none of the recipes its name
+  claimed; the compositions live in `design-judgment`. An existing project that
+  installs over an older one is told about the leftover folder rather than left
+  with two copies: `penpair skills install` reports it with the new name to move
+  to. The `design-release` command is unchanged, so the `penpair-release` skill
+  drives a command that keeps its old name.
+  
+  **Every skill opens with a `## What this owns` section** giving one purpose line
+  and naming the neighbour that owns the adjacent work. Before this, two skills
+  claimed the same work, one instruction appeared in three files, and the skill
+  that owns composition decisions was referenced by no other skill — it existed
+  only in an install list. Reading any one skill now tells you where its
+  responsibility stops.
+  
+  **Cross-references say which direction they go.** A link is marked `Next:` when
+  work flows there once this skill's work is done, or `Requires:` when it produces
+  this skill's input. Previously both read as identical prose, which is why the
+  skill set looked like a cycle; the successor edges are now acyclic and a test
+  keeps them that way.
+  
+  **Duplicated instructions are gone.** The composition instruction is stated once,
+  in `design-judgment`, and the skills that need it point there. The shared
+  CLI-help preamble stays in each skill that needs it standalone, but a test now
+  asserts the five copies are byte-identical to one fixture, so they cannot drift
+  apart.
+  
+  **Two new documentation pages.** `docs/glossary.md` defines the seven words that
+  meant two or three things each — revision, recipe, verify, contract, design,
+  successor, prerequisite — citing the guide that owns a term rather than
+  redefining it. `docs/skills.md` is generated from the skills themselves and
+  asserted byte-for-byte, and is now the only maintained list of which skills
+  exist; six pages that each kept their own list, two of them with counts that had
+  been wrong for several releases, link to it instead.
+  
+  **`penpair-verify` now says when it may fix a mismatch itself.** The step told
+  the agent to fix mismatches "within scope" and never defined the scope, so the
+  boundary with `penpair-handoff` had no stopping rule. It now fixes only where the
+  approved reference, mapping and case already exist, the change stays in the
+  component's markup or styling, and nothing new is added, and it recaptures at
+  most twice. Anything else is reported as outside the skill. A check fails if a
+  skill again says "within scope" without defining it.
+  
+  Internal: six checks plus a cycle check and routing coverage enforce all of the
+  above, each one landed only after its failure was observed. Two of those checks
+  were found to be passing while testing nothing before that step caught them.
+
+### Patch Changes
+
+- 675b630: First-run polish found by installing the published package in an empty project
+  
+  `penpair doctor` no longer reports a bare "the MCP endpoint points at another
+  Penpot" when the address came from the assistant's own configuration. It now
+  names that source (`claude-config` or `codex-config`) and says to run
+  `penpair connect`, which stores this project's own address and takes precedence.
+  
+  `penpair --help` opens with the five commands that set a project up, in order,
+  above the full command list. `--all` and `--search` are unchanged.
+  
+  The README and installation guide now say the guides assume a Mac or Linux
+  computer.
+  
+  The Penpot path to the MCP address is corrected everywhere it is written (guides,
+  setup skill, `init` and `connect` messages, error text): profile image, Your
+  account, Integration, toggle MCP on, copy the URL.
+- Updated dependencies [675b630]
+- Updated dependencies [675b630]
+- Updated dependencies [675b630]
+- Updated dependencies [675b630]
+  - @penpair/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
