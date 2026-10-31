@@ -228,17 +228,20 @@ check(
   "the packed command includes the project configuration schema",
 );
 const skills = (await penpair(web, "skills")).split("\n").filter(Boolean);
+// Derived from the repository rather than listed here: a hand-maintained subset went stale
+// through two skill renames without failing, and this is the pre-release gate.
+const bundledSkills = (
+  await readdir(join(repo, "packages/core/skills"), {
+    withFileTypes: true,
+  })
+)
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
+const absentSkills = bundledSkills.filter((name) => !skills.includes(name));
 check(
-  [
-    "design-judgment",
-    "penpair-setup",
-    "penpair-design",
-    "penpair-recipes",
-    "penpair-handoff",
-    "penpair-verify",
-    "penpair-design-release",
-  ].every((name) => skills.includes(name)),
-  `the consumer workflows ship (${skills.join(", ")})`,
+  bundledSkills.length > 0 && absentSkills.length === 0,
+  `all ${bundledSkills.length} bundled skills ship (missing: ${absentSkills.join(", ") || "none"})`,
 );
 const help = await penpair(web, "--help");
 check(
@@ -319,7 +322,7 @@ for (const [agent, instructions] of [
       "skills",
       "check",
       "--only",
-      "penpair-design-release",
+      "penpair-release",
       "--agent",
       agent,
       "--agents",
@@ -433,7 +436,10 @@ check(
 );
 check(
   (
-    await readFile(join(web, ".agents/skills/penpair-recipes/assets/visual-checkpoint.md"), "utf8")
+    await readFile(
+      join(web, ".agents/skills/penpair-construct/assets/visual-checkpoint.md"),
+      "utf8",
+    )
   ).includes("Visual evidence checkpoint"),
   "the comparative checkpoint template ships through discoverable skill links",
 );

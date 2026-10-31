@@ -455,6 +455,19 @@ describe("pushing to a Penpot", () => {
     });
   });
 
+  it("replays an already-satisfied plan without failing", async () => {
+    const snapshot = await expected();
+    const penpot = fakePenpot();
+    const plan = planPush(snapshot, await readLive(penpot.client));
+    expect(plan.length).toBeGreaterThan(0);
+    expect((await applyPlan(penpot.client, snapshot, plan)).verified).toBe(true);
+    // The same plan again: every set, token and theme it names now exists. A
+    // resumed or stale plan must not turn that into a failure.
+    const again = await applyPlan(penpot.client, snapshot, plan);
+    expect(again.verified).toBe(true);
+    expect(planPush(snapshot, await readLive(penpot.client))).toEqual([]);
+  });
+
   it("keeps what was added by hand even when pruning without ownership history", async () => {
     const snapshot = await expected();
     const penpot = fakePenpot();

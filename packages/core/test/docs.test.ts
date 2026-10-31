@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 // @ts-expect-error Repository script is deliberately plain JavaScript.
 import { troubleshootingMarkdown } from "../../../scripts/generate-troubleshooting.mjs";
+// @ts-expect-error Repository script is deliberately plain JavaScript.
+import { skillIndexMarkdown } from "../../../scripts/generate-skill-index.mjs";
 function anchors(markdown: string): Set<string> {
   const found = new Set<string>();
   const counts = new Map<string, number>();
@@ -55,6 +57,11 @@ describe("documentation navigation and repair inventory", () => {
   it("keeps every core error remedy in the generated troubleshooting page", async () => {
     expect(await readFile(path.join(root, "docs/troubleshooting.md"), "utf8")).toBe(
       troubleshootingMarkdown(),
+    );
+  });
+  it("keeps every bundled skill in the generated skill index", async () => {
+    expect(await readFile(path.join(root, "docs/skills.md"), "utf8")).toBe(
+      await skillIndexMarkdown(),
     );
   });
   it("resolves local README/docs links and Markdown anchors", async () => {

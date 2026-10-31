@@ -10,9 +10,11 @@ dist/
 # copied in by `prepack` (scripts/copy-package-docs.mjs); the sources are the root README.md and docs/
 packages/web/README.md
 packages/web/docs/
+packages/docker/docs/
 *.tgz
 
 # Generated command-package examples
 /packages/web/examples/
+/packages/docker/examples/
 # penpair: private local operations and recovery evidence
 .penpair/

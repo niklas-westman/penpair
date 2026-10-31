@@ -54,7 +54,7 @@ Start with a read-only request to your assistant:
 
 Then choose a scratch page and agree on a small design task. The workflow is: inspect, snapshot, write once, independently read back, export and look at the result. The [design workflow](https://github.com/niklas-westman/penpair/blob/main/docs/design-workflow.md) explains the review points and recovery steps.
 
-The installed skills cover **setup → design → recipes → handoff → verification**, with `design-judgment` for visual hierarchy. Ask the assistant to name the skill it uses. For frontend work, `penpair-handoff` carries design evidence into implementation; `penpair-verify` guides browser comparison, image review, fixes and recapture. [Check skill discovery and behavior](https://github.com/niklas-westman/penpair/blob/main/docs/skill-validation.md).
+A common path through the installed skills is **setup → design → construct → handoff → verification**, with `design-judgment` for composition and hierarchy. That is one route and not the whole set: [the full list is generated from the skills themselves](https://github.com/niklas-westman/penpair/blob/main/docs/skills.md). Ask the assistant to name the skill it uses. For frontend work, `penpair-handoff` carries design evidence into implementation; `penpair-verify` guides browser comparison, image review, fixes and recapture. [Check skill discovery and behavior](https://github.com/niklas-westman/penpair/blob/main/docs/skill-validation.md).
 
 ## Where the command and tools live
 
@@ -130,9 +130,32 @@ Use the pnpm version declared in `package.json`. Read [CONTRIBUTING](https://git
 | Diagnose or recover a failure | [Troubleshooting](https://github.com/niklas-westman/penpair/blob/main/docs/troubleshooting.md) · [Recovery](https://github.com/niklas-westman/penpair/blob/main/docs/recovery.md) |
 | Understand design investigations and proposed changes | [Flush scope and build diagnostics](docs/designs/fewer-lost-penpair-runs.md) · [Revision conflicts](docs/designs/penpot-revision-conflicts.md) · [Baselines across release pages](docs/designs/multi-page-baselines.md) · [Reflection integration evaluation](docs/designs/reflection-integration-evaluation.md) |
 | Validate a source build or prepare a release | [Validation](https://github.com/niklas-westman/penpair/blob/main/docs/validation.md) · [Releasing](https://github.com/niklas-westman/penpair/blob/main/docs/releasing.md) |
-
-[Changelog](https://github.com/niklas-westman/penpair/blob/main/CHANGELOG.md) · [MIT licence](https://github.com/niklas-westman/penpair/blob/main/LICENSE)
+| Change the code, or understand why it is the way it is | [Architecture contracts](https://github.com/niklas-westman/penpair/blob/main/EGM.md) · [Design records](https://github.com/niklas-westman/penpair/blob/main/docs/designs/README.md) · [Contributing](https://github.com/niklas-westman/penpair/blob/main/CONTRIBUTING.md) |
 
 Discover installed commands offline with `penpair help --all`, `penpair help export batch`
 and `penpair help --search progress`. Read [CLI help and streaming progress](docs/cli-help-progress.md)
 for iterative builds, capture workflows and wrapper guidance.
+
+## Keeping the documentation honest
+
+Every directory that holds code carries an `EGM.md` stating what it exposes, what
+a change must preserve, and what it touches. A test checks that each one exists
+with the right sections; nothing automatic can check whether one is still *true*.
+
+The design and review workflow that produces them is the Elephant-Goldfish Model
+plugin, installed per user rather than carried in this repository:
+
+```sh
+claude plugin marketplace add google/elephant-goldfish-model
+claude plugin install egm@egm
+```
+
+**Run `/egm:egm-drift-report` regularly** — before a release, after a refactor that
+moves exported symbols, and whenever a contract has gone a while without being
+read. It compares each contract against the code and reports only the
+divergences. The first run after this workflow was adopted found around
+twenty-five: wrong counts, misattributed symbols, and enforcement claimed from
+tests that did not check it. Documentation that is merely out of date is worse
+than none, because it gets trusted.
+
+[Changelog](https://github.com/niklas-westman/penpair/blob/main/CHANGELOG.md) · [MIT licence](https://github.com/niklas-westman/penpair/blob/main/LICENSE)

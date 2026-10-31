@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  browserTabsNotChecked,
   inspectBrowserPages,
   inspectBrowserTarget,
   reloadBrowserTarget,
@@ -780,5 +781,21 @@ describe("browser reload", () => {
         webSocket: fakeSocket("close").Socket,
       }),
     ).rejects.toThrow(/closed the debugging socket/);
+  });
+});
+
+describe("a tab census that could not run", () => {
+  it("reports itself as a warning rather than staying silent or failing the command", () => {
+    const row = browserTabsNotChecked();
+    // ok: true keeps the exit code unchanged; warning: true stops it reading as a pass.
+    expect(row).toEqual({
+      check: "browser tabs",
+      ok: true,
+      warning: true,
+      detail: "Not checked: browser tabs need --debug-port",
+      remedy: "Rerun doctor with --debug-port to see which tab holds the pinned file.",
+    });
+    expect(row.detail).toMatch(/--debug-port/);
+    expect(row.remedy).toMatch(/--debug-port/);
   });
 });

@@ -168,3 +168,75 @@ describe("setup", () => {
     expect(second.said.join("\n")).toMatch(/already set up/);
   });
 });
+
+describe("the local lifecycle commands and preflight", () => {
+  const localConfig = {
+    instance: "x",
+    penpotVersion: "2.18.3",
+    ports: {
+      frontend: 9002,
+      mail: 1082,
+    },
+    directory: ".penpair",
+  };
+  const profile = (calls: string[]): LocalProfile =>
+    ({
+      preflight: async () => {
+        calls.push("preflight");
+        throw new Error("Docker is not running. Start Docker Desktop");
+      },
+      up: async () => {
+        calls.push("up");
+        return {
+          url: "http://127.0.0.1:9002",
+          ready: true,
+        };
+      },
+      doctor: async () => {
+        calls.push("doctor");
+        return [];
+      },
+    }) as unknown as LocalProfile;
+
+  it("checks what the instance runs on before starting it, and does not start it when that fails", async () => {
+    const root = await folder();
+    await writeFile(path.join(root, "penpair.config.json"), JSON.stringify(localConfig));
+    const calls: string[] = [];
+    const { runCommand } = await import("../src/cli-main.js");
+    const result = await runCommand(
+      [
+        "up",
+      ],
+      {
+        root,
+        local: profile(calls),
+      },
+    );
+    expect(result).toMatchObject({
+      outcome: "failed",
+      exitCode: 1,
+    });
+    expect(JSON.stringify(result.errors)).toMatch(/Start Docker Desktop/);
+    expect(calls).toEqual([
+      "preflight",
+    ]);
+  });
+
+  it("still diagnoses a stopped daemon, because that is what doctor is for", async () => {
+    const root = await folder();
+    await writeFile(path.join(root, "penpair.config.json"), JSON.stringify(localConfig));
+    const calls: string[] = [];
+    const { runCommand } = await import("../src/cli-main.js");
+    await runCommand(
+      [
+        "doctor",
+      ],
+      {
+        root,
+        local: profile(calls),
+      },
+    );
+    expect(calls).not.toContain("preflight");
+    expect(calls).toContain("doctor");
+  });
+});

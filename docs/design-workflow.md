@@ -8,9 +8,14 @@
 6. Generate a [structured handoff](handoff.md) with explicit component mappings. Implement behavior, responsive rules and accessibility from an actual application contract rather than inferred appearance.
 7. Use the recommended [Reflection Check companion](adapters.md#check-the-frontend-against-the-design) and a real project browser provider to capture the actual implementation case with stable fonts/data. Inspect comparison evidence and images, resolve drift, and report changed behavior, validation and remaining risks. Missing provider/setup work remains pending.
 
+These seven steps are the documentation's view of the work. The installed skills
+are the agent's view of the same work, and they do not map one-to-one onto these
+steps: see [which skills exist](skills.md), then each skill's own
+`## What this owns` section for where its responsibility starts and stops.
+
 [Structural snapshots](snapshots.md) make design review diffable. [Archives and
 restore trials](backup.md) establish recovery independently. Use the
 [validation guide](validation.md) for source-package and scratch checks; automated
 fixtures do not establish live behavior or human acceptance.
 
-Before expanding variants, choose the primary task and an existing reference, establish hierarchy/context and responsive/focus order, then critique one small first frame. Use `inspect → spec → snapshot/diff → capture/approve → comparison` from installed `penpair --help`. Exact owner words approve only the captured artifact; first-frame critique does not grant approval. Layout strategy and fresh doctor evidence are described in [build kit](build-kit.md) and [recovery](recovery.md).
+Before expanding variants, record a short composition decision and critique one small first frame: the `design-judgment` skill owns that decision and states it in full, including what the record must contain. Use `inspect → spec → snapshot/diff → capture/approve → comparison` from installed `penpair --help`. Exact owner words approve only the captured artifact; first-frame critique does not grant approval. Layout strategy and fresh doctor evidence are described in [build kit](build-kit.md) and [recovery](recovery.md).

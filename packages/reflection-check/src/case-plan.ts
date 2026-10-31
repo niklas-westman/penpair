@@ -110,10 +110,21 @@ export function planImplementationCases(
   }
 
   for (const entry of mapping.cases) {
-    if (!config.frames.some((frame) => frame.id === entry.id)) {
+    const frame = config.frames.find((configured) => configured.id === entry.id);
+    if (!frame) {
       pending.push({
         id: entry.id,
         reason: "Mapping refers to no configured baseline",
+      });
+      continue;
+    }
+    // A frame without a route is exported but never checked, which is deliberate.
+    // Naming one in the mapping is a request to check it, so say why it cannot be.
+    if (!frame.route) {
+      pending.push({
+        id: entry.id,
+        reason:
+          "Mapping names a configured baseline that has no implementation route, so it is exported but cannot be checked",
       });
     }
   }

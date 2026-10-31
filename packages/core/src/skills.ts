@@ -102,6 +102,8 @@ export interface InstallOptions {
 export const renamedSkills: Record<string, string> = {
   "penpot-design": "penpair-design",
   "penpair-setup-guide": "penpair-setup",
+  "penpair-design-release": "penpair-release",
+  "penpair-recipes": "penpair-construct",
 };
 
 export interface InstallReport {

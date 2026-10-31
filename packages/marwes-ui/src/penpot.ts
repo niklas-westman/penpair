@@ -566,11 +566,13 @@ return { ok: true, active: !!set.active };`,
         "marwes-add-tokens",
         `${findSet}
 const failed = [];
+const skipped = [];
 for (const t of CFG.tokens) {
-  try { if (set.tokens.some((x) => x.name === t.name)) { failed.push(t.name + ": already there"); continue; } set.addToken({ type: t.type, name: t.name, value: t.value, description: t.description || "" }); }
+  // A token that is already present is the idempotent re-run, not a failure.
+  try { if (set.tokens.some((x) => x.name === t.name)) { skipped.push(t.name); continue; } set.addToken({ type: t.type, name: t.name, value: t.value, description: t.description || "" }); }
   catch (error) { failed.push(t.name + ": " + String(error && error.message || error).slice(0, 120)); }
 }
-return { ok: true, done: CFG.tokens.length - failed.length, failed };`,
+return { ok: true, done: CFG.tokens.length - failed.length - skipped.length, skipped, failed };`,
         {
           set: action.set,
           tokens,
@@ -631,9 +633,20 @@ return { ok: true, done: CFG.names.length - failed.length, failed };`,
       return snippet(
         "marwes-create-theme",
         `const t = penpot.library.local.tokens;
-if (t.themes.some((x) => x.name === CFG.name && x.group === CFG.group)) throw new Error("theme exists: " + CFG.name);
+const pick = (name) => { const s = t.sets.filter((x) => x.name === name); if (s.length !== 1) throw new Error("set missing or ambiguous: " + name); return s[0]; };
+const existing = t.themes.filter((x) => x.name === CFG.name && x.group === CFG.group);
+if (existing.length > 1) throw new Error("theme ambiguous: " + CFG.name);
+if (existing.length === 1) {
+  // Re-running must not fail. Attach any wanted set that is missing and report;
+  // never remove, because removing a set from a theme is a planned destruction.
+  const theme = existing[0];
+  const held = (theme.activeSets || []).map((x) => x.name);
+  const added = [];
+  for (const name of CFG.sets) { if (!held.includes(name)) { theme.addSet(pick(name)); added.push(name); } }
+  return { ok: true, existed: true, added, sets: (theme.activeSets || []).map((x) => x.name) };
+}
 const theme = t.addTheme({ group: CFG.group, name: CFG.name });
-for (const name of CFG.sets) { const s = t.sets.filter((x) => x.name === name); if (s.length !== 1) throw new Error("set missing or ambiguous: " + name); theme.addSet(s[0]); }
+for (const name of CFG.sets) theme.addSet(pick(name));
 return { ok: true, sets: (theme.activeSets || []).map((x) => x.name) };`,
         {
           group: action.group,

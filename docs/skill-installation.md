@@ -4,9 +4,11 @@
 
 There is one canonical installation skill, **penpair-setup**, for first setup,
 assisted/manual routes and connection repair. The old `penpair-setup-guide` URL is
-only a redirect. The other five skills own design operations, recipes, judgment,
-frontend handoff and frontend verification; install does not create host-specific
-versions of their instructions.
+only a redirect. The remaining skills own design operations, construction,
+composition judgment, maps, diagrams, design releases, frontend handoff and
+frontend verification — [which skills exist](skills.md) is generated from the
+skills themselves. Install does not create host-specific versions of their
+instructions.
 
 The installer stores one physical copy, normally in `.skills`, and creates
 relative discovery links. It reuses an existing real skill folder, including
@@ -18,8 +20,8 @@ relative discovery links. It reuses an existing real skill folder, including
 | Claude Code | `.claude/skills/<name>/SKILL.md` | `/penpair-setup` |
 | GitHub Copilot | `.agents/skills/<name>/SKILL.md`; Copilot also supports `.claude/skills` and `.github/skills` | Ask it to read the installed skill by name/path. |
 
-All six entrypoints use shared `name`/`description` YAML metadata, task-specific
-triggers and ordinary Markdown. Codex's optional `agents/openai.yaml` adds UI
+Every skill entrypoint uses shared `name`/`description` YAML metadata,
+task-specific triggers and ordinary Markdown. Codex's optional `agents/openai.yaml` adds UI
 metadata; it is not required by Claude or Copilot. Host selection still depends
 on the request, host version/settings and available tools.
 

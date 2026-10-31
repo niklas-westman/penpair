@@ -12,16 +12,16 @@ import {
 const project = async (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-skills-"));
 
 describe("the shipped skills", () => {
-  it("ship focused setup, operations, recipes, handoff, verification and judgment with self-identifying entrypoints", async () => {
+  it("ship focused setup, operations, construction, handoff, verification and judgment with self-identifying entrypoints", async () => {
     expect(await listBundledSkills()).toEqual([
       "design-judgment",
+      "penpair-construct",
       "penpair-design",
-      "penpair-design-release",
       "penpair-diagrams",
       "penpair-handoff",
       "penpair-integration-map",
       "penpair-journey-map",
-      "penpair-recipes",
+      "penpair-release",
       "penpair-setup",
       "penpair-verify",
     ]);

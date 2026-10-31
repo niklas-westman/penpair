@@ -9,7 +9,7 @@ npm packages or accepting a frontend implementation.
 
 ## Find the current step
 
-Use the project-installed `penpair-design-release` skill for product design
+Use the project-installed `penpair-release` skill for product design
 releases. Its entry point checks installed CLI capabilities, reads the canonical
 release status and reports the current step, verified prerequisites, blockers and
 next valid action. It is distinct from publishing Penpair npm packages.

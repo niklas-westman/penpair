@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Construct"
+  short_description: "Build screens and approved-design variants"
+  default_prompt: "Use $penpair-construct to create a state variant from the approved Penpot frame and critique one representative candidate."
+policy:
+  allow_implicit_invocation: true

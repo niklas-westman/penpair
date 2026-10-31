@@ -6,6 +6,7 @@ import type { PenpotToolClient } from "../src/client.js";
 import { checkProjectSnippets, loadProjectSnippets } from "../src/project-snippets.js";
 import {
   builtInRegistry,
+  checkEntry,
   coerceParams,
   defineSnippet,
   normalize,
@@ -462,5 +463,51 @@ describe("checking project snippets without a connection", () => {
     expect(problems).toMatch(/typo: /);
     expect(problems).toMatch(/big: .*bytes/);
     expect(problems).not.toMatch(/from-project/);
+  });
+});
+
+describe("running a project snippet", () => {
+  const broken = `export default { kind: "read", name: "broken-body", description: "mine", body: "return { ok: true" };`;
+
+  it("refuses a body that cannot parse before reaching Penpot", async () => {
+    const root = await project({
+      "broken.mjs": broken,
+      "penpair.config.json": JSON.stringify({
+        instance: "demo",
+        profile: {
+          type: "external",
+          origin: "https://design.penpot.app",
+        },
+        snippets: [
+          "broken.mjs",
+        ],
+      }),
+    });
+    const { runCommand } = await import("../src/cli-main.js");
+    const previous = process.env.PENPAIR_MCP_URL;
+    process.env.PENPAIR_MCP_URL = "https://design.penpot.app/mcp/stream?userToken=test";
+    const result = await runCommand(
+      [
+        "run",
+        "broken-body",
+      ],
+      {
+        root,
+      },
+    );
+    expect(result).toMatchObject({
+      outcome: "failed",
+    });
+    // The refusal names the snippet and comes from the registry, not from the editor.
+    process.env.PENPAIR_MCP_URL = previous;
+    expect(JSON.stringify(result.errors)).toMatch(/broken-body/);
+  });
+
+  it("checks only project snippets, leaving the built-in ones alone", async () => {
+    const registry = builtInRegistry();
+    for (const entry of registry.list()) {
+      expect(entry.source).toBe("built-in");
+      expect(checkEntry(entry)).toEqual([]);
+    }
   });
 });
