@@ -1,13 +1,14 @@
 const tasksBySkill: Record<string, string> = {
+  "penpair-guide": "Find out where a Penpair project stands and what to do next",
   "penpair-journey-map": "Map user journeys, decisions and recovery paths in Penpot",
   "penpair-integration-map":
     "Connect reviewed journeys to routes, components and data responsibilities",
   "penpair-diagrams": "Draw or reconcile editable native Penpot diagrams",
-  "penpair-design-release":
+  "penpair-release":
     "Plan, resume or assess a native Penpot product design release; not Penpair package publishing",
   "penpair-setup": "Install Penpair or repair a Penpot connection",
   "penpair-design": "Inspect, edit, audit or export a Penpot file",
-  "penpair-recipes": "Build a Penpot screen or derive a state variant from an approved frame",
+  "penpair-construct": "Build a Penpot screen or derive a state variant from an approved frame",
   "design-judgment": "Choose or critique hierarchy, density and screen states",
   "penpair-handoff": "Implement a frontend from an approved Penpot design",
   "penpair-verify": "Compare a frontend with its approved design or recheck visual fixes",

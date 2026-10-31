@@ -1,6 +1,0 @@
-interface:
-  display_name: "Penpair Design Release"
-  short_description: "Locate the current release step and verify its evidence"
-  default_prompt: "Use $penpair-design-release to inspect this native Penpot release status, identify its current step and blockers, and continue with the next valid action."
-policy:
-  allow_implicit_invocation: true

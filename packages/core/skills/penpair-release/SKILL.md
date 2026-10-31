@@ -1,9 +1,15 @@
 ---
-name: penpair-design-release
+name: penpair-release
 description: Plan, resume, verify and finalize a native Penpot product design release. Use for release pages, inherited frames, release readiness, adoption and approval blockers; publishing Penpair packages follows the repository release guide instead.
 ---
 
 # Design release
+
+## What this owns
+
+Planning, assembling, verifying and finalizing a Penpot product design release.
+
+Not here: Publishing Penpair's own npm packages — the repository's package release guide, which this skill does not authorize.
 
 Use the pinned project's installed CLI. Start with `penpair --help` and
 `penpair help design-release`; read the relevant subcommand help before an
@@ -52,7 +58,7 @@ have matching versions. Do not fetch a global replacement or invent flags.
 ## Operating rules
 
 - Penpot content the release writes (cover, overview, maps) is auto layout that
-  sizes to its content; see the `penpair-design` auto-layout reference. Export
+  sizes to its content; see `penpair-design/references/auto-layout.md`. Export
   with a long title and long text, and look at the image before reporting.
 - A release page contains changed frames and an overview linking to retained
   frames on earlier pages. The complete frozen inventory, not just the new page,

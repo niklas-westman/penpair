@@ -18,11 +18,48 @@ the maintained documentation before archiving working notes.
   Session handoffs, review reports and private evidence stay in `.working-docs/`.
 - Push, tag, publish, version bumps, deploys and any write to a Penpot instance other than a scratch one need the owner's go-ahead. Local commits of verified steps do not, once the owner has asked for commits.
 
+## Architecture contracts and design records
+
+Before changing a directory, read its `EGM.md`. Every directory that holds code
+carries one, stating that directory's **interface** (what it exposes), its
+**invariants** (what a change must preserve) and its **side effects** (what it
+touches). Start from [EGM.md](EGM.md) at the root for the system map, then the
+contract next to the code.
+
+**Update an `EGM.md` in the same change that alters its directory's interface,
+invariants or side effects** — not for every edit. A renamed export, a new
+ceiling, a changed guard or a new write target belongs in the contract; a
+refactor that changes none of those does not. A contract that is merely out of
+date is worse than none, because it will be trusted.
+
+Do not restate a number that a maintained guide owns. The byte ceilings, settle
+budgets and command flags have one canonical home in `docs/`; a contract should
+cite it rather than copy it, or the two will disagree.
+
+[docs/designs](docs/designs/README.md) holds design records: why a change was
+made and what was decided against. Read the relevant record before reopening a
+question — several record work that was deliberately stopped. Review reports stay
+in `.working-docs/`.
+
+The workflow that produces both is the third-party Elephant-Goldfish Model plugin
+(Apache-2.0). It is installed per user, not vendored here: `claude plugin
+marketplace add google/elephant-goldfish-model`, then `claude plugin install
+egm@egm`. It gives `/egm:egm-brainstorm`, `/egm:egm-draft`, `/egm:egm-review` and
+`/egm:egm-drift-report`. Run `/egm:egm-drift-report` over the contracts before a
+release, and after a refactor that moves exported symbols. Nothing in the build or
+the tests needs it; the structural contract check runs without it. Review lenses
+inherit the caller's model, so pick the model for an architecture review
+deliberately.
+
+A contract records what its author believed, so do not hand one to a reviewer
+whose job is to test that belief; the lens that verifies a contract against code
+is the one that should read it.
+
 ## Product design releases
 
 For Penpot product release pages, adoption, retained frames, readiness, approval
 or interrupted release work, read
-[penpair-design-release](packages/core/skills/penpair-design-release/SKILL.md)
+[penpair-release](packages/core/skills/penpair-release/SKILL.md)
 first. Use the installed CLI's release status and evidence to identify the current
 step, blockers and next valid action; report design readiness separately from
 implementation acceptance. Preserve owner approval and Penpot write boundaries.
@@ -103,3 +140,9 @@ specific handling described in the conventions.
 `pnpm check:versions` in that order. Report these as partial validation;
 Git-dependent checks and the full gate remain unverified until `pnpm check`
 passes in a checkout or worktree.
+
+The tests include a structural check that every code-bearing directory carries
+an `EGM.md` with the three required sections. It cannot tell whether a contract
+is *accurate*; only that it exists and is shaped right. Semantic drift is found
+by running the `egm-drift-report` skill over the contracts, which is worth doing
+before a release rather than on every change.

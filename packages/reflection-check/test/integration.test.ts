@@ -25,6 +25,36 @@ describe("explicit implementation-case bridge", () => {
     changed.frames[0]!.case!.theme = "light";
     expect(planImplementationCases(changed, results, mapping).complete).toBe(false);
   });
+  it("reports a mapped baseline that has no implementation route instead of dropping it", () => {
+    const routeless = structuredClone(config);
+    delete routeless.frames[0]!.route;
+    delete routeless.frames[0]!.case;
+    const plan = planImplementationCases(routeless, results, mapping);
+    expect(plan.cases).toEqual([]);
+    expect(plan.pending).toEqual([
+      {
+        id: "empty",
+        reason:
+          "Mapping names a configured baseline that has no implementation route, so it is exported but cannot be checked",
+      },
+    ]);
+    expect(plan.complete).toBe(false);
+  });
+  it("leaves an unmapped route-less baseline out of scope without reporting it", () => {
+    const routeless = structuredClone(config);
+    delete routeless.frames[0]!.route;
+    delete routeless.frames[0]!.case;
+    expect(
+      planImplementationCases(routeless, results, {
+        ...mapping,
+        cases: [],
+      }),
+    ).toMatchObject({
+      cases: [],
+      pending: [],
+      complete: false,
+    });
+  });
   it("keeps forced references out of approved comparison plans", () => {
     const waived = structuredClone(results);
     (waived[0]!.approved as ArtifactProvenance).approval = {

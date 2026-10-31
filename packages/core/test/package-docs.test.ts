@@ -15,6 +15,7 @@ async function fixture(): Promise<string> {
     "README.md": "Public project README",
     "docs/guide.md": "Maintained guide",
     "docs/conventions/README.md": "Maintained conventions",
+    "docs/designs/a-record.md": "A design record, repository history",
     "docs/assets/logo.svg": "Image omitted by the existing package contract",
     "docs/node_modules/cache/private.md": "Local dependency cache",
     "docs/.working-docs/private.md": "Private working notes",
@@ -86,5 +87,35 @@ it("refuses unknown package targets before replacing any output", async () => {
   expect(await readFile(path.join(root, "docs/guide.md"), "utf8")).toBe("Maintained guide");
   expect(await readFile(path.join(root, "packages/web/docs/plans/obsolete.md"), "utf8")).toBe(
     "Stale generated working plan",
+  );
+});
+
+it("gives the project README only to a package without one, and never replaces a maintained README", async () => {
+  const root = await fixture();
+  const command = path.join(root, "scripts/copy-package-docs.mjs");
+
+  // The web package maintains no README of its own, so it receives the project one.
+  await execute(process.execPath, [
+    command,
+    "web",
+  ]);
+  expect(await readFile(path.join(root, "packages/web/README.md"), "utf8")).toBe(
+    "Public project README",
+  );
+
+  // The docker package does, and packing must not overwrite it.
+  await mkdir(path.join(root, "packages/docker"), {
+    recursive: true,
+  });
+  await writeFile(path.join(root, "packages/docker/README.md"), "Docker command README");
+  await execute(process.execPath, [
+    command,
+    "docker",
+  ]);
+  expect(await readFile(path.join(root, "packages/docker/README.md"), "utf8")).toBe(
+    "Docker command README",
+  );
+  expect(await readFile(path.join(root, "packages/docker/docs/guide.md"), "utf8")).toBe(
+    "Maintained guide",
   );
 });

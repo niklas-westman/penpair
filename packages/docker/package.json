@@ -28,7 +28,9 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "docs",
+    "examples"
   ],
   "keywords": [
     "penpot",
@@ -45,7 +47,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepack": "pnpm build",
+    "prepack": "pnpm build && node ../../scripts/copy-package-docs.mjs docker",
     "prepublishOnly": "node ../../scripts/guard-publish.mjs"
   },
   "dependencies": {

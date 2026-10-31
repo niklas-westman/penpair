@@ -23,12 +23,12 @@ export const errorRemedies: Readonly<Record<PenpairErrorCode, string>> = Object.
   "file-mismatch":
     "Open the project's pinned design file and reconnect its MCP plugin. Use --any-file only when you intend to act on another file.",
   "endpoint-unconfigured":
-    "Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Account, Integrations, MCP Server; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code.",
+    "Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Profile image, Your account, Integration; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code.",
   "endpoint-invalid": "The configured MCP URL must be a complete http or https URL.",
   "mcp-unavailable":
     "Start the Penpot instance and check the MCP URL. Run `penpair probe` to see what answers.",
   "auth-rejected":
-    "Penpot rejected the MCP key. Use the key from Account, Integrations, MCP Server.",
+    "Penpot rejected the MCP key. Use the key from Profile image, Your account, Integration.",
   "plugin-disconnected":
     "In the open Penpot file choose File, MCP Server, Connect, and keep that tab visible, then run the command again.",
   "plugin-suspended":

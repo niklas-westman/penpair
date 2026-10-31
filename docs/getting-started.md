@@ -51,7 +51,7 @@ Open the Penpot address, create an account and log in. Create a project and a de
 
 ### 3. Connect the assistant (once)
 
-1. In Penpot open **Account, Integrations, MCP Server** and switch it on (not tried yet). Copy the address it shows; it contains your personal key, so treat it like a password. Each teammate uses their own key.
+1. In Penpot click your **profile image**, choose **Your account**, then **Integration**. Toggle MCP to enabled, then copy the URL shown on that page (the full address, not only the token); it contains your personal key, so treat it like a password. Each teammate uses their own key.
 2. Open the intended design file, choose **File, MCP Server, Connect**, and keep that tab visible.
 3. In your project's terminal run `pnpm exec penpair connect` and paste the address into the hidden prompt. It saves the address in private, git-ignored `.env.local` and refuses an address for a different Penpot. Never paste the address into chat. [Private file and Keychain references](credentials.md) are also supported.
 4. When asked to pin the file, check its displayed name and ID before accepting. If you skipped the prompt, verify the correct file is open before running `pnpm exec penpair connect --pin-file`; that flag accepts the pin without another confirmation.
@@ -68,6 +68,7 @@ Every line should say `ok`. If one says `FAIL`, the line under it says what to d
 | --- | --- |
 | penpot: not answering | Check the address in the config and your internet connection |
 | editor and plugin: the MCP address points at another instance | The address in `.env.local` belongs to a different Penpot. Copy the one from this Penpot |
+| editor and plugin: the MCP endpoint (from `claude-config` or `codex-config`) points at another Penpot | The address comes from your assistant's own config, not this project. Run `pnpm exec penpair connect` and paste this Penpot's address; the project's `.env.local` takes precedence |
 | editor and plugin: not connected | Reconnect the plugin in step 3.2 and keep the tab visible |
 
 Then try: `pnpm exec penpair pages` lists the pages in the open file.

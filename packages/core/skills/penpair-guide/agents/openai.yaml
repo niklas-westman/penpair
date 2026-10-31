@@ -1,0 +1,6 @@
+interface:
+  display_name: "Penpair Guide"
+  short_description: "Find out where your project stands and what to do next"
+  default_prompt: "Use $penpair-guide to read the project state, say where it stands in plain words, and propose the single next phase."
+policy:
+  allow_implicit_invocation: true

@@ -5,6 +5,14 @@ description: Create, review or update a Penpair user journey map. Use when a fea
 
 # Journey map
 
+## What this owns
+
+User intent, decisions and recovery paths.
+
+Not here: Implementation responsibility — `penpair-integration-map`.
+
+## Before you start
+
 Read the installed CLI's matching help before unfamiliar work. When supported,
 use `penpair help journey-map`, `penpair help export batch` and
 `penpair help workflows.capture-evidence`; fall back to actual command help on
@@ -31,8 +39,13 @@ Read [the detailed workflow](references/workflow.md) for coverage, review and
 recovery boundaries.
 
 Create project-owned design intent that another agent can use without earlier
-chat history. Use `penpair-integration-map` to connect the journey to application
-responsibilities; use `penpair-design-release` for a versioned design handoff.
+chat history.
+
+Next: `penpair-integration-map` to connect the journey to application responsibilities.
+Next: `penpair-release` for a versioned design handoff.
+Next: `penpair-diagrams` for an authorized native drawing of this map, which it builds as auto layout.
+
+## Steps
 
 1. **Inspect.** Read the authorized design and relevant project behavior. Retain
    complete inspections, source file/page/frame IDs, captured revision and exact
@@ -46,8 +59,8 @@ responsibilities; use `penpair-design-release` for a versioned design handoff.
    render the contract. Compile generated plugin bodies before execution and
    keep each delivered snippet below 90 KB. Review the diagram and underlying
    findings, including loading/error/empty states and accessibility unknowns.
-4. **Publish or reconcile.** For an authorized native drawing, use
-   `penpair-diagrams`, which builds it as auto layout. Read-only inspect, pin a snapshot, deliver one idempotent
+4. **Publish or reconcile.** For an authorized native drawing, read-only
+   inspect, pin a snapshot, deliver one idempotent
    write, independently read back, settle and inspect exports. Import managed
    edits as a proposal against the exact base hash; accept only reviewed changes.
    An accepted semantic proposal is a new unapproved contract, not owner

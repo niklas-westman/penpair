@@ -97,7 +97,7 @@ export function assertEndpointIsInstance(
     }
     throw new LifecycleError(
       `The MCP endpoint (from ${endpoint.source}) points at ${endpoint.origin}, but this project uses ${config.profile.origin}. ` +
-        "Put that Penpot's MCP URL (Account, Integrations, MCP Server) in this project's .env.local as PENPAIR_MCP_URL, or run again with --any-instance if the other one is what you mean.",
+        "Put that Penpot's MCP URL (Profile image, Your account, Integration) in this project's .env.local as PENPAIR_MCP_URL, or run again with --any-instance if the other one is what you mean.",
     );
   }
   if (endpointIsInstance(endpoint.origin, config)) {
@@ -105,7 +105,7 @@ export function assertEndpointIsInstance(
   }
   throw new LifecycleError(
     `The MCP endpoint (from ${endpoint.source}) points at ${endpoint.origin}, but this project's instance is ${frontendUrl(config)}. ` +
-      "Put this instance's MCP URL (Account, Integrations, MCP Server) in this project's .env.local as PENPAIR_MCP_URL, or run again with --any-instance if the other instance is what you mean.",
+      "Put this instance's MCP URL (Profile image, Your account, Integration) in this project's .env.local as PENPAIR_MCP_URL, or run again with --any-instance if the other instance is what you mean.",
   );
 }
 
@@ -134,8 +134,18 @@ export interface DoctorOptions {
   timeoutMs?: number;
   mcp?: {
     origin: string;
+    /** Where the address came from, so a mismatch can say which config to fix. */
+    source?: string;
     connect: (request?: DoctorProbeRequest) => Promise<DoctorObservation>;
   };
+}
+
+/** An address found in an assistant's own config belongs to that assistant, not to this project, so the fix is to give the project its own. */
+function mismatchRemedy(source: string | undefined, origin: string): string {
+  if (source === "claude-config" || source === "codex-config") {
+    return `That address comes from your assistant's own config, not this project. Run \`penpair connect\` to store the ${origin} address for this project; it takes precedence.`;
+  }
+  return "Copy the MCP address from the Penpot this project uses, or run `penpair connect` to replace it.";
 }
 
 /** Readiness is a bounded fresh execution, separate from a reachable origin and connected transport. */
@@ -375,8 +385,8 @@ export async function doctorExternal(
     add(
       "editor and plugin",
       false,
-      `the MCP endpoint points at ${options.mcp.origin}, which is not ${config.profile.origin}`,
-      "Configure this project's intended Penpot endpoint.",
+      `the MCP endpoint${options.mcp.source ? ` (from ${options.mcp.source})` : ""} points at ${options.mcp.origin}, which is not ${config.profile.origin}`,
+      mismatchRemedy(options.mcp.source, config.profile.origin),
     );
     return out;
   }

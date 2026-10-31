@@ -1,9 +1,17 @@
 ---
-name: penpair-recipes
+name: penpair-construct
 description: Build a Penpot screen or create loading, empty or error variants from an approved frame using the existing library and tokens. Use for design construction and state variants in Penpot; frontend implementation belongs to penpair-handoff.
 ---
 
-# Page recipes
+# Page construction
+
+## What this owns
+
+Deriving a screen, a state-variant set or a device-size frame from an approved reference, with its checkpoint evidence.
+
+Not here: Operations on a file that is not derived from a reference — `penpair-design`.
+
+## Before you start
 
 Before unfamiliar CLI work, read the installed `penpair --help`, then the matching
 command/topic help. Use `penpair help workflows.iterative-build`,
@@ -19,10 +27,12 @@ or buffered child stderr. Staging/files appearing does not imply publication or
 owner approval.
 
 
+A device-size frame (`Tablet`, `Mobile`) is derived from the approved `Desktop` frame of the same page at the project's breakpoints, which default to 768 and 390 against a 1440 desktop and are recorded in the project facts. It is a new candidate and needs its own approval.
+
 Use the existing project library and declared tokens as inputs. Work within the owner's authorized design scope; retain unresolved choices for review.
 
 
-Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
+Requires: `design-judgment` before building a page — it owns the composition decision and the first-frame critique, which are a design decision and critique, not owner approval.
 
 For a substantial state variant or screen family, read
 [visual-checkpoint.md](references/visual-checkpoint.md) and create a project-owned
@@ -30,6 +40,8 @@ evidence record. Carry the approved image/inspection, preserved regions and
 intentional deviations into the plan. Keep expansion pending until the first
 candidate has actual comparison evidence and its blocking findings are resolved.
 Do not infer critique from a passing mechanical audit.
+
+## Steps
 
 1. **Target.** Read the project's design facts and `penpair doctor --json`. Confirm the pinned file and exact page/frame IDs. Done when the connected target matches the authorized target and required APIs are observed.
 2. **Vocabulary.** Inspect the actual token catalog, theme selection and existing components. Select explicit token names/types and component IDs. Done when every recipe input resolves or is listed as an explicit missing dependency. Equal computed values alone establish candidate matches.

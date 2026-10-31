@@ -7,7 +7,7 @@ import { installSkills } from "../src/skills.js";
 
 const projects: string[] = [];
 const selected = [
-  "penpair-design-release",
+  "penpair-release",
 ];
 
 async function project(): Promise<string> {
@@ -58,7 +58,7 @@ describe("release skill discovery", () => {
 
       expect(report.ready).toBe(true);
       expect(report.skills[0]).toMatchObject({
-        name: "penpair-design-release",
+        name: "penpair-release",
         entrypoint: "current",
         implicitInvocation: true,
         problems: [],
@@ -82,7 +82,7 @@ describe("release skill discovery", () => {
       only: selected,
       agents: "AGENTS.md",
     });
-    await rm(path.join(root, ".skills/penpair-design-release/references/status-and-recovery.md"));
+    await rm(path.join(root, ".skills/penpair-release/references/status-and-recovery.md"));
 
     const report = await checkSkills({
       root,
@@ -101,7 +101,7 @@ describe("release skill discovery", () => {
       only: selected,
       agents: "AGENTS.md",
     });
-    const entrypoint = path.join(root, ".skills/penpair-design-release/SKILL.md");
+    const entrypoint = path.join(root, ".skills/penpair-release/SKILL.md");
     const customized = `${await readFile(entrypoint, "utf8")}\nProject-owned review rule.\n`;
     await writeFile(entrypoint, customized);
 
@@ -116,7 +116,7 @@ describe("release skill discovery", () => {
       agents: "AGENTS.md",
     });
 
-    expect(refresh.kept).toContain(".skills/penpair-design-release/SKILL.md");
+    expect(refresh.kept).toContain(".skills/penpair-release/SKILL.md");
     expect(await readFile(entrypoint, "utf8")).toBe(customized);
     expect(report.skills[0]?.entrypoint).toBe("modified");
     expect(report.skills[0]?.warnings.length).toBeGreaterThan(0);

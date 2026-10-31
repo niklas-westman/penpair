@@ -11,7 +11,7 @@ pnpm exec penpair skills check --agent codex --json
 pnpm exec penpair skills check --agent claude --agents CLAUDE.md --json
 pnpm exec penpair skills check --agent copilot --agents .github/copilot-instructions.md --json
 pnpm exec penpair skills check --only penpair-verify --agents AGENTS.md --json
-pnpm exec penpair skills check --only penpair-design-release --agents AGENTS.md --json
+pnpm exec penpair skills check --only penpair-release --agents AGENTS.md --json
 ```
 
 Exit 0 means the selected bundled skills have valid discoverable entrypoints,
@@ -49,16 +49,17 @@ records the actual outcome, including missing skills or unavailable tools.
 
 | Natural request | Expected primary skill | Observable result |
 | --- | --- | --- |
+| I am new to Penpair and design; where do I start? | penpair-guide | Reads the pinned file, pages, approvals and release status read-only; names the current phase and proposes one next step; runs no approval, release or write. |
 | Set up Penpair with me, step by step. | penpair-setup | Assisted setup preserves the chosen package manager; private browser/key steps handed to the person. |
 | Give me manual installation steps; do not run them. | penpair-setup | Commands and expected results only; no installation or connection commands executed. |
 | I installed the package manually; help me finish with your assistance. | penpair-setup | Inspects existing progress and continues without resetting the config. |
 | Connect this project to Penpot; doctor cannot reach the editor. | penpair-setup | Diagnose the failed check; preserve personal credentials. |
 | Inspect this Penpot frame and export its current design. | penpair-design | Pinned target, complete inspection and actual export. |
-| Create an empty state from this approved Penpot screen. | penpair-recipes | Source evidence, declared regions, representative candidate and critique before expansion. |
+| Create an empty state from this approved Penpot screen. | penpair-construct | Source evidence, declared regions, representative candidate and critique before expansion. |
 | Implement this approved Penpot design in the frontend. | penpair-handoff | Explicit component mapping/unknowns and routed verification readiness. |
 | Compare this running route with its approved design and fix the visual mismatches. | penpair-verify | Actual case setup/readback, screenshots, findings, scoped fixes and rerun. |
-| Prepare the next Penpot product release, keeping unchanged Login frames on their earlier page. | penpair-design-release | Reads installed capabilities and canonical release status; reports the current step, complete inventory, blockers and next valid action. |
-| Resume this interrupted Penpot release without duplicating frames. | penpair-design-release | Checks actual journal and target identities before a supported recovery; never infers a paste from a preparation run ID. |
+| Prepare the next Penpot product release, keeping unchanged Login frames on their earlier page. | penpair-release | Reads installed capabilities and canonical release status; reports the current step, complete inventory, blockers and next valid action. |
+| Resume this interrupted Penpot release without duplicating frames. | penpair-release | Checks actual journal and target identities before a supported recovery; never infers a paste from a preparation run ID. |
 | Publish the next Penpair npm version. | none of these | Follows the repository package release guide; no product design-release or Penpot workflow started. |
 | Critique this screen's density and hierarchy. | design-judgment | Consequential findings grounded in the supplied image; no implicit Penpot writes. |
 | Fix a backend calculation with no UI change. | none of these | No Penpot or comparison work added. |
@@ -80,7 +81,7 @@ pending instead of simulated success.
 
 ## Release skill behavior trials
 
-Use `penpair-design-release` with raw fixture records and the installed CLI in a
+Use `penpair-release` with raw fixture records and the installed CLI in a
 fresh session. Do not supply the intended step or expected next action in the
 agent's request. Give only the release identity, permitted resources and write
 scope. Keep these trials independent of the source/unit tests for the evaluator.

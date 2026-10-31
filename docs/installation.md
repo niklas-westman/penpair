@@ -7,6 +7,8 @@ Two ways to get the same Penpair setup. Choose who drives the steps; you can swi
 | **Set it up with your assistant — recommended** | Your assistant checks the project, explains and runs permitted commands, then verifies progress. You handle the browser, private key and approvals. | You want help getting connected and choosing companions. |
 | **Install it yourself** | You run each command, connect Penpot and review the installed instructions. Your assistant can help explain an individual step. | You want direct control over every setup step. |
 
+You need Node.js 22 or newer, a Mac or Linux computer (the guides do not cover Windows), a project folder and a Penpot account.
+
 ## Recommended: set it up with your assistant
 
 Open the project that will use Penpair in your coding assistant. Paste:
@@ -64,4 +66,4 @@ Whichever route you choose, check:
 - Personal credentials remain private; teammates each connect with their own key.
 - Companion installation is recorded separately from approved references, browser-provider setup and completed visual checks.
 
-See [skill installation](skill-installation.md), [troubleshooting](troubleshooting.md) and the [first task](../README.md#try-your-first-task) for what comes next.
+Not sure what to do next? Ask your assistant to use `penpair-guide`, or read [from a first idea to a released design](project-lifecycle.md). See also [skill installation](skill-installation.md), [troubleshooting](troubleshooting.md) and the [first task](../README.md#try-your-first-task) for what comes next.

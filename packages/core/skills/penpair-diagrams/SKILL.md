@@ -5,6 +5,15 @@ description: Render Penpair journey or integration contracts as Mermaid and edit
 
 # Managed diagrams
 
+## What this owns
+
+Building or reconciling a native diagram for a map, and the contract revision that records it.
+
+Not here: A map's content — `penpair-journey-map` and `penpair-integration-map`.
+Not here: General file editing — `penpair-design`.
+
+## Before you start
+
 Read [the detailed workflow](references/workflow.md) for coverage, review and
 recovery boundaries.
 
@@ -12,10 +21,12 @@ The canonical map contract supplies meaning. Mermaid, drawing plans and native
 Penpot objects are derived views tied to its exact hash. Never replace canonical
 intent with text inferred from arbitrary artwork.
 
+## Steps
+
 1. **Readiness.** Validate the contract, source hashes and exact pinned file/page.
    Check the live capabilities and selected font before writing. Build native diagrams from
    auto-layout boards (cards, status pills, notes) that grow with their text; see
-   the `penpair-design` auto-layout reference. Use neutral,
+   `penpair-design/references/auto-layout.md`. Use neutral,
    self-contained presentation with clear hierarchy, short readable titles,
    one-line summaries, semantic icons and a legend. Keep
    long explanations in managed notes; preserve all evidence and unknowns in

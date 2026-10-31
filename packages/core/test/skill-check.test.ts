@@ -66,7 +66,7 @@ describe("offline Codex skill diagnostics", () => {
     });
 
     expect(report.ready).toBe(true);
-    expect(report.skills).toHaveLength(10);
+    expect(report.skills).toHaveLength(11);
     expect(
       report.skills.every(
         (skill) => skill.implicitInvocation === true && skill.entrypoint === "current",

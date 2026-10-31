@@ -9,6 +9,8 @@ consumer evidence.
 
 | Path | Documents |
 | --- | --- |
+| Skills and vocabulary | [Which skills exist](skills.md) (generated), [glossary](glossary.md) — the words that mean more than one thing here: revision, recipe, verify, contract, design, successor, prerequisite |
+| Start here / the whole journey | [From a first idea to a released design](project-lifecycle.md) |
 | First run / shared file | [Choose an installation route](installation.md), [manual installation](getting-started.md), [team](team.md), [validation](validation.md) |
 | Intent / release | [Journey maps](journey-maps.md), [integration maps](integration-maps.md), [design releases](design-releases.md) |
 | Build / handoff | [Cookbook](cookbook.md), [workflow](design-workflow.md), [kit](build-kit.md), [file scripts](run-file.md), [job queue](queue.md), [handoff](handoff.md) |
@@ -72,7 +74,7 @@ Things to know:
 - The database password must not change while the database volume exists; the secrets file is never regenerated.
 - The frontend answers a few seconds before the backend; `up` and `doctor` look at `/readyz`.
 - `doctor` compares the MCP key's port with the instance's, because a key for another instance silently drives the wrong file.
-- Penpot's accounts come from the first registration in the browser; the MCP key is made in Account, Integrations, MCP Server and goes in `.env.local` as `PENPAIR_MCP_URL`.
+- Penpot's accounts come from the first registration in the browser; the MCP key is made in Profile image, Your account, Integration and goes in `.env.local` as `PENPAIR_MCP_URL`.
 
 Native capability presence appears in `penpair probe`; `penpair probe --integrity` optionally checks file referential integrity without changing the document. Unsupported integrity checks are explicit, not successful validation. See [native API compatibility](compatibility.md#capability-driven-native-apis).
 

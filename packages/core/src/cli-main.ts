@@ -76,7 +76,13 @@ import { probe } from "./probe.js";
 import { installSkills, listBundledSkills } from "./skills.js";
 import { checkSkills } from "./skill-check.js";
 import { checkProjectSnippets, loadProjectSnippets } from "./project-snippets.js";
-import { builtInRegistry, coerceParams, RegistryError, type SnippetRegistry } from "./registry.js";
+import {
+  builtInRegistry,
+  checkEntry,
+  coerceParams,
+  RegistryError,
+  type SnippetRegistry,
+} from "./registry.js";
 import { runSnippet } from "./snippet.js";
 import { selectPage } from "./page-session.js";
 import { audit, pages, tree, frames as baselineFrames } from "./snippets/read.js";
@@ -122,7 +128,7 @@ import { createCheckpoint } from "./native-api.js";
 import { listJournals, readJournal } from "./journal.js";
 import { clearDeadLocks, listLocks } from "./coordination.js";
 import { exportFrames, parseFrames } from "./export-batch.js";
-import { inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
+import { browserTabsNotChecked, inspectBrowserPages, reloadBrowserTarget } from "./browser-wake.js";
 import { hashSpec, listQueues, newQueueId, parseQueueSpec, readQueue, runQueue } from "./queue.js";
 import { resolveProjectInput } from "./project-input.js";
 
@@ -791,6 +797,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       commandRedactor(endpointRedactor(endpoint));
       return {
         origin: endpoint.description.origin,
+        source: endpoint.description.source,
         connect: async (request) => {
           if (!request) {
             throw new Error("Doctor requires a fresh challenge");
@@ -1119,7 +1126,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
         `${result.createdConfig ? "created" : "kept"} penpair.config.json (external Penpot at ${result.config.profile.origin})`,
       );
       output.log(
-        "next: in Penpot switch on Account, Integrations, MCP Server and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)",
+        "next: in Penpot switch on Profile image, Your account, Integration and copy the address; open a design file and choose File, MCP Server, Connect; then run penpair connect (takes the address without showing it)",
       );
       return 0;
     }
@@ -1143,14 +1150,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       return undefined;
     }
     if (!values["debug-port"]) {
-      // Silence here once read as a passing check; warn instead, without changing the exit code.
-      return {
-        check: "browser tabs",
-        ok: true,
-        warning: true,
-        detail: "Not checked: browser tabs need --debug-port",
-        remedy: "Rerun doctor with --debug-port to see which tab holds the pinned file.",
-      };
+      return browserTabsNotChecked();
     }
     const config = await loadCommandConfig(root);
     if (!config.file?.id) {
@@ -1179,7 +1179,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           : {
               remedy:
                 found.matching === 0
-                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integrations page), then run wake."
+                  ? "Open the pinned file's workspace in the debug browser (not the dashboard or Integration page), then run wake."
                   : "Close the duplicate tab: two sessions on one file make the plugin connection drop.",
             }),
       };
@@ -1482,6 +1482,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       runner: nodeRunner,
       log,
     };
+    // What the instance runs on must be available before any lifecycle work, so a
+    // stopped Docker gives the profile's plain-language guidance instead of a raw
+    // daemon error. `doctor` is exempt: diagnosing a stopped daemon is its job.
+    if (command !== "doctor") {
+      await local.preflight(nodeRunner);
+    }
     if (command === "up") {
       const result = await local.up(c);
       output.log(
@@ -1815,6 +1821,15 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
               ];
       }
       const entry = registry.get(name);
+      // A project snippet is code from outside the core. `snippets check` validates
+      // one on request; a run must refuse before connecting rather than let a body
+      // that cannot parse, or that breaks the size limit, reach the editor.
+      if (entry.source === "project") {
+        const faults = checkEntry(entry);
+        if (faults.length > 0) {
+          throw new RegistryError(`${name}: ${faults.join("; ")}`);
+        }
+      }
       if (entry.kind === "read" && (values.resume || values.checkpoint)) {
         throw new Error("Read snippets have no write run to resume or checkpoint");
       }

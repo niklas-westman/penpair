@@ -54,7 +54,7 @@ export function parseMcpAddress(pasted: string): {
     parsed = new URL(text);
   } catch {
     throw new ConnectError(
-      "That does not look like an address. Copy the whole line Penpot shows under Account, Integrations, MCP Server; it starts with https:// (or http:// for Penpot on your computer).",
+      "That does not look like an address. Copy the whole line Penpot shows under Profile image, Your account, Integration; it starts with https:// (or http:// for Penpot on your computer).",
     );
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
@@ -67,7 +67,7 @@ export function parseMcpAddress(pasted: string): {
   }
   if (!parsed.searchParams.get("userToken")) {
     throw new ConnectError(
-      "That address has no key (userToken=...). Copy the full address from Account, Integrations, MCP Server.",
+      "That address has no key (userToken=...). Copy the full address from Profile image, Your account, Integration.",
     );
   }
   return {
@@ -356,7 +356,7 @@ export async function connectProject(
   }
   if (!url) {
     io.say(
-      `Open ${penpotAddress(config)}, log in, then go to Account, Integrations, MCP Server and switch it on. Copy the address it shows.`,
+      `Open ${penpotAddress(config)}, log in, then click your profile image, choose Your account, then Integration. Toggle MCP to enabled and copy the URL shown on the page.`,
     );
     const pasted =
       options.pasted ??

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { runCli } from "../src/cli-main.js";
-import { installSkills } from "../src/skills.js";
+import { installSkills, listBundledSkills } from "../src/skills.js";
 import { planSkillInstructions, applySkillInstructions } from "../src/skill-instructions.js";
 const folder = () => mkdtemp(path.join(os.tmpdir(), "penpair-instructions-"));
 afterEach(() => vi.restoreAllMocks());
@@ -22,6 +22,15 @@ it("creates an explicitly selected instruction file and a second run is a no-op"
   });
   const text = await readFile(path.join(root, "AGENTS.md"), "utf8");
   expect(text).toContain(".skills/penpair-design/SKILL.md");
+  // Every bundled skill needs a task-routing row. renderSkillRouting looks each name up in
+  // tasksBySkill and silently skips a miss, so a rename without its routing key drops out.
+  // Scoped to the "Task | Read first" table on purpose: the instruction file also carries an
+  // unfiltered "Skill | Purpose" table, and matching the whole file would pass on that instead.
+  const routingTable = text.slice(text.indexOf("| Task | Read first |")).split("\n\n")[0] ?? "";
+  const unrouted = (await listBundledSkills()).filter(
+    (name) => !routingTable.includes(`.skills/${name}/SKILL.md`),
+  );
+  expect(unrouted.join(", ")).toBe("");
   const second = await installSkills({
     root,
     agents: "AGENTS.md",
@@ -73,7 +82,7 @@ it("routes only selected skills and keeps their nested instruction links resolva
     expect(await readFile(target, "utf8")).toContain(`name: ${link[1]}`);
   }
   expect(text).not.toContain("penpair-setup");
-  expect(text).not.toContain("penpair-recipes");
+  expect(text).not.toContain("penpair-construct");
 
   const repeated = await installSkills({
     root,

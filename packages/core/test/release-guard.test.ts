@@ -91,6 +91,45 @@ describe("the repository as it is", () => {
     expect(order[0]).toBe("@penpair/core");
     expect(order.indexOf("penpair")).toBeGreaterThan(order.indexOf("@penpair/web"));
   });
+
+  it("ships every file each package promises in its published surface", async () => {
+    const packages = await loadPackages(repository);
+    const root = await readFile(path.join(repository, "LICENSE"), "utf8");
+    const missing: string[] = [];
+    const differs: string[] = [];
+    for (const entry of packages as {
+      name: string;
+      directory: string;
+      json: {
+        files?: string[];
+        scripts?: Record<string, string>;
+      };
+    }[]) {
+      // `@penpair/web` is the one package whose README is generated at pack time.
+      const generated = (entry.json.scripts?.prepack ?? "").includes("copy-package-docs");
+      for (const promised of entry.json.files ?? []) {
+        // Only the literal top-level files. `dist`, `skills`, `docs`, `examples`
+        // and `bin` are directories produced by the build or by prepack.
+        if (promised !== "LICENSE" && promised !== "README.md") {
+          continue;
+        }
+        if (generated && promised === "README.md") {
+          continue;
+        }
+        const target = path.join(entry.directory, promised);
+        const contents = await readFile(target, "utf8").catch(() => undefined);
+        if (contents === undefined) {
+          missing.push(`${entry.name}: ${promised}`);
+          continue;
+        }
+        if (promised === "LICENSE" && contents !== root) {
+          differs.push(entry.name);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+    expect(differs).toEqual([]);
+  });
 });
 
 describe("the version check", () => {

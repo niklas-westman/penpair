@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const codeRoots = /^(?:packages|scripts|examples|docs\/conventions)\//;
+const codeRoots = /^(?:packages|scripts|examples|skills|docs\/conventions)\//;
 const codeExtension = /\.(?:[cm]?[jt]s|tsx)$/;
 const kebabCase = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

@@ -27,6 +27,52 @@ it("covers reserved commands, executable flags, unique IDs and valid related top
   }
 });
 
+it("opens the full command list with the order a new project is set up in", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "penpair-help-"));
+  try {
+    const overview = (
+      await runCommand([], {
+        root,
+      })
+    ).messages.join("\n");
+    const order = [
+      "penpair init",
+      "penpair connect",
+      "penpair doctor",
+      "penpair pages",
+      "penpair skills install",
+    ].map((step) => overview.indexOf(step));
+    expect(order.join(",")).toBe(
+      [
+        ...order,
+      ]
+        .sort((a, b) => a - b)
+        .join(","),
+    );
+    expect(order.filter((at) => at < 0)).toEqual([]);
+    const heading = overview.indexOf("New here?");
+    expect(heading).toBeGreaterThanOrEqual(0);
+    expect(heading).toBeLessThan(overview.indexOf("Design agreements"));
+    const all = (
+      await runCommand(
+        [
+          "help",
+          "--all",
+        ],
+        {
+          root,
+        },
+      )
+    ).messages.join("\n");
+    expect(all).not.toContain("New here?");
+  } finally {
+    await rm(root, {
+      recursive: true,
+      force: true,
+    });
+  }
+});
+
 it("resolves nested help and JSON before config, connection and adapter execution", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "penpair-help-"));
   vi.spyOn(console, "error").mockImplementation(() => undefined);

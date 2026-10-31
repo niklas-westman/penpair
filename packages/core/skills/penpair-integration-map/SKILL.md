@@ -5,6 +5,14 @@ description: Create, review or reconcile Penpair integration maps connecting a u
 
 # Integration map
 
+## What this owns
+
+Binding a reviewed journey to routes, components and data.
+
+Not here: Intent itself — `penpair-journey-map`.
+
+## Before you start
+
 Before unfamiliar commands, read the installed help for `integration-map` and
 `export`; newer versions also offer `help export batch` and
 `help workflows.capture-evidence`. Use actual supported help on older versions.
@@ -27,8 +35,11 @@ recovery boundaries.
 
 Make the proposed solution and existing implementation comparable. Read the
 current journey contract and its exact hash before planning application work.
-Use `penpair-journey-map` when intent is missing; use `penpair-handoff` for detailed
-source/component evidence and `penpair-verify` for a running frontend.
+Requires: `penpair-journey-map` when intent is missing — it produces the reviewed journey this map binds.
+Next: `penpair-handoff` for detailed source/component evidence, and `penpair-verify` for a running frontend.
+Next: `penpair-diagrams` for native publication of a reviewed map, auto layout by default.
+
+## Steps
 
 1. **Inspect the current solution.** Read complete authorized design inspections,
    explicit component identities and existing routes, state and data code. Keep
@@ -45,7 +56,7 @@ source/component evidence and `penpair-verify` for a running frontend.
    keyboard/focus and accessibility work as applicable.
 4. **Check and render.** Use installed command help for `integration-map` actions.
    Check source/review freshness, render and inspect the resulting map. For
-   native publication use `penpair-diagrams` (auto layout by default), compile snippets and retain pinned
+   native publication, compile snippets and retain pinned
    inspection, one idempotent write, independent readback and stable visual
    exports. Keep each snippet below 90 KB and do not retry uncertain writes.
 5. **Approve deliberately.** Import native managed changes as a base-hash-bound

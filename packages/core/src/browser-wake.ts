@@ -412,7 +412,7 @@ const stateText: Record<BrowserPageState, string> = {
   "pinned-file-workspace": "the pinned file's workspace",
   "other-file-workspace": "another file's workspace",
   "not-a-workspace":
-    "not a workspace (a dashboard, settings or Integrations page does not hold the plugin connection)",
+    "not a workspace (a dashboard, settings or Integration page does not hold the plugin connection)",
   "other-origin": "another site",
 };
 function summarize(pages: BrowserPage[]): string {
@@ -503,4 +503,26 @@ async function readTargetList(response: Response): Promise<string> {
     reader.releaseLock();
   }
   return Buffer.concat(chunks, bytes).toString("utf8");
+}
+
+/**
+ * The doctor row for a tab census that could not run because `--debug-port` was
+ * not given. It is a warning rather than a failure: the check was skipped, not
+ * failed, so it must not change the command's exit code — but staying silent
+ * would read as a pass for a probe that never happened.
+ */
+export function browserTabsNotChecked(): {
+  check: string;
+  ok: true;
+  warning: true;
+  detail: string;
+  remedy: string;
+} {
+  return {
+    check: "browser tabs",
+    ok: true,
+    warning: true,
+    detail: "Not checked: browser tabs need --debug-port",
+    remedy: "Rerun doctor with --debug-port to see which tab holds the pinned file.",
+  };
 }

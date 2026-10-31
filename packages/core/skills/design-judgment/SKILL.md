@@ -9,7 +9,19 @@ metadata:
 
 # design-judgment
 
+## What this owns
+
+Deciding and critiquing hierarchy, density, content and screen states.
+
+Not here: Writing to Penpot — `penpair-design`.
+
 A screen is a decision tool for one person doing one job. This skill supplies the reasoning that sits between the brief and the component tree. The project's component library supplies the parts, its approved designs supply the frames, and this skill decides which composition serves the task.
+
+## The composition decision
+
+Before building a page, record a short composition decision: the primary user task, one chosen existing reference, visual hierarchy and useful context, responsive behavior and focus order. Build one small representative frame first; critique its hierarchy, density and missing context before expanding themes/states/devices. This is a design decision and critique, not owner approval.
+
+This paragraph is the whole obligation another skill may rely on; the steps below are how to arrive at it. It is stated here and nowhere else, so that the skills that need it point here instead of restating it and drifting.
 
 ## Authority order
 

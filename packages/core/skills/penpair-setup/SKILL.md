@@ -9,6 +9,14 @@ compatibility: Node 22 or later and a terminal. A Penpot account on the web, or 
 
 # Penpair setup
 
+## What this owns
+
+Installing penpair, and connecting or repairing a Penpot connection.
+
+Not here: Work inside a connected file — `penpair-design`.
+
+## Before you start
+
 Before recommending `wake --reload` or a manual browser reload, verify that Penpot
 finished saving in the editor. Reload can discard unsaved work. Transport health,
 an observed revision and successful readback do not establish durable storage;
@@ -91,7 +99,7 @@ So one command package, the library companion when that library is used, and the
 | `penpair connect [--replace]` | Takes the person's MCP link through a hidden prompt (or a pipe), saves it in `.env.local`, then waits up to five minutes for the plugin |
 | `penpair doctor [--json]` | Every check, `ok` or not, each with a `remedy`. `--json` is for you |
 | `penpair pages` | The open file and its pages: the quickest proof the connection works |
-| `penpair skills install` | Copies the agent rules (`penpair-setup`, `penpair-design`, `penpair-recipes`, `penpair-handoff`, `penpair-verify`, `design-judgment`) into the project and links them for Claude Code and Codex |
+| `penpair skills install` | Copies the bundled agent skills into the project and links them for Claude Code and Codex. Run `penpair skills` first to see exactly which ones this version ships |
 | `penpair setup` | The same path as a guided terminal wizard, for a person who prefers to do it alone. It asks questions you cannot answer for them, so you use the steps below instead |
 
 Everything that changes a Penpot file looks first and writes only with `--apply`.
@@ -165,7 +173,7 @@ Install it as a dev dependency so the whole team gets the same version. Install 
 
 The plugin comes first because `penpair connect` (step 6) waits for it, and then confirms right away.
 
-1. In Penpot, open your **account menu** (your name or avatar), then **Integrations**, then **MCP Server**. Switch it on and **copy the address** it shows. It is your personal key; treat it like a password, and do not paste it here.
+1. In Penpot, click your **profile image**, choose **Your account**, then **Integration**. Toggle **MCP** to enabled, then **copy the full URL** shown on that page, not only the token. It is your personal key; treat it like a password, and do not paste it here.
 2. Open the design file. Choose **File**, then **MCP Server**, then **Connect**. A small window may appear; leave it.
 3. **Keep this browser tab visible** while the assistant works. A tab in the background goes to sleep and the connection pauses; bringing it to the front resumes it.
 
@@ -256,7 +264,7 @@ Offer a small proof of concept only after connection setup is complete and the p
    - "Do a test POC: a sign-in screen for phone on the page penpair POC, with a small token set for its colours. Then export it and show me."
    - "Do a test POC: a small dashboard with a header, three stat cards and a table. Audit it for off-scale spacing and show me the export."
    - With a configured library adapter: "Do a test POC: a settings page that uses only our declared library tokens. Export it and show me."
-3. **Learn the rules first.** Read the installed `penpair-design` skill (`.skills/penpair-design/SKILL.md`, or https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-design/SKILL.md if step 9 was skipped) and its plugin gotchas before your first script. In short: every change to Penpot is a **project snippet**, a `.mjs` file whose default export has `inspect` (looks and returns what would change), `apply` (writes once, safe to run again) and `readback` (checks from scratch and returns `problems: []`). Each part is plain Penpot plugin code, under 90 KB.
+3. **Learn the rules first.** Read the installed design skill (`.skills/penpair-design/SKILL.md`, or https://raw.githubusercontent.com/niklas-westman/penpair/main/packages/core/skills/penpair-design/SKILL.md if step 9 was skipped) and its plugin gotchas before your first script. In short: every change to Penpot is a **project snippet**, a `.mjs` file whose default export has `inspect` (looks and returns what would change), `apply` (writes once, safe to run again) and `readback` (checks from scratch and returns `problems: []`). Each part is plain Penpot plugin code, under 90 KB.
 4. **Start from the example.** https://raw.githubusercontent.com/niklas-westman/penpair/main/skills/penpair-setup-guide/references/poc-snippet.mjs is a phone sign-in board with a small colour token set and a button component. Save it as `snippets/poc-sign-in.mjs` in the project. Its `page` constant must be the exact name of the page they opened; change it if they named it differently. Adapt the content to what they picked (and rename the snippet's `name` if it is no longer a sign-in).
 5. **Register it.** Add one key to `penpair.config.json`, keeping the JSON valid:
    ```json
@@ -299,3 +307,7 @@ A person can configure `PENPAIR_MCP_URL_FILE` or a `connection.credential` file/
 
 Read [web or Docker](references/web-or-docker.md) when comparing hosting choices.
 The same assisted/manual installation routes apply to both.
+
+## Where this leads
+
+Next: `penpair-design` once the connection is proven — it owns work inside a connected file, and its rules apply before the first script.

@@ -5,6 +5,16 @@ description: Verify a frontend against an approved Penpot design using Penpair R
 
 # Frontend verification
 
+## What this owns
+
+Comparing a running frontend against its approved design.
+
+Not here: New implementation or missing component mappings — `penpair-handoff`.
+Not here: Penpot changes, which keep the project's write protocol — `penpair-design`.
+Not here: Proposed contract changes — `penpair-integration-map`.
+
+## Before you start
+
 Before unfamiliar CLI work, read the installed `penpair --help`, then the matching
 command/topic help. Use `penpair help workflows.iterative-build`,
 `penpair help workflows.capture-evidence`, `penpair help diagnostics.progress`,
@@ -26,15 +36,19 @@ an installed adapter and a passing build each establish different facts.
 Read the current integration-map or finalized design-release context when one
 exists. Reconcile actual routes, state and behavior with stable requirement IDs,
 and report missing implementation or unintended behavior alongside visual drift.
-Use `penpair-integration-map` for proposed contract changes; do not rewrite
-reviewed intent or a finalized release to make a failing implementation pass.
+Do not rewrite reviewed intent or a finalized release to make a failing
+implementation pass.
+
 Design finalization, image approval and implementation acceptance are separate.
 
 Continue the project's existing comparative checkpoint, or create a project-owned
 case report outside installed skill folders. Retain source/candidate identities,
 preserved and changed regions, actual image paths, observed setup, consequential
-findings and the next action. If `penpair-recipes` is installed, its
-`references/visual-checkpoint.md` and template supply the common format.
+findings and the next action. When installed,
+`penpair-construct/references/visual-checkpoint.md` and its template supply the
+common format.
+
+## Steps
 
 1. **Establish readiness.** Inspect the installed command and adapter versions,
    the project's existing verification scripts, approved reference and explicit
@@ -53,10 +67,16 @@ findings and the next action. If `penpair-recipes` is installed, its
    3 means incomplete evidence. An execution error establishes no comparison.
 4. **Inspect and repair.** Look at the approved image and actual browser image;
    inspect a diff image when the checker produces one. Record consequential
-   findings as location, impact, evidence, proposed fix and rerun case. Fix
-   implementation mismatches within scope, then recapture affected cases. Do
-   not overwrite approved references, change case intent or loosen thresholds
-   merely to pass. A design change goes back through design review and approval.
+   findings as location, impact, evidence, proposed fix and rerun case. Fix a
+   mismatch yourself only when the approved reference, component mapping and
+   case already exist, the change stays in the markup or styling of the component
+   under test, and it adds no component, mapping, case intent or threshold. Then
+   recapture the affected case, at most twice. A mismatch that fails any of those
+   conditions, or still fails after the second recapture, is not yours to fix:
+   report it with its evidence as outside this skill (see the ownership section
+   above) and continue to the checkpoint. Do not overwrite approved references,
+   change case intent or loosen thresholds merely to pass. A design change goes
+   back through design review and approval.
 5. **Checkpoint and report.** If repeated failures or substantial tooling work
    prevent a representative visual result, report the evidence and revised
    approach before expanding tools or cases. Retain case IDs, image paths,
@@ -65,6 +85,4 @@ findings and the next action. If `penpair-recipes` is installed, its
    checks and owner approval. A low pixel ratio does not establish any of the last
    three.
 
-For a new implementation or missing component mapping, use `penpair-handoff` when
-installed. For Penpot changes, use `penpair-design` when installed and retain the
-project's write protocol. Reading a skill never authorizes an extra live write.
+Reading a skill never authorizes an extra live write.
