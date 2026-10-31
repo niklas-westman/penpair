@@ -103,7 +103,7 @@ const markdownFiles = async (directory: string): Promise<string[]> => {
   return found;
 };
 
-describe("the ten skills read as one set", () => {
+describe("the bundled skills read as one set", () => {
   it("states ownership and at least one exclusion in every skill", async () => {
     const problems: string[] = [];
     for (const name of await listBundledSkills()) {
@@ -241,6 +241,41 @@ describe("the ten skills read as one set", () => {
     // A redirect ("that work is not mine") has no direction and belongs in the ownership
     // section. Marked as a successor it closes a loop, which is how three were caught.
     expect(cycles.join("\n")).toBe("");
+  });
+
+  it("keeps the guide a pure source that routes to every phase's skill", async () => {
+    // The guide is the entry point: it must name the skill for each phase on a `Next:` line, and
+    // nothing may route back to it, or the order it describes would become a dependency.
+    const phaseSkills = [
+      "design-judgment",
+      "penpair-construct",
+      "penpair-design",
+      "penpair-diagrams",
+      "penpair-handoff",
+      "penpair-integration-map",
+      "penpair-journey-map",
+      "penpair-release",
+      "penpair-setup",
+      "penpair-verify",
+    ];
+    const problems: string[] = [];
+    const guideLines = (await skillBody("penpair-guide")).split("\n");
+    const routed = guideLines.filter((line) => line.startsWith("Next:"));
+    for (const skill of phaseSkills) {
+      if (!routed.some((line) => namesBareSkill(line, skill))) {
+        problems.push(`penpair-guide/SKILL.md has no "Next:" line for ${skill}`);
+      }
+    }
+    for (const name of (await listBundledSkills()).filter((other) => other !== "penpair-guide")) {
+      (await skillBody(name)).split("\n").forEach((line, index) => {
+        if (/^(Next|Requires):/.test(line) && namesBareSkill(line, "penpair-guide")) {
+          problems.push(
+            `${name}/SKILL.md:${index + 1} routes to penpair-guide, which must stay a source`,
+          );
+        }
+      });
+    }
+    expect(problems.join("\n")).toBe("");
   });
 
   it("gives every conditional boundary a stopping rule instead of 'within scope'", async () => {

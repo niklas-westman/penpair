@@ -1,4 +1,5 @@
 const tasksBySkill: Record<string, string> = {
+  "penpair-guide": "Find out where a Penpair project stands and what to do next",
   "penpair-journey-map": "Map user journeys, decisions and recovery paths in Penpot",
   "penpair-integration-map":
     "Connect reviewed journeys to routes, components and data responsibilities",

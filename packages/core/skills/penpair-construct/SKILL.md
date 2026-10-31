@@ -7,7 +7,7 @@ description: Build a Penpot screen or create loading, empty or error variants fr
 
 ## What this owns
 
-Deriving a screen or state-variant set from an approved reference, with its checkpoint evidence.
+Deriving a screen, a state-variant set or a device-size frame from an approved reference, with its checkpoint evidence.
 
 Not here: Operations on a file that is not derived from a reference — `penpair-design`.
 
@@ -26,6 +26,8 @@ exit/completeness. To save logs use `tee` with `pipefail`; never `2>&1 | tail -N
 or buffered child stderr. Staging/files appearing does not imply publication or
 owner approval.
 
+
+A device-size frame (`Tablet`, `Mobile`) is derived from the approved `Desktop` frame of the same page at the project's breakpoints, which default to 768 and 390 against a 1440 desktop and are recorded in the project facts. It is a new candidate and needs its own approval.
 
 Use the existing project library and declared tokens as inputs. Work within the owner's authorized design scope; retain unresolved choices for review.
 

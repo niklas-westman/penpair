@@ -18,6 +18,7 @@ describe("the shipped skills", () => {
       "penpair-construct",
       "penpair-design",
       "penpair-diagrams",
+      "penpair-guide",
       "penpair-handoff",
       "penpair-integration-map",
       "penpair-journey-map",

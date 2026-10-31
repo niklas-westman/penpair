@@ -31,7 +31,7 @@ This page is the only maintained list of which skills exist. Other pages link he
 | --- | --- |
 ${rows.join("\n")}
 
-Skills are listed alphabetically, which is the order \`penpair skills install\` reports them in. It is not a sequence to work through: read the one that matches the task, and follow its marked edges from there. [Check skill discovery and behavior](skill-validation.md) before relying on an installed set.
+Skills are listed alphabetically, which is the order \`penpair skills install\` reports them in. It is not a sequence to work through: read the one that matches the task, and follow its marked edges from there. If you do not know where to start, use the guide, which reads the project and names the next phase. [Check skill discovery and behavior](skill-validation.md) before relying on an installed set.
 `;
 }
 
