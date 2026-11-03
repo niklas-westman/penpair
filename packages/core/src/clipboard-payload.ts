@@ -19,6 +19,18 @@ export function nativeClipboardPayloadMatches(
   };
   const object = (value: unknown): value is Record<string, unknown> =>
     Boolean(value && typeof value === "object" && !Array.isArray(value));
+  // Penpot 2.18+ wraps each copied shape in a Transit "~#shape" tag; older payloads were bare maps.
+  const shapeRecord = (value: unknown): Record<string, unknown> | undefined => {
+    if (!object(value)) {
+      return undefined;
+    }
+    const keys = Object.keys(value);
+    if (keys.length === 1 && keys[0] === "~#shape") {
+      const inner = value["~#shape"];
+      return object(inner) ? inner : undefined;
+    }
+    return value;
+  };
   if (
     typeof text !== "string" ||
     text.length > 16 * 1024 * 1024 ||
@@ -91,9 +103,10 @@ export function nativeClipboardPayloadMatches(
     return false;
   }
   const objectIds = new Set<string>();
-  for (const [key, value] of entries) {
+  for (const [key, wrapped] of entries) {
     const id = identity(key);
-    if (!id || objectIds.has(id) || !object(value) || identity(field(value, "id")) !== id) {
+    const value = shapeRecord(wrapped);
+    if (!id || objectIds.has(id) || !value || identity(field(value, "id")) !== id) {
       return false;
     }
     objectIds.add(id);

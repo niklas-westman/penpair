@@ -189,12 +189,33 @@ export async function copyReleaseBoards(
         ? "Reconciling the recorded transfer; paste is not replayed automatically"
         : "Collecting source evidence before journaled writes; no paste has been dispatched",
     });
+    // The fence is written immediately before the only paste, so a run without one never changed the destination boards.
+    const pasteWasDispatched = async (previousRunId: string): Promise<boolean> => {
+      try {
+        await lstat(
+          await artifactPath(
+            root,
+            `.penpair/native-copy/${previousRunId}/paste-attempt.json`,
+            true,
+          ),
+        );
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          return false;
+        }
+        throw error;
+      }
+    };
     const assertNoConflictingRuns = async (): Promise<void> => {
       const records = await listJournals(root);
       for (const previous of records.filter(
         (record) => record.operation === operation && record.target.fileId === request.fileId,
       )) {
-        if (previous.runId === runId) {
+        if (
+          previous.runId === runId ||
+          (previous.state !== "verified" && !(await pasteWasDispatched(previous.runId)))
+        ) {
           continue;
         }
         const record = await readJournal(root, previous.runId);

@@ -107,6 +107,9 @@ export async function runDesignReleaseCopyCommand(
                   allowLoopbackAlias: target.allowLoopbackAlias,
                   port: Number(values["debug-port"]),
                   timeoutMs: 30000,
+                  trace: process.env.PENPAIR_CLIPBOARD_TRACE
+                    ? (event) => console.error(`clipboard-trace ${JSON.stringify(event)}`)
+                    : undefined,
                   signal: commandSignal(),
                 }),
             }

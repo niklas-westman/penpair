@@ -21,6 +21,14 @@ export interface ClipboardSocket extends EventTarget {
 export interface NativeClipboardOptions extends BrowserTargetOptions {
   /** Tests may substitute the protocol transport; ordinary commands use Node's WebSocket. */
   createSocket?: (url: string) => ClipboardSocket;
+  /** Receives timestamped stage events so a failing copy can be explained, not guessed at. */
+  trace?: (event: NativeClipboardTraceEvent) => void;
+}
+
+export interface NativeClipboardTraceEvent {
+  elapsedMs: number;
+  stage: string;
+  detail?: Record<string, unknown>;
 }
 
 const maximumBytes = 1024 * 1024;
@@ -207,6 +215,13 @@ async function clipboardLease(): Promise<() => Promise<void>> {
 export async function connectNativeClipboard(
   options: NativeClipboardOptions,
 ): Promise<NativeClipboard> {
+  const startedAt = Date.now();
+  const trace = (stage: string, detail?: Record<string, unknown>) =>
+    options.trace?.({
+      elapsedMs: Date.now() - startedAt,
+      stage,
+      detail,
+    });
   const controller = new AbortController();
   const signal = options.signal
     ? AbortSignal.any([
@@ -214,7 +229,14 @@ export async function connectNativeClipboard(
         controller.signal,
       ])
     : controller.signal;
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 5000);
+  const sessionDeadlineMs = options.timeoutMs ?? 5000;
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new Error(`Native clipboard session deadline of ${sessionDeadlineMs} ms exceeded`),
+      ),
+    sessionDeadlineMs,
+  );
   timer.unref();
   let release: (() => Promise<void>) | undefined;
   let socket: ClipboardSocket | undefined;
@@ -272,6 +294,9 @@ export async function connectNativeClipboard(
     }
   };
   const aborted = () => {
+    trace("aborted", {
+      reason: String(signal.reason?.message ?? signal.reason),
+    });
     fail();
     socket?.close();
   };
@@ -384,13 +409,14 @@ export async function connectNativeClipboard(
       evaluate(`(async function inspectNativeClipboard() {
       try {
         const text = await navigator.clipboard.readText();
+        const probe = {length:text.length,head:text.slice(0,40)};
         const valid = (${nativeClipboardPayloadMatches.toString()})(text, ${JSON.stringify(options.fileId)}, ${JSON.stringify(copiedFrames)});
-        if (!valid) return {validated:false};
+        if (!valid) return {validated:false,...probe};
         const bytes = new TextEncoder().encode(text);
         const hash = await crypto.subtle.digest("SHA-256", bytes);
         const digest = Array.from(new Uint8Array(hash), value => value.toString(16).padStart(2,"0")).join("");
         return {validated:true,digest};
-      } catch { return {validated:false,unavailable:true}; }
+      } catch (error) { return {validated:false,unavailable:true,errorName:String(error&&error.name),errorMessage:String(error&&error.message),focused:document.hasFocus()}; }
     })()`);
     const shortcut = async (
       kind: "copy" | "paste",
@@ -421,6 +447,11 @@ export async function connectNativeClipboard(
       try {
         await send("Page.bringToFront");
         const state = await evaluate(focusExpression);
+        trace("focus-state", {
+          kind,
+          ...state,
+          href: undefined,
+        });
         if (
           !state ||
           !targetMatches(state.href, options, expectedPageId) ||
@@ -445,6 +476,9 @@ export async function connectNativeClipboard(
           const cleared = await evaluate(
             `(async function clearNativeClipboard(){try{await navigator.clipboard.writeText(${JSON.stringify(sentinel)});return {cleared:true};}catch{return {cleared:false};}})()`,
           );
+          trace("sentinel-written", {
+            cleared: cleared?.cleared,
+          });
           if (cleared?.cleared !== true) {
             throw new Error(
               "Browser clipboard write permission is required; no native copy was dispatched",
@@ -476,6 +510,9 @@ export async function connectNativeClipboard(
             windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0),
           });
           dispatched = true;
+          trace("key-dispatched", {
+            kind,
+          });
         } finally {
           // Release the physical shortcut even if its acknowledgment was lost.
           const released = send("Input.dispatchKeyEvent", {
@@ -495,9 +532,13 @@ export async function connectNativeClipboard(
           while (!copied) {
             signal.throwIfAborted();
             const observed = await inspectClipboard();
+            trace("clipboard-poll", observed);
             if (observed?.unavailable === true) {
+              const notFocused = /not focused/i.test(String(observed.errorMessage));
               throw new Error(
-                "Browser clipboard read permission is required; native paste remains disabled",
+                notFocused
+                  ? "The editor tab lost focus while waiting for the copied clipboard; the browser blocks clipboard reads until it is focused again"
+                  : `Browser clipboard read permission is required (${String(observed.errorName)}: ${String(observed.errorMessage)}); native paste remains disabled`,
               );
             }
             if (
