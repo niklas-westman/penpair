@@ -117,6 +117,7 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
             null,
             "auto",
             "fix",
+            "fill",
           ].includes(sizing[key] as null | string)
         ) {
           throw new Error("Native board sizing is unsupported or unobservable");
@@ -172,15 +173,27 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
       }
     }
     const component = object(node.component, "Component observations are unavailable");
-    if (
+    const isComponentNode =
       component.isComponentInstance === true ||
       component.isComponentCopyInstance === true ||
       component.isComponentMainInstance === true ||
-      component.isComponentRoot === true
-    ) {
-      throw new Error(
-        "Component override fidelity is unobservable in this inspection; native release verification is blocked",
-      );
+      component.isComponentRoot === true;
+    if (isComponentNode) {
+      // The semantic comparison below checks component identity (source, reference shape, head) node by node.
+      // Only the "touched" bookkeeping of overrides is not observable, so identity must at least be present.
+      const source = component.source as Record<string, unknown> | null | undefined;
+      const identified =
+        !!source &&
+        typeof source === "object" &&
+        typeof source.id === "string" &&
+        typeof source.libraryId === "string" &&
+        (component.isComponentCopyInstance !== true ||
+          typeof component.componentRefShape === "string");
+      if (!identified) {
+        throw new Error(
+          "Component override fidelity is unobservable in this inspection; native release verification is blocked",
+        );
+      }
     }
     if (node.type === "group" && !Object.hasOwn(node, "maskedGroup")) {
       throw new Error("Mask fidelity is unobservable for this group");
@@ -396,5 +409,53 @@ export async function decodedPixels(png: Buffer): Promise<{
     hash: hashBytes(data),
     width: info.width,
     height: info.height,
+  };
+}
+
+export interface PixelDifference {
+  differingPixels: number;
+  totalPixels: number;
+  maxChannelDelta: number;
+}
+
+/** How far two same-sized renders are apart; exact hash equality stays the first test. */
+export async function measurePixelDifference(a: Buffer, b: Buffer): Promise<PixelDifference> {
+  const { default: sharp } = await import("sharp");
+  const decode = async (png: Buffer) =>
+    sharp(png, {
+      failOn: "error",
+      limitInputPixels: 64_000_000,
+    })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({
+        resolveWithObject: true,
+      });
+  const [first, second] = await Promise.all([
+    decode(a),
+    decode(b),
+  ]);
+  if (first.info.width !== second.info.width || first.info.height !== second.info.height) {
+    throw new Error("Renders have different dimensions");
+  }
+  let differingPixels = 0;
+  let maxChannelDelta = 0;
+  for (let offset = 0; offset < first.data.length; offset += 4) {
+    let pixelDelta = 0;
+    for (let channel = 0; channel < 4; channel++) {
+      pixelDelta = Math.max(
+        pixelDelta,
+        Math.abs(first.data[offset + channel]! - second.data[offset + channel]!),
+      );
+    }
+    if (pixelDelta > 0) {
+      differingPixels++;
+      maxChannelDelta = Math.max(maxChannelDelta, pixelDelta);
+    }
+  }
+  return {
+    differingPixels,
+    totalPixels: first.info.width * first.info.height,
+    maxChannelDelta,
   };
 }

@@ -27,7 +27,11 @@ import {
   captureCopyEvidence,
   matchCopiedFrames,
   compareCopyEvidence,
+  componentInstanceCount,
+  measureFramePixelDifferences,
+  type FramePixelDifference,
   sourceEvidenceHash,
+  sourceStructureHash,
   type CopyFrameEvidence,
   type CopiedFramePair,
 } from "./copy-evidence.js";
@@ -71,6 +75,10 @@ export interface CopyResult {
   nativeVerified?: boolean;
   pixelsMatch?: boolean;
   problems: string[];
+  /** Frames whose pixels were not bit-identical, with the measured difference and whether it is within tolerance. */
+  pixelDifferences?: FramePixelDifference[];
+  /** What verification could not observe; present when the boards contain component instances. */
+  caveats?: string[];
 }
 
 interface CopyPayload {
@@ -224,6 +232,9 @@ export async function copyReleaseBoards(
           continue;
         }
         const record = await readJournal(root, previous.runId);
+        if (record.abandoned) {
+          continue;
+        }
         const payload = record.payload as CopyPayload | undefined;
         if (
           previous.state !== "verified" ||
@@ -427,6 +438,8 @@ export async function copyReleaseBoards(
           {
             ...evidenceProgress,
             phase: "verify",
+            // Pairing sources to pasted boards needs structure; pixels are compared once, at final verification.
+            render: "none",
           },
         );
         pairs = matchCopiedFrames(payload.sources, targets);
@@ -670,7 +683,7 @@ export async function copyReleaseBoards(
             ) {
               return false;
             }
-            const targets = await captureCopyEvidence(
+            let targets = await captureCopyEvidence(
               client,
               root,
               request.fileId,
@@ -681,13 +694,60 @@ export async function copyReleaseBoards(
               {
                 ...evidenceProgress,
                 phase: "verify",
+                render: "single",
               },
             );
             const verifiedPairs = matchCopiedFrames(payload.sources, targets);
             if (observationHash(verifiedPairs) !== observationHash(pairs)) {
               throw new Error("Copied identities changed before final readback");
             }
-            const verification = compareCopyEvidence(payload.sources, targets, pairs);
+            let verification = compareCopyEvidence(payload.sources, targets, pairs);
+            if (!verification.pixelsMatch) {
+              // One unsettled render can differ from the stable reference; confirm with the full stable capture before reporting a difference.
+              targets = await captureCopyEvidence(
+                client,
+                root,
+                request.fileId,
+                destination.destinationPageId,
+                pairs.map((pair) => pair.targetFrameId),
+                `${prefix}/target-${randomUUID()}`,
+                options.redact,
+                {
+                  ...evidenceProgress,
+                  phase: "verify",
+                },
+              );
+              verification = compareCopyEvidence(payload.sources, targets, pairs);
+            }
+            const pixelDifferences = await measureFramePixelDifferences(
+              root,
+              payload.sources,
+              targets,
+              pairs,
+            );
+            if (!verification.pixelsMatch) {
+              const tolerated = new Set(
+                (pixelDifferences ?? [])
+                  .filter((entry) => entry.withinTolerance)
+                  .map((entry) => entry.sourceFrameId),
+              );
+              const pixelProblem = "Exported pixels differ for ";
+              const pixelProblems = verification.problems.filter((problem) =>
+                problem.startsWith(pixelProblem),
+              );
+              const onlyTolerated =
+                pixelProblems.length > 0 &&
+                pixelProblems.every((problem) => tolerated.has(problem.slice(pixelProblem.length)));
+              if (onlyTolerated) {
+                verification = {
+                  ...verification,
+                  pixelsMatch: true,
+                  problems: verification.problems.filter(
+                    (problem) => !problem.startsWith(pixelProblem),
+                  ),
+                };
+              }
+            }
             const originals = await captureCopyEvidence(
               client,
               root,
@@ -699,9 +759,10 @@ export async function copyReleaseBoards(
               {
                 ...evidenceProgress,
                 phase: "verify",
+                render: "none",
               },
             );
-            if (sourceEvidenceHash(originals) !== sourceEvidenceHash(payload.sources)) {
+            if (sourceStructureHash(originals) !== sourceStructureHash(payload.sources)) {
               throw new Error(
                 "Original boards changed during transfer; independent reconciliation is required",
               );
@@ -721,6 +782,18 @@ export async function copyReleaseBoards(
               nativeVerified: verification.nativeVerified,
               pixelsMatch: verification.pixelsMatch,
               problems: verification.problems,
+              ...(componentInstanceCount(payload.sources) > 0
+                ? {
+                    caveats: [
+                      `${componentInstanceCount(payload.sources)} component instances were verified by identity and every observed value; override bookkeeping (which properties count as overridden) is not observable.`,
+                    ],
+                  }
+                : {}),
+              ...(pixelDifferences?.length
+                ? {
+                    pixelDifferences,
+                  }
+                : {}),
             };
             const receipt = JSON.stringify(
               {
@@ -769,6 +842,9 @@ export async function abandonCopyRun(
   root: string,
   runId: string,
   reason: string,
+  options: {
+    destinationInspected?: boolean;
+  } = {},
 ): Promise<{
   runId: string;
   abandonedAt: string;
@@ -788,9 +864,9 @@ export async function abandonCopyRun(
   if (journal.operation !== operation) {
     throw new Error("Only a design-release copy run can be abandoned here");
   }
-  if (dispatched) {
+  if (dispatched && !options.destinationInspected) {
     throw new Error(
-      "A paste was dispatched for this run; inspect the destination and use --resume instead of abandoning",
+      "A paste was dispatched for this run; inspect the destination and use --resume, or abandon with --destination-inspected once you have checked what was pasted",
     );
   }
   const updated = await markJournalAbandoned(root, runId, reason);

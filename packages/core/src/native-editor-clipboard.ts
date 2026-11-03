@@ -243,6 +243,7 @@ export async function connectNativeClipboard(
   let release: (() => Promise<void>) | undefined;
   let socket: ClipboardSocket | undefined;
   let closed = false;
+  let focusEmulated = false;
   let active = false;
   let copied = false;
   let copiedDigest: string | undefined;
@@ -312,6 +313,18 @@ export async function connectNativeClipboard(
     closed = true;
     clearTimeout(timer);
     signal.removeEventListener("abort", aborted);
+    if (focusEmulated && socket?.readyState === 1) {
+      // Best effort: the protocol connection is about to close and the emulation ends with it.
+      socket.send(
+        JSON.stringify({
+          id: ++nextId,
+          method: "Emulation.setFocusEmulationEnabled",
+          params: {
+            enabled: false,
+          },
+        }),
+      );
+    }
     fail();
     socket?.removeEventListener("message", message);
     socket?.removeEventListener("close", fail);
@@ -556,6 +569,12 @@ export async function connectNativeClipboard(
     // bringToFront returns before the window manager grants focus; reads fail until it does.
     const bringEditorToFront = async (): Promise<Record<string, unknown> | undefined> => {
       await send("Page.bringToFront");
+      // The browser withholds clipboard access from a window that is not the active application; emulated focus
+      // keeps it working while the person uses another app. It is switched off again when the session closes.
+      await send("Emulation.setFocusEmulationEnabled", {
+        enabled: true,
+      });
+      focusEmulated = true;
       let state = await evaluate(focusExpression);
       for (let attempt = 0; attempt < 10 && state?.focused !== true; attempt++) {
         signal.throwIfAborted();

@@ -9,7 +9,7 @@ import type { DesignCommandContext } from "./context.js";
 const copyUsage =
   "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--resume RUN_ID] [--progress human|json|off]\n" +
   "design-release copy --diagnose --debug-port PORT\n" +
-  "design-release copy --abandon RUN_ID --reason TEXT";
+  "design-release copy --abandon RUN_ID --reason TEXT [--destination-inspected]";
 
 function boundedText(value: string | undefined): value is string {
   return (
@@ -50,6 +50,9 @@ export async function runDesignReleaseCopyCommand(
       context.root,
       values.abandon,
       context.redact(values.reason),
+      {
+        destinationInspected: values["destination-inspected"] === true,
+      },
     );
     context.output.result(abandoned);
     context.output.log(JSON.stringify(abandoned, null, 2));

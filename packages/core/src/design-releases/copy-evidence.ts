@@ -1,15 +1,30 @@
 import type { PenpotToolClient } from "../client.js";
 import type { InspectionCapture } from "../inspection.js";
-import { exportShapePng, type ExportResult } from "../export.js";
+import { exportShapePng, exportShapesPngStable, type ExportResult } from "../export.js";
+import { selectPage } from "../page-session.js";
 import { observationHash } from "../journal.js";
 import { saveArtifact } from "./artifact-paths.js";
 import { captureReleaseScreen } from "./live.js";
-import { compareNativeCopy, decodedPixels, deriveNodeMap } from "./fidelity.js";
+import {
+  compareNativeCopy,
+  decodedPixels,
+  deriveNodeMap,
+  measurePixelDifference,
+  type PixelDifference,
+} from "./fidelity.js";
+import { readFile } from "node:fs/promises";
+import { artifactPath } from "./artifact-paths.js";
 import type { ReleaseArtifactRef } from "./types.js";
 import { capturePhase, type ProgressOptions } from "../capture-progress.js";
 
 interface CopyEvidenceProgressOptions extends ProgressOptions {
   phase?: "prepare" | "verify";
+  /**
+   * stable: two identical renders (the settled reference, default).
+   * single: one render, for readbacks compared against a stable reference.
+   * none: structure only, for proving an original did not change.
+   */
+  render?: "stable" | "single" | "none";
 }
 
 export interface CopyFrameEvidence {
@@ -37,6 +52,12 @@ export interface CopyEvidenceComparison {
   problems: string[];
 }
 
+const structureOnlyPixels = {
+  hash: "",
+  width: 0,
+  height: 0,
+};
+
 interface OrderedNode {
   path: string;
   node: Record<string, unknown>;
@@ -61,6 +82,17 @@ export async function captureCopyEvidence(
   ) {
     throw new Error("Copy evidence needs one to 100 distinct frame IDs");
   }
+
+  // Concurrent renders are about three times faster; any frame that does not settle falls back to the one-by-one export below.
+  const batchRendered =
+    (options.render ?? "stable") === "stable" && frameIds.length > 1
+      ? await capturePhase(options, "design-release copy", options.phase ?? "prepare", async () => {
+          await selectPage(client, {
+            id: pageId,
+          });
+          return exportShapesPngStable(client, frameIds);
+        })
+      : new Map<string, ExportResult>();
 
   const evidence: CopyFrameEvidence[] = [];
   for (const [index, frameId] of frameIds.entries()) {
@@ -93,12 +125,14 @@ export async function captureCopyEvidence(
           pageId,
           frameId,
           progress,
+          options.render ?? "stable",
+          batchRendered.get(frameId),
         );
         const first = orderedNodes(inspection, frameId)[0]!.node;
         if (typeof first.name !== "string") {
           throw new Error("Copy frame name was not observed");
         }
-        const pixels = await decodedPixels(image.png);
+        const pixels = image ? await decodedPixels(image.png) : structureOnlyPixels;
         const stem = `${prefix}/frame-${index}`;
         const inspectionRef = await saveArtifact(
           root,
@@ -106,7 +140,9 @@ export async function captureCopyEvidence(
           JSON.stringify(inspection),
           redact,
         );
-        const render = await saveArtifact(root, `${stem}.png`, image.png, redact);
+        const render = image
+          ? await saveArtifact(root, `${stem}.png`, image.png, redact)
+          : inspectionRef;
         frameName = first.name;
         return {
           frameId,
@@ -131,9 +167,11 @@ async function captureFramePair(
   pageId: string,
   frameId: string,
   options: ProgressOptions,
+  render: "stable" | "single" | "none",
+  prerendered?: ExportResult,
 ): Promise<{
   inspection: InspectionCapture;
-  image: ExportResult;
+  image?: ExportResult;
 }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const inspection = await capturePhase(
@@ -143,9 +181,26 @@ async function captureFramePair(
       () => captureReleaseScreen(client, fileId, pageId, frameId),
       frameId,
     );
+    if (render === "none") {
+      return {
+        inspection,
+      };
+    }
+    if (
+      prerendered &&
+      prerendered.capture.fileId === fileId &&
+      prerendered.capture.pageId === pageId &&
+      prerendered.capture.frameId === frameId &&
+      prerendered.capture.revision === inspection.revision
+    ) {
+      return {
+        inspection,
+        image: prerendered,
+      };
+    }
     const frameName = orderedNodes(inspection, frameId)[0]?.node.name;
     const image = await exportShapePng(client, frameId, {
-      stable: true,
+      stable: render === "stable",
       ...(options.signal
         ? {
             signal: options.signal,
@@ -163,7 +218,7 @@ async function captureFramePair(
         : {}),
     });
     if (
-      !image.stable ||
+      (render === "stable" && !image.stable) ||
       image.capture.fileId !== fileId ||
       image.capture.pageId !== pageId ||
       image.capture.frameId !== frameId
@@ -423,6 +478,19 @@ export function compareCopyEvidence(
   };
 }
 
+/** Structure-only proof that an original is unchanged; used when its pixels were not re-rendered. */
+export function sourceStructureHash(evidence: CopyFrameEvidence[]): string {
+  return observationHash(
+    evidence.map((frame) => ({
+      frameId: frame.frameId,
+      name: frame.name,
+      fileId: frame.inspection.fileId,
+      pageId: frame.inspection.pageId,
+      nodes: frame.inspection.nodes,
+    })),
+  );
+}
+
 /** A source preservation hash excludes capture revisions, timestamps and transport metrics. */
 export function sourceEvidenceHash(evidence: CopyFrameEvidence[]): string {
   return observationHash(
@@ -435,4 +503,71 @@ export function sourceEvidenceHash(evidence: CopyFrameEvidence[]): string {
       pixels: frame.pixels,
     })),
   );
+}
+
+/**
+ * Pasted vector shapes can differ from the original by a few anti-aliased pixels with no visible change.
+ * A frame within these bounds counts as matching; the measured difference is always reported.
+ */
+export const pixelTolerance = {
+  maxDifferingFraction: 0.0005,
+  maxChannelDelta: 16,
+} as const;
+
+export interface FramePixelDifference extends PixelDifference {
+  sourceFrameId: string;
+  targetFrameId: string;
+  withinTolerance: boolean;
+}
+
+/** Measures every pair whose pixel hashes differ; identical frames need no measurement. */
+export async function measureFramePixelDifferences(
+  root: string,
+  sources: CopyFrameEvidence[],
+  targets: CopyFrameEvidence[],
+  pairs: CopiedFramePair[],
+): Promise<FramePixelDifference[]> {
+  const measured: FramePixelDifference[] = [];
+  for (const pair of pairs) {
+    const source = sources.find((item) => item.frameId === pair.sourceFrameId);
+    const target = targets.find((item) => item.frameId === pair.targetFrameId);
+    if (!source || !target || source.pixels.hash === target.pixels.hash) {
+      continue;
+    }
+    if (
+      source.pixels.width !== target.pixels.width ||
+      source.pixels.height !== target.pixels.height
+    ) {
+      continue;
+    }
+    const [first, second] = await Promise.all([
+      readFile(await artifactPath(root, source.render.path)),
+      readFile(await artifactPath(root, target.render.path)),
+    ]);
+    const difference = await measurePixelDifference(first, second);
+    measured.push({
+      sourceFrameId: pair.sourceFrameId,
+      targetFrameId: pair.targetFrameId,
+      ...difference,
+      withinTolerance:
+        difference.differingPixels / difference.totalPixels <=
+          pixelTolerance.maxDifferingFraction &&
+        difference.maxChannelDelta <= pixelTolerance.maxChannelDelta,
+    });
+  }
+  return measured;
+}
+
+/** Component instances are verified by identity and observed values; override bookkeeping stays unobservable, and the result says so. */
+export function componentInstanceCount(evidence: CopyFrameEvidence[]): number {
+  let count = 0;
+  for (const frame of evidence) {
+    for (const node of frame.inspection.nodes as unknown as Record<string, unknown>[]) {
+      const component = node.component as Record<string, unknown> | undefined;
+      if (component?.isComponentInstance === true) {
+        count++;
+      }
+    }
+  }
+  return count;
 }

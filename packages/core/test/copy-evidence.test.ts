@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InspectionCapture } from "../src/inspection.js";
 import type { PenpotToolClient } from "../src/client.js";
 import * as live from "../src/design-releases/live.js";
@@ -397,6 +397,51 @@ it("retains pixel evidence but never claims unobservable component override fide
     },
   });
   expect(result.problems.join(" ")).toContain("override fidelity");
+});
+
+describe("component instances with observable identity", () => {
+  const instance = (refShape: string) => ({
+    isComponentInstance: true,
+    isComponentCopyInstance: true,
+    isComponentMainInstance: false,
+    isComponentRoot: false,
+    source: {
+      id: "component-1",
+      libraryId: "library-1",
+    },
+    componentRefShape: refShape,
+  });
+  const compare = (targetRef: string) => {
+    const source = evidence("a");
+    const target = evidence("b", "Screen", 0, 1000);
+    source.inspection.nodes![1]!.component = instance("main-shape");
+    target.inspection.nodes![1]!.component = instance(targetRef);
+    return compareCopyEvidence(
+      [
+        source,
+      ],
+      [
+        target,
+      ],
+      matchCopiedFrames(
+        [
+          source,
+        ],
+        [
+          target,
+        ],
+      ),
+    );
+  };
+
+  it("verifies a copy that keeps the same component identity", () => {
+    expect(compare("main-shape").nativeVerified).toBe(true);
+  });
+
+  it("rejects a copy whose instance points at a different main shape", () => {
+    const result = compare("another-shape");
+    expect(result.nativeVerified).toBe(false);
+  });
 });
 
 it("checks descendant names even when pixels and semantic observations match", () => {

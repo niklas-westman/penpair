@@ -147,6 +147,9 @@ export const copyOptions = {
   reason: {
     type: "string",
   },
+  "destination-inspected": {
+    type: "boolean",
+  },
   diagnose: {
     type: "boolean",
   },
