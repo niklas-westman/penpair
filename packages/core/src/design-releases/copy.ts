@@ -25,6 +25,7 @@ import { artifactPath, saveArtifact } from "./artifact-paths.js";
 import { captureReleaseScreen } from "./live.js";
 import {
   captureCopyEvidence,
+  inspectConcurrently,
   matchCopiedFrames,
   compareCopyEvidence,
   componentInstanceCount,
@@ -313,13 +314,21 @@ export async function copyReleaseBoards(
     const baseline = payload.preview;
     let pinnedDestinationId = baseline.destinationPageId;
     const readSource = async (): Promise<void> => {
+      const inspectedAhead = await inspectConcurrently(
+        client,
+        request.fileId,
+        baseline.sourcePageId,
+        payload.sources.map((source) => source.frameId),
+      );
       for (const source of payload.sources) {
-        const observed = await captureReleaseScreen(
-          client,
-          request.fileId,
-          baseline.sourcePageId,
-          source.frameId,
-        );
+        const observed =
+          inspectedAhead.get(source.frameId) ??
+          (await captureReleaseScreen(
+            client,
+            request.fileId,
+            baseline.sourcePageId,
+            source.frameId,
+          ));
         if (observationHash(observed.nodes) !== observationHash(source.inspection.nodes)) {
           throw new Error(
             "Source board content changed; retain the run and make a new reviewed plan",

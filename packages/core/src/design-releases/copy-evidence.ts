@@ -1,7 +1,7 @@
 import type { PenpotToolClient } from "../client.js";
 import type { InspectionCapture } from "../inspection.js";
 import { exportShapePng, exportShapesPngStable, type ExportResult } from "../export.js";
-import { selectPage } from "../page-session.js";
+import { selectPage, withPageSession } from "../page-session.js";
 import { observationHash } from "../journal.js";
 import { saveArtifact } from "./artifact-paths.js";
 import { captureReleaseScreen } from "./live.js";
@@ -93,6 +93,9 @@ export async function captureCopyEvidence(
         })
       : new Map<string, ExportResult>();
 
+  // Plugin calls run concurrently, so shapes are read four at a time instead of one by one.
+  const inspectedAhead = await inspectConcurrently(client, fileId, pageId, frameIds);
+
   const evidence: CopyFrameEvidence[] = [];
   for (const [index, frameId] of frameIds.entries()) {
     let frameName = frameId;
@@ -126,6 +129,7 @@ export async function captureCopyEvidence(
           progress,
           options.render ?? "stable",
           batchRendered.get(frameId),
+          inspectedAhead.get(frameId),
         );
         const first = orderedNodes(inspection, frameId)[0]!.node;
         if (typeof first.name !== "string") {
@@ -168,18 +172,22 @@ async function captureFramePair(
   options: ProgressOptions,
   render: "stable" | "none",
   prerendered?: ExportResult,
+  inspectedAhead?: InspectionCapture,
 ): Promise<{
   inspection: InspectionCapture;
   image?: ExportResult;
 }> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const inspection = await capturePhase(
-      options,
-      "design-release copy",
-      "selection",
-      () => captureReleaseScreen(client, fileId, pageId, frameId),
-      frameId,
-    );
+    const inspection =
+      attempt === 0 && inspectedAhead
+        ? inspectedAhead
+        : await capturePhase(
+            options,
+            "design-release copy",
+            "selection",
+            () => captureReleaseScreen(client, fileId, pageId, frameId),
+            frameId,
+          );
     if (render === "none") {
       return {
         inspection,
@@ -189,13 +197,28 @@ async function captureFramePair(
       prerendered &&
       prerendered.capture.fileId === fileId &&
       prerendered.capture.pageId === pageId &&
-      prerendered.capture.frameId === frameId &&
-      prerendered.capture.revision === inspection.revision
+      prerendered.capture.frameId === frameId
     ) {
-      return {
-        inspection,
-        image: prerendered,
-      };
+      if (prerendered.capture.revision === inspection.revision) {
+        return {
+          inspection,
+          image: prerendered,
+        };
+      }
+      // Penpot saves in the background and moves the revision without changing content; unchanged structure keeps the render valid.
+      const again = await captureReleaseScreen(client, fileId, pageId, frameId);
+      if (observationHash(again.nodes) === observationHash(inspection.nodes)) {
+        return {
+          inspection,
+          image: prerendered,
+        };
+      }
+      if (process.env.PENPAIR_TRACE_EXPORT) {
+        console.error(`export-trace ${frameId} structure changed after the batch render`);
+      }
+    }
+    if (process.env.PENPAIR_TRACE_EXPORT && !prerendered) {
+      console.error(`export-trace ${frameId} no batch render; exporting one by one`);
     }
     const frameName = orderedNodes(inspection, frameId)[0]?.node.name;
     const image = await exportShapePng(client, frameId, {
@@ -569,4 +592,41 @@ export function componentInstanceCount(evidence: CopyFrameEvidence[]): number {
     }
   }
   return count;
+}
+
+const inspectionConcurrency = 4;
+
+/** A frame whose concurrent read failed is simply read again by the sequential path, so errors are not lost. */
+export async function inspectConcurrently(
+  client: PenpotToolClient,
+  fileId: string,
+  pageId: string,
+  frameIds: string[],
+): Promise<Map<string, InspectionCapture>> {
+  const inspected = new Map<string, InspectionCapture>();
+  if (frameIds.length < 2) {
+    return inspected;
+  }
+  await withPageSession(client, async () => {
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      while (next < frameIds.length) {
+        const frameId = frameIds[next++]!;
+        try {
+          inspected.set(frameId, await captureReleaseScreen(client, fileId, pageId, frameId));
+        } catch {
+          /* The sequential pass reads this frame again and reports any real failure. */
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        {
+          length: inspectionConcurrency,
+        },
+        worker,
+      ),
+    );
+  });
+  return inspected;
 }

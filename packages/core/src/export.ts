@@ -164,6 +164,13 @@ return { ok: true, items: await Promise.all(CFG.ids.map(one)) };`,
     "read",
   );
 
+/** Opt-in explanation of why a shape fell back to the slower one-by-one export. */
+function traceExport(message: string): void {
+  if (process.env.PENPAIR_TRACE_EXPORT) {
+    console.error(`export-trace ${message}`);
+  }
+}
+
 function isInterruption(error: unknown): boolean {
   return (
     commandSignal()?.aborted === true || (error instanceof Error && error.name === "AbortError")
@@ -174,12 +181,17 @@ async function exportBatchRound(
   client: PenpotToolClient,
   shapeIds: string[],
   scale: number,
-  concurrency: number,
+  limit: {
+    concurrency: number;
+  },
   options: ExportOptions,
 ): Promise<Map<string, ReturnType<typeof parseExportRecord>>> {
   const rendered = new Map<string, ReturnType<typeof parseExportRecord>>();
-  for (let start = 0; start < shapeIds.length; start += concurrency) {
-    const chunk = shapeIds.slice(start, start + concurrency);
+  const queue = [
+    ...shapeIds,
+  ];
+  while (queue.length) {
+    const chunk = queue.splice(0, limit.concurrency);
     let record: Record<string, unknown>;
     try {
       record = await runOnPage(
@@ -189,9 +201,14 @@ async function exportBatchRound(
         options,
       );
     } catch (error) {
-      // A failed concurrent call only loses speed: its shapes are rendered one by one by the caller.
       if (isInterruption(error)) {
         throw error;
+      }
+      // Penpot refuses answers of a few megabytes ("http error"), so large frames need smaller groups. Halve and ask again;
+      // a shape that fails alone is rendered one by one by the caller.
+      if (chunk.length > 1) {
+        limit.concurrency = Math.max(1, Math.floor(chunk.length / 2));
+        queue.unshift(...chunk);
       }
       continue;
     }
@@ -222,7 +239,7 @@ export async function exportShapesPngStable(
     concurrency?: number;
   } = {},
 ): Promise<Map<string, ExportResult>> {
-  const { scale = 1, concurrency = 4, sleep = defaultSleep } = options;
+  const { scale = 1, concurrency = 6, sleep = defaultSleep } = options;
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8 || !shapeIds.length) {
     throw new Error("Invalid batch export limits");
   }
@@ -243,17 +260,31 @@ export async function exportShapesPngStable(
       if (layout.stable) {
         layouts.set(shapeId, layout);
         ready.push(shapeId);
+      } else {
+        traceExport(`${shapeId} layout not settled: ${layout.reason ?? "unknown"}`);
       }
     }
-    const first = await exportBatchRound(client, ready, scale, concurrency, options);
+    const limit = {
+      concurrency,
+    };
+    const first = await exportBatchRound(client, ready, scale, limit, options);
     await sleep(2_000);
-    const second = await exportBatchRound(client, ready, scale, concurrency, options);
-    const identity = ({ designSize: _size, ...value }: CaptureIdentity) => JSON.stringify(value);
+    const second = await exportBatchRound(client, ready, scale, limit, options);
+    // The revision can move between the rounds (Penpot saves in the background); identical bytes are what prove stability.
+    const identity = ({ designSize: _size, revision: _revision, ...value }: CaptureIdentity) =>
+      JSON.stringify(value);
     const hash = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
     const stable = new Map<string, ExportResult>();
     for (const shapeId of ready) {
       const before = first.get(shapeId);
       const after = second.get(shapeId);
+      if (!before || !after) {
+        traceExport(`${shapeId} missing render in round ${before ? 2 : 1}`);
+      } else if (identity(before.capture) !== identity(after.capture)) {
+        traceExport(`${shapeId} capture identity changed between rounds`);
+      } else if (hash(before.png) !== hash(after.png)) {
+        traceExport(`${shapeId} renders differ between rounds`);
+      }
       if (
         before &&
         after &&
