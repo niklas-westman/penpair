@@ -150,7 +150,7 @@ const one = async (id) => {
   const geometry = JSON.stringify([s.x,s.y,s.width,s.height]);
   const bytes = await s.export({ type: "png", scale: CFG.scale });
   const afterShape = penpot.currentPage.getShapeById(id);
-  if (penpot.currentFile.id !== capture.fileId || penpot.currentPage.id !== capture.pageId || penpot.currentFile.revn !== capture.revision || !afterShape || JSON.stringify([afterShape.x,afterShape.y,afterShape.width,afterShape.height]) !== geometry)
+  if (penpot.currentFile.id !== capture.fileId || penpot.currentPage.id !== capture.pageId || !afterShape || JSON.stringify([afterShape.x,afterShape.y,afterShape.width,afterShape.height]) !== geometry)
     return { id, ok: false, message: "Export source changed during capture" };
   let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
   return { id, ok: true, base64: btoa(bin), length: bytes.length, capture };
