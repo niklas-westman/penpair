@@ -135,6 +135,9 @@ were not.
 | `File revision changed during step inspection` or `Inspection cursor is stale` | The file revision moved while a long capture was running (autosave, another person or tab). | The revision is stable when idle. Wait a minute and `--resume` again. |
 | `Command deadline exceeded` during verification | Verifying about 14 heavy frames takes more than 9 minutes. | Pass a larger `--timeout-ms` (maximum 1800000). Resume never pastes again. |
 | `Another writer is running design-release-copy` after a cancelled run | The shared writer marker in the file lasts 15 minutes. 0.10.1 releases it on cancel; earlier versions left it. | Wait for it to expire, or coordinate and use `--force-lock` only if nobody else is writing. |
+| `Native fidelity ...: Native board sizing / constraints / Mask / path content / Component override ... unobservable`, or `Native copy changed text, hierarchy, layout, geometry ...` on a copy that looks identical | Strict checks written before Penpot's real values were known: boards report `fill`, shapes inside groups or auto layouts report null constraints, sizes carry float noise (`1193.9999999999995`), moved paths carry float32 noise (`246.00009`). All handled in 0.10.1. | Upgrade. If a new value still blocks a real copy, compare `source/frame-N.json` and the newest `target-*/frame-N.json` under `.penpair/native-copy/RUN_ID/` offline with `semanticInspection`; it names the field. |
+| `status: incomplete` with only `Exported pixels differ` | Pasted vectors can differ by a few anti-aliased pixels. A frame within 0.05 % of its pixels and 16 per channel counts as matching; `pixelDifferences` in the receipt lists every measured frame. | Look at the listed counts. Larger differences are real. |
+| `export: http error` on a many-frame render, or a very slow verification | Penpot refuses answers of a few megabytes, and a heavy page renders about 5 s per frame. 0.10.1 renders and inspects concurrently, halves a group that is refused, and shows why a frame fell back with `PENPAIR_TRACE_EXPORT=1`. | Nothing to do; use the trace if a run is slower than about 30 s per 4 frames. |
 | `Copy run ... already covers this transfer or requires reconciliation` | An earlier journal for the same file did not verify, or the same request already completed. | A run that never pasted no longer blocks (0.10.1). Otherwise `--resume` it, or `--abandon RUN_ID --reason TEXT` if no paste was dispatched. Never move `.penpair/runs/*.json` by hand. |
 
 How the cause was found, for the next problem like this: add observation before
@@ -161,7 +164,10 @@ penpair design-release copy --abandon RUN_ID --reason "why it was dropped"
 ```
 
 Abandon refuses a run whose paste was dispatched; reconcile that one with
-`--resume`.
+`--resume`, or, once you have inspected what was pasted, close it with
+`--abandon RUN_ID --reason TEXT --destination-inspected`. A new engine version
+cannot resume an older run (its plan hash differs), so this is also the way to
+close runs left over from an upgrade.
 
 The transfer receipt is not the receipt-list schema consumed by
 `design-release verify --receipts`. Do not rename it to `release.json` or pass it
