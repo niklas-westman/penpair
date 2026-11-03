@@ -1,3 +1,4 @@
+import { withCleanupDeadline } from "./command-result.js";
 import { createHash, randomUUID } from "node:crypto";
 import { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -590,7 +591,8 @@ export async function runJournaledSteps<T>(
     if (lease) {
       trace("lease-release-start");
       try {
-        await lease.release();
+        // A cancelled or timed-out command must still free the shared writer marker, or the next run is locked out until it expires.
+        await withCleanupDeadline(() => lease!.release());
         trace("lease-released");
       } catch (error) {
         trace("lease-release-failed");

@@ -81,6 +81,10 @@ interface CopyPayload {
 }
 
 const operation = "design-release-copy";
+const pasteSettlePolls = 25 + 300;
+function isEditorBusy(error: unknown): boolean {
+  return error instanceof Error && /timed out/i.test(error.message);
+}
 
 async function observedDestination(
   client: PenpotToolClient,
@@ -567,13 +571,20 @@ export async function copyReleaseBoards(
           );
           attempted = true;
           await clipboard.paste(value.destinationPageId);
-          for (let poll = 0; poll < 25; poll++) {
-            if (inventoryComplete(await targetPreview())) {
-              return {
-                dispatched: true,
-              };
+          // A large paste keeps the editor busy for minutes; a read that times out then says nothing about the paste, so keep asking.
+          for (let poll = 0; poll < pasteSettlePolls; poll++) {
+            try {
+              if (inventoryComplete(await targetPreview())) {
+                return {
+                  dispatched: true,
+                };
+              }
+            } catch (error) {
+              if (!isEditorBusy(error)) {
+                throw error;
+              }
             }
-            await (options.sleep ?? commandSleep)(200);
+            await (options.sleep ?? commandSleep)(poll < 25 ? 200 : 2000);
           }
           throw new Error(
             "Paste acknowledgment did not establish new boards; reconcile without replay",

@@ -120,6 +120,28 @@ paste-attempt fence prevents blind replay after an uncertain paste. Changed
 inputs, changed originals or an ambiguous destination require explicit
 reconciliation; neither resume nor browser activation promises rollback.
 
+### Symptoms, causes and fixes
+
+Learned on Penpot 2.18/2.19 (design.penpot.app), November 2026. Find the row that matches
+the message before retrying; most of these looked like permission or timeout problems and
+were not.
+
+| You see | Actual cause | What to do |
+| --- | --- | --- |
+| `This operation was aborted`, or `Native clipboard session deadline of N ms exceeded`, with the clipboard already holding `copied-shapes` | Penpot 2.18+ wraps each copied shape in a Transit `~#shape` tag and an older validator rejected the payload forever. Fixed in 0.10.1. | Upgrade. To confirm on any version run with `--diagnose`: polls reporting `validated:false` with `head` starting `{"~:type":"~:copied-shapes"` mean the copy worked and the validator is wrong. |
+| `Browser clipboard read permission is required` | Permission can be fine. A read also fails with `NotAllowedError: Document is not focused` when the tab has no OS focus. | `--diagnose` prints `clipboardRead` (permission) and `read.errorMessage` (focus) separately. Bring the tab forward; the tool now waits 0.5 s for focus. |
+| `The editor tab lost focus while waiting` | Focus was taken during the copy. | Keep the window in front until the copy finishes, then run again. |
+| `MCP error -32001: Request timed out` after the paste | A paste of many heavy boards keeps the editor busy longer than the 120 s request limit. The paste itself usually succeeded. | Do not paste again. Check the destination page, then `--resume RUN_ID --apply` with the original inputs. 0.10.1 waits this out by itself. |
+| `File revision changed during step inspection` or `Inspection cursor is stale` | The file revision moved while a long capture was running (autosave, another person or tab). | The revision is stable when idle. Wait a minute and `--resume` again. |
+| `Command deadline exceeded` during verification | Verifying about 14 heavy frames takes more than 9 minutes. | Pass a larger `--timeout-ms` (maximum 1800000). Resume never pastes again. |
+| `Another writer is running design-release-copy` after a cancelled run | The shared writer marker in the file lasts 15 minutes. 0.10.1 releases it on cancel; earlier versions left it. | Wait for it to expire, or coordinate and use `--force-lock` only if nobody else is writing. |
+| `Copy run ... already covers this transfer or requires reconciliation` | An earlier journal for the same file did not verify, or the same request already completed. | A run that never pasted no longer blocks (0.10.1). Otherwise `--resume` it, or `--abandon RUN_ID --reason TEXT` if no paste was dispatched. Never move `.penpair/runs/*.json` by hand. |
+
+How the cause was found, for the next problem like this: add observation before
+theorising. A timestamped trace of every poll (length, first bytes, error name and
+message) separated four hypotheses in one run, and the answer was none of the four.
+Read the real clipboard payload, then read the validator that rejected it.
+
 ### Diagnosing and abandoning
 
 When a copy fails or stalls, look before retrying:
