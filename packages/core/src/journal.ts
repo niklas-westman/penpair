@@ -44,6 +44,8 @@ export interface JournalStep<T> {
   initial?: T;
   /** The `before` observation is taken right before this step runs instead of at planning (earlier steps change what it sees). */
   deferredBefore?: boolean;
+  /** Inspecting shows pages, which can bump the revision once; such a read is repeated (up to 3 times) instead of counting as a conflict. */
+  repeatInspectionOnRevisionChange?: boolean;
   inspect(): Promise<T>;
   apply(current: T, target: JournalTarget): Promise<unknown>;
   verify(current: T, before: T, result?: unknown): boolean;
@@ -492,15 +494,23 @@ export async function runJournaledSteps<T>(
       const saved = record.steps[index]!;
       await lease?.check();
       trace("lease-check", index);
-      const beforeInspection = await assertTarget();
-      trace("inspection-start", index, beforeInspection);
-      const current = await step.inspect();
-      trace("inspection-end", index);
-      const afterInspection = await assertTarget();
-      if (beforeInspection.revision !== afterInspection.revision) {
-        record.state = "conflict";
-        throw new Error("File revision changed during step inspection");
+      let current: T | undefined;
+      let settledTarget: JournalTarget | undefined;
+      for (let attempt = 1; current === undefined; attempt++) {
+        const beforeInspection = await assertTarget();
+        trace("inspection-start", index, beforeInspection);
+        const observed = await step.inspect();
+        trace("inspection-end", index);
+        const afterInspection = await assertTarget();
+        if (beforeInspection.revision === afterInspection.revision) {
+          current = observed;
+          settledTarget = afterInspection;
+        } else if (!step.repeatInspectionOnRevisionChange || attempt >= 3) {
+          record.state = "conflict";
+          throw new Error("File revision changed during step inspection");
+        }
       }
+      const afterInspection = settledTarget!;
       if (saved.state === "completed") {
         if (!step.verify(current, saved.before as T, saved.result)) {
           record.state = "conflict";

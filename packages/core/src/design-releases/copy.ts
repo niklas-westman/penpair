@@ -474,6 +474,7 @@ export async function copyReleaseBoards(
       return value;
     };
     const pageStep: JournalStep<CopyPreview> = {
+      repeatInspectionOnRevisionChange: true,
       key: "page",
       label: "Prepare the release destination page",
       signature: nativeCopyCreatePage(request.fileId, request.releaseVersion, runId).code,
@@ -507,6 +508,7 @@ export async function copyReleaseBoards(
             : "pending",
     };
     const pasteStep: JournalStep<CopyPreview> = {
+      repeatInspectionOnRevisionChange: true,
       key: "paste",
       label: "Copy selected native boards and paste once",
       signature: "native-clipboard-batch-v1-no-replay",
@@ -615,6 +617,7 @@ export async function copyReleaseBoards(
             : "pending",
     };
     const arrangeStep: JournalStep<CopyPreview> = {
+      repeatInspectionOnRevisionChange: true,
       key: "arrange",
       label: "Identify and arrange only the new native copies",
       signature: "native-copy-arrange-v1",
@@ -683,7 +686,7 @@ export async function copyReleaseBoards(
             ) {
               return false;
             }
-            let targets = await captureCopyEvidence(
+            const targets = await captureCopyEvidence(
               client,
               root,
               request.fileId,
@@ -694,7 +697,6 @@ export async function copyReleaseBoards(
               {
                 ...evidenceProgress,
                 phase: "verify",
-                render: "single",
               },
             );
             const verifiedPairs = matchCopiedFrames(payload.sources, targets);
@@ -702,23 +704,6 @@ export async function copyReleaseBoards(
               throw new Error("Copied identities changed before final readback");
             }
             let verification = compareCopyEvidence(payload.sources, targets, pairs);
-            if (!verification.pixelsMatch) {
-              // One unsettled render can differ from the stable reference; confirm with the full stable capture before reporting a difference.
-              targets = await captureCopyEvidence(
-                client,
-                root,
-                request.fileId,
-                destination.destinationPageId,
-                pairs.map((pair) => pair.targetFrameId),
-                `${prefix}/target-${randomUUID()}`,
-                options.redact,
-                {
-                  ...evidenceProgress,
-                  phase: "verify",
-                },
-              );
-              verification = compareCopyEvidence(payload.sources, targets, pairs);
-            }
             const pixelDifferences = await measureFramePixelDifferences(
               root,
               payload.sources,

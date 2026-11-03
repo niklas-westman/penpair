@@ -21,10 +21,9 @@ interface CopyEvidenceProgressOptions extends ProgressOptions {
   phase?: "prepare" | "verify";
   /**
    * stable: two identical renders (the settled reference, default).
-   * single: one render, for readbacks compared against a stable reference.
    * none: structure only, for proving an original did not change.
    */
-  render?: "stable" | "single" | "none";
+  render?: "stable" | "none";
 }
 
 export interface CopyFrameEvidence {
@@ -167,7 +166,7 @@ async function captureFramePair(
   pageId: string,
   frameId: string,
   options: ProgressOptions,
-  render: "stable" | "single" | "none",
+  render: "stable" | "none",
   prerendered?: ExportResult,
 ): Promise<{
   inspection: InspectionCapture;
@@ -200,7 +199,7 @@ async function captureFramePair(
     }
     const frameName = orderedNodes(inspection, frameId)[0]?.node.name;
     const image = await exportShapePng(client, frameId, {
-      stable: render === "stable",
+      stable: true,
       ...(options.signal
         ? {
             signal: options.signal,
@@ -218,7 +217,7 @@ async function captureFramePair(
         : {}),
     });
     if (
-      (render === "stable" && !image.stable) ||
+      !image.stable ||
       image.capture.fileId !== fileId ||
       image.capture.pageId !== pageId ||
       image.capture.frameId !== frameId

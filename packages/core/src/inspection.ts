@@ -207,6 +207,12 @@ if (CFG.kind === "shape") {
         row.layout.showInViewMode = s.type === "board" ? read(s,"showInViewMode",unknowns,"layout.showInViewMode") : null;
         row.layout.boardSizing = s.type === "board" ? Object.fromEntries(["horizontalSizing","verticalSizing"].map(key=>[key,optional(s,key,unknowns,"layout.boardSizing."+key)])) : null;
       }
+      if (s.type === "path") {
+        try { const d = typeof s.toD === "function" ? s.toD() : s.content; if (typeof d !== "string" || !d) throw new Error(); row.content = d; } catch { row.content = null; unknowns.push("content"); }
+      }
+      if (s.type === "group") {
+        try { const masked = typeof s.isMask === "function" ? s.isMask() : s.isMask; if (typeof masked !== "boolean") throw new Error(); row.maskedGroup = masked; } catch { row.maskedGroup = null; unknowns.push("maskedGroup"); }
+      }
       if (CFG.fields.includes("tokens")) row.tokens = read(s,"tokens",unknowns);
       if (CFG.fields.includes("style")) {
         row.style = pick(s,["fills","strokes","shadows","opacity","blendMode","borderRadiusTopLeft","borderRadiusTopRight","borderRadiusBottomRight","borderRadiusBottomLeft"],unknowns,"style");

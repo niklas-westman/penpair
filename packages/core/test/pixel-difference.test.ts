@@ -60,3 +60,27 @@ describe("measurePixelDifference", () => {
     await expect(measurePixelDifference(small, await solid(200))).rejects.toThrow(/dimensions/);
   });
 });
+
+describe("relativePathContent", () => {
+  it("ignores the board position and float32 noise but not a changed shape", async () => {
+    const { relativePathContent } = await import("../src/design-releases/fidelity.js");
+    const original = relativePathContent("M2257,437L2261,441L2265,437", 2251, 400);
+    const moved = relativePathContent(
+      "M246.00009155273438,1043L250.00009155273438,1047L254.00009155273438,1043",
+      240,
+      1006,
+    );
+    expect(moved.commands).toBe(original.commands);
+    moved.numbers.forEach((value, index) => {
+      expect(Math.abs(value - original.numbers[index]!)).toBeLessThan(0.001);
+    });
+    const changed = relativePathContent("M2257,437L2261,445L2265,437", 2251, 400);
+    expect(changed.numbers).not.toEqual(original.numbers);
+  });
+
+  it("refuses content it cannot compare", async () => {
+    const { relativePathContent } = await import("../src/design-releases/fidelity.js");
+    expect(() => relativePathContent("m1,1l2,2", 0, 0)).toThrow(/cannot be compared/);
+    expect(() => relativePathContent(undefined, 0, 0)).toThrow(/unobservable/);
+  });
+});
