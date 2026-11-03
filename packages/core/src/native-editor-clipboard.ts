@@ -9,6 +9,8 @@ import { nativeClipboardPayloadMatches } from "./clipboard-payload.js";
 export interface NativeClipboard {
   copy(expectedPageId: string, expectedFrameIds: string[]): Promise<void>;
   paste(expectedPageId: string): Promise<void>;
+  /** Read-only report of what the browser tab would allow; never copies, pastes or writes. */
+  diagnose?(): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
@@ -445,13 +447,7 @@ export async function connectNativeClipboard(
       }
       active = true;
       try {
-        await send("Page.bringToFront");
-        const state = await evaluate(focusExpression);
-        trace("focus-state", {
-          kind,
-          ...state,
-          href: undefined,
-        });
+        const state = await bringEditorToFront();
         if (
           !state ||
           !targetMatches(state.href, options, expectedPageId) ||
@@ -557,7 +553,58 @@ export async function connectNativeClipboard(
         active = false;
       }
     };
+    // bringToFront returns before the window manager grants focus; reads fail until it does.
+    const bringEditorToFront = async (): Promise<Record<string, unknown> | undefined> => {
+      await send("Page.bringToFront");
+      let state = await evaluate(focusExpression);
+      for (let attempt = 0; attempt < 10 && state?.focused !== true; attempt++) {
+        signal.throwIfAborted();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        state = await evaluate(focusExpression);
+      }
+      trace("focus-after-front", {
+        ...state,
+        href: undefined,
+      });
+      return state;
+    };
+    const diagnose = async (): Promise<Record<string, unknown>> => {
+      const before = await evaluate(focusExpression);
+      trace("focus-before-front", {
+        ...before,
+        href: undefined,
+      });
+      await bringEditorToFront();
+      const report = await evaluate(`(async function diagnoseNativeClipboard() {
+        const permission = async (name) => {
+          try { return (await navigator.permissions.query({name})).state; }
+          catch (error) { return "unsupported: " + String(error && error.message); }
+        };
+        const read = async () => {
+          try {
+            const text = await navigator.clipboard.readText();
+            return {readable:true,length:text.length,copiedShapes:text.includes("copied-shapes")};
+          } catch (error) { return {readable:false,errorName:String(error&&error.name),errorMessage:String(error&&error.message)}; }
+        };
+        return {
+          focused: document.hasFocus(),
+          visibility: document.visibilityState,
+          activeElement: document.activeElement ? document.activeElement.tagName : null,
+          platform: navigator.platform,
+          clipboardRead: await permission("clipboard-read"),
+          clipboardWrite: await permission("clipboard-write"),
+          read: await read()
+        };
+      })()`);
+      return {
+        focusedBeforeBringToFront: before?.focused,
+        canvasPresent: before?.canvas,
+        safeToShortcut: before?.safe,
+        afterBringToFront: report,
+      };
+    };
     return {
+      diagnose,
       copy: (expectedPageId, expectedFrameIds) =>
         shortcut("copy", expectedPageId, expectedFrameIds),
       paste: (expectedPageId) => shortcut("paste", expectedPageId),

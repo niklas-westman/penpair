@@ -2,7 +2,13 @@ import { mkdtemp, readFile, stat, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { listJournals, readJournal, runJournaledSteps, type JournalStep } from "../src/journal.js";
+import {
+  listJournals,
+  markJournalAbandoned,
+  readJournal,
+  runJournaledSteps,
+  type JournalStep,
+} from "../src/journal.js";
 
 const folder = (): Promise<string> => mkdtemp(path.join(os.tmpdir(), "penpair-journal-"));
 function batch(
@@ -332,4 +338,53 @@ it("persists redacted lease/revision traces without weakening external-edit refu
       ),
     ),
   ).toBe(true);
+});
+
+it("records an abandoned run with its reason and refuses to abandon a verified one", async () => {
+  const root = await folder();
+  const options = {
+    root,
+    operation: "abandon-test",
+    input: {},
+    target: async () => ({
+      fileId: "file",
+    }),
+  };
+  const step = (applied: boolean): JournalStep<boolean> => ({
+    key: "only",
+    label: "only",
+    signature: "only-v1",
+    initial: false,
+    inspect: async () => false,
+    apply: async () => {
+      if (!applied) {
+        throw new Error("boom");
+      }
+    },
+    verify: () => applied,
+    reconcile: () => "pending",
+  });
+  await runJournaledSteps(
+    [
+      step(false),
+    ],
+    {
+      ...options,
+      runId: "stuck-run",
+    },
+  ).catch(() => undefined);
+  const abandoned = await markJournalAbandoned(root, "stuck-run", "browser tab lost focus");
+  expect(abandoned.state).toBe("failed");
+  expect(abandoned.error).toBe("Abandoned: browser tab lost focus");
+  expect((await readJournal(root, "stuck-run")).abandoned?.reason).toBe("browser tab lost focus");
+  await runJournaledSteps(
+    [
+      step(true),
+    ],
+    {
+      ...options,
+      runId: "done-run",
+    },
+  );
+  await expect(markJournalAbandoned(root, "done-run", "nope")).rejects.toThrow(/verified/);
 });

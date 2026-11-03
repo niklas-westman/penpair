@@ -22,6 +22,8 @@ export const commandData = [
     usages: [
       "penpair design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
       "penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply]",
+      "penpair design-release copy --diagnose --debug-port PORT",
+      "penpair design-release copy --abandon RUN_ID --reason TEXT",
     ],
   },
   {

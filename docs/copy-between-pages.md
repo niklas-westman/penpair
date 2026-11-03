@@ -120,6 +120,27 @@ paste-attempt fence prevents blind replay after an uncertain paste. Changed
 inputs, changed originals or an ambiguous destination require explicit
 reconciliation; neither resume nor browser activation promises rollback.
 
+### Diagnosing and abandoning
+
+When a copy fails or stalls, look before retrying:
+
+```sh
+# Read-only: tab focus, clipboard permission and readability. Changes nothing.
+penpair design-release copy --diagnose --debug-port 9222
+# With --apply, adds a timestamped trace of every clipboard stage on stderr.
+penpair design-release copy ... --debug-port 9222 --apply --diagnose
+```
+
+A run that failed before any paste (no paste-attempt fence) never changed the
+destination and no longer blocks the next copy. To close it on the record:
+
+```sh
+penpair design-release copy --abandon RUN_ID --reason "why it was dropped"
+```
+
+Abandon refuses a run whose paste was dispatched; reconcile that one with
+`--resume`.
+
 The transfer receipt is not the receipt-list schema consumed by
 `design-release verify --receipts`. Do not rename it to `release.json` or pass it
 as an approved release. Full release plans, maps, source evidence, native-copy

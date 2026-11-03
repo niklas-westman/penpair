@@ -85,6 +85,11 @@ export interface OperationJournal {
   trace?: JournalTraceEvent[];
   checkpoint?: unknown;
   error?: string;
+  /** Set by an explicit owner decision to stop recovering this run; the reason stays on record. */
+  abandoned?: {
+    reason: string;
+    at: string;
+  };
   steps: {
     key: string;
     label: string;
@@ -205,6 +210,35 @@ export async function readJournal(root: string, runId: string): Promise<Operatio
     throw new Error("Operation journal is invalid or uses an unsupported schema");
   }
   return record;
+}
+/** Records that a run is deliberately dropped; callers must first prove it never wrote to the design. */
+export async function markJournalAbandoned(
+  root: string,
+  runId: string,
+  reason: string,
+): Promise<OperationJournal> {
+  const record = await readJournal(root, runId);
+  if (record.state === "verified") {
+    throw new Error("A verified run is a finished transfer and cannot be abandoned");
+  }
+  const directory = await folder(root, false);
+  const updated: OperationJournal = {
+    ...record,
+    state: "failed",
+    error: `Abandoned: ${reason}`,
+    abandoned: {
+      reason,
+      at: new Date().toISOString(),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  const temporary = path.join(directory, `.${runId}-${randomUUID()}.tmp`);
+  await writeFile(temporary, `${JSON.stringify(updated, null, 2)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await rename(temporary, path.join(directory, `${runId}.json`));
+  return updated;
 }
 export async function listJournals(
   root: string,

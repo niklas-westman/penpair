@@ -9,6 +9,7 @@ import {
   runJournaledSteps,
   readJournalTarget,
   readJournal,
+  markJournalAbandoned,
   listJournals,
   observationHash,
   JournalRunError,
@@ -750,4 +751,41 @@ export async function copyReleaseBoards(
     }
     return finalResult;
   });
+}
+
+/** Drops a copy run only when no paste was ever dispatched; otherwise the destination needs reconciliation, not abandonment. */
+export async function abandonCopyRun(
+  root: string,
+  runId: string,
+  reason: string,
+): Promise<{
+  runId: string;
+  abandonedAt: string;
+  reason: string;
+}> {
+  const fence = await artifactPath(root, `.penpair/native-copy/${runId}/paste-attempt.json`, true);
+  const dispatched = await lstat(fence).then(
+    () => true,
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return false;
+      }
+      throw error;
+    },
+  );
+  const journal = await readJournal(root, runId);
+  if (journal.operation !== operation) {
+    throw new Error("Only a design-release copy run can be abandoned here");
+  }
+  if (dispatched) {
+    throw new Error(
+      "A paste was dispatched for this run; inspect the destination and use --resume instead of abandoning",
+    );
+  }
+  const updated = await markJournalAbandoned(root, runId, reason);
+  return {
+    runId,
+    abandonedAt: updated.abandoned!.at,
+    reason,
+  };
 }
