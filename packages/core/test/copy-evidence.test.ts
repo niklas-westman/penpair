@@ -11,7 +11,9 @@ import {
   captureCopyEvidence,
   compareCopyEvidence,
   matchCopiedFrames,
+  pixelMismatchedPairs,
   sourceEvidenceHash,
+  withSettledPixels,
   type CopyFrameEvidence,
 } from "../src/design-releases/copy-evidence.js";
 
@@ -101,6 +103,95 @@ it("streams frame preparation while source capture is pending, then names the co
     elapsedMs: 5000,
   });
   expect(vi.getTimerCount()).toBe(0);
+});
+
+describe("single-render pixel verification", () => {
+  const pairs = [
+    {
+      sourceFrameId: "a",
+      targetFrameId: "copied-a",
+    },
+    {
+      sourceFrameId: "b",
+      targetFrameId: "copied-b",
+    },
+  ];
+  const withPixels = (frame: CopyFrameEvidence, hash: string): CopyFrameEvidence => ({
+    ...frame,
+    pixels: {
+      ...frame.pixels,
+      hash,
+    },
+  });
+
+  it("sends only a pair with a deliberate pixel difference to the settled render", () => {
+    const sources = [
+      withPixels(evidence("a"), "same"),
+      withPixels(evidence("b"), "before"),
+    ];
+    const targets = [
+      withPixels(evidence("copied-a"), "same"),
+      withPixels(evidence("copied-b"), "after"),
+    ];
+    expect(pixelMismatchedPairs(sources, targets, pairs, [])).toEqual([
+      pairs[1],
+    ]);
+  });
+
+  it("does not re-render a pair whose difference was measured within tolerance", () => {
+    const sources = [
+      withPixels(evidence("a"), "before"),
+    ];
+    const targets = [
+      withPixels(evidence("copied-a"), "after"),
+    ];
+    const difference = {
+      sourceFrameId: "a",
+      targetFrameId: "copied-a",
+      differingPixels: 3,
+      totalPixels: 1000000,
+      maxChannelDelta: 4,
+      withinTolerance: true,
+    };
+    expect(
+      pixelMismatchedPairs(
+        sources,
+        targets,
+        [
+          pairs[0]!,
+        ],
+        [
+          difference,
+        ],
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes the settled render of a frame only when its structure is unchanged", () => {
+    const original = evidence("a");
+    const settled = withPixels(evidence("a"), "settled");
+    expect(
+      withSettledPixels(
+        [
+          original,
+        ],
+        [
+          settled,
+        ],
+      )[0]!.pixels.hash,
+    ).toBe("settled");
+    const moved = withPixels(evidence("a", "Screen", 5, 5), "settled");
+    expect(() =>
+      withSettledPixels(
+        [
+          original,
+        ],
+        [
+          moved,
+        ],
+      ),
+    ).toThrow("changed while its render was being settled");
+  });
 });
 
 function evidence(id: string, name = "Screen", x = 0, y = 0): CopyFrameEvidence {

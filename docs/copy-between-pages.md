@@ -81,11 +81,13 @@ Missing, stale, unrelated or changed clipboard data prevents paste rather than
 reusing whatever was previously on the clipboard. Clearing the clipboard can
 therefore replace its contents even when the transfer subsequently stops.
 
-The command captures source inspections and stable exports, prepares the
+The command captures source inspections and one render per frame, prepares the
 same-file destination, fences one native paste attempt, identifies the new
 boards and arranges only those copies. Independent readback checks the copied
 boards and the unchanged originals. It records structural findings and decoded
-pixel comparisons. Review the saved source/target exports visually as part of
+pixel comparisons. A pair whose single renders differ beyond the tolerance is
+rendered again with two identical renders on both sides; the result's `render`
+field lists which pairs needed that. Review the saved source/target exports visually as part of
 acceptance; a technical result does not supply human approval.
 
 ## Results and recovery

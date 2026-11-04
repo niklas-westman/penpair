@@ -30,6 +30,8 @@ import {
   compareCopyEvidence,
   componentInstanceCount,
   measureFramePixelDifferences,
+  pixelMismatchedPairs,
+  withSettledPixels,
   type FramePixelDifference,
   sourceEvidenceHash,
   sourceStructureHash,
@@ -78,6 +80,11 @@ export interface CopyResult {
   problems: string[];
   /** Frames whose pixels were not bit-identical, with the measured difference and whether it is within tolerance. */
   pixelDifferences?: FramePixelDifference[];
+  /** How the pixels were proven: one render per side, or a settled double render for pairs that differed. */
+  render?: {
+    singleRender: number;
+    settledRerender: string[];
+  };
   /** What verification could not observe; present when the boards contain component instances. */
   caveats?: string[];
 }
@@ -293,6 +300,7 @@ export async function copyReleaseBoards(
         {
           ...evidenceProgress,
           phase: "prepare",
+          render: "single",
         },
       );
       payload = {
@@ -706,19 +714,65 @@ export async function copyReleaseBoards(
               {
                 ...evidenceProgress,
                 phase: "verify",
+                render: "single",
               },
             );
             const verifiedPairs = matchCopiedFrames(payload.sources, targets);
             if (observationHash(verifiedPairs) !== observationHash(pairs)) {
               throw new Error("Copied identities changed before final readback");
             }
-            let verification = compareCopyEvidence(payload.sources, targets, pairs);
-            const pixelDifferences = await measureFramePixelDifferences(
+            let comparedSources = payload.sources;
+            let comparedTargets = targets;
+            let pixelDifferences = await measureFramePixelDifferences(
               root,
-              payload.sources,
-              targets,
+              comparedSources,
+              comparedTargets,
               pairs,
             );
+            // One render per side is enough when the pair matches; only a pair that differs pays for the settled, double render.
+            const unmatched = pixelMismatchedPairs(
+              comparedSources,
+              comparedTargets,
+              pairs,
+              pixelDifferences,
+            );
+            if (unmatched.length) {
+              const settledSources = await captureCopyEvidence(
+                client,
+                root,
+                request.fileId,
+                baseline.sourcePageId,
+                unmatched.map((pair) => pair.sourceFrameId),
+                `${prefix}/source-settled-${randomUUID()}`,
+                options.redact,
+                {
+                  ...evidenceProgress,
+                  phase: "verify",
+                },
+              );
+              const settledTargets = await captureCopyEvidence(
+                client,
+                root,
+                request.fileId,
+                destination.destinationPageId,
+                unmatched.map((pair) => pair.targetFrameId),
+                `${prefix}/target-settled-${randomUUID()}`,
+                options.redact,
+                {
+                  ...evidenceProgress,
+                  phase: "verify",
+                },
+              );
+              comparedSources = withSettledPixels(comparedSources, settledSources);
+              comparedTargets = withSettledPixels(comparedTargets, settledTargets);
+              pixelDifferences = await measureFramePixelDifferences(
+                root,
+                comparedSources,
+                comparedTargets,
+                pairs,
+              );
+            }
+            let verification = compareCopyEvidence(comparedSources, comparedTargets, pairs);
             if (!verification.pixelsMatch) {
               const tolerated = new Set(
                 (pixelDifferences ?? [])
@@ -783,6 +837,10 @@ export async function copyReleaseBoards(
                     ],
                   }
                 : {}),
+              render: {
+                singleRender: pairs.length - unmatched.length,
+                settledRerender: unmatched.map((pair) => pair.sourceFrameId),
+              },
               ...(pixelDifferences?.length
                 ? {
                     pixelDifferences,

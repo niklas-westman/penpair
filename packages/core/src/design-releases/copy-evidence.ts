@@ -21,9 +21,10 @@ interface CopyEvidenceProgressOptions extends ProgressOptions {
   phase?: "prepare" | "verify";
   /**
    * stable: two identical renders (the settled reference, default).
+   * single: one render; the caller compares both sides and re-renders only the pairs that differ.
    * none: structure only, for proving an original did not change.
    */
-  render?: "stable" | "none";
+  render?: "stable" | "single" | "none";
 }
 
 export interface CopyFrameEvidence {
@@ -84,12 +85,14 @@ export async function captureCopyEvidence(
 
   // Concurrent renders are about three times faster; any frame that does not settle falls back to the one-by-one export below.
   const batchRendered =
-    (options.render ?? "stable") === "stable" && frameIds.length > 1
+    (options.render ?? "stable") !== "none" && frameIds.length > 1
       ? await capturePhase(options, "design-release copy", options.phase ?? "prepare", async () => {
           await selectPage(client, {
             id: pageId,
           });
-          return exportShapesPngStable(client, frameIds);
+          return exportShapesPngStable(client, frameIds, {
+            singleRound: options.render === "single",
+          });
         })
       : new Map<string, ExportResult>();
 
@@ -170,7 +173,7 @@ async function captureFramePair(
   pageId: string,
   frameId: string,
   options: ProgressOptions,
-  render: "stable" | "none",
+  render: "stable" | "single" | "none",
   prerendered?: ExportResult,
   inspectedAhead?: InspectionCapture,
 ): Promise<{
@@ -498,6 +501,51 @@ export function compareCopyEvidence(
     nodeMap,
     problems,
   };
+}
+
+/** Pairs whose renders differ beyond the tolerance; only these pay for a settled, double render. */
+export function pixelMismatchedPairs(
+  sources: CopyFrameEvidence[],
+  targets: CopyFrameEvidence[],
+  pairs: CopiedFramePair[],
+  differences: FramePixelDifference[],
+): CopiedFramePair[] {
+  const tolerated = new Set(
+    differences.filter((entry) => entry.withinTolerance).map((entry) => entry.sourceFrameId),
+  );
+  return pairs.filter((pair) => {
+    const source = sources.find((item) => item.frameId === pair.sourceFrameId);
+    const target = targets.find((item) => item.frameId === pair.targetFrameId);
+    if (!source || !target) {
+      return false;
+    }
+    const identical =
+      source.pixels.hash === target.pixels.hash &&
+      source.pixels.width === target.pixels.width &&
+      source.pixels.height === target.pixels.height;
+    return !identical && !tolerated.has(pair.sourceFrameId);
+  });
+}
+
+/** Swap in the settled render of a frame, provided the structure observed with it is the structure already on record. */
+export function withSettledPixels(
+  evidence: CopyFrameEvidence[],
+  settled: CopyFrameEvidence[],
+): CopyFrameEvidence[] {
+  return evidence.map((frame) => {
+    const replacement = settled.find((item) => item.frameId === frame.frameId);
+    if (!replacement) {
+      return frame;
+    }
+    if (observationHash(replacement.inspection.nodes) !== observationHash(frame.inspection.nodes)) {
+      throw new Error(`Frame ${frame.frameId} changed while its render was being settled`);
+    }
+    return {
+      ...frame,
+      render: replacement.render,
+      pixels: replacement.pixels,
+    };
+  });
 }
 
 /** Structure-only proof that an original is unchanged; used when its pixels were not re-rendered. */

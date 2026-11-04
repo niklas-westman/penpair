@@ -178,8 +178,12 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
   screen list; a `finalized` pointer without `"final"` status or the reverse; a
   changed target owner key or name; duplicate screen, receipt or map ids; or
   pixel hashes that differ between the frozen render and the two exports.
-- **Every export demands a stable frame.** All export calls pass
-  `stable: true`; a first export after a write or a page switch can be stale.
+- **Release exports demand a stable frame; native copy settles on demand.**
+  The release commands pass `stable: true`; a first export after a write or a
+  page switch can be stale. `design-release copy` renders each frame once per
+  side and compares them; only a pair that differs beyond the pixel tolerance is
+  re-rendered with the stable double render on both sides, and the result's
+  `render` field says which pairs took which route.
 - **Membership lineage is cryptographically bound.** A v2 release with a `base`
   pointer must name the exact finalized bundle (`membership.ts`); the resolved
   member list must match the hash of the inherited membership after applying

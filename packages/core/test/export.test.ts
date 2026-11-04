@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
-import { exportShapePng } from "../src/export.js";
+import { exportShapePng, exportShapesPngStable } from "../src/export.js";
 
 const png = (text: string) => Buffer.from(text).toString("base64");
 const reply = (result: unknown) => ({
@@ -171,6 +171,107 @@ describe("exporting a shape", () => {
     expect(result).toMatchObject({
       stable: false,
       exports: 1,
+    });
+  });
+});
+
+describe("batch export of several shapes", () => {
+  function batching(): PenpotToolClient & {
+    rounds: number;
+  } {
+    let rounds = 0;
+    return {
+      get rounds() {
+        return rounds;
+      },
+      async callTool(_name, args) {
+        if (!String(args.code).includes("CFG.ids.map")) {
+          return reply({
+            ok: true,
+            fileId: "file",
+            pageId: "page",
+          });
+        }
+        rounds++;
+        const ids = (
+          JSON.parse(JSON.stringify(args)) as {
+            code: string;
+          }
+        ).code.match(/"ids":\s*\[([^\]]*)\]/);
+        const shapeIds = ids
+          ? (JSON.parse(`[${ids[1]}]`) as string[])
+          : [
+              "a",
+              "b",
+            ];
+        return reply({
+          ok: true,
+          items: shapeIds.map((id) => ({
+            id,
+            ok: true,
+            base64: png(`render-${id}`),
+            length: `render-${id}`.length,
+            capture: {
+              fileId: "file",
+              pageId: "page",
+              frameId: id,
+              revision: 1,
+              scale: 1,
+              penpotApiVersion: "test",
+              renderEnvironment: null,
+              activeThemes: [],
+            },
+          })),
+        });
+      },
+      async close() {},
+    };
+  }
+
+  it("renders once and marks the result unstable when a single round is asked for", async () => {
+    const client = batching();
+    const rendered = await exportShapesPngStable(
+      client,
+      [
+        "a",
+        "b",
+      ],
+      {
+        ...fast,
+        layout: false,
+        singleRound: true,
+      },
+    );
+    expect(client.rounds).toBe(1);
+    expect([
+      ...rendered.keys(),
+    ]).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(rendered.get("a")).toMatchObject({
+      stable: false,
+      exports: 1,
+    });
+  });
+
+  it("renders twice and proves stability by default", async () => {
+    const client = batching();
+    const rendered = await exportShapesPngStable(
+      client,
+      [
+        "a",
+        "b",
+      ],
+      {
+        ...fast,
+        layout: false,
+      },
+    );
+    expect(client.rounds).toBe(2);
+    expect(rendered.get("b")).toMatchObject({
+      stable: true,
+      exports: 2,
     });
   });
 });

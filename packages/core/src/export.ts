@@ -237,9 +237,11 @@ export async function exportShapesPngStable(
   shapeIds: string[],
   options: ExportOptions & {
     concurrency?: number;
+    /** One round only: results are marked unstable, and the caller must re-render any pair that does not match. */
+    singleRound?: boolean;
   } = {},
 ): Promise<Map<string, ExportResult>> {
-  const { scale = 1, concurrency = 6, sleep = defaultSleep } = options;
+  const { scale = 1, concurrency = 6, sleep = defaultSleep, singleRound = false } = options;
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8 || !shapeIds.length) {
     throw new Error("Invalid batch export limits");
   }
@@ -268,6 +270,23 @@ export async function exportShapesPngStable(
       concurrency,
     };
     const first = await exportBatchRound(client, ready, scale, limit, options);
+    if (singleRound) {
+      const single = new Map<string, ExportResult>();
+      for (const shapeId of ready) {
+        const render = first.get(shapeId);
+        if (render) {
+          single.set(shapeId, {
+            layout: layouts.get(shapeId),
+            ...render,
+            stable: false,
+            exports: 1,
+          });
+        } else {
+          traceExport(`${shapeId} missing render in the single round`);
+        }
+      }
+      return single;
+    }
     await sleep(2_000);
     const second = await exportBatchRound(client, ready, scale, limit, options);
     // The revision can move between the rounds (Penpot saves in the background); identical bytes are what prove stability.
