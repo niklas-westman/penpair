@@ -188,6 +188,12 @@ while the editor is busy).
   screen list; a `finalized` pointer without `"final"` status or the reverse; a
   changed target owner key or name; duplicate screen, receipt or map ids; or
   pixel hashes that differ between the frozen render and the two exports.
+- **An unfinished copy blocks later copies, with one exception.** A journal of
+  `design-release-copy` that dispatched a paste and is not verified blocks every
+  later copy in the file, so an uncertain paste is never answered by another. The
+  exception is a run whose steps all completed and whose receipt says
+  `"incomplete"`: what it wrote is known, so it blocks only a repeat of its own
+  transfer (same request hash), which would paste into the same page again.
 - **Release verification stays stricter than copying.** `verifyRelease` and
   `checkRelease` block component instances (override state is not observable
   through the plugin); only `copyReleaseBoards` may compare them by identity

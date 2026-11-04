@@ -14,6 +14,7 @@ import {
   observationHash,
   JournalRunError,
   type JournalStep,
+  type OperationJournal,
 } from "../journal.js";
 import { withPageSession, selectPage, rememberPage } from "../page-session.js";
 import { runSnippet } from "../snippet.js";
@@ -288,6 +289,32 @@ export async function copyReleaseBoards(
         throw error;
       }
     };
+    // Every step finished and only the final comparison failed: what was written is known exactly, nothing is uncertain.
+    const finishedIncomplete = async (journal: OperationJournal): Promise<boolean> => {
+      if (
+        journal.state !== "failed" ||
+        !journal.steps.length ||
+        journal.steps.some((step) => step.state !== "completed")
+      ) {
+        return false;
+      }
+      try {
+        const receipt = JSON.parse(
+          (
+            await readProjectBytes(
+              root,
+              `.penpair/native-copy/${journal.runId}/receipt.json`,
+              16 * 1024 * 1024,
+            )
+          ).toString("utf8"),
+        ) as {
+          status?: unknown;
+        };
+        return receipt.status === "incomplete";
+      } catch {
+        return false;
+      }
+    };
     const assertNoConflictingRuns = async (): Promise<void> => {
       const records = await listJournals(root);
       for (const previous of records.filter(
@@ -304,11 +331,14 @@ export async function copyReleaseBoards(
           continue;
         }
         const payload = record.payload as CopyPayload | undefined;
-        if (
-          previous.state !== "verified" ||
-          (payload?.kind === "native-release-copy-plan" &&
-            copyRequestHash(payload.request) === copyRequestHash(request))
-        ) {
+        const sameTransfer =
+          payload?.kind === "native-release-copy-plan" &&
+          copyRequestHash(payload.request) === copyRequestHash(request);
+        // A finished but unverified run blocks only a repeat of its own transfer, which would paste into the same page again.
+        if (!sameTransfer && (await finishedIncomplete(record))) {
+          continue;
+        }
+        if (previous.state !== "verified" || sameTransfer) {
           throw new Error(
             `Copy run ${previous.runId} already covers this transfer or requires reconciliation. Resume it with --resume ${previous.runId} --apply, or, once you have looked at its destination page, drop it with --abandon ${previous.runId} --reason TEXT --destination-inspected`,
           );

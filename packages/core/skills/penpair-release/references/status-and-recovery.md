@@ -33,7 +33,7 @@ fact the result or the journal states; none of it approves a release.
 | `alreadyCopied: { runId }` | This exact transfer was verified earlier and is still in place; nothing was pasted. Report it as already done. |
 | `status: "copied"` with `layoutRecomputed` | Every difference was a size or position under an auto-layout board, which Penpot recomputed while pasting; the source holds stale sizes. Report the boards listed, and that their pixels were not compared with the source. Suggest refreshing the source's layout; do not treat it as a failure. |
 | `status: "incomplete"` with `problems` such as `width differs` | A real difference, including a size or position that no auto-layout board explains. Read the named shape and attribute; do not retry the paste. |
-| `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and did not verify. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. |
+| `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and was not left in a known state, or it is a repeat of a transfer whose run ended `incomplete`. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. A run whose every step finished and only the final comparison failed does not block a different transfer. |
 | Anything stuck or unclear before a paste | `penpair design-release copy --diagnose --debug-port PORT` reads tab focus and clipboard state and changes nothing. |
 
 Hosts without a terminal use the MCP tools: `design_release_copy` for the copy and

@@ -699,6 +699,106 @@ describe("native copy orchestration with real operation journals", () => {
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
   });
 
+  describe("a run whose every step finished but whose final comparison failed", () => {
+    const failedComparison = {
+      nativeVerified: false,
+      pixelsMatch: true,
+      nodeMap: {},
+      problems: [
+        "native proof did not match",
+      ],
+    };
+    const passedComparison = {
+      nativeVerified: true,
+      pixelsMatch: true,
+      nodeMap: {},
+      problems: [],
+    };
+
+    it("does not block a different transfer in the same file", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      const first = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      expect(first.status).toBe("incomplete");
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(passedComparison);
+      const second = await copyReleaseBoards(
+        trial.client,
+        trial.root,
+        {
+          ...trial.request,
+          releaseVersion: "1.3.0",
+        },
+        {
+          ...trial.options,
+          runId: "other-transfer",
+        },
+      );
+      expect(second.status).toBe("copied");
+      expect(trial.clipboard.paste).toHaveBeenCalledTimes(2);
+    });
+
+    it("still blocks a repeat of its own transfer, which would paste into the same page again", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          runId: "repeat",
+        }),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("does not make an uncertain run harmless: it still blocks a different transfer", async () => {
+      const trial = await fixture();
+      trial.clipboard.paste.mockImplementation(async () => {
+        throw new Error("paste acknowledgment lost");
+      });
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, trial.options),
+      ).rejects.toThrow(/uncertain|paste/i);
+      await expect(
+        copyReleaseBoards(
+          trial.client,
+          trial.root,
+          {
+            ...trial.request,
+            releaseVersion: "1.3.0",
+          },
+          {
+            ...trial.options,
+            runId: "other-transfer",
+          },
+        ),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("needs the receipt: a failure after the steps without one still blocks", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      const { rm } = await import("node:fs/promises");
+      await rm(path.join(trial.root, ".penpair/native-copy/copy-run/receipt.json"));
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(passedComparison);
+      await expect(
+        copyReleaseBoards(
+          trial.client,
+          trial.root,
+          {
+            ...trial.request,
+            releaseVersion: "1.3.0",
+          },
+          {
+            ...trial.options,
+            runId: "other-transfer",
+          },
+        ),
+      ).rejects.toThrow(/already covers|reconcil/i);
+    });
+  });
+
   describe("abandoning a copy run", () => {
     const lostPaste = async () => {
       const trial = await fixture();
