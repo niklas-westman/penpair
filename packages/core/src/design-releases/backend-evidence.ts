@@ -5,7 +5,6 @@ import type { PenpotBackendClient } from "../penpot-backend.js";
 import { saveArtifact } from "./artifact-paths.js";
 import {
   compareBackendSubtrees,
-  layoutAttributes,
   subtreeSignature,
   type BackendObjects,
 } from "./backend-compare.js";
@@ -194,8 +193,15 @@ export function matchBackendFrames(
 }
 
 export interface BackendVerdict {
-  /** True when something differs and everything that differs is a size or a position, as after an automatic layout was recomputed. */
-  layoutOnly: boolean;
+  /**
+   * Boards whose sizes or positions differ because an automatic layout was recomputed while pasting. They are not problems,
+   * but a pixel comparison of those boards with their originals would legitimately differ.
+   */
+  layoutDriven: {
+    /** Source board ids. */
+    frames: string[];
+    shapes: number;
+  };
   nativeVerified: boolean;
   problems: string[];
   nodeMap: Record<string, string>;
@@ -210,7 +216,8 @@ export function verifyBackendPairs(
 ): BackendVerdict {
   const problems: string[] = [];
   const nodeMap: Record<string, string> = {};
-  const differing = new Set<string>();
+  const drivenFrames: string[] = [];
+  let drivenShapes = 0;
   let nodes = 0;
   for (const pair of pairs) {
     const comparison = compareBackendSubtrees(
@@ -220,8 +227,9 @@ export function verifyBackendPairs(
       pair.targetFrameId,
     );
     nodes += comparison.nodes;
-    for (const attribute of comparison.differingAttributes) {
-      differing.add(attribute);
+    if (comparison.layoutDriven.length) {
+      drivenFrames.push(pair.sourceFrameId);
+      drivenShapes += comparison.layoutDriven.length;
     }
     Object.assign(nodeMap, comparison.nodeMap);
     for (const problem of comparison.problems) {
@@ -229,11 +237,10 @@ export function verifyBackendPairs(
     }
   }
   return {
-    layoutOnly:
-      differing.size > 0 &&
-      [
-        ...differing,
-      ].every((name) => layoutAttributes.has(name)),
+    layoutDriven: {
+      frames: drivenFrames,
+      shapes: drivenShapes,
+    },
     nativeVerified: problems.length === 0,
     problems,
     nodeMap,

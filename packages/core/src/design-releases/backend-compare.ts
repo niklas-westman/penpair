@@ -9,12 +9,17 @@ export interface BackendComparison {
   nodeMap: Record<string, string>;
   nodes: number;
   problems: string[];
-  /** The attributes that differ, so a caller can tell a re-flowed layout from a changed design. */
+  /** The attributes that differ without an explanation, so a caller can tell what changed. */
   differingAttributes: string[];
+  /**
+   * Source shapes whose size or position differs and is explained by an automatic layout: Penpot recomputes those while
+   * pasting, so a source whose stored sizes are stale is copied with the recomputed ones. Not problems.
+   */
+  layoutDriven: string[];
 }
 
 /** Attributes that move when Penpot recomputes an automatic layout: sizes and positions, nothing about the design itself. */
-export const layoutAttributes: ReadonlySet<string> = new Set([
+const layoutAttributes: ReadonlySet<string> = new Set([
   "width",
   "height",
   "x",
@@ -170,8 +175,15 @@ function commandsOfPath(content: string): string {
   return (content.match(/[a-zA-Z]/g) ?? []).join("");
 }
 
+interface DeferredDifference {
+  message: string;
+  attribute: string;
+}
+
 interface Context {
   differing: Set<string>;
+  /** Size and position differences wait until the whole shape is compared, then count as layout-driven or as problems. */
+  deferred: DeferredDifference[];
   nodeMap: Record<string, string>;
   offset: Offset;
   problems: string[];
@@ -179,6 +191,13 @@ interface Context {
 }
 
 function report(context: Context, message: string, attribute = "structure"): void {
+  if (layoutAttributes.has(attribute) || attribute === "content") {
+    context.deferred.push({
+      message,
+      attribute,
+    });
+    return;
+  }
   context.differing.add(attribute);
   if (context.problems.length < problemLimit) {
     context.problems.push(`${context.path}: ${message}`);
@@ -304,6 +323,26 @@ function compareAttribute(
 }
 
 /**
+ * Whether a shape's size or position is decided by an automatic layout: it, or a board above it, lays out its children,
+ * or it is text that sizes itself to its content. A difference anywhere else is not something a layout explains.
+ */
+function layoutExplains(objects: BackendObjects, shape: BackendShape): boolean {
+  if (shape.type === "text" && /^auto/.test(String(shape.growType ?? ""))) {
+    return true;
+  }
+  for (
+    let current: BackendShape | undefined = shape, steps = 0;
+    current && steps < 200;
+    current = typeof current.parentId === "string" ? objects[current.parentId] : undefined, steps++
+  ) {
+    if (current.layout) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Compares a source subtree with its copy using only the backend's stored data: same topology, same names and types,
  * and every other attribute equal, positions as one shift and ids through the node map. This includes the component
  * references and override bookkeeping that the plugin cannot observe.
@@ -316,6 +355,7 @@ export function compareBackendSubtrees(
 ): BackendComparison {
   const problems: string[] = [];
   const differing = new Set<string>();
+  const layoutDriven: string[] = [];
   const nodeMap: Record<string, string> = {};
   const sourceIds = orderedIds(sourceObjects, originalRootId);
   const targetIds = orderedIds(targetObjects, targetRootId);
@@ -329,6 +369,7 @@ export function compareBackendSubtrees(
       differingAttributes: [
         "structure",
       ],
+      layoutDriven: [],
     };
   }
   for (const [index, sourceId] of sourceIds.entries()) {
@@ -340,6 +381,7 @@ export function compareBackendSubtrees(
     const target = targetObjects[nodeMap[sourceId]!]!;
     const context: Context = {
       differing: new Set<string>(),
+      deferred: [],
       nodeMap,
       offset,
       problems,
@@ -366,12 +408,25 @@ export function compareBackendSubtrees(
         compareAttribute(key, source, target, context);
       }
     }
-    // A path moves with its frame when a layout is recomputed; its drawing changing on its own is a design change.
-    if (
-      context.differing.has("content") &&
-      (context.differing.has("selrect") || context.differing.has("points"))
-    ) {
-      context.differing.delete("content");
+    // Sizes and positions are judged now that the whole shape is compared. A path moves with its frame when a layout is
+    // recomputed (its selrect or points move too); a drawing that changes on its own is a design change.
+    const moved = context.deferred.some(
+      (item) => item.attribute === "selrect" || item.attribute === "points",
+    );
+    const explained = context.deferred.length > 0 && layoutExplains(sourceObjects, source);
+    let drivenByLayout = false;
+    for (const item of context.deferred) {
+      if (explained && (item.attribute !== "content" || moved)) {
+        drivenByLayout = true;
+        continue;
+      }
+      context.differing.add(item.attribute);
+      if (problems.length < problemLimit) {
+        problems.push(`${context.path}: ${item.message}`);
+      }
+    }
+    if (drivenByLayout) {
+      layoutDriven.push(sourceId);
     }
     for (const attribute of context.differing) {
       differing.add(attribute);
@@ -384,5 +439,6 @@ export function compareBackendSubtrees(
     differingAttributes: [
       ...differing,
     ],
+    layoutDriven,
   };
 }

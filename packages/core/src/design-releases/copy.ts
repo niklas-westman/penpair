@@ -115,8 +115,16 @@ export interface CopyResult {
   alreadyCopied?: {
     runId: string;
   };
-  /** Said when the copy cannot be accepted as it is and the cause is understood, with what to do next. */
-  diagnosis?: string;
+  /**
+   * Backend route: boards whose sizes or positions Penpot recomputed while pasting, because every shape that differs sits
+   * under an automatic layout. Not a failure; it shows that the source holds sizes that no longer match its own layout.
+   */
+  layoutRecomputed?: {
+    /** Source board ids. */
+    frames: string[];
+    shapes: number;
+    note: string;
+  };
   /** Backend route only: how long the backend trailed the editor before it showed the pasted and the arranged boards. */
   backendWaitMs?: {
     paste: number;
@@ -128,6 +136,8 @@ export interface CopyResult {
     compared: string[];
     settled: string[];
     notCompared: number;
+    /** Boards left out because a recomputed layout makes them differ from their originals on purpose. */
+    notComparable: string[];
     differences: PixelFinding[];
   };
 }
@@ -142,8 +152,8 @@ interface CopyPayload {
 }
 
 const operation = "design-release-copy";
-const layoutRecomputedDiagnosis =
-  "Only sizes and positions differ. Penpot recomputes automatic layouts while pasting, so a source whose stored sizes no longer match its own layout is copied with the recomputed ones. Copy the copy to confirm it is stable, or refresh the source's layout in Penpot and copy again.";
+const layoutRecomputedNote =
+  "Penpot recomputes automatic layouts while pasting. In these boards the source holds sizes that no longer match its own layout, so the copy has the recomputed sizes and its render differs from the source's stored state on purpose. Every other attribute is identical. Refresh the source's layout in Penpot when convenient.";
 const pasteSettlePolls = 25 + 300;
 async function observedDestination(
   client: PenpotToolClient,
@@ -947,7 +957,11 @@ export async function copyReleaseBoards(
               }
               const verdict = verifyBackendPairs(original.objects, target.objects, pairs);
               const pixelMode = options.verifyPixels ?? "all";
-              const sampled = sampledPairs(pixelMode, pairs, backendSources);
+              // A board whose layout was recomputed differs from its original on purpose, so its pixels are not comparable.
+              const comparable = pairs.filter(
+                (pair) => !verdict.layoutDriven.frames.includes(pair.sourceFrameId),
+              );
+              const sampled = sampledPairs(pixelMode, comparable, backendSources);
               const pixelResult = await capturePhase(
                 evidenceProgress,
                 "design-release copy",
@@ -989,9 +1003,13 @@ export async function copyReleaseBoards(
                   ...pixelResult.problems,
                 ],
                 evidence: "backend",
-                ...(verdict.layoutOnly
+                ...(verdict.layoutDriven.shapes
                   ? {
-                      diagnosis: layoutRecomputedDiagnosis,
+                      layoutRecomputed: {
+                        frames: verdict.layoutDriven.frames,
+                        shapes: verdict.layoutDriven.shapes,
+                        note: layoutRecomputedNote,
+                      },
                     }
                   : {}),
                 backendWaitMs: {
@@ -1003,6 +1021,7 @@ export async function copyReleaseBoards(
                   compared: pixelResult.compared,
                   settled: pixelResult.settled,
                   notCompared: pairs.length - pixelResult.compared.length,
+                  notComparable: verdict.layoutDriven.frames,
                   differences: pixelResult.findings.filter(
                     (finding) => finding.acceptedAs !== "identical",
                   ),

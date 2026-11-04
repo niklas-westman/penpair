@@ -81,7 +81,7 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
   originals and the copies is read from the Penpot backend's stored data and
   compared there, and pixels are compared for every pair unless `options.verifyPixels` narrows it;
   without it the editor plugin is read instead. The result says which
-  (`evidence`), and may carry a `diagnosis` when the cause is understood.
+  (`evidence`), and may list `layoutRecomputed` boards.
 - `verifyRelease(client, root, release, inputs, options)` (`verify.ts`) — live
   native-structure and pixel-exact comparison of every screen against its copy;
   writes inspection and render evidence; moves the status to `"verified"`.
@@ -197,8 +197,11 @@ while the editor is busy).
   only when every attribute of every shape equals the original's (positions as
   one shift, ids through the node map, float noise tolerated), the originals'
   stored subtrees are unchanged, and the backend was seen to hold the pasted and
-  arranged boards before it was read. A difference that is only sizes and
-  positions is reported with a `diagnosis` and stays `"incomplete"`.
+  arranged boards before it was read. The one exception is explained, not
+  assumed: a size or position of a shape that sits under an auto-layout board (or of
+  self-sizing text) is Penpot recomputing the layout while pasting, is listed under
+  `layoutRecomputed`, and leaves that board out of the pixel comparison. The same
+  attribute anywhere else, or any other attribute, is a problem.
 - **Release exports demand a stable frame; native copy settles on demand.**
   The release commands pass `stable: true`; a first export after a write or a
   page switch can be stale. `design-release copy` renders each frame once per

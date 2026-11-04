@@ -31,8 +31,8 @@ fact the result or the journal states; none of it approves a release.
 | `status: "copied"`, `evidence: "backend"` | Structure was compared on Penpot's stored data and pixels as `pixels.mode` says. `pixels.notCompared` is what was not rendered. |
 | `evidence: "plugin"` with `caveats` | No access token: structure was read through the editor and component overrides were not compared. Say so when reporting. |
 | `alreadyCopied: { runId }` | This exact transfer was verified earlier and is still in place; nothing was pasted. Report it as already done. |
-| `status: "incomplete"` with a `diagnosis` | Only sizes and positions differ: Penpot recomputed an automatic layout while pasting. Look at the source's render and ask the owner; copying the copy confirms stability. Never accept silently. |
-| `status: "incomplete"` with other `problems` | A real difference. Read the named shape and attribute; do not retry the paste. |
+| `status: "copied"` with `layoutRecomputed` | Every difference was a size or position under an auto-layout board, which Penpot recomputed while pasting; the source holds stale sizes. Report the boards listed, and that their pixels were not compared with the source. Suggest refreshing the source's layout; do not treat it as a failure. |
+| `status: "incomplete"` with `problems` such as `width differs` | A real difference, including a size or position that no auto-layout board explains. Read the named shape and attribute; do not retry the paste. |
 | `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and did not verify. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. |
 | Anything stuck or unclear before a paste | `penpair design-release copy --diagnose --debug-port PORT` reads tab focus and clipboard state and changes nothing. |
 

@@ -7,7 +7,7 @@ import {
 import type { BackendShape } from "../src/penpot-backend.js";
 
 /** A board with a rectangle, a text, a path and a component instance, placed at (x, y); ids carry a prefix. */
-function board(prefix: string, x: number, y: number): BackendObjects {
+function board(prefix: string, x: number, y: number, layout = false): BackendObjects {
   const id = (name: string) => `${prefix}-${name}`.padEnd(36, "0").replace(/[^0-9a-f-]/g, "a");
   const root = id("board");
   const shape = (name: string, type: string, extra: Record<string, unknown>): BackendShape => ({
@@ -96,6 +96,11 @@ function board(prefix: string, x: number, y: number): BackendObjects {
     id: root,
     name: "Screen",
     type: "frame",
+    ...(layout
+      ? {
+          layout: "flex",
+        }
+      : {}),
     parentId: "00000000-0000-0000-0000-000000000000",
     frameId: "00000000-0000-0000-0000-000000000000",
     x,
@@ -124,9 +129,9 @@ function board(prefix: string, x: number, y: number): BackendObjects {
   );
 }
 
-function pair(mutate?: (target: BackendObjects, rootId: string) => void) {
-  const source = board("s", 9000, 2884);
-  const target = board("t", 994, 1000);
+function pair(mutate?: (target: BackendObjects, rootId: string) => void, layout = false) {
+  const source = board("s", 9000, 2884, layout);
+  const target = board("t", 994, 1000, layout);
   const targetRoot = "t-board".padEnd(36, "0").replace(/[^0-9a-f-]/g, "a");
   mutate?.(target, targetRoot);
   return compareBackendSubtrees(
@@ -228,43 +233,94 @@ describe("comparing a copy with its original through backend data", () => {
     expect(pair(mutate).problems.length).toBeGreaterThan(0);
   });
 
-  it("tells a recomputed layout from a changed design", () => {
-    const relaid = pair((target) => {
+  describe("a size or position that an automatic layout explains", () => {
+    const widen = (target: BackendObjects) => {
       byName(target, "rectangle").width = 80;
-    });
-    expect(relaid.differingAttributes).toEqual([
-      "width",
-    ]);
-    const changed = pair((target) => {
-      byName(target, "rectangle").width = 80;
-      (
-        byName(target, "rectangle").fills as {
-          fillColor: string;
-        }[]
-      )[0]!.fillColor = "#00ff00";
-    });
-    expect(changed.differingAttributes).toContain("fills");
-  });
+    };
 
-  it("counts a moved path as layout, but a redrawn path as a design change", () => {
-    const moved = pair((target) => {
-      const path = byName(target, "icon");
-      path.content = (path.content as string).replace("995", "996");
-      const sel = path as unknown as {
-        selrect: {
-          x: number;
+    it("is not a problem under an auto-layout board, and is listed as layout-driven", () => {
+      const result = pair(widen, true);
+      expect(result.problems).toEqual([]);
+      expect(result.layoutDriven).toEqual([
+        byName(board("s", 9000, 2884, true), "rectangle").id,
+      ]);
+    });
+
+    it("is a problem when no layout is above it", () => {
+      const result = pair(widen, false);
+      expect(result.problems.join(" ")).toContain("width differs");
+      expect(result.layoutDriven).toEqual([]);
+      expect(result.differingAttributes).toEqual([
+        "width",
+      ]);
+    });
+
+    it("never hides another difference on the same shape", () => {
+      const result = pair((target) => {
+        widen(target);
+        (
+          byName(target, "rectangle").fills as {
+            fillColor: string;
+          }[]
+        )[0]!.fillColor = "#00ff00";
+      }, true);
+      expect(result.differingAttributes).toContain("fills");
+      expect(result.problems.join(" ")).toContain("fills differs");
+    });
+
+    it("counts text that sizes itself to its content, even outside a layout", () => {
+      const grow = (target: BackendObjects) => {
+        byName(target, "label").width = 90;
+      };
+      const fixed = board("s", 9000, 2884);
+      byName(fixed, "label").growType = "fixed";
+      expect(pair(grow, false).problems.join(" ")).toContain("width differs");
+      const auto = (objects: BackendObjects) => {
+        byName(objects, "label").growType = "auto-width";
+      };
+      const source = board("s", 9000, 2884);
+      auto(source);
+      const target = board("t", 994, 1000);
+      auto(target);
+      grow(target);
+      const rootOf = (prefix: string) =>
+        `${prefix}-board`.padEnd(36, "0").replace(/[^0-9a-f-]/g, "a");
+      const result = compareBackendSubtrees(source, rootOf("s"), target, rootOf("t"));
+      expect(result.problems).toEqual([]);
+      expect(result.layoutDriven).toHaveLength(1);
+    });
+
+    it("counts a path that moved with its shape, but not a drawing that changed on its own", () => {
+      const move = (target: BackendObjects) => {
+        const path = byName(target, "icon");
+        path.content = (path.content as string).replace("995", "996");
+        (
+          path as unknown as {
+            selrect: {
+              x: number;
+            };
+          }
+        ).selrect = {
+          x: 1,
         };
       };
-      sel.selrect = {
-        x: 1,
+      expect(pair(move, true).problems).toEqual([]);
+      const redraw = (target: BackendObjects) => {
+        const path = byName(target, "icon");
+        path.content = (path.content as string).replace("995", "996");
       };
+      const redrawn = pair(redraw, true);
+      expect(redrawn.differingAttributes).toContain("content");
+      expect(redrawn.problems.join(" ")).toContain("path content differs");
     });
-    expect(moved.differingAttributes).not.toContain("content");
-    const redrawn = pair((target) => {
-      const path = byName(target, "icon");
-      path.content = (path.content as string).replace("995", "996");
+
+    it("does not excuse a different name, type or arrangement", () => {
+      expect(
+        pair((target) => {
+          byName(target, "rectangle").name = "Renamed";
+        }, true).problems.length,
+      ).toBeGreaterThan(0);
     });
-    expect(redrawn.differingAttributes).toContain("content");
   });
 
   it("reports a copy with a different number of shapes", () => {
