@@ -4,7 +4,8 @@ import { mkdir, lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { atomicWriteFile } from "./atomic-output.js";
 import type { PenpotToolClient } from "./client.js";
-import { exportShapePng, type ExportOptions } from "./export.js";
+import type { ExportOptions } from "./export.js";
+import { renderFrames } from "./render-service.js";
 import { resolveProjectOutput } from "./project-input.js";
 import { requirePage, snippet } from "./snippet.js";
 import { runOnPage } from "./operation.js";
@@ -137,6 +138,10 @@ export interface BatchOptions extends ExportOptions {
   cache?: boolean;
   log?: (line: string) => void;
   signal?: AbortSignal;
+  /** Frames rendered at once; see the render service. */
+  concurrency?: number;
+  /** Per-frame deadline for a frame that has to be rendered on its own. */
+  frameTimeoutMs?: number;
   /** Stop after the first failed frame. */
   stopOnFailure?: boolean;
 }
@@ -168,10 +173,32 @@ export async function exportFrames(
     : undefined;
   const cache = cacheFile ? await readCache(cacheFile) : {};
   const scale = options.scale ?? 1;
-  const results: FrameResult[] = [];
   const total = params.frames.length;
+  const slots: Array<FrameResult | undefined> = new Array(total).fill(undefined);
+  const wanted: Array<{
+    index: number;
+    frame: FrameRequest;
+    file: string;
+    target: string;
+    fingerprint?: string;
+    key?: string;
+  }> = [];
+  const batchStarted = Date.now();
   for (const [index, frame] of params.frames.entries()) {
     options.signal?.throwIfAborted();
+    const started = Date.now();
+    const file = path.join(params.out, `${frame.name}.png`);
+    const target = await resolveProjectOutput(root, file);
+    const where = `frame ${index + 1} of ${total} "${frame.name}"`;
+    if (!options.cache) {
+      wanted.push({
+        index,
+        frame,
+        file,
+        target,
+      });
+      continue;
+    }
     const frameOptions = {
       ...options,
       onProgress: options.onProgress
@@ -184,118 +211,136 @@ export async function exportFrames(
             })
         : undefined,
     };
-    const started = Date.now();
-    const file = path.join(params.out, `${frame.name}.png`);
-    const target = await resolveProjectOutput(root, file);
-    const where = `frame ${index + 1} of ${total} "${frame.name}"`;
     try {
-      let fingerprint: string | undefined;
-      let key: string | undefined;
-      if (options.cache) {
-        const seen = await capturePhase(frameOptions, "export", "fingerprint", () =>
-          runOnPage(client, fingerprintSnippet(frame.id, params.page), params.page, {
-            ...options,
-            effect: "read",
-          }),
-        );
-        if (
-          seen.ok !== true ||
-          typeof seen.fingerprint !== "string" ||
-          typeof seen.fileId !== "string" ||
-          typeof seen.pageId !== "string"
-        ) {
-          throw new Error(
-            typeof seen.message === "string"
-              ? seen.message
-              : "The frame could not be fingerprinted",
-          );
-        }
-        // A fingerprint of a truncated sample is not evidence of "unchanged".
-        fingerprint = seen.truncated === true ? undefined : seen.fingerprint;
-        key = `${seen.fileId}/${seen.pageId}/${frame.id}/${scale}`;
-        const entry = cache[key];
-        if (fingerprint && entry && entry.fingerprint === fingerprint) {
-          const existing = await readFile(target).catch(() => undefined);
-          if (existing && sha256(existing) === entry.sha256) {
-            results.push({
-              id: frame.id,
-              file,
-              outcome: "cached",
-              bytes: existing.length,
-              elapsedMs: Date.now() - started,
-            });
-            frameOptions.onProgress?.({
-              schemaVersion: 1,
-              kind: "progress",
-              command: "export",
-              phase: "cache",
-              status: "cached",
-              elapsedMs: Date.now() - started,
-            });
-            options.log?.(`${where}: unchanged since its last export, kept ${file}`);
-            continue;
-          }
-        }
-      }
-      options.log?.(`${where}: exporting`);
-      const exported = await exportShapePng(client, frame.id, {
-        ...frameOptions,
-        page: params.page,
-        stable: true,
-      });
-      if (!exported.stable) {
-        throw new Error("Export did not stabilize; the previous file was kept");
-      }
-      await capturePhase(frameOptions, "export", "publish", () =>
-        atomicWriteFile(target, exported.png, {
-          replace: true,
+      const seen = await capturePhase(frameOptions, "export", "fingerprint", () =>
+        runOnPage(client, fingerprintSnippet(frame.id, params.page), params.page, {
+          ...options,
+          effect: "read",
         }),
       );
-      if (cacheFile && key) {
-        if (fingerprint) {
-          cache[key] = {
-            fingerprint,
-            sha256: sha256(exported.png),
-            bytes: exported.png.length,
-            savedAt: new Date().toISOString(),
-          };
-        } else {
-          delete cache[key];
-        }
-        await mkdir(path.dirname(cacheFile), {
-          recursive: true,
-          mode: 0o700,
-        });
-        await atomicWriteFile(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, {
-          replace: true,
-        });
+      if (
+        seen.ok !== true ||
+        typeof seen.fingerprint !== "string" ||
+        typeof seen.fileId !== "string" ||
+        typeof seen.pageId !== "string"
+      ) {
+        throw new Error(
+          typeof seen.message === "string" ? seen.message : "The frame could not be fingerprinted",
+        );
       }
-      results.push({
-        id: frame.id,
+      // A fingerprint of a truncated sample is not evidence of "unchanged".
+      const fingerprint = seen.truncated === true ? undefined : seen.fingerprint;
+      const key = `${seen.fileId}/${seen.pageId}/${frame.id}/${scale}`;
+      const entry = cache[key];
+      if (fingerprint && entry && entry.fingerprint === fingerprint) {
+        const existing = await readFile(target).catch(() => undefined);
+        if (existing && sha256(existing) === entry.sha256) {
+          slots[index] = {
+            id: frame.id,
+            file,
+            outcome: "cached",
+            bytes: existing.length,
+            elapsedMs: Date.now() - started,
+          };
+          frameOptions.onProgress?.({
+            schemaVersion: 1,
+            kind: "progress",
+            command: "export",
+            phase: "cache",
+            status: "cached",
+            elapsedMs: Date.now() - started,
+          });
+          options.log?.(`${where}: unchanged since its last export, kept ${file}`);
+          continue;
+        }
+      }
+      wanted.push({
+        index,
+        frame,
         file,
-        outcome: "exported",
-        bytes: exported.png.length,
-        elapsedMs: Date.now() - started,
+        target,
+        fingerprint,
+        key,
       });
-      options.log?.(`${where}: exported in ${Math.round((Date.now() - started) / 100) / 10} s`);
     } catch (error) {
       if (options.signal?.aborted) {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      results.push({
+      slots[index] = {
         id: frame.id,
         file,
         outcome: "failed",
         elapsedMs: Date.now() - started,
         message,
-      });
+      };
       options.log?.(`${where}: failed (${message})`);
       if (options.stopOnFailure) {
         break;
       }
     }
   }
+  const rendered = await renderFrames(
+    client,
+    wanted.map((entry) => entry.frame.id),
+    {
+      ...options,
+      page: params.page,
+      concurrency: options.concurrency,
+      frameTimeoutMs: options.frameTimeoutMs,
+    },
+  );
+  for (const entry of wanted) {
+    options.signal?.throwIfAborted();
+    const where = `frame ${entry.index + 1} of ${total} "${entry.frame.name}"`;
+    const outcome = rendered.get(entry.frame.id);
+    if (!outcome || !outcome.ok) {
+      const message = outcome?.message ?? "The frame was not rendered";
+      slots[entry.index] = {
+        id: entry.frame.id,
+        file: entry.file,
+        outcome: "failed",
+        elapsedMs: outcome?.elapsedMs ?? Date.now() - batchStarted,
+        message,
+      };
+      options.log?.(`${where}: failed (${message})`);
+      continue;
+    }
+    const { png } = outcome.result;
+    await atomicWriteFile(entry.target, png, {
+      replace: true,
+    });
+    if (cacheFile && entry.key) {
+      if (entry.fingerprint) {
+        cache[entry.key] = {
+          fingerprint: entry.fingerprint,
+          sha256: sha256(png),
+          bytes: png.length,
+          savedAt: new Date().toISOString(),
+        };
+      } else {
+        delete cache[entry.key];
+      }
+      await mkdir(path.dirname(cacheFile), {
+        recursive: true,
+        mode: 0o700,
+      });
+      await atomicWriteFile(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, {
+        replace: true,
+      });
+    }
+    slots[entry.index] = {
+      id: entry.frame.id,
+      file: entry.file,
+      outcome: "exported",
+      bytes: png.length,
+      elapsedMs: outcome.elapsedMs,
+    };
+    options.log?.(
+      `${where}: exported in ${Math.round(outcome.elapsedMs / 100) / 10} s (${outcome.route})`,
+    );
+  }
+  const results = slots.filter((slot): slot is FrameResult => slot !== undefined);
   const summary = {
     exported: results.filter((result) => result.outcome === "exported").length,
     cached: results.filter((result) => result.outcome === "cached").length,

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
 import { exportFrames, parseFrames } from "../src/export-batch.js";
+import { renderFrames } from "../src/render-service.js";
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const fast = {
@@ -253,5 +254,78 @@ describe("batch export", () => {
       exported: 1,
       cached: 0,
     });
+  });
+});
+
+describe("render service", () => {
+  it("renders several frames in one concurrent round trip and marks them as batched", async () => {
+    const e = editor();
+    let calls = 0;
+    const counting: PenpotToolClient = {
+      ...e.client,
+      async callTool(name, args) {
+        calls++;
+        return e.client.callTool(name, args);
+      },
+    };
+    const outcomes = await renderFrames(
+      counting,
+      [
+        "s0",
+        "s1",
+        "s2",
+      ],
+      fast,
+    );
+    expect(
+      [
+        ...outcomes.values(),
+      ].map((outcome) => outcome.route),
+    ).toEqual([
+      "batch",
+      "batch",
+      "batch",
+    ]);
+    // One call per round, not one per frame and render.
+    expect(calls).toBeLessThanOrEqual(2 + 3);
+  });
+
+  it("stops after a render that never answers and names the frames it did not render", async () => {
+    const e = editor();
+    const hanging: PenpotToolClient = {
+      ...e.client,
+      async callTool(name, args) {
+        if (String(args.code).includes('"s1"')) {
+          return new Promise(() => undefined);
+        }
+        return e.client.callTool(name, args);
+      },
+    };
+    const outcomes = await renderFrames(
+      hanging,
+      [
+        "s0",
+        "s1",
+        "s2",
+      ],
+      {
+        ...fast,
+        frameTimeoutMs: 40,
+      },
+    );
+    expect(
+      [
+        ...outcomes.values(),
+      ].every((outcome) => !outcome.ok),
+    ).toBe(true);
+    expect(
+      [
+        ...outcomes.values(),
+      ].map((outcome) => !outcome.ok && outcome.message),
+    ).toEqual([
+      expect.stringMatching(/Not rendered: an earlier render stalled/),
+      expect.stringMatching(/Not rendered: an earlier render stalled/),
+      expect.stringMatching(/Not rendered: an earlier render stalled/),
+    ]);
   });
 });

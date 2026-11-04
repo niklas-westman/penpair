@@ -83,8 +83,9 @@ and the `InspectionQuery` / `InspectionDocument` / `CaptureBudget` types),
 `validateBaselineSources` — cross-revision reference matching and
 schema-3 multi-page page-inventory validation), `audit-rules.ts`
 (`auditDesignRules`), `design-spec.ts` (`buildDesignSpec`, `checkDesignSpec`,
-`writeDesignSpec`), `design-viewport.ts`, `export.ts` and `export-batch.ts`
-(`exportShapePng`, `exportFrames`), `shots.ts` (`captureShots`,
+`writeDesignSpec`), `design-viewport.ts`, `export.ts`, `export-batch.ts` and `render-service.ts`
+(`exportShapePng` with its `timing`, `exportFrames`, `renderFrames`: concurrent stable
+rounds for many frames, a per-frame deadline, and a stall stops further renders because a timed-out call still holds the page session), `shots.ts` (`captureShots`,
 `findShapesByName`, `exportShapeByName`), `image-evidence.ts`,
 `image-codec.ts`, `png.ts`, `formats.ts` (`artifactSchemas`,
 `migrateProjectConfig`), `layout.ts`, `layout-policy.ts`,
