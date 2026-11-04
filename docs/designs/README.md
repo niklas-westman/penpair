@@ -22,6 +22,7 @@ not read is a design you will misuse.
 
 | [Native copy verification routes](native-copy-verification-routes.md) | **Built and verified live. 2026-11-04.** | Why a copy of 14 heavy frames took minutes (measured, by part), why the plugin cannot move shapes between pages, and why verification reads the Penpot backend with a personal access token and compares pixels only for a sample. |
 | [A faster render route](editor-render-route.md) | **Built as an opt-in and measured on 95 frames. 2026-11-04.** | Why export costs about 10 s per frame whatever its size, what concurrency buys, and a screenshot of the open editor that took 1 min 50 s for 95 frames against 8 min 34 s, but is a different pipeline from the exporter, so it cannot stand in for an approval. |
+| [The design folder as the truth](design-folder-sync.md) | **Proposal, not built. 2026-11-04.** | Why the process around the design truth grew heavy (42 commands, 11 skills, a seven-step path), and a single `sync` command that keeps `design/` current, with git as the review and the strict machinery as an opt-in audit mode. Three owner questions decide the scope. |
 
 For the current design-release workflow, and for the implementation and
 acceptance limits that the two superseded records predate, read the maintained
