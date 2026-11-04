@@ -4,7 +4,10 @@ Generated from the core error remedy inventory. Regenerate with `pnpm docs:gener
 
 | Core code | Cause and next action |
 | --- | --- |
+| `access-token-invalid` | PENPAIR_PAT_TOKEN must be a Penpot personal access token (Profile, Access tokens) on one line, without spaces. Remove the variable to use the plugin route instead. |
+| `access-token-rejected` | Penpot rejected the personal access token: it may have expired or been deleted. Create a new one under Profile, Access tokens and update PENPAIR_PAT_TOKEN, or remove the variable to use the plugin route. |
 | `auth-rejected` | Penpot rejected the MCP key. Use the key from Profile image, Your account, Integration. |
+| `backend-unavailable` | The Penpot backend did not answer. Check the network and the Penpot origin; the plugin route works without the backend if you remove PENPAIR_PAT_TOKEN. |
 | `endpoint-invalid` | The configured MCP URL must be a complete http or https URL. |
 | `endpoint-unconfigured` | Set PENPAIR_MCP_URL in the shell or in a git-ignored .env.local to the MCP URL from Penpot (Profile image, Your account, Integration; do not regenerate the key), or configure an MCP server named 'penpot' for Codex or Claude Code. |
 | `file-mismatch` | Open the project's pinned design file and reconnect its MCP plugin. Use --any-file only when you intend to act on another file. |

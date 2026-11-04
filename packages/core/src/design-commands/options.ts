@@ -153,6 +153,12 @@ export const copyOptions = {
   diagnose: {
     type: "boolean",
   },
+  "verify-pixels": {
+    type: "string",
+  },
+  evidence: {
+    type: "string",
+  },
   json: {
     type: "boolean",
   },

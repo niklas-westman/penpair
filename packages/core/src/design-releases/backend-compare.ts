@@ -295,13 +295,13 @@ function compareAttribute(
  */
 export function compareBackendSubtrees(
   sourceObjects: BackendObjects,
-  sourceRootId: string,
+  originalRootId: string,
   targetObjects: BackendObjects,
   targetRootId: string,
 ): BackendComparison {
   const problems: string[] = [];
   const nodeMap: Record<string, string> = {};
-  const sourceIds = orderedIds(sourceObjects, sourceRootId);
+  const sourceIds = orderedIds(sourceObjects, originalRootId);
   const targetIds = orderedIds(targetObjects, targetRootId);
   if (sourceIds.length !== targetIds.length) {
     return {
@@ -315,7 +315,7 @@ export function compareBackendSubtrees(
   for (const [index, sourceId] of sourceIds.entries()) {
     nodeMap[sourceId] = targetIds[index]!;
   }
-  const offset = offsetOf(sourceObjects[sourceRootId]!, targetObjects[targetRootId]!);
+  const offset = offsetOf(sourceObjects[originalRootId]!, targetObjects[targetRootId]!);
   for (const sourceId of sourceIds) {
     const source = sourceObjects[sourceId]!;
     const target = targetObjects[nodeMap[sourceId]!]!;
@@ -332,7 +332,7 @@ export function compareBackendSubtrees(
     const mappedFrame = nodeMap[String(source.frameId)];
     if (
       childIds(source).length !== childIds(target).length ||
-      (sourceId !== sourceRootId && target.parentId !== nodeMap[String(source.parentId)]) ||
+      (sourceId !== originalRootId && target.parentId !== nodeMap[String(source.parentId)]) ||
       (mappedFrame !== undefined && target.frameId !== mappedFrame)
     ) {
       report(context, "the copy is arranged differently");

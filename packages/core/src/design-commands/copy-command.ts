@@ -4,10 +4,13 @@ import { commandSignal } from "../command-result.js";
 import { progressReporter } from "../capture-progress.js";
 import { abandonCopyRun, copyReleaseBoards } from "../design-releases/copy.js";
 import { connectNativeClipboard } from "../native-editor-clipboard.js";
+import { redactAccessToken, resolveAccessToken } from "../penpot-access-token.js";
+import { PenpairError } from "../errors.js";
+import { createPenpotBackendClient } from "../penpot-backend.js";
 import type { DesignCommandContext } from "./context.js";
 
 const copyUsage =
-  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--resume RUN_ID] [--progress human|json|off]\n" +
+  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--resume RUN_ID] [--progress human|json|off]\n" +
   "design-release copy --diagnose --debug-port PORT\n" +
   "design-release copy --abandon RUN_ID --reason TEXT [--destination-inspected]";
 
@@ -133,9 +136,42 @@ export async function runDesignReleaseCopyCommand(
     throw new CommandArgumentError("Native copy requires the project's owner-confirmed file pin");
   }
 
-  const progress = progressReporter(values.progress, "design-release copy", (text) =>
-    context.redact(text),
-  );
+  const evidenceMode = values.evidence ?? "auto";
+  const pixelMode = values["verify-pixels"];
+  if (
+    ![
+      "auto",
+      "backend",
+      "plugin",
+    ].includes(evidenceMode) ||
+    (pixelMode !== undefined &&
+      ![
+        "none",
+        "sample",
+        "all",
+      ].includes(pixelMode))
+  ) {
+    throw new CommandArgumentError(
+      "--evidence takes auto, backend or plugin; --verify-pixels takes none, sample or all",
+    );
+  }
+  const token = evidenceMode === "plugin" || !values.apply ? undefined : await resolveAccessToken();
+  if (evidenceMode === "backend" && values.apply && !token) {
+    throw new PenpairError(
+      "access-token-invalid",
+      "--evidence backend needs PENPAIR_PAT_TOKEN, which is not set",
+    );
+  }
+  const redact = (text: string): string =>
+    token ? redactAccessToken(context.redact(text), token) : context.redact(text);
+  const backend =
+    token && values.apply
+      ? createPenpotBackendClient({
+          origin: target.origin,
+          token,
+        })
+      : undefined;
+  const progress = progressReporter(values.progress, "design-release copy", redact);
   const started = Date.now();
   const result = await context.withPenpot((client) =>
     copyReleaseBoards(
@@ -151,7 +187,17 @@ export async function runDesignReleaseCopyCommand(
         apply: values.apply === true,
         resume: !!values.resume,
         runId: values.resume,
-        redact: (text) => context.redact(text),
+        redact,
+        ...(backend
+          ? {
+              backend,
+            }
+          : {}),
+        ...(pixelMode
+          ? {
+              verifyPixels: pixelMode as "none" | "sample" | "all",
+            }
+          : {}),
         signal: commandSignal(),
         onProgress: progress,
         onStep: (message) =>
