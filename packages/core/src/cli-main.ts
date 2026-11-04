@@ -2271,6 +2271,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
             exports: result.exports,
             layout: result.layout,
             capture: result.capture,
+            timing: result.timing,
           },
           null,
           2,

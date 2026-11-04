@@ -85,6 +85,30 @@ describe("exporting a shape", () => {
     expect(result.png.toString()).toBe("fresh");
   });
 
+  it("reports where the time went: one entry per render and one progress line with the total", async () => {
+    const client = exporting([
+      "same",
+      "same",
+    ]);
+    const lines: string[] = [];
+    const result = await exportShapePng(client, "id", {
+      ...fast,
+      onProgress: (event) => {
+        if (event.status === "info") {
+          lines.push(event.message ?? "");
+        }
+      },
+    });
+    expect(result.timing?.renders).toHaveLength(2);
+    expect(result.timing?.renders[0]).toMatchObject({
+      renderMs: null,
+      overheadMs: null,
+    });
+    expect(result.timing?.totalMs).toBeGreaterThanOrEqual(0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^total .*2 renders \[/);
+  });
+
   it("retries a first failure that then works", async () => {
     const client = exporting([
       new Error("render not ready"),
