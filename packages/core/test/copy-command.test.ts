@@ -363,6 +363,16 @@ it("refuses --evidence backend without a token, and values it does not know", as
       context,
     ),
   ).rejects.toThrow(/--verify-pixels takes/);
+  await expect(
+    runDesignReleaseCommand(
+      [
+        ...applied,
+        "--pixel-renderer",
+        "nope",
+      ],
+      context,
+    ),
+  ).rejects.toThrow(/--pixel-renderer takes exporter or editor/);
   expect(copyReleaseBoards).not.toHaveBeenCalled();
   vi.unstubAllEnvs();
 });

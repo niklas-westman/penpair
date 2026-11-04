@@ -117,6 +117,12 @@ penpair design-release copy ... --debug-port 9222 --apply
   Penpot draws them. `sample` renders only the first, the last and the largest pair, and
   `none` skips rendering and leaves `pixelsMatch` out. The receipt says what was and was
   not compared.
+- `--pixel-renderer editor` (needs `--apply` and `--debug-port`) draws both sides of every
+  comparison from the open editor instead of Penpot's exporter, which is the fast way to
+  check many boards: the receipt's `pixels.renderer` says `editor-screenshot`. Both sides
+  always use the same pipeline, so a difference is still a difference in the design, not in
+  the renderer. It moves and restores the editor's viewport and window size while it runs, so
+  leave that tab alone.
 - A board whose layout Penpot recomputed while pasting differs from its original on purpose. If every
   difference is a size or position of a shape under an auto-layout board (or of text that sizes itself to
   its content), the copy still counts as `copied`, and the result lists those boards under

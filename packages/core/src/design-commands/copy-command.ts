@@ -11,7 +11,7 @@ import { createPenpotBackendClient } from "../penpot-backend.js";
 import type { DesignCommandContext } from "./context.js";
 
 const copyUsage =
-  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--resume RUN_ID] [--progress human|json|off]\n" +
+  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--pixel-renderer exporter|editor] [--resume RUN_ID] [--progress human|json|off]\n" +
   "design-release copy --diagnose --debug-port PORT\n" +
   "design-release copy --find-pasted RUN_ID\n" +
   "design-release copy --abandon RUN_ID --reason TEXT [--destination-inspected]";
@@ -160,6 +160,21 @@ export async function runDesignReleaseCopyCommand(
 
   const evidenceMode = values.evidence ?? "auto";
   const pixelMode = values["verify-pixels"];
+  const pixelRenderer = values["pixel-renderer"];
+  if (
+    pixelRenderer !== undefined &&
+    ![
+      "exporter",
+      "editor",
+    ].includes(pixelRenderer)
+  ) {
+    throw new CommandArgumentError("--pixel-renderer takes exporter or editor");
+  }
+  if (pixelRenderer === "editor" && !(values.apply && values["debug-port"])) {
+    throw new CommandArgumentError(
+      "--pixel-renderer editor captures the open editor tab, so it needs --apply and --debug-port",
+    );
+  }
   if (
     ![
       "auto",
@@ -213,6 +228,21 @@ export async function runDesignReleaseCopyCommand(
         ...(backend
           ? {
               backend,
+            }
+          : {}),
+        ...(pixelRenderer === "editor"
+          ? {
+              pixelRenderer: {
+                renderer: "editor" as const,
+                browser: {
+                  origin: target.origin,
+                  fileId: target.fileId,
+                  allowLoopbackAlias: target.allowLoopbackAlias,
+                  port: Number(values["debug-port"]),
+                  timeoutMs: 30000,
+                  signal: commandSignal(),
+                },
+              },
             }
           : {}),
         ...(pixelMode

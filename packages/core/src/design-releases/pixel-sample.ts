@@ -1,5 +1,5 @@
 import type { PenpotToolClient } from "../client.js";
-import { renderFrames } from "../render-service.js";
+import { renderFrames, type RenderServiceOptions } from "../render-service.js";
 import { selectPage } from "../page-session.js";
 import { setTimeout as sleepFor } from "node:timers/promises";
 import { saveArtifact } from "./artifact-paths.js";
@@ -20,6 +20,9 @@ export type PixelAcceptance = "identical" | "within-tolerance" | "localized-with
 export interface PixelFinding extends FramePixelDifference {
   acceptedAs?: PixelAcceptance;
 }
+
+/** Which pipeline draws both sides of every comparison. Mixing the two would compare different renderers, not different designs. */
+export type PixelRenderer = Pick<RenderServiceOptions, "renderer" | "browser">;
 
 export interface PixelSampleResult {
   /** The boards that were rendered and compared (source ids). */
@@ -69,12 +72,14 @@ async function renderBoards(
   prefix: string,
   settled: boolean,
   redact: ((text: string) => string) | undefined,
+  renderWith: PixelRenderer | undefined,
 ): Promise<Map<string, RenderedBoard>> {
   await selectPage(client, {
     id: pageId,
   });
   const batch = await renderFrames(client, frameIds, {
     singleRound: !settled,
+    ...renderWith,
   });
   const rendered = new Map<string, RenderedBoard>();
   for (const [index, frameId] of frameIds.entries()) {
@@ -165,6 +170,7 @@ export async function comparePairPixels(
   redact?: (text: string) => string,
   pause: (milliseconds: number) => Promise<void> = (milliseconds) => sleepFor(milliseconds),
   report: (message: string) => void = () => undefined,
+  renderWith?: PixelRenderer,
 ): Promise<PixelSampleResult> {
   const result: PixelSampleResult = {
     compared: pairs.map((pair) => pair.sourceFrameId),
@@ -193,6 +199,7 @@ export async function comparePairPixels(
           `${prefix}/source-${label}`,
           settled,
           redact,
+          renderWith,
         ),
       pause,
     );
@@ -206,6 +213,7 @@ export async function comparePairPixels(
           `${prefix}/target-${label}`,
           settled,
           redact,
+          renderWith,
         ),
       pause,
     );

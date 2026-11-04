@@ -21,7 +21,7 @@ export const commandData = [
     summary: "design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
     usages: [
       "penpair design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
-      "penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all]",
+      "penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--pixel-renderer exporter|editor]",
       "penpair design-release copy --diagnose --debug-port PORT",
       "penpair design-release copy --find-pasted RUN_ID",
       "penpair design-release copy --abandon RUN_ID --reason TEXT",
@@ -270,10 +270,13 @@ export const commandData = [
   {
     command: "approve",
     group: "Capture / approve",
-    summary: "preview exact-artifact evidence",
+    summary:
+      "preview exact-artifact evidence for one frame, or for a JSON list of frames rendered together",
     usages: [
       "penpair approve --page PAGE --frame ID [--case CASE_ID]",
       'penpair approve --page PAGE --frame ID --write --note "OWNER WORDS" --by OWNER',
+      "penpair approve --page PAGE --frames FILE.json [--concurrency 1-8]",
+      'penpair approve --page PAGE --frames FILE.json --write --note "OWNER WORDS" --by OWNER',
     ],
   },
   {
