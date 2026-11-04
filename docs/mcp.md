@@ -8,7 +8,7 @@ Use the project's reviewed local executable. Startup requires an absolute root, 
 
 Default tool names are `pages`, `tree`, `audit`, `inspect`, `tokens_dump`, `run_status`, `baselines_status`, `project_status`, `doctor`, `design_spec` and `export`. These cover bounded live inspection, offline run/baseline evidence, diagnostics, derived specs and stable export to a path inside the project. Export creates/replaces a local file and has a write annotation. There is no raw-code tool or unrestricted command forwarding. Each typed input is validated independently of the client schema. No Penpot write tool is advertised by default.
 
-Explicit `--allow-writes` additionally advertises `run_registered` and `design_release_copy`. The first runs registered operations; the second provides the typed native-copy workflow described below. `run_registered` accepts a registered operation name and scalar parameters, defaults to inspection, and requires explicit `apply:true` for design writes. Explicit `resume` requires apply and the original journal; file/instance guards, local/shared advisory lease, same-execution preconditions, checkpoints supported by the underlying command, and independent readback remain in the same services. Registered modules execute trusted project code, including imports; they must keep stdout for MCP and log through the command context. This is not an execution sandbox. Adapter-specific commands remain available through the CLI; the neutral server does not guess library-specific tool schemas. `run_registered` passes only the operation name, scalar parameters, `apply`, `resume` and `checkpoint`, so it cannot pass `--layout-root`, `--layout-scope` or `--stages`: an operation driven over MCP is observed against the whole page. Drive a heavy staged build through the CLI (`run-file --stages`) instead.
+Explicit `--allow-writes` additionally advertises `run_registered`, `design_release_copy` and `design_release_copy_recover`. The first runs registered operations; the second provides the typed native-copy workflow described below. `run_registered` accepts a registered operation name and scalar parameters, defaults to inspection, and requires explicit `apply:true` for design writes. Explicit `resume` requires apply and the original journal; file/instance guards, local/shared advisory lease, same-execution preconditions, checkpoints supported by the underlying command, and independent readback remain in the same services. Registered modules execute trusted project code, including imports; they must keep stdout for MCP and log through the command context. This is not an execution sandbox. Adapter-specific commands remain available through the CLI; the neutral server does not guess library-specific tool schemas. `run_registered` passes only the operation name, scalar parameters, `apply`, `resume` and `checkpoint`, so it cannot pass `--layout-root`, `--layout-scope` or `--stages`: an operation driven over MCP is observed against the whole page. Drive a heavy staged build through the CLI (`run-file --stages`) instead.
 
 ## Native release-page copy
 
@@ -44,16 +44,45 @@ automatically replayed.
 An incomplete native/pixel result is not a completed transfer or release
 approval. See [native copy, evidence and recovery](copy-between-pages.md).
 The tool runs the same command as the CLI, so an access token in the server's
-environment or the project's `.env.local` is used automatically (verification on
-Penpot's stored data, pixels for every pair). `--evidence`, `--verify-pixels`,
-`--diagnose` and `--abandon` are CLI-only for now; recover a stuck run with the CLI.
+environment or the project's `.env.local` is used automatically: structure is
+verified on Penpot's stored data and, by default, pixels for every pair. Two optional
+inputs choose differently, and both apply only with `apply: true`:
+
+- `evidence`: `auto` (default), `backend` (refuses to run without the token) or `plugin`.
+- `verifyPixels`: `all` (default), `sample` or `none`.
+
+A copy takes minutes (about 160 s for 14 heavy frames), so this tool, unlike the
+others, may run for up to 30 minutes instead of the server's 60 seconds; cutting a
+paste off midway leaves the run uncertain. If the client sends a progress token,
+the server forwards the copy's progress lines as MCP progress notifications (at
+most one every 2 seconds, nothing beyond the lines the CLI prints to stderr).
+
+### Recovering a copy
+
+`design_release_copy_recover` is advertised with `--allow-writes` only and has two
+actions. It never pastes, never edits Penpot and never deletes boards.
+
+```json
+{ "action": "diagnose", "debugPort": 9222 }
+{ "action": "abandon", "runId": "RUN_ID", "reason": "stopped before any paste" }
+```
+
+- `diagnose` reads tab focus, clipboard permission and readability and changes
+  nothing.
+- `abandon` closes one run's journal so it stops blocking other copies of the file. A
+  run that already pasted is refused unless `destinationInspected: true`, which asserts
+  that you have looked at its destination page and know what it holds. To finish a run
+  that pasted, resume it with `design_release_copy` and the original inputs instead.
+- `diagnose` takes `debugPort` and nothing else; `abandon` takes `runId` and `reason`,
+  and no port. Run ids are letters, digits and hyphens; arguments starting with `-`
+  are refused.
 
 This tool is absent from the default server. There is no MCP `wake` tool: explicit
 browser activation remains the CLI `penpair wake` command. Native browser/computer
 controls supplied by an assistant host are separate tools and are not installed
 or exposed by Penpair's server.
 
-Requests return the version-1 CLI envelope as text plus structured content. Default cooperative deadline: 60 seconds; SDK cancellation propagates into the service. Arbitrary trusted code can ignore cancellation. A 256 KiB response cap returns an explicit incomplete envelope rather than apparently successful truncated data; uncertain writes retain their uncertain outcome/run ID. Use narrower inspection or CLI artifact output for larger evidence. Stdio has no HTTP listener or background polling.
+Requests return the version-1 CLI envelope as text plus structured content. Default cooperative deadline: 60 seconds (30 minutes for `design_release_copy`); SDK cancellation propagates into the service. Arbitrary trusted code can ignore cancellation. A 256 KiB response cap returns an explicit incomplete envelope rather than apparently successful truncated data; uncertain writes retain their uncertain outcome/run ID. Use narrower inspection or CLI artifact output for larger evidence. Stdio has no HTTP listener or background polling.
 
 ## Tool annotations
 
@@ -66,6 +95,7 @@ Every advertised tool explicitly declares boolean `readOnlyHint`, `destructiveHi
 | `export` (creates or replaces a local image from live Penpot) | false | true | false | true |
 | `run_registered` (opt-in trusted code, potentially mutating) | false | true | false | true |
 | `design_release_copy` (opt-in native clipboard transfer) | false | false | false | true |
+| `design_release_copy_recover` (opt-in; diagnoses a stopped copy or closes a run's journal) | false | false | false | true |
 
 `export` can overwrite an existing artifact, so its destructive hint is true. It captures the current design, so callers must not assume repeated calls preserve the earlier image. `run_registered` retains conservative hints even when a particular invocation only previews: its metadata must cover the registered code's possible effects. `design_release_copy` preserves source boards and existing destination content, but is still mutating and non-idempotent: it can create native copies, change selection/focus and replace the clipboard. Its preview does not change that tool-wide annotation. `archive` is an internal registered operation invoked through `run_registered`, not a separately advertised MCP tool.
 

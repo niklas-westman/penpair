@@ -222,8 +222,12 @@ validated before treating a copied page as an assembled release.
 
 The typed `design_release_copy` tool appears only when the project's Penpair
 stdio server starts with `--allow-writes`. Its inputs are `sourcePage`,
-`frameIds`, `releaseVersion`, optional `debugPort`, `apply` and `resume`. Preview
-is the default; apply requires `debugPort`, and resume requires apply. The tool
+`frameIds`, `releaseVersion`, optional `debugPort`, `apply`, `resume`, and, with
+apply, `evidence` and `verifyPixels`. Preview is the default; apply requires
+`debugPort`, and resume requires apply. A second tool, `design_release_copy_recover`,
+runs `--diagnose` and `--abandon` for a host that has no terminal; see
+[Recovering a copy](mcp.md#recovering-a-copy). The copy tool may run for up to 30
+minutes (a copy takes minutes) and reports progress to clients that ask. The tool
 returns the same operation result and keeps the same target/recovery safeguards.
 It does not expose raw page code. See [MCP tools](mcp.md).
 

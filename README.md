@@ -76,7 +76,7 @@ not expose every CLI command or arbitrary browser control. See the
 [tool inventory and client configuration](https://github.com/niklas-westman/penpair/blob/main/docs/mcp.md).
 
 Explicit `--allow-writes` additionally exposes registered operations and the
-experimental `design_release_copy` tool. Both preview by default; applying a
+experimental `design_release_copy` tool and `design_release_copy_recover` (diagnose a stopped copy, or release a run that blocks later copies). Both preview by default; applying a
 native copy also requires a loopback browser debugging port and existing browser
 clipboard read/write capability. Penpair does not grant those permissions. The equivalent CLI
 starts with `penpair design-release copy --source-page PAGE --frame BOARD_ID

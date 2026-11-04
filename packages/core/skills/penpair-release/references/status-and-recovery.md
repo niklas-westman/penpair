@@ -36,6 +36,12 @@ fact the result or the journal states; none of it approves a release.
 | `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and did not verify. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. |
 | Anything stuck or unclear before a paste | `penpair design-release copy --diagnose --debug-port PORT` reads tab focus and clipboard state and changes nothing. |
 
+Hosts without a terminal use the MCP tools: `design_release_copy` for the copy and
+for `resume` (it may run for minutes), and `design_release_copy_recover` with
+`action: "diagnose"` or `action: "abandon"`. `abandon` of a run that already pasted
+needs `destinationInspected: true`, which is a statement that someone looked at the
+destination page; never set it to get past the refusal.
+
 Never delete `.penpair/runs/*.json` by hand, and never paste again to "see if it works".
 The troubleshooting table in the native copy guide maps messages to causes.
 

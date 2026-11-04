@@ -37,7 +37,7 @@ below plus the three model directories.
 | `command-result.ts` | `CommandResult`, `commandResultSchema`, `collectCommand`, `commandOutput`, `commandSleep`, `withCleanupDeadline`, and the signal and redactor helpers. |
 | `errors.ts` | `PenpairError` with a typed `PenpairErrorCode` and a `remedy` for each of the twelve codes. |
 | `version.ts` | `version` — a single export so neither entry point need import the other. |
-| `mcp-server.ts` | The MCP server that exposes commands as tools over stdio. |
+| `mcp-server.ts` | The MCP server that exposes commands as tools over stdio. Each tool has its own deadline (the default for most; 30 minutes for `design_release_copy`, whose work a deadline would cut off mid-paste) and may forward progress lines as MCP progress notifications. `design_release_copy_recover` (diagnose, abandon) is advertised with the copy tool, only with `--allow-writes`. |
 
 ### Transport and the write protocol
 
