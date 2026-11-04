@@ -993,7 +993,8 @@ export async function copyReleaseBoards(
                 receiptPath: `${prefix}/receipt.json`,
                 pairs,
                 nativeVerified: verdict.nativeVerified,
-                ...(pixelMode === "none"
+                // Nothing compared is not a match: leave the claim out rather than say it.
+                ...(pixelMode === "none" || pixelResult.compared.length === 0
                   ? {}
                   : {
                       pixelsMatch: pixelsPassed,

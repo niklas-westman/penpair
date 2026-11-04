@@ -120,7 +120,8 @@ penpair design-release copy ... --debug-port 9222 --apply
 - A board whose layout Penpot recomputed while pasting differs from its original on purpose. If every
   difference is a size or position of a shape under an auto-layout board (or of text that sizes itself to
   its content), the copy still counts as `copied`, and the result lists those boards under
-  `layoutRecomputed` and `pixels.notComparable`. Any other difference, on the same shape or elsewhere, is a
+  `layoutRecomputed` and `pixels.notComparable`; when nothing at all was compared by pixels,
+  `pixelsMatch` is left out of the result instead of being claimed. Any other difference, on the same shape or elsewhere, is a
   problem as before. Only the backend route can tell, so the plugin route reports such a copy as incomplete.
 - A few localised pixels may differ even when the stored data is identical: hairline
   strokes (zero-height lines with a stroke) are rounded differently when rasterised.
