@@ -29,15 +29,23 @@ The fingerprint is not a pixel proof: image bytes, fonts that loaded differently
 
 ## How long it takes, and how to tune it
 
-Penpot's exporter costs about 5–10 s per render request whatever the frame size, and it runs requests in parallel. That is why `--concurrency` is what matters, and why the stable rule (two matching renders) doubles the time of a first run. Each single-frame `export` prints a `timing` line and returns `timing` in its result: layout, stability wait, hashing, and for every render the whole round trip next to the time spent inside Penpot's own export call.
+Penpot's exporter costs about 5–10 s per render request whatever the frame size, and it runs a few requests in parallel. That is why `--concurrency` matters up to a point, and why the stable rule (two matching renders) doubles the time of a first run. Each single-frame `export` prints a `timing` line and returns `timing` in its result: layout, stability wait, hashing, and for every render the whole round trip next to the time spent inside Penpot's own export call.
+
+Measured on 95 frames (a real release page, Penpot cloud, one afternoon):
+
+| Route | First run | Unchanged rerun with `--cache` |
+| --- | --- | --- |
+| Exporter, `--concurrency 4` | 8 min 34 s | 27 s, then 7 s once fingerprints were batched |
+| Exporter, `--concurrency 8` | 15 min 31 s | 1 min |
+| Editor (`--renderer editor`) | 1 min 50 s | 7 s |
 
 Recommendations, in order:
 
-1. Leave the default of 4 unless you have a reason. It is the setting measured most; see the numbers in [the render route record](designs/editor-render-route.md).
-2. Try 6–8 when Penpot answers reliably and you are rendering dozens of frames.
-3. Use 2 (or 1) after you see "http error", a frame falling back to a single render, or a stalled run. Penpot's render endpoint is the part that fails under load.
-4. A render that never answers ends the run: the unfinished frames are named and reported as failed, and nothing after the stall is attempted, because a call that timed out still holds the editor and everything after it would only queue behind it. Run again with `--cache` and the frames that were rendered are kept.
-5. `--cache` makes the second run cheap. It reads a fingerprint of every frame through the plugin, a fraction of a second each, so a page of 95 unchanged frames takes under half a minute.
+1. Keep the default of 4. The exporter handles about four renders at a time, so more concurrency queued and was slower, not faster. Raise it only after timing your own Penpot.
+2. Use 2 (or 1) after you see "http error", a frame falling back to a single render, or a stalled run. Penpot's render endpoint is the part that fails under load.
+3. A render that never answers ends the run: the unfinished frames are named and reported as failed, and nothing after the stall is attempted, because a call that timed out still holds the editor and everything after it would only queue behind it. Run again with `--cache` and the frames that were rendered are kept.
+4. `--cache` makes the second run cheap. It reads a fingerprint of every frame through the plugin in a few calls of up to 25 frames each, so a page of 95 unchanged frames takes seconds.
+5. For many frames where the exporter's exact bytes are not needed, render from the editor (next section).
 
 ## Rendering from the open editor
 
@@ -46,9 +54,9 @@ penpair export --frames ID1=login-desktop,ID2=login-tablet --page Candidate \
   --renderer editor --debug-port 9222
 ```
 
-`--renderer editor` captures each frame from the open Penpot tab instead of asking the exporter, so a frame takes about a second. Penpair shows the frame at 1:1 (at `--scale` times the pixels), clips exactly its rectangle, and returns the image only when two captures in a row are byte-identical. It needs `--debug-port` for a Chromium-based browser started with remote debugging, the pinned file open in a single tab, and the project's file pin. It writes no design data; it moves the editor's own viewport and window size for the capture and puts both back afterwards, so do not use that tab while it runs.
+`--renderer editor` captures each frame from the open Penpot tab instead of asking the exporter, so a frame takes about a second. Penpair shows the frame at 1:1 (at `--scale` times the pixels) with 120 px of free canvas around it, so the editor's toolbar and rulers never cover it, clips exactly its rectangle (a fractional size rounds to the nearest pixel, as the exporter does), and returns the image only when two captures in a row are byte-identical. It needs `--debug-port` for a Chromium-based browser started with remote debugging, the pinned file open in a single tab, and the project's file pin. It writes no design data; it moves the editor's own viewport and window size for the capture and puts both back afterwards, so do not use that tab while it runs.
 
-An editor image is a different pipeline from the exporter's. Measured on a 1440×800 frame, about 0.6 % of the pixels differ noticeably from the exporter's image (text edges, and anything that bleeds past the frame is cut off). So:
+An editor image is a different pipeline from the exporter's. Measured on the same 95 frames, every image had the exporter's size; the median image differed from the exporter's in 1.3 % of its pixels by more than a small threshold, the worst in 5.3 %, almost all of it text edges. Anything that bleeds past the frame is cut off, and transparent areas (the corners of a rounded frame, for example) come out in the canvas colour. Two of the 95 frames never settled in the first run ("the canvas kept changing") and were reported as failed; the rerun captured them. So:
 
 - Its results are labelled `renderer: editor-screenshot`, and its cache entries are kept apart from the exporter's.
 - Use it for review, for noticing that a frame changed, and for comparing two frames rendered the same way. Do not use it for baselines or approvals; `approve` and `baselines` always use the exporter.

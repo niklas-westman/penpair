@@ -34,6 +34,11 @@ export type EditorRenderOutcome =
 
 /** Frames wider or taller than this would exceed what a browser can draw in one capture. */
 export const largestEditorFrameSide = 8000;
+/**
+ * Space kept free on every side of the frame inside the canvas, so the editor's floating toolbar and rulers, which sit over the canvas
+ * edges, never cover the frame.
+ */
+const framePadding = 120;
 const protocolDeadlineMs = 30_000;
 const largestMessageBytes = 64 * 1024 * 1024;
 const canvasRectExpression = `(() => {
@@ -308,10 +313,14 @@ export async function renderFramesInEditor(
             windowWidth: number;
             windowHeight: number;
           }>(canvasRectExpression);
-          if (canvas.width < width + 2 || canvas.height < height + 2) {
+          const needed = {
+            width: width + 2 * framePadding,
+            height: height + 2 * framePadding,
+          };
+          if (canvas.width < needed.width || canvas.height < needed.height) {
             window = {
-              width: Math.ceil(window.width + Math.max(0, width + 2 - canvas.width)),
-              height: Math.ceil(window.height + Math.max(0, height + 2 - canvas.height)),
+              width: Math.ceil(window.width + Math.max(0, needed.width - canvas.width)),
+              height: Math.ceil(window.height + Math.max(0, needed.height - canvas.height)),
             };
             await setWindow();
             await wait(captureSettleMs);
@@ -327,8 +336,9 @@ export async function renderFramesInEditor(
           const clip = {
             x: canvas.x + (framed.rect.x - framed.bounds.x) * framed.zoom,
             y: canvas.y + (framed.rect.y - framed.bounds.y) * framed.zoom,
-            width: framed.rect.width * framed.zoom,
-            height: framed.rect.height * framed.zoom,
+            // Penpot's exporter rounds a fractional frame size to the nearest pixel, so the capture does too and the images match in size.
+            width: Math.round(framed.rect.width * framed.zoom),
+            height: Math.round(framed.rect.height * framed.zoom),
             scale: 1,
           };
           let previous: Buffer | undefined;

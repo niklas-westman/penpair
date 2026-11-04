@@ -211,6 +211,44 @@ describe("rendering frames from the open editor", () => {
     expect(clip.y % 1).toBeCloseTo(0, 5);
   });
 
+  it("rounds a fractional frame size to the nearest pixel, as the exporter does", async () => {
+    const browser = new FakeBrowser();
+    const { client, penpot } = editor(browser);
+    Object.assign(penpot.currentPage.getShapeById("small")!, {
+      width: 199.2,
+      height: 79.5,
+    });
+    await run(browser, client, [
+      "small",
+    ]);
+    const clip = browser.commands.find((command) => command.method === "Page.captureScreenshot")
+      ?.params.clip as Record<string, number>;
+    expect([
+      clip.width,
+      clip.height,
+    ]).toEqual([
+      199,
+      80,
+    ]);
+  });
+
+  it("keeps the frame clear of the editor's toolbar and rulers", async () => {
+    const browser = new FakeBrowser();
+    browser.window = {
+      width: 1195,
+      height: 300,
+    };
+    const { client } = editor(browser);
+    await run(browser, client, [
+      "small",
+    ]);
+    const override = browser.commands.filter(
+      (command) => command.method === "Emulation.setDeviceMetricsOverride",
+    );
+    // The canvas must hold the frame plus 120 px on every side, so the window grew to make room.
+    expect(Number(override.at(-1)?.params.height)).toBeGreaterThanOrEqual(80 + 240);
+  });
+
   it("grows the window for a frame wider than the canvas and puts everything back afterwards", async () => {
     const browser = new FakeBrowser();
     const { client, penpot } = editor(browser);

@@ -52,7 +52,7 @@ export const workflowTopics = [
       "penpair export --frames ID=review-card,OTHER_ID=review-dialog --page PAGE --out design/exports --cache --json",
       "Use 1–200 unique IDs and filename stems. One failure does not stop other frames. Require complete:true and inspect summary.failed; cached is distinct from exported.",
       "Prefer one representative frame while iterating; use the full batch after critique. Read diagnostics.progress for streaming behavior.",
-      "Speed: Penpot spends about 10 s per render request whatever the frame size, so frames are rendered together. --concurrency N (1–8, default 4) sets how many at once. Recommended: leave the default; try 6–8 when Penpot answers reliably; use 2 after 'http error' or a stalled run. A stall ends the run and names the frames not rendered; run again with --cache.",
+      "Speed: Penpot spends 5–10 s per render request whatever the frame size, so frames are rendered together. --concurrency N (1–8, default 4) sets how many at once; the exporter handles about four at a time, so 8 was slower than 4 when measured. Recommended: keep the default and use 2 after 'http error' or a stalled run. A stall ends the run and names the frames not rendered; run again with --cache. For many frames where exporter bytes are not required, --renderer editor --debug-port captures the open editor in about a second per frame.",
     ],
   },
   {
