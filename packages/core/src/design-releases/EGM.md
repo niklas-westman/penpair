@@ -79,7 +79,7 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
   arrange) returning `"preview"`, `"copied"` or `"incomplete"`. With
   `options.backend` (a read-only `PenpotBackendClient`) the structure of the
   originals and the copies is read from the Penpot backend's stored data and
-  compared there, and pixels are compared for a sample (`options.verifyPixels`);
+  compared there, and pixels are compared for every pair unless `options.verifyPixels` narrows it;
   without it the editor plugin is read instead. The result says which
   (`evidence`), and may carry a `diagnosis` when the cause is understood.
 - `verifyRelease(client, root, release, inputs, options)` (`verify.ts`) — live

@@ -25,7 +25,7 @@ Renders are bound by Penpot (4 to 7 s per large frame even when run concurrently
 ## Decided for
 
 - **Verify on the backend's stored data when a personal access token is set** (`get-page`, read-only). It is more complete than the plugin (component references and override bookkeeping are observable) and about 30 times faster. The plugin route stays as the fallback and for local Docker instances, where it was not tested.
-- **Pixels become a sampled second check** (`--verify-pixels`), because equal stored data is the stronger evidence. The owner chose the sample default on 2026-11-04.
+- **Pixels stay a second check over every pair** (`--verify-pixels all`, the default): one render per side, and only a pair that differs is rendered again with the settled double render. A sample was the first choice on 2026-11-04 and the owner reversed it the same day: structure is exact for every frame, but only pixels show fonts, images and effects as Penpot draws them. `sample` and `none` remain as options.
 
 ## Findings worth keeping
 

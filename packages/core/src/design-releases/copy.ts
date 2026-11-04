@@ -84,7 +84,7 @@ export interface CopyOptions extends ProgressOptions {
   clipboard?: () => Promise<NativeClipboard>;
   /** Read-only backend access (a personal access token). With it, structure is verified on stored data instead of by plugin reads. */
   backend?: PenpotBackendClient;
-  /** Backend route only: which boards are also compared by rendered pixels. Defaults to a sample. */
+  /** Backend route only: which boards are also compared by rendered pixels. Defaults to all of them. */
   verifyPixels?: PixelVerification;
   sleep?: (milliseconds: number) => Promise<void>;
 }
@@ -946,7 +946,7 @@ export async function copyReleaseBoards(
                 throw new Error("Copied identities changed before final readback");
               }
               const verdict = verifyBackendPairs(original.objects, target.objects, pairs);
-              const pixelMode = options.verifyPixels ?? "sample";
+              const pixelMode = options.verifyPixels ?? "all";
               const sampled = sampledPairs(pixelMode, pairs, backendSources);
               const pixelResult = await capturePhase(
                 evidenceProgress,

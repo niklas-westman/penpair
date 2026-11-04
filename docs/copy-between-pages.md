@@ -111,9 +111,12 @@ penpair design-release copy ... --debug-port 9222 --apply
 - Every attribute of every shape is compared, including component references and which
   properties are overridden, which the plugin cannot see. The `caveats` entry about
   component instances does not appear on this route.
-- Pixels are a second check. `--verify-pixels sample` (default) renders the first, the
-  last and the largest copy and its original; `all` renders every pair; `none` skips
-  rendering and leaves `pixelsMatch` out. The receipt says what was and was not compared.
+- Pixels are a second check over every pair. `--verify-pixels all` (default) renders each
+  copy and its original once and renders again, settled, only a pair that differs; the
+  stored data proves geometry, text and styling, the pixels show fonts, images and effects as
+  Penpot draws them. `sample` renders only the first, the last and the largest pair, and
+  `none` skips rendering and leaves `pixelsMatch` out. The receipt says what was and was
+  not compared.
 - A few localised pixels may differ even when the stored data is identical: hairline
   strokes (zero-height lines with a stroke) are rounded differently when rasterised.
   Up to 0.05 % of a frame's pixels is accepted then and listed in `pixels.differences`
