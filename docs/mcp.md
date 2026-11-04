@@ -64,17 +64,22 @@ actions. It never pastes, never edits Penpot and never deletes boards.
 
 ```json
 { "action": "diagnose", "debugPort": 9222 }
+{ "action": "find-pasted", "runId": "RUN_ID" }
 { "action": "abandon", "runId": "RUN_ID", "reason": "stopped before any paste" }
 ```
 
 - `diagnose` reads tab focus, clipboard permission and readability and changes
   nothing.
+- `find-pasted` reads the run's whole destination page and lists the boards it pasted
+  at any depth, with the board each sits inside. It changes nothing and needs no
+  browser. Use it before `abandon`: a listing of the page roots looks unchanged when
+  Penpot pasted a board inside another board.
 - `abandon` closes one run's journal so it stops blocking other copies of the file. A
   run that already pasted is refused unless `destinationInspected: true`, which asserts
   that you have looked at its destination page and know what it holds. To finish a run
   that pasted, resume it with `design_release_copy` and the original inputs instead.
-- `diagnose` takes `debugPort` and nothing else; `abandon` takes `runId` and `reason`,
-  and no port. Run ids are letters, digits and hyphens; arguments starting with `-`
+- `diagnose` takes `debugPort` and nothing else; `find-pasted` takes `runId` and nothing
+  else; `abandon` takes `runId` and `reason`, and no port. Run ids are letters, digits and hyphens; arguments starting with `-`
   are refused.
 
 This tool is absent from the default server. There is no MCP `wake` tool: explicit

@@ -179,6 +179,9 @@ were not.
 | `MCP error -32001: Request timed out` after the paste | A paste of many heavy boards keeps the editor busy longer than the 120 s request limit. The paste itself usually succeeded. | Do not paste again. Check the destination page, then `--resume RUN_ID --apply` with the original inputs. 0.10.1 waits this out by itself. |
 | `File revision changed during step inspection` or `Inspection cursor is stale` | The file revision moved while a long capture was running (autosave, another person or tab). | The revision is stable when idle. Wait a minute and `--resume` again. |
 | `Command deadline exceeded` during verification | Verifying about 14 heavy frames takes more than 9 minutes. | Pass a larger `--timeout-ms` (maximum 1800000). Resume never pastes again. |
+| Silence after `Copy selected native boards and paste once` (older versions: for ten minutes), then `uncertain` | The paste landed inside another board, so the page roots never showed the new board and the wait for them never ended. Penpot pastes into the board under the pointer, and the cursor was over a board. | Fixed: the viewport and the pointer are put on empty canvas before the paste, and the paste stage has a deadline and progress lines. On an older version, run `--find-pasted RUN_ID`; do not paste again. |
+| `status: misplaced`, with `misplaced` listing the pasted boards and the board each sits in | Penpot pasted inside another board anyway. Nothing was moved or deleted. | `design-release copy --find-pasted RUN_ID` lists the boards at any depth. Move or remove them in Penpot, then `--abandon RUN_ID --reason TEXT --destination-inspected`. Never report it as copied. |
+| `status: uncertain` with `stage` (`paste-settle`, `backend-wait-paste`, `backend-wait-arrange`, `structure-check` or `pixel-check`) and `seen` | That stage ran out of time (its deadline is in the message). `seen` lists the new root boards and the selection when it stopped. | After `paste-settle`, do not paste again; run `--find-pasted RUN_ID`. After the other stages the boards are pasted and arranged: `--resume RUN_ID --apply` verifies again. |
 | `Another writer is running design-release-copy` after a cancelled run | The shared writer marker in the file lasts 15 minutes. 0.10.1 releases it on cancel; earlier versions left it. | Wait for it to expire, or coordinate and use `--force-lock` only if nobody else is writing. |
 | `Native fidelity ...: Native board sizing / constraints / Mask / path content / Component override ... unobservable`, or `Native copy changed text, hierarchy, layout, geometry ...` on a copy that looks identical | Strict checks written before Penpot's real values were known: boards report `fill`, shapes inside groups or auto layouts report null constraints, sizes carry float noise (`1193.9999999999995`), moved paths carry float32 noise (`246.00009`). All handled in 0.10.1. | Upgrade. If a new value still blocks a real copy, compare `source/frame-N.json` and the newest `target-*/frame-N.json` under `.penpair/native-copy/RUN_ID/` offline with `semanticInspection`; it names the field. |
 | `status: incomplete` with only `Exported pixels differ` | Pasted vectors can differ by a few anti-aliased pixels. A frame within 0.05 % of its pixels and 16 per channel counts as matching; `pixelDifferences` in the receipt lists every measured frame. | Look at the listed counts. Larger differences are real. |
@@ -205,6 +208,25 @@ penpair design-release copy --diagnose --debug-port 9222
 # With --apply, adds a timestamped trace of every clipboard stage on stderr.
 penpair design-release copy ... --debug-port 9222 --apply --diagnose
 ```
+
+To see where a run's boards are, whatever its state, read the whole destination page
+(read-only, no browser needed):
+
+```sh
+penpair design-release copy --find-pasted RUN_ID
+```
+
+It lists boards at any depth that have a source board's name, size and node count and
+were not root boards when the run was planned, with the board each sits inside
+(`atRoot: false` is a paste that landed inside another board), and the sources for which
+nothing was found. A listing of the page roots (`penpair tree --depth 0`) looks
+unchanged when Penpot pasted inside a board, so use this before concluding that nothing
+was pasted. Matching is by name, size and node count: check the ids against the receipt.
+
+After the paste the run reports a progress line for every stage (`paste`, `identify`,
+`backend wait`, `structure check`, `pixel check`), and each stage has its own deadline,
+so a run never goes silent. A stage that runs out of time ends the run as `uncertain`
+and names the stage.
 
 A run that failed before any paste (no paste-attempt fence) never changed the
 destination and no longer blocks the next copy. To close it on the record:
