@@ -40,6 +40,7 @@ import {
   type CopiedFramePair,
 } from "./copy-evidence.js";
 import type { PenpotBackendClient } from "../penpot-backend.js";
+import { isEditorBusy, whileEditorBusy } from "./editor-busy.js";
 import {
   captureBackendSources,
   changedSources,
@@ -110,6 +111,11 @@ export interface CopyResult {
   caveats?: string[];
   /** Where the structural evidence came from: the Penpot backend's stored data, or reads through the editor plugin. */
   evidence?: "backend" | "plugin";
+  /** Backend route only: how long the backend trailed the editor before it showed the pasted and the arranged boards. */
+  backendWaitMs?: {
+    paste: number;
+    arrange: number;
+  };
   /** Backend route only: what was compared by pixels, and what was not. */
   pixels?: {
     mode: PixelVerification;
@@ -131,10 +137,6 @@ interface CopyPayload {
 
 const operation = "design-release-copy";
 const pasteSettlePolls = 25 + 300;
-function isEditorBusy(error: unknown): boolean {
-  return error instanceof Error && /timed out/i.test(error.message);
-}
-
 async function observedDestination(
   client: PenpotToolClient,
   fileId: string,
@@ -182,24 +184,31 @@ export async function copyReleaseBoards(
     },
   );
   return withPageSession(client, async () => {
+    const pause = options.sleep ?? commandSleep;
     const inspect = async (ownerKey?: string): Promise<CopyPreview> =>
-      readCopyPreview(
-        await runSnippet(
-          client,
-          nativeCopyInspect(
-            request.fileId,
-            request.sourcePage,
-            request.frameIds,
-            request.releaseVersion,
-            ownerKey,
+      whileEditorBusy(
+        async () =>
+          readCopyPreview(
+            await runSnippet(
+              client,
+              nativeCopyInspect(
+                request.fileId,
+                request.sourcePage,
+                request.frameIds,
+                request.releaseVersion,
+                ownerKey,
+              ),
+              {
+                effect: "read",
+                retries: 0,
+              },
+            ),
+            request,
           ),
-          {
-            effect: "read",
-            retries: 0,
-          },
-        ),
-        request,
+        pause,
       );
+    const observe = (pageId: string): Promise<CopyObservation> =>
+      whileEditorBusy(() => observedDestination(client, request.fileId, pageId), pause);
     const current = await capturePhase(options, "design-release copy", "selection", () =>
       inspect(),
     );
@@ -456,6 +465,7 @@ export async function copyReleaseBoards(
       inventoryComplete(value) &&
       pairs.length === request.frameIds.length &&
       pairs.every((pair) => addedRoots(value).includes(pair.targetFrameId));
+    let pasteWaitMs = 0;
     let pairs: CopiedFramePair[] = [];
     let placements: NativeCopyPlacement[] = [];
     const mappingPath = `${prefix}/mapping.json`;
@@ -505,7 +515,7 @@ export async function copyReleaseBoards(
         return value;
       }
       if (!pairs.length) {
-        const observed = await observedDestination(client, request.fileId, value.destinationPageId);
+        const observed = await observe(value.destinationPageId);
         const ids = addedRoots(value);
         if (
           observationHash(
@@ -537,6 +547,7 @@ export async function copyReleaseBoards(
               },
             ),
           );
+          pasteWaitMs = read.waitedMs;
           pairs = matchBackendFrames(backendSources, read.objects, ids);
           await saveArtifact(
             root,
@@ -584,7 +595,7 @@ export async function copyReleaseBoards(
       if (!value.destinationPageId || !pasteComplete(value)) {
         return value;
       }
-      const observed = await observedDestination(client, request.fileId, value.destinationPageId);
+      const observed = await observe(value.destinationPageId);
       value.arranged = placements.every((placement) =>
         observed.rootFrames.some(
           (frame) =>
@@ -659,11 +670,7 @@ export async function copyReleaseBoards(
               retries: 0,
             },
           );
-          const selection = await observedDestination(
-            client,
-            request.fileId,
-            baseline.sourcePageId,
-          );
+          const selection = await observe(baseline.sourcePageId);
           if (
             observationHash(
               [
@@ -693,7 +700,7 @@ export async function copyReleaseBoards(
           ) {
             throw new Error("Destination changed before paste");
           }
-          const empty = await observedDestination(client, request.fileId, value.destinationPageId);
+          const empty = await observe(value.destinationPageId);
           if (empty.selectionIds.length) {
             throw new Error("Destination selection changed before paste");
           }
@@ -910,6 +917,10 @@ export async function copyReleaseBoards(
                   ...pixelResult.problems,
                 ],
                 evidence: "backend",
+                backendWaitMs: {
+                  paste: pasteWaitMs,
+                  arrange: target.waitedMs,
+                },
                 pixels: {
                   mode: pixelMode,
                   compared: pixelResult.compared,
