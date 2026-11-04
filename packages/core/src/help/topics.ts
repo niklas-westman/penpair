@@ -47,11 +47,12 @@ export const workflowTopics = [
   },
   {
     id: "export.batch",
-    summary: "Export explicit frames sequentially with per-frame outcomes",
+    summary: "Export explicit frames, rendered together, with per-frame outcomes",
     instructions: [
       "penpair export --frames ID=review-card,OTHER_ID=review-dialog --page PAGE --out design/exports --cache --json",
       "Use 1–200 unique IDs and filename stems. One failure does not stop other frames. Require complete:true and inspect summary.failed; cached is distinct from exported.",
       "Prefer one representative frame while iterating; use the full batch after critique. Read diagnostics.progress for streaming behavior.",
+      "Speed: Penpot spends about 10 s per render request whatever the frame size, so frames are rendered together. --concurrency N (1–8, default 4) sets how many at once. Recommended: leave the default; try 6–8 when Penpot answers reliably; use 2 after 'http error' or a stalled run. A stall ends the run and names the frames not rendered; run again with --cache.",
     ],
   },
   {

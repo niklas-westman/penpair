@@ -11,6 +11,8 @@ export const flagGuidance: Record<string, string> = {
   name: "Exact shape name; duplicates are rejected. Prefer an observed shape ID when ambiguous.",
   cache:
     "Opt-in ad-hoc fingerprint reuse. A cache hit is reported as cached, never fresh pixel proof.",
+  concurrency:
+    "Batch export only: frames rendered at once, 1–8; default 4. Each Penpot render has a fixed cost of about 10 s, so more at once is faster. Try 6–8 when Penpot answers reliably; drop to 2 when you see 'http error' or frames falling back to single renders.",
   scale: "PNG render scale, greater than 0 and at most 8; default 1.",
   format:
     "Baseline png|webp; new references default to lossless WebP, existing formats stay until explicit migration.",

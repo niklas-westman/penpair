@@ -248,6 +248,12 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       65535,
       true,
     ],
+    [
+      "concurrency",
+      1,
+      8,
+      true,
+    ],
   ] as const) {
     const raw = values[key];
     if (raw === undefined) {
@@ -266,13 +272,19 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       );
     }
   }
-  if (command === "export" && (values.cache || values.out) && !values.frames) {
-    throw new CommandArgumentError("--cache and --out belong to a batch export (--frames)");
+  if (
+    command === "export" &&
+    (values.cache || values.out || values.concurrency) &&
+    !values.frames
+  ) {
+    throw new CommandArgumentError(
+      "--cache, --out and --concurrency belong to a batch export (--frames)",
+    );
   }
   if (command === "export" && values.frames) {
     if (rest.length || values.name || !values.page) {
       throw new CommandArgumentError(
-        "Batch export is penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]",
+        "Batch export is penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache] [--concurrency 1-8]",
       );
     }
   } else if (
@@ -2226,6 +2238,7 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           page: values.page,
           scale: values.scale ? Number(values.scale) : 1,
           cache: values.cache === true,
+          concurrency: values.concurrency ? Number(values.concurrency) : undefined,
           log: captureProgress ? undefined : (line) => output.error(`… ${line}`),
         },
       );
