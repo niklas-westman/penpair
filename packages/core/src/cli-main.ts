@@ -15,6 +15,7 @@ import {
   renderStructuralDiff,
 } from "./structure-snapshot.js";
 import { recordApproval, approvalFingerprint, artifactSha } from "./approvals.js";
+import { resolveApprovalTarget } from "./approve-target.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   buildDesignSpec,
@@ -151,6 +152,26 @@ const targetSignature = (config: ProjectConfig) =>
     profile: "profile" in config ? config.profile : null,
     ports: "ports" in config ? config.ports : null,
   });
+/** Where the pinned file is open in the browser, for the renderer that captures the editor. */
+function editorBrowserTarget(
+  config: ProjectConfig | undefined,
+  port: number,
+): NonNullable<import("./editor-render.js").EditorRenderOptions["browser"]> {
+  if (!config?.file?.id) {
+    throw new CommandArgumentError(
+      "--renderer editor needs the project's owner-confirmed file pin to find the right browser tab",
+    );
+  }
+  return {
+    origin: isExternal(config) ? config.profile.origin : frontendUrl(config),
+    allowLoopbackAlias: !isExternal(config),
+    fileId: config.file.id,
+    port,
+    timeoutMs: 30000,
+    signal: commandSignal(),
+  };
+}
+
 async function loadCommandConfig(root: string): Promise<ProjectConfig> {
   const config = await loadConfig(root);
   const pinned = commandProjects.getStore()?.pinnedConfig;
@@ -274,12 +295,30 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
   }
   if (
     command === "export" &&
-    (values.cache || values.out || values.concurrency) &&
+    (values.cache || values.out || values.concurrency || values.renderer) &&
     !values.frames
   ) {
     throw new CommandArgumentError(
-      "--cache, --out and --concurrency belong to a batch export (--frames)",
+      "--cache, --out, --concurrency and --renderer belong to a batch export (--frames)",
     );
+  }
+  if (command === "export" && values.renderer !== undefined) {
+    if (
+      ![
+        "exporter",
+        "editor",
+      ].includes(values.renderer)
+    ) {
+      throw new CommandArgumentError("--renderer must be exporter or editor");
+    }
+    if (values.renderer === "editor" && !values["debug-port"]) {
+      throw new CommandArgumentError(
+        "--renderer editor captures the open editor tab and needs --debug-port",
+      );
+    }
+  }
+  if (command === "export" && values["debug-port"] !== undefined && values.renderer !== "editor") {
+    throw new CommandArgumentError("--debug-port on export belongs to --renderer editor");
   }
   if (command === "export" && values.frames) {
     if (rest.length || values.name || !values.page) {
@@ -2039,76 +2078,18 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           "approve --page PAGE --frame ID [--case CASE_ID] previews evidence; --write requires --note exact-owner-words and --by identity",
         );
       }
-      let intent: import("./baselines-config.js").BaselineCase | undefined;
-      let imageFormat: BaselineImageFormat =
-        (values.format as BaselineImageFormat | undefined) ?? "webp";
-      let approvalPage: string | undefined = values.page;
-      let approvalPageId: string | undefined;
-      if (values.case) {
-        const baseline = projectConfig?.baselines;
-        const wanted = baseline?.frames.find((f) => f.id === values.case);
-        if (!wanted?.case || (!wanted.pageId && (wanted.page ?? baseline?.page) !== values.page)) {
-          throw new Error(
-            "Approval case must reference an explicitly configured frame on this page",
-          );
-        }
-        if (wanted.pageId) {
-          await selectPage(
-            client,
-            {
-              id: wanted.pageId.toLowerCase(),
-            },
-            options,
-          );
-          const observed = await runOnPage(
-            client,
-            baselineFrames({
-              pageId: wanted.pageId.toLowerCase(),
-              frameIds: [
-                values.frame.toLowerCase(),
-              ],
-            }),
-            undefined,
-            options,
-          );
-          if (
-            observed.pageId !== wanted.pageId.toLowerCase() ||
-            (wanted.page !== undefined && observed.page !== wanted.page) ||
-            (values.page.toLowerCase() !== wanted.pageId.toLowerCase() &&
-              values.page !== observed.page)
-          ) {
-            throw new Error("Approval page ID and configured or supplied page name do not match");
-          }
-          const selected = Array.isArray(observed.frames)
-            ? (observed.frames as {
-                id: string;
-                name: string;
-              }[])
-            : [];
-          if (
-            selected.length !== 1 ||
-            (wanted.frame !== undefined && selected[0]!.name !== wanted.frame)
-          ) {
-            throw new Error("Approval frame does not match the configured case on this page");
-          }
-          approvalPageId = wanted.pageId.toLowerCase();
-          approvalPage = undefined;
-        }
-        if (wanted.frameId) {
-          if (wanted.frameId.toLowerCase() !== values.frame.toLowerCase()) {
-            throw new Error("Approval frame ID does not match the configured case");
-          }
-        } else if (!wanted.pageId) {
-          const found = await findShapesByName(client, wanted.frame!, values.page);
-          if (found.matches.length !== 1 || found.matches[0]!.id !== values.frame) {
-            throw new Error("Approval frame ID does not match the configured case");
-          }
-        }
-        intent = wanted.case;
-        imageFormat = values.format
-          ? (values.format as BaselineImageFormat)
-          : await resolveBaselineImageFormat(root, baseline!, wanted.id);
-      }
+      const { intent, imageFormat, approvalPage, approvalPageId } = await resolveApprovalTarget(
+        client,
+        root,
+        projectConfig,
+        options,
+        {
+          page: values.page,
+          frame: values.frame,
+          caseId: values.case,
+          format: values.format,
+        },
+      );
       const captured = await exportShapePng(client, values.frame, {
         ...options,
         ...capturePolicyOption(values["capture-policy"]),
@@ -2239,6 +2220,11 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
           scale: values.scale ? Number(values.scale) : 1,
           cache: values.cache === true,
           concurrency: values.concurrency ? Number(values.concurrency) : undefined,
+          renderer: values.renderer === "editor" ? "editor" : "exporter",
+          browser:
+            values.renderer === "editor"
+              ? editorBrowserTarget(projectConfig, Number(values["debug-port"]))
+              : undefined,
           log: captureProgress ? undefined : (line) => output.error(`… ${line}`),
         },
       );

@@ -99,7 +99,7 @@ function targetMatches(
   }
 }
 
-async function debuggingSocketUrl(
+export async function debuggingSocketUrl(
   options: BrowserTargetOptions,
   targetId: string,
   signal: AbortSignal,

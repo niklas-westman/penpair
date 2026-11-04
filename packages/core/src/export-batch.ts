@@ -4,7 +4,7 @@ import { mkdir, lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { atomicWriteFile } from "./atomic-output.js";
 import type { PenpotToolClient } from "./client.js";
-import type { ExportOptions } from "./export.js";
+import type { ExportOptions, RendererName } from "./export.js";
 import { renderFrames } from "./render-service.js";
 import { resolveProjectOutput } from "./project-input.js";
 import { requirePage, snippet } from "./snippet.js";
@@ -21,6 +21,8 @@ export interface FrameResult {
   file: string;
   outcome: FrameOutcome;
   bytes?: number;
+  /** Absent means the exporter. */
+  renderer?: RendererName;
   elapsedMs: number;
   message?: string;
 }
@@ -138,6 +140,9 @@ export interface BatchOptions extends ExportOptions {
   cache?: boolean;
   log?: (line: string) => void;
   signal?: AbortSignal;
+  /** Exporter (default) or the open editor; see the render service. */
+  renderer?: "exporter" | "editor";
+  browser?: import("./editor-render.js").EditorRenderOptions["browser"];
   /** Frames rendered at once; see the render service. */
   concurrency?: number;
   /** Per-frame deadline for a frame that has to be rendered on its own. */
@@ -230,7 +235,7 @@ export async function exportFrames(
       }
       // A fingerprint of a truncated sample is not evidence of "unchanged".
       const fingerprint = seen.truncated === true ? undefined : seen.fingerprint;
-      const key = `${seen.fileId}/${seen.pageId}/${frame.id}/${scale}`;
+      const key = `${seen.fileId}/${seen.pageId}/${frame.id}/${scale}${options.renderer === "editor" ? "/editor" : ""}`;
       const entry = cache[key];
       if (fingerprint && entry && entry.fingerprint === fingerprint) {
         const existing = await readFile(target).catch(() => undefined);
@@ -288,6 +293,8 @@ export async function exportFrames(
       page: params.page,
       concurrency: options.concurrency,
       frameTimeoutMs: options.frameTimeoutMs,
+      renderer: options.renderer,
+      browser: options.browser,
     },
   );
   for (const entry of wanted) {
@@ -334,6 +341,11 @@ export async function exportFrames(
       file: entry.file,
       outcome: "exported",
       bytes: png.length,
+      ...(outcome.result.renderer
+        ? {
+            renderer: outcome.result.renderer,
+          }
+        : {}),
       elapsedMs: outcome.elapsedMs,
     };
     options.log?.(

@@ -1,5 +1,5 @@
 import type { PenpotToolClient } from "../client.js";
-import { exportShapePng, exportShapesPngStable } from "../export.js";
+import { renderFrames } from "../render-service.js";
 import { selectPage } from "../page-session.js";
 import { setTimeout as sleepFor } from "node:timers/promises";
 import { saveArtifact } from "./artifact-paths.js";
@@ -73,19 +73,16 @@ async function renderBoards(
   await selectPage(client, {
     id: pageId,
   });
-  const batch =
-    frameIds.length > 1
-      ? await exportShapesPngStable(client, frameIds, {
-          singleRound: !settled,
-        })
-      : new Map();
+  const batch = await renderFrames(client, frameIds, {
+    singleRound: !settled,
+  });
   const rendered = new Map<string, RenderedBoard>();
   for (const [index, frameId] of frameIds.entries()) {
-    const image =
-      batch.get(frameId) ??
-      (await exportShapePng(client, frameId, {
-        stable: settled,
-      }));
+    const outcome = batch.get(frameId);
+    if (!outcome?.ok) {
+      throw new Error(`Frame ${frameId} was not rendered: ${outcome?.message ?? "no result"}`);
+    }
+    const image = outcome.result;
     const pixels = await decodedPixels(image.png);
     rendered.set(frameId, {
       render: await saveArtifact(root, `${prefix}/frame-${index}.png`, image.png, redact),

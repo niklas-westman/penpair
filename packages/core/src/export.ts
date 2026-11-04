@@ -59,7 +59,12 @@ export interface ExportTiming {
   renders: RenderTiming[];
 }
 
+/** Which pipeline drew the image. Images from different renderers are never byte-identical and must not be mixed in one comparison. */
+export type RendererName = "exporter" | "editor-screenshot";
+
 export interface ExportResult {
+  /** Absent means the exporter. */
+  renderer?: RendererName;
   /** Absent for results that did not come from a timed single-shape export. */
   timing?: ExportTiming;
   layout?: LayoutResult;

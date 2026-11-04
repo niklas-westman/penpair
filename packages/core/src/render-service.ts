@@ -1,5 +1,6 @@
 import type { PenpotToolClient } from "./client.js";
 import { commandSignal } from "./command-result.js";
+import { renderFramesInEditor, type EditorRenderOptions } from "./editor-render.js";
 import {
   exportShapePng,
   exportShapesPngStable,
@@ -8,7 +9,7 @@ import {
 } from "./export.js";
 
 /** How a frame was rendered: with the others in one concurrent round trip, or on its own after the batch could not deliver it. */
-export type RenderRoute = "batch" | "single";
+export type RenderRoute = "batch" | "single" | "editor";
 
 export type RenderOutcome =
   | {
@@ -31,6 +32,15 @@ export interface RenderServiceOptions extends ExportOptions {
   /** A frame that renders on its own is given up on after this long, and the others go on. */
   frameTimeoutMs?: number;
   log?: (line: string) => void;
+  /**
+   * Which pipeline draws the images. "editor" captures the open editor: about a hundred times faster, but a different pipeline from
+   * Penpot's exporter, so its images are labelled and never mixed with exporter images. There is no silent fallback between them.
+   */
+  renderer?: "exporter" | "editor";
+  /** One render per frame instead of two matching ones. The caller must re-render anything it relies on as settled. Default: two. */
+  singleRound?: boolean;
+  /** The browser tab holding the pinned file, required by the editor renderer. */
+  browser?: EditorRenderOptions["browser"];
 }
 
 export const defaultRenderConcurrency = 4;
@@ -78,11 +88,44 @@ export async function renderFrames(
     concurrency = defaultRenderConcurrency,
     frameTimeoutMs = defaultFrameTimeoutMs,
     log,
+    renderer = "exporter",
+    singleRound = false,
+    browser,
     ...exportOptions
   } = options;
   const started = Date.now();
   const outcomes = new Map<string, RenderOutcome>();
   if (!frameIds.length) {
+    return outcomes;
+  }
+  if (renderer === "editor") {
+    if (!browser) {
+      throw new Error("The editor renderer needs the browser debugging port (--debug-port)");
+    }
+    log?.(`rendering ${frameIds.length} frame(s) from the open editor, one at a time`);
+    const captured = await renderFramesInEditor(client, frameIds, {
+      ...exportOptions,
+      browser,
+    });
+    for (const id of frameIds) {
+      const outcome = captured.get(id);
+      outcomes.set(
+        id,
+        outcome?.ok
+          ? {
+              ok: true,
+              route: "editor",
+              result: outcome.result,
+              elapsedMs: Date.now() - started,
+            }
+          : {
+              ok: false,
+              route: "editor",
+              message: outcome?.message ?? "The frame was not captured",
+              elapsedMs: Date.now() - started,
+            },
+      );
+    }
     return outcomes;
   }
   log?.(
@@ -98,6 +141,7 @@ export async function renderFrames(
       exportShapesPngStable(client, frameIds, {
         ...exportOptions,
         concurrency: width,
+        singleRound,
       }),
     );
   } catch (error) {
@@ -133,12 +177,12 @@ export async function renderFrames(
       const result = await withFrameTimeout(frameTimeoutMs, () =>
         exportShapePng(client, id, {
           ...exportOptions,
-          stable: true,
+          stable: !singleRound,
         }),
       );
       outcomes.set(
         id,
-        result.stable
+        result.stable || singleRound
           ? {
               ok: true,
               route: "single",

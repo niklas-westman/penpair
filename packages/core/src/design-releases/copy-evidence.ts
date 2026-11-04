@@ -1,6 +1,7 @@
 import type { PenpotToolClient } from "../client.js";
 import type { InspectionCapture } from "../inspection.js";
-import { exportShapePng, exportShapesPngStable, type ExportResult } from "../export.js";
+import { exportShapePng, type ExportResult } from "../export.js";
+import { renderFrames } from "../render-service.js";
 import { selectPage, withPageSession } from "../page-session.js";
 import { observationHash } from "../journal.js";
 import { saveArtifact } from "./artifact-paths.js";
@@ -91,9 +92,24 @@ export async function captureCopyEvidence(
           await selectPage(client, {
             id: pageId,
           });
-          return exportShapesPngStable(client, frameIds, {
+          const rendered = await renderFrames(client, frameIds, {
             singleRound: options.render === "single",
           });
+          // A frame that did not render is left out, and the one-by-one fallback below takes it.
+          return new Map<string, ExportResult>(
+            [
+              ...rendered,
+            ].flatMap(([id, outcome]) =>
+              outcome.ok
+                ? [
+                    [
+                      id,
+                      outcome.result,
+                    ] as const,
+                  ]
+                : [],
+            ),
+          );
         })
       : new Map<string, ExportResult>();
 
