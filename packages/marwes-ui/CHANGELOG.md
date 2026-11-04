@@ -1,5 +1,12 @@
 # @penpair/marwes-ui
 
+## 0.11.0
+
+### Patch Changes
+
+- Updated dependencies [bf044a6]
+  - @penpair/core@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
