@@ -3,6 +3,7 @@ import { CommandArgumentError, parseCommandArgs } from "../cli-arguments.js";
 import { commandSignal } from "../command-result.js";
 import { progressReporter } from "../capture-progress.js";
 import { abandonCopyRun, copyReleaseBoards } from "../design-releases/copy.js";
+import { findPastedBoards } from "../design-releases/copy-find.js";
 import { connectNativeClipboard } from "../native-editor-clipboard.js";
 import { redactAccessToken, resolveAccessToken } from "../penpot-access-token.js";
 import { PenpairError } from "../errors.js";
@@ -12,6 +13,7 @@ import type { DesignCommandContext } from "./context.js";
 const copyUsage =
   "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--resume RUN_ID] [--progress human|json|off]\n" +
   "design-release copy --diagnose --debug-port PORT\n" +
+  "design-release copy --find-pasted RUN_ID\n" +
   "design-release copy --abandon RUN_ID --reason TEXT [--destination-inspected]";
 
 function boundedText(value: string | undefined): value is string {
@@ -38,6 +40,26 @@ export async function runDesignReleaseCopyCommand(
     return 0;
   }
 
+  if (values["find-pasted"] !== undefined) {
+    if (
+      !/^[a-zA-Z0-9-]{1,100}$/.test(values["find-pasted"]) ||
+      values.apply ||
+      values.resume ||
+      values.abandon !== undefined ||
+      values["debug-port"] !== undefined
+    ) {
+      throw new CommandArgumentError(
+        "Finding pasted boards requires --find-pasted RUN_ID and nothing else; it only reads",
+      );
+    }
+    const runId = values["find-pasted"];
+    const found = await context.withPenpot((client) =>
+      findPastedBoards(client, context.root, runId),
+    );
+    context.output.result(found);
+    context.output.log(JSON.stringify(found, null, 2));
+    return found.misplaced.length ? 3 : 0;
+  }
   if (values.abandon !== undefined) {
     if (
       !/^[a-zA-Z0-9-]{1,100}$/.test(values.abandon) ||
@@ -232,5 +254,5 @@ export async function runDesignReleaseCopyCommand(
   );
   context.output.result(result);
   context.output.log(JSON.stringify(result, null, 2));
-  return result.status === "incomplete" ? 3 : 0;
+  return result.status === "copied" || result.status === "preview" ? 0 : 3;
 }

@@ -3,14 +3,19 @@ import type { PenpotToolClient } from "../src/client.js";
 import type { DesignCommandContext } from "../src/design-commands/context.js";
 import { runDesignReleaseCommand } from "../src/design-commands/release-command.js";
 import { copyReleaseBoards } from "../src/design-releases/copy.js";
+import { findPastedBoards } from "../src/design-releases/copy-find.js";
 import * as clipboard from "../src/native-editor-clipboard.js";
 
 vi.mock("../src/design-releases/copy.js", () => ({
   copyReleaseBoards: vi.fn(),
 }));
 
+vi.mock("../src/design-releases/copy-find.js", () => ({
+  findPastedBoards: vi.fn(),
+}));
+
 const client = {} as PenpotToolClient;
-const result = (status: "preview" | "copied" | "incomplete") =>
+const result = (status: "preview" | "copied" | "incomplete" | "misplaced" | "uncertain") =>
   ({
     status,
   }) as Awaited<ReturnType<typeof copyReleaseBoards>>;
@@ -360,4 +365,90 @@ it("refuses --evidence backend without a token, and values it does not know", as
   ).rejects.toThrow(/--verify-pixels takes/);
   expect(copyReleaseBoards).not.toHaveBeenCalled();
   vi.unstubAllEnvs();
+});
+
+it.each([
+  "misplaced",
+  "uncertain",
+  "incomplete",
+] as const)("exits non-zero for a %s copy, never as if it had worked", async (status) => {
+  vi.mocked(copyReleaseBoards).mockResolvedValue(result(status));
+  expect(await runDesignReleaseCommand(args, context)).toBe(3);
+});
+
+it("finds pasted boards with one run id, read-only, and exits non-zero when some sit inside other boards", async () => {
+  vi.mocked(findPastedBoards).mockResolvedValue({
+    misplaced: [
+      {},
+    ],
+  } as unknown as Awaited<ReturnType<typeof findPastedBoards>>);
+  const connect = vi.spyOn(clipboard, "connectNativeClipboard");
+  expect(
+    await runDesignReleaseCommand(
+      [
+        "copy",
+        "--find-pasted",
+        "run-1",
+      ],
+      context,
+    ),
+  ).toBe(3);
+  expect(findPastedBoards).toHaveBeenCalledWith(client, "/project", "run-1");
+  expect(connect).not.toHaveBeenCalled();
+  vi.mocked(findPastedBoards).mockResolvedValue({
+    misplaced: [],
+  } as unknown as Awaited<ReturnType<typeof findPastedBoards>>);
+  expect(
+    await runDesignReleaseCommand(
+      [
+        "copy",
+        "--find-pasted",
+        "run-1",
+      ],
+      context,
+    ),
+  ).toBe(0);
+});
+
+it.each([
+  [
+    "a run id that is a path",
+    [
+      "copy",
+      "--find-pasted",
+      "../x",
+    ],
+  ],
+  [
+    "--apply",
+    [
+      "copy",
+      "--find-pasted",
+      "run-1",
+      "--apply",
+    ],
+  ],
+  [
+    "a debug port",
+    [
+      "copy",
+      "--find-pasted",
+      "run-1",
+      "--debug-port",
+      "9222",
+    ],
+  ],
+  [
+    "--abandon",
+    [
+      "copy",
+      "--find-pasted",
+      "run-1",
+      "--abandon",
+      "run-2",
+    ],
+  ],
+])("refuses --find-pasted with %s", async (_label, given) => {
+  await expect(runDesignReleaseCommand(given, context)).rejects.toThrow(/find-pasted/);
+  expect(findPastedBoards).not.toHaveBeenCalled();
 });

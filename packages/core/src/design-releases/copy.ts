@@ -61,10 +61,23 @@ import {
   nativeCopyInspect,
   nativeCopyCreatePage,
   nativeCopySelect,
+  nativeCopyEmptyCanvas,
   nativeCopyObserve,
   nativeCopyArrange,
   type NativeCopyPlacement,
 } from "./copy-snippets.js";
+import {
+  CopyStageTimeoutError,
+  MisplacedPasteError,
+  defaultStageDeadlinesMs,
+  pixelCheckMsPerPair,
+  stageAnnouncer,
+  stageLabels,
+  withStageDeadline,
+  type CopySeen,
+  type CopyStage,
+  type CopyStageDeadlines,
+} from "./copy-stages.js";
 import {
   validateCopyRequest,
   readCopyPreview,
@@ -87,13 +100,28 @@ export interface CopyOptions extends ProgressOptions {
   backend?: PenpotBackendClient;
   /** Backend route only: which boards are also compared by rendered pixels. Defaults to all of them. */
   verifyPixels?: PixelVerification;
+  /** Hard deadline per stage after the paste, in milliseconds; the defaults are in `copy-stages.ts`. */
+  stageDeadlinesMs?: CopyStageDeadlines;
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
 export interface CopyResult {
   schemaVersion: 1;
   kind: "native-release-copy";
-  status: "preview" | "copied" | "incomplete";
+  /**
+   * `misplaced`: Penpot pasted the boards inside another board, not on the page root. `uncertain`: a stage after the paste ran out
+   * of time. Neither is a completed transfer, and nothing was moved or deleted.
+   */
+  status: "preview" | "copied" | "incomplete" | "misplaced" | "uncertain";
+  /** `misplaced` only: the pasted boards and the board each one ended up inside. */
+  misplaced?: CopySeen["selection"];
+  /** `uncertain` only: the stage that ran out of time and what the tool saw in the destination. */
+  stage?: {
+    name: CopyStage;
+    afterMs: number;
+  };
+  /** What the tool saw in the destination page when the run stopped (`misplaced` and `uncertain`). */
+  seen?: CopySeen;
   preview: CopyPreview;
   runId?: string;
   receiptPath?: string;
@@ -155,7 +183,6 @@ interface CopyPayload {
 const operation = "design-release-copy";
 const layoutRecomputedNote =
   "Penpot recomputes automatic layouts while pasting. In these boards the source holds sizes that no longer match its own layout, so the copy has the recomputed sizes and its render differs from the source's stored state on purpose. Every other attribute is identical. Refresh the source's layout in Penpot when convenient.";
-const pasteSettlePolls = 25 + 300;
 async function observedDestination(
   client: PenpotToolClient,
   fileId: string,
@@ -175,6 +202,7 @@ async function observedDestination(
     !Array.isArray(result.rootIds) ||
     !Array.isArray(result.selectionIds) ||
     !Array.isArray(result.rootFrames) ||
+    !Array.isArray(result.selection) ||
     result.rootIds.some((id) => typeof id !== "string")
   ) {
     throw new Error("Destination inventory or selection was not independently observed");
@@ -258,6 +286,22 @@ export async function copyReleaseBoards(
               runId,
             })
         : undefined,
+    };
+    const announce = stageAnnouncer(options.onProgress, runId);
+    const deadlineFor = (stage: CopyStage): number =>
+      options.stageDeadlinesMs?.[stage] ?? defaultStageDeadlinesMs[stage];
+    let lastSeen: CopySeen | undefined;
+    let stageError: CopyStageTimeoutError | MisplacedPasteError | undefined;
+    // The error is kept so that a stage failure can be reported as a result that says what was seen, not only as a thrown message.
+    const trackStage = async <T>(work: () => Promise<T>): Promise<T> => {
+      try {
+        return await work();
+      } catch (error) {
+        if (error instanceof CopyStageTimeoutError || error instanceof MisplacedPasteError) {
+          stageError = error;
+        }
+        throw error;
+      }
     };
     options.onProgress?.({
       schemaVersion: 1,
@@ -645,18 +689,37 @@ export async function copyReleaseBoards(
             "Pasted selection does not uniquely identify the new boards; inspect without replay",
           );
         }
+        lastSeen = {
+          newRootIds: ids,
+          selection: observed.selection,
+        };
+        announce(
+          "identify",
+          `${ids.length} new root board${ids.length === 1 ? "" : "s"} on the destination page; matching them to their sources`,
+          true,
+        );
         if (backendSources) {
           // The editor saves to the backend a little later; wait until it shows every pasted board.
-          const read = await capturePhase(evidenceProgress, "design-release copy", "verify", () =>
-            readBackendPageWhen(
-              backend!,
-              request.fileId,
-              value.destinationPageId!,
-              (objects) => ids.every((id) => objects[id]),
-              {
-                signal: options.signal,
-                sleep: options.sleep,
-              },
+          const read = await trackStage(() =>
+            capturePhase(evidenceProgress, "design-release copy", "verify", () =>
+              readBackendPageWhen(
+                backend!,
+                request.fileId,
+                value.destinationPageId!,
+                (objects) => ids.every((id) => objects[id]),
+                {
+                  signal: options.signal,
+                  sleep: options.sleep,
+                  timeoutMs: deadlineFor("backend-wait-paste"),
+                  stage: "backend-wait-paste",
+                  seen: () => lastSeen,
+                  onWait: (state) =>
+                    announce(
+                      "backend wait",
+                      `the backend has not shown the pasted boards yet (${Math.round(state.waitedMs / 1000)} s, read ${state.polls}${state.lastProblem ? `, last answer: ${state.lastProblem}` : ""})`,
+                    ),
+                },
+              ),
             ),
           );
           pasteWaitMs = read.waitedMs;
@@ -805,6 +868,27 @@ export async function copyReleaseBoards(
             effect: "write",
             retries: 0,
           });
+          // With nothing selected Penpot pastes into the board under the pointer, which the transport places at the canvas centre; make that spot empty.
+          const canvas = await runSnippet(
+            client,
+            nativeCopyEmptyCanvas(request.fileId, value.destinationPageId),
+            {
+              effect: "write",
+              retries: 0,
+            },
+          );
+          if (Array.isArray(canvas.covering) && canvas.covering.length) {
+            throw new Error(
+              "The viewport could not be placed on empty canvas, so a paste could land inside a board; nothing was pasted",
+            );
+          }
+          announce(
+            "paste",
+            canvas.moved === true
+              ? "viewport on empty canvas; pasting once"
+              : "viewport position unavailable in this Penpot; pasting once and checking where it lands",
+            true,
+          );
           const destination = await targetPreview();
           if (
             observationHash(destination.destinationRootIds) !==
@@ -829,23 +913,45 @@ export async function copyReleaseBoards(
           attempted = true;
           await clipboard.paste(value.destinationPageId);
           // A large paste keeps the editor busy for minutes; a read that times out then says nothing about the paste, so keep asking.
-          for (let poll = 0; poll < pasteSettlePolls; poll++) {
+          const settleDeadlineMs = deadlineFor("paste-settle");
+          const settleStarted = Date.now();
+          let simulatedMs = 0;
+          for (let poll = 0; ; poll++) {
             try {
-              if (inventoryComplete(await targetPreview())) {
+              const preview = await targetPreview();
+              const observed = await observe(value.destinationPageId);
+              lastSeen = {
+                newRootIds: addedRoots(preview),
+                selection: observed.selection,
+              };
+              // Penpot selects what it pasted; a selected board whose parent is not the page root was pasted inside another board.
+              if (observed.selection.some((entry) => entry.parentId !== null)) {
+                stageError = new MisplacedPasteError(lastSeen);
+                throw stageError;
+              }
+              if (inventoryComplete(preview)) {
                 return {
                   dispatched: true,
                 };
               }
             } catch (error) {
-              if (!isEditorBusy(error)) {
+              if (error instanceof MisplacedPasteError || !isEditorBusy(error)) {
                 throw error;
               }
             }
-            await (options.sleep ?? commandSleep)(poll < 25 ? 200 : 2000);
+            const waitedMs = Math.max(Date.now() - settleStarted, simulatedMs);
+            if (waitedMs >= settleDeadlineMs) {
+              stageError = new CopyStageTimeoutError("paste-settle", settleDeadlineMs, lastSeen);
+              throw stageError;
+            }
+            announce(
+              "paste",
+              `${stageLabels["paste-settle"]} (${Math.round(waitedMs / 1000)} s): ${lastSeen?.newRootIds.length ?? 0} of ${request.frameIds.length} new boards on the page root, ${lastSeen?.selection.length ?? 0} selected`,
+            );
+            const interval = poll < 25 ? 200 : 2000;
+            simulatedMs += interval;
+            await (options.sleep ?? commandSleep)(interval);
           }
-          throw new Error(
-            "Paste acknowledgment did not establish new boards; reconcile without replay",
-          );
         } finally {
           await clipboard.close();
         }
@@ -906,6 +1012,47 @@ export async function copyReleaseBoards(
       });
       receiptPersisted = true;
     };
+    const stageResult = (
+      failure: CopyStageTimeoutError | MisplacedPasteError,
+      failedRunId: string,
+      preview: CopyPreview,
+    ): CopyResult => {
+      const afterPaste =
+        failure instanceof CopyStageTimeoutError && failure.stage !== "paste-settle";
+      const guidance =
+        failure instanceof MisplacedPasteError
+          ? `Nothing was moved or deleted. List the pasted boards with design-release copy --find-pasted ${failedRunId}, remove or move them in Penpot yourself, then close the run with --abandon ${failedRunId} --destination-inspected`
+          : afterPaste
+            ? `The boards are pasted and arranged; only their verification did not finish. Run again with --resume ${failedRunId} --apply to verify, and do not paste again`
+            : `Do not paste again. List what reached the destination with design-release copy --find-pasted ${failedRunId}`;
+      return {
+        schemaVersion: 1,
+        kind: "native-release-copy",
+        status: failure instanceof MisplacedPasteError ? "misplaced" : "uncertain",
+        preview,
+        runId: failedRunId,
+        ...(failure instanceof MisplacedPasteError
+          ? {
+              misplaced: failure.seen.selection.filter((entry) => entry.parentId !== null),
+              seen: failure.seen,
+            }
+          : {
+              stage: {
+                name: failure.stage,
+                afterMs: failure.afterMs,
+              },
+              ...(failure.seen
+                ? {
+                    seen: failure.seen,
+                  }
+                : {}),
+            }),
+        problems: [
+          failure.message,
+          guidance,
+        ],
+      };
+    };
     try {
       await runJournaledSteps(
         [
@@ -957,58 +1104,100 @@ export async function copyReleaseBoards(
                     Math.abs(Number(board.y) - placement.y) < 0.01
                   );
                 });
-              const target = await capturePhase(
-                evidenceProgress,
-                "design-release copy",
-                "verify",
-                () =>
+              const target = await trackStage(() =>
+                capturePhase(evidenceProgress, "design-release copy", "verify", () =>
                   readBackendPageWhen(backend!, request.fileId, destinationPageId, isArranged, {
                     signal: options.signal,
                     sleep: options.sleep,
+                    timeoutMs: deadlineFor("backend-wait-arrange"),
+                    stage: "backend-wait-arrange",
+                    seen: () => lastSeen,
+                    onWait: (state) =>
+                      announce(
+                        "backend wait",
+                        `the backend has not shown the arranged boards yet (${Math.round(state.waitedMs / 1000)} s, read ${state.polls}${state.lastProblem ? `, last answer: ${state.lastProblem}` : ""})`,
+                      ),
                   }),
+                ),
               );
-              const original = await backend!.getPage(
-                request.fileId,
-                baseline.sourcePageId,
-                options.signal,
+              announce(
+                "structure check",
+                `comparing the stored data of ${pairs.length} board pair${pairs.length === 1 ? "" : "s"}`,
+                true,
               );
-              if (changedSources(backendSources, original.objects).length) {
-                throw new Error(
-                  "Original boards changed during transfer; independent reconciliation is required",
-                );
-              }
-              const matched = matchBackendFrames(
-                backendSources,
-                target.objects,
-                pairs.map((pair) => pair.targetFrameId),
+              const { original, verdict } = await trackStage(() =>
+                withStageDeadline(
+                  "structure-check",
+                  deadlineFor("structure-check"),
+                  async () => {
+                    const original = await backend!.getPage(
+                      request.fileId,
+                      baseline.sourcePageId,
+                      options.signal,
+                    );
+                    if (changedSources(backendSources, original.objects).length) {
+                      throw new Error(
+                        "Original boards changed during transfer; independent reconciliation is required",
+                      );
+                    }
+                    const matched = matchBackendFrames(
+                      backendSources,
+                      target.objects,
+                      pairs.map((pair) => pair.targetFrameId),
+                    );
+                    if (observationHash(matched) !== observationHash(pairs)) {
+                      throw new Error("Copied identities changed before final readback");
+                    }
+                    return {
+                      original,
+                      verdict: verifyBackendPairs(original.objects, target.objects, pairs),
+                    };
+                  },
+                  () => lastSeen,
+                ),
               );
-              if (observationHash(matched) !== observationHash(pairs)) {
-                throw new Error("Copied identities changed before final readback");
-              }
-              const verdict = verifyBackendPairs(original.objects, target.objects, pairs);
+              announce(
+                "structure check",
+                `${verdict.nativeVerified ? "every pair is identical" : `${verdict.problems.length} problem${verdict.problems.length === 1 ? "" : "s"} found`}${verdict.layoutDriven.shapes ? `, ${verdict.layoutDriven.frames.length} board${verdict.layoutDriven.frames.length === 1 ? "" : "s"} with recomputed layout` : ""}`,
+                true,
+              );
               const pixelMode = options.verifyPixels ?? "all";
               // A board whose layout was recomputed differs from its original on purpose, so its pixels are not comparable.
               const comparable = pairs.filter(
                 (pair) => !verdict.layoutDriven.frames.includes(pair.sourceFrameId),
               );
               const sampled = sampledPairs(pixelMode, comparable, backendSources);
-              const pixelResult = await capturePhase(
-                evidenceProgress,
-                "design-release copy",
-                "verify",
-                () =>
-                  comparePairPixels(
-                    client,
-                    root,
-                    {
-                      source: baseline.sourcePageId,
-                      target: destinationPageId,
-                    },
-                    sampled,
-                    `${prefix}/pixels-${randomUUID()}`,
-                    verdict.nativeVerified,
-                    options.redact,
-                  ),
+              announce(
+                "pixel check",
+                sampled.length
+                  ? `rendering and comparing ${sampled.length} of ${pairs.length} board pair${pairs.length === 1 ? "" : "s"} (${pixelMode})`
+                  : "no board pair is compared by pixels",
+                true,
+              );
+              const pixelResult = await trackStage(() =>
+                withStageDeadline(
+                  "pixel-check",
+                  options.stageDeadlinesMs?.["pixel-check"] ??
+                    defaultStageDeadlinesMs["pixel-check"] + sampled.length * pixelCheckMsPerPair,
+                  () =>
+                    capturePhase(evidenceProgress, "design-release copy", "verify", () =>
+                      comparePairPixels(
+                        client,
+                        root,
+                        {
+                          source: baseline.sourcePageId,
+                          target: destinationPageId,
+                        },
+                        sampled,
+                        `${prefix}/pixels-${randomUUID()}`,
+                        verdict.nativeVerified,
+                        options.redact,
+                        pause,
+                        (message) => announce("pixel check", message, true),
+                      ),
+                    ),
+                  () => lastSeen,
+                ),
               );
               await selectPage(client, {
                 id: destinationPageId,
@@ -1229,6 +1418,9 @@ export async function copyReleaseBoards(
         },
       );
     } catch (error) {
+      if (stageError && error instanceof JournalRunError) {
+        return stageResult(stageError, error.runId, current);
+      }
       if (
         finalResult?.status === "incomplete" &&
         receiptPersisted &&
@@ -1275,7 +1467,7 @@ export async function abandonCopyRun(
   }
   if (dispatched && !options.destinationInspected) {
     throw new Error(
-      "A paste was dispatched for this run; inspect the destination and use --resume, or abandon with --destination-inspected once you have checked what was pasted",
+      "A paste was dispatched for this run. List where its boards are, at any depth, with --find-pasted RUN_ID; then use --resume, or abandon with --destination-inspected once you have checked what was pasted",
     );
   }
   const updated = await markJournalAbandoned(root, runId, reason);

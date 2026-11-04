@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
 import type { InspectionCapture } from "../src/inspection.js";
 import { abandonCopyRun, copyReleaseBoards } from "../src/design-releases/copy.js";
+import { findPastedBoards } from "../src/design-releases/copy-find.js";
+import type { CaptureProgress } from "../src/capture-progress.js";
 import { readJournal, listJournals, JournalRunError } from "../src/journal.js";
 import * as atomic from "../src/atomic-output.js";
 import * as evidence from "../src/design-releases/copy-evidence.js";
@@ -109,6 +111,13 @@ async function fixture(existingDestination = false, realPageSessions = false) {
     },
     currentPage: source,
     selection: [] as Shape[],
+    // Penpot pastes into the board under the centre of the viewport when nothing is selected.
+    viewport: {
+      center: {
+        x: 0,
+        y: 0,
+      },
+    },
     createPage() {
       const created = page(`created-${pages.length}`, `Page ${pages.length}`, []);
       pages.push(created);
@@ -136,7 +145,15 @@ async function fixture(existingDestination = false, realPageSessions = false) {
       const pasted = copies.map((original) =>
         shape(`pasted-${original.id}`, original.name, original.width),
       );
-      state.currentPage.root.children.push(...pasted);
+      const center = state.viewport.center;
+      const host = state.currentPage.root.children.find(
+        (board) =>
+          center.x >= board.x &&
+          center.x <= board.x + board.width &&
+          center.y >= board.y &&
+          center.y <= board.y + board.height,
+      );
+      (host ? host.children : state.currentPage.root.children).push(...pasted);
       state.selection = pasted;
       state.currentFile.revn++;
     }),
@@ -566,9 +583,19 @@ describe("native copy orchestration with real operation journals", () => {
       );
       trial.state.currentFile.revn++;
     });
-    await expect(
-      copyReleaseBoards(trial.client, trial.root, trial.request, trial.options),
-    ).rejects.toThrow(/paste|conflict|verification/i);
+    const result = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+      ...trial.options,
+      stageDeadlinesMs: {
+        "paste-settle": 5_000,
+      },
+    });
+    expect(result.status).toBe("uncertain");
+    expect(result.stage?.name).toBe("paste-settle");
+    expect(result.seen?.newRootIds).toEqual([
+      "unrelated",
+      "extra",
+      "third",
+    ]);
     expect(trial.writes).not.toContain("arrange");
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
   });
@@ -938,5 +965,137 @@ describe("native copy orchestration with real operation journals", () => {
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
     expect(trial.clipboard.copy).toHaveBeenCalledOnce();
     expect(trial.writes.filter((write) => write === "arrange")).toHaveLength(1);
+  });
+});
+
+describe("where the paste lands, and how long each stage may take", () => {
+  it("pastes onto empty canvas even when the viewport sits over a board, so the copies are page roots", async () => {
+    const trial = await fixture(true);
+    // The existing board covers this point: Penpot would paste into it if the viewport stayed here.
+    trial.state.viewport.center = {
+      x: 100,
+      y: 90,
+    };
+    const result = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    expect(result.status).toBe("copied");
+    expect(trial.existing.children).toEqual([]);
+    expect(trial.destination.root.children.map((board) => board.id)).toEqual(
+      expect.arrayContaining([
+        "pasted-source-a",
+        "pasted-source-b",
+      ]),
+    );
+    expect(trial.state.viewport.center.x).toBeGreaterThan(150);
+  });
+
+  it("reports misplaced, with the parent, and never copied, when Penpot pasted inside a board anyway", async () => {
+    const trial = await fixture(true);
+    const paste = trial.clipboard.paste.getMockImplementation()!;
+    trial.clipboard.paste.mockImplementation(async () => {
+      // The viewport moved back over the board between the move and the paste.
+      trial.state.viewport.center = {
+        x: 100,
+        y: 90,
+      };
+      await paste();
+    });
+    const started = Date.now();
+    const result = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(result.status).toBe("misplaced");
+    expect(result.misplaced?.map((entry) => entry.parentId)).toEqual([
+      "existing",
+      "existing",
+    ]);
+    expect(result.misplaced?.[0]?.parentName).toBe("Preserve me");
+    expect(trial.writes).not.toContain("arrange");
+    // Nothing is moved or deleted: the boards are still where Penpot put them.
+    expect(trial.existing.children).toHaveLength(2);
+    expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+  });
+
+  it("finds the pasted boards at any depth, read-only, and never ends a second run silently", async () => {
+    const trial = await fixture(true);
+    const paste = trial.clipboard.paste.getMockImplementation()!;
+    trial.clipboard.paste.mockImplementation(async () => {
+      trial.state.viewport.center = {
+        x: 100,
+        y: 90,
+      };
+      await paste();
+    });
+    await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    const writesBefore = [
+      ...trial.writes,
+    ];
+    const found = await findPastedBoards(trial.client, trial.root, "copy-run");
+    expect(
+      found.found.map((board) => [
+        board.sourceFrameId,
+        board.atRoot,
+        board.parentId,
+      ]),
+    ).toEqual([
+      [
+        "source-a",
+        false,
+        "existing",
+      ],
+      [
+        "source-b",
+        false,
+        "existing",
+      ],
+    ]);
+    expect(found.misplaced).toHaveLength(2);
+    expect(found.missing).toEqual([]);
+    expect(trial.writes).toEqual(writesBefore);
+    // A roots-only listing of the page looks unchanged: that is what misled the first report.
+    expect(trial.destination.root.children.map((board) => board.id)).toEqual([
+      "existing",
+    ]);
+    await expect(
+      copyReleaseBoards(trial.client, trial.root, trial.request, {
+        ...trial.options,
+        runId: "second-run",
+      }),
+    ).rejects.toThrow(/copy-run/);
+    expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+  });
+
+  it("lists the copies on the page root once a copy has worked, and nothing missing", async () => {
+    const trial = await fixture();
+    await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    const found = await findPastedBoards(trial.client, trial.root, "copy-run");
+    expect(found.found.every((board) => board.atRoot)).toBe(true);
+    expect(found.found).toHaveLength(2);
+    expect(found.misplaced).toEqual([]);
+  });
+
+  it("ends a paste that never shows up at its deadline, names the stage, and keeps talking until then", async () => {
+    const trial = await fixture();
+    trial.clipboard.paste.mockImplementation(async () => undefined);
+    const events: CaptureProgress[] = [];
+    const result = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+      ...trial.options,
+      stageDeadlinesMs: {
+        "paste-settle": 3_000,
+      },
+      onProgress: (event) => events.push(event),
+    });
+    expect(result.status).toBe("uncertain");
+    expect(result.stage).toEqual({
+      name: "paste-settle",
+      afterMs: 3_000,
+    });
+    expect(result.seen).toEqual({
+      newRootIds: [],
+      selection: [],
+    });
+    expect(result.problems.join(" ")).toContain("--find-pasted copy-run");
+    expect(
+      events.some((event) => event.phase === "stage" && /^paste: /.test(event.message ?? "")),
+    ).toBe(true);
+    expect(trial.writes).not.toContain("arrange");
   });
 });

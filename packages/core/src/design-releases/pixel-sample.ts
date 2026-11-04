@@ -167,6 +167,7 @@ export async function comparePairPixels(
   nativeVerified: boolean,
   redact?: (text: string) => string,
   pause: (milliseconds: number) => Promise<void> = (milliseconds) => sleepFor(milliseconds),
+  report: (message: string) => void = () => undefined,
 ): Promise<PixelSampleResult> {
   const result: PixelSampleResult = {
     compared: pairs.map((pair) => pair.sourceFrameId),
@@ -181,6 +182,9 @@ export async function comparePairPixels(
     subset.map(select);
   const compare = async (subset: CopiedFramePair[], settled: boolean): Promise<PixelFinding[]> => {
     const label = settled ? "settled" : "single";
+    report(
+      `${settled ? "settled re-render of" : "rendering"} ${subset.length} board pair${subset.length === 1 ? "" : "s"} (source page first, then the copies)`,
+    );
     // Renders are reads; a busy editor (a large paste just finished) answers them late, so ask again.
     const sources = await whileEditorBusy(
       () =>
@@ -208,6 +212,7 @@ export async function comparePairPixels(
         ),
       pause,
     );
+    report(`comparing ${subset.length} rendered pair${subset.length === 1 ? "" : "s"}`);
     const findings: PixelFinding[] = [];
     for (const pair of subset) {
       findings.push(

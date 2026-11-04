@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   nativeCopyArrange,
   nativeCopyCreatePage,
+  nativeCopyEmptyCanvas,
+  nativeCopyFindBoards,
   nativeCopyInspect,
   nativeCopyObserve,
   nativeCopySelect,
@@ -608,5 +610,99 @@ describe("native copy observation and arrangement", () => {
       runId: "run",
       previousRunId: "other",
     });
+  });
+});
+
+describe("where a paste lands", () => {
+  it("observes the parent of every selected shape, so a nested paste is visible", async () => {
+    const { editor, destination } = fixture();
+    const inner = shape("inner");
+    destination.root.children[0]!.children.push(inner);
+    editor.currentPage = destination;
+    editor.selection = [
+      inner,
+      destination.root.children[0]!,
+    ];
+    const observed = await execute(nativeCopyObserve("file", "destination"), editor);
+    expect(observed.selection).toEqual([
+      {
+        id: "inner",
+        name: "inner",
+        parentId: "existing",
+        parentName: "existing",
+      },
+      {
+        id: "existing",
+        name: "existing",
+        parentId: null,
+        parentName: null,
+      },
+    ]);
+  });
+
+  it("moves the viewport to canvas that no board covers, or says it cannot", async () => {
+    const { editor, destination } = fixture();
+    editor.currentPage = destination;
+    const withViewport = editor as typeof editor & {
+      viewport?: {
+        center: {
+          x: number;
+          y: number;
+        };
+      };
+    };
+    expect(await execute(nativeCopyEmptyCanvas("file", "destination"), editor)).toMatchObject({
+      ok: true,
+      moved: false,
+      reason: "viewport-unavailable",
+    });
+    withViewport.viewport = {
+      center: {
+        x: 50,
+        y: 40,
+      },
+    };
+    const result = await execute(nativeCopyEmptyCanvas("file", "destination"), editor);
+    expect(result).toMatchObject({
+      ok: true,
+      moved: true,
+      covering: [],
+    });
+    expect(withViewport.viewport.center.x).toBeGreaterThan(100 + 3999);
+    expect(nativeCopyEmptyCanvas("file", "destination").effect).toBe("write");
+  });
+
+  it("finds boards at any depth by name, size and node count, with where they sit", async () => {
+    const { editor, destination } = fixture();
+    const host = destination.root.children[0]!;
+    const pasted = shape("pasted", [
+      shape("leaf", [], "rect"),
+    ]);
+    pasted.name = "Screen";
+    host.children.push(pasted);
+    const lookalike = shape("lookalike");
+    lookalike.name = "Screen";
+    host.children.push(lookalike);
+    editor.currentPage = destination;
+    const found = await execute(
+      nativeCopyFindBoards("file", "destination", [
+        {
+          name: "Screen",
+          width: 100,
+          height: 80,
+          nodeCount: 2,
+        },
+      ]),
+      editor,
+    );
+    expect(found.found).toEqual([
+      expect.objectContaining({
+        id: "pasted",
+        parentId: "existing",
+        sourceIndex: 0,
+        nodeCount: 2,
+      }),
+    ]);
+    expect(() => nativeCopyFindBoards("file", "destination", [])).toThrow(/1–100/);
   });
 });

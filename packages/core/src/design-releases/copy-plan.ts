@@ -36,6 +36,13 @@ export interface CopyObservation {
   pageId: string;
   rootIds: string[];
   selectionIds: string[];
+  /** Each selected shape with its parent; `parentId` is null for a shape on the page root. */
+  selection: Array<{
+    id: string;
+    name: string;
+    parentId: string | null;
+    parentName: string | null;
+  }>;
   rootFrames: Array<{
     id: string;
     name: string;

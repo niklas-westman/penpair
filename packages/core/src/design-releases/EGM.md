@@ -76,7 +76,12 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
 
 - `copyReleaseBoards(client, root, request, options)` (`copy.ts`) — a three-step
   journalled pipeline (create destination page, clipboard copy and paste,
-  arrange) returning `"preview"`, `"copied"` or `"incomplete"`. With
+  arrange) returning `"preview"`, `"copied"`, `"incomplete"`, `"misplaced"` (the
+  pasted boards sit inside another board, not on the page root) or `"uncertain"`
+  (a stage after the paste ran out of time; `stage` and `seen` say where). Before the
+  paste it moves the viewport to empty canvas (`nativeCopyEmptyCanvas`), and the
+  clipboard transport puts the pointer at the canvas centre; a paste is never
+  reported `"copied"` unless every pasted board is a page root. With
   `options.backend` (a read-only `PenpotBackendClient`) the structure of the
   originals and the copies is read from the Penpot backend's stored data and
   compared there, and pixels are compared for every pair unless `options.verifyPixels` narrows it;
@@ -147,7 +152,10 @@ backend route of native copy: `backend-evidence.ts` (record, wait for, match and
 verify boards on backend data), `backend-compare.ts` (attribute-by-attribute
 comparison of a board with its copy), `pixel-sample.ts` (which pairs are
 rendered, and how a differing pair is settled) and `editor-busy.ts` (asking again
-while the editor is busy).
+while the editor is busy). `copy-stages.ts` holds the stage deadlines, the stage
+timeout and misplaced-paste errors and the progress announcer; `copy-find.ts` exports
+`findPastedBoards(client, root, runId)`, a read-only search of a run's destination page
+at any depth (candidates by name, size and node count, never moved or deleted).
 
 ## Invariants
 

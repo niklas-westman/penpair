@@ -70,13 +70,18 @@ class FakeSocket extends EventTarget implements ClipboardSocket {
                 ? {
                     cleared: !this.denyWrite,
                   }
-                : String(command.params.expression).includes("inspectNativeClipboard")
+                : String(command.params.expression).includes("getBoundingClientRect")
                   ? {
-                      validated: this.validClipboard && !this.denyRead,
-                      unavailable: this.denyRead,
-                      digest: this.digest,
+                      x: 400,
+                      y: 300,
                     }
-                  : this.state,
+                  : String(command.params.expression).includes("inspectNativeClipboard")
+                    ? {
+                        validated: this.validClipboard && !this.denyRead,
+                        unavailable: this.denyRead,
+                        digest: this.digest,
+                      }
+                    : this.state,
             },
           }
         : {};
@@ -152,6 +157,9 @@ describe("native editor clipboard transport", () => {
       "Emulation.setFocusEmulationEnabled",
       "Runtime.evaluate",
       "Runtime.evaluate",
+      "Runtime.evaluate",
+      "Input.dispatchMouseEvent",
+      "Input.dispatchMouseEvent",
       "Input.dispatchKeyEvent",
       "Input.dispatchKeyEvent",
     ]);
@@ -540,5 +548,40 @@ describe("native editor clipboard transport", () => {
     ).rejects.toThrow(/unavailable/);
     expect(setup.socket.closed).toBe(true);
     expect(setup.socket.commands).toHaveLength(0);
+  });
+
+  it("points the pointer at the middle of the canvas before it pastes, never before it copies", async () => {
+    // Penpot pastes into the board under the last pointer position, so a cursor left over a board nests the copy inside it.
+    const setup = fixture();
+    const session = await connected(setup);
+    await session.copy("source", [
+      frameId,
+    ]);
+    expect(
+      setup.socket.commands.some((command) => command.method === "Input.dispatchMouseEvent"),
+    ).toBe(false);
+    await session.paste("source");
+    const methods = setup.socket.commands.map((command) => command.method);
+    const moves = setup.socket.commands.filter(
+      (command) => command.method === "Input.dispatchMouseEvent",
+    );
+    expect(moves.map((command) => command.params)).toMatchObject([
+      {
+        type: "mouseMoved",
+        x: 401,
+        y: 301,
+      },
+      {
+        type: "mouseMoved",
+        x: 400,
+        y: 300,
+      },
+    ]);
+    const lastMove = methods.lastIndexOf("Input.dispatchMouseEvent");
+    const paste = methods.indexOf(
+      "Input.dispatchKeyEvent",
+      methods.indexOf("Input.dispatchMouseEvent"),
+    );
+    expect(lastMove).toBeLessThan(paste);
   });
 });

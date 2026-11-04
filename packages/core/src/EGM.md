@@ -288,7 +288,8 @@ accepted route forms into a routing identity; strips all other parameters).
   oversized request can end the connection.
 - **Browser debug protocol**, loopback only and validated: `/json/list` and
   `/json/activate/<targetId>` over HTTP to focus a tab, and a WebSocket to
-  dispatch copy and paste key events. `wake --reload` additionally sends
+  dispatch copy and paste key events, and a pointer move to the canvas centre just
+  before a paste (Penpot pastes into the board under the pointer). `wake --reload` additionally sends
   `Page.reload` over a WebSocket (`browser-wake.ts`). Clipboard text never leaves
   the page.
 - **Penpot backend**: with an access token, `penpot-backend.ts` sends read-only
