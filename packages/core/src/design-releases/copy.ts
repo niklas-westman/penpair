@@ -111,6 +111,8 @@ export interface CopyResult {
   caveats?: string[];
   /** Where the structural evidence came from: the Penpot backend's stored data, or reads through the editor plugin. */
   evidence?: "backend" | "plugin";
+  /** Said when the copy cannot be accepted as it is and the cause is understood, with what to do next. */
+  diagnosis?: string;
   /** Backend route only: how long the backend trailed the editor before it showed the pasted and the arranged boards. */
   backendWaitMs?: {
     paste: number;
@@ -136,6 +138,8 @@ interface CopyPayload {
 }
 
 const operation = "design-release-copy";
+const layoutRecomputedDiagnosis =
+  "Only sizes and positions differ. Penpot recomputes automatic layouts while pasting, so a source whose stored sizes no longer match its own layout is copied with the recomputed ones. Copy the copy to confirm it is stable, or refresh the source's layout in Penpot and copy again.";
 const pasteSettlePolls = 25 + 300;
 async function observedDestination(
   client: PenpotToolClient,
@@ -917,6 +921,11 @@ export async function copyReleaseBoards(
                   ...pixelResult.problems,
                 ],
                 evidence: "backend",
+                ...(verdict.layoutOnly
+                  ? {
+                      diagnosis: layoutRecomputedDiagnosis,
+                    }
+                  : {}),
                 backendWaitMs: {
                   paste: pasteWaitMs,
                   arrange: target.waitedMs,

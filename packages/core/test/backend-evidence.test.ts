@@ -387,5 +387,11 @@ describe("recording and matching boards from backend data", () => {
     const verdict = verifyBackendPairs(source, target, pairs);
     expect(verdict.nativeVerified).toBe(false);
     expect(verdict.problems[0]).toContain(uuid("s2"));
+    expect(verdict.layoutOnly).toBe(false);
+    target[uuid("t2-child")]!.fills = source[uuid("s2-child")]!.fills;
+    target[uuid("t2-child")]!.width = 99;
+    const relaid = verifyBackendPairs(source, target, pairs);
+    expect(relaid.nativeVerified).toBe(false);
+    expect(relaid.layoutOnly).toBe(true);
   });
 });

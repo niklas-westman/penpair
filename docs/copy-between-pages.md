@@ -90,6 +90,40 @@ rendered again with two identical renders on both sides; the result's `render`
 field lists which pairs needed that. Review the saved source/target exports visually as part of
 acceptance; a technical result does not supply human approval.
 
+## Faster verification with a personal access token
+
+Reading every shape through the editor plugin is the slow part of a copy: for 14 heavy
+frames it took about 130 s of a 339 s run. With a Penpot personal access token
+(Profile, Access tokens), `design-release copy` reads the stored data from the Penpot
+backend instead: one request per page, about 1.5 s for a page of 1000 shapes.
+
+```sh
+# In the shell, or as a line in the git-ignored .env.local of the project:
+export PENPAIR_PAT_TOKEN=...      # never paste it into chat or commit it
+penpair design-release copy ... --debug-port 9222 --apply
+```
+
+- The token is optional. Without it the plugin route is used, as before, and the
+  result says `evidence: "plugin"`. `--evidence backend` refuses to run without a token,
+  `--evidence plugin` ignores it.
+- The backend is only read. The copy itself is still the editor's own paste, and the
+  token is redacted from every output and receipt.
+- Every attribute of every shape is compared, including component references and which
+  properties are overridden, which the plugin cannot see. The `caveats` entry about
+  component instances does not appear on this route.
+- Pixels are a second check. `--verify-pixels sample` (default) renders the first, the
+  last and the largest copy and its original; `all` renders every pair; `none` skips
+  rendering and leaves `pixelsMatch` out. The receipt says what was and was not compared.
+- A few localised pixels may differ even when the stored data is identical: hairline
+  strokes (zero-height lines with a stroke) are rounded differently when rasterised.
+  Up to 0.05 % of a frame's pixels is accepted then and listed in `pixels.differences`
+  as `localized-with-identical-data`. Without identical data the stricter limit applies.
+- The editor saves to the backend a little later than it shows a change. The tool waits
+  up to 90 s for the pasted and the arranged boards to appear (measured 12 to 15 s for
+  19 frames; `backendWaitMs` in the result).
+- 14 heavy frames: about 100 s in total, instead of 339 s on the plugin route. This is an
+  internal Penpot API; the version is pinned like the rest of Penpair.
+
 ## Results and recovery
 
 The result includes a `runId`, source/target board pairs, `nativeVerified`,
@@ -139,6 +173,9 @@ were not.
 | `Another writer is running design-release-copy` after a cancelled run | The shared writer marker in the file lasts 15 minutes. 0.10.1 releases it on cancel; earlier versions left it. | Wait for it to expire, or coordinate and use `--force-lock` only if nobody else is writing. |
 | `Native fidelity ...: Native board sizing / constraints / Mask / path content / Component override ... unobservable`, or `Native copy changed text, hierarchy, layout, geometry ...` on a copy that looks identical | Strict checks written before Penpot's real values were known: boards report `fill`, shapes inside groups or auto layouts report null constraints, sizes carry float noise (`1193.9999999999995`), moved paths carry float32 noise (`246.00009`). All handled in 0.10.1. | Upgrade. If a new value still blocks a real copy, compare `source/frame-N.json` and the newest `target-*/frame-N.json` under `.penpair/native-copy/RUN_ID/` offline with `semanticInspection`; it names the field. |
 | `status: incomplete` with only `Exported pixels differ` | Pasted vectors can differ by a few anti-aliased pixels. A frame within 0.05 % of its pixels and 16 per channel counts as matching; `pixelDifferences` in the receipt lists every measured frame. | Look at the listed counts. Larger differences are real. |
+| `incomplete` with many `width differs`, `selrect differs` and similar lines, and a `diagnosis` saying only sizes and positions differ | Penpot recomputes automatic layouts while pasting. A source whose stored sizes no longer match its own layout (buttons clipped in its render, text boxes too narrow) is copied with the recomputed sizes. Seen on the Teams and access page: 245 shapes, and copying the copy again was identical. | Look at the source's render. If the copy is the correct one, copy the copy (or refresh the source's layout in Penpot and copy again) to confirm it is stable. Do not accept the result without looking. |
+| `Reading page ... from the Penpot backend failed` or `did not show the expected shapes` | The token is missing, expired or refused (`access-token-rejected`), or the editor had not saved yet. | Create a new token under Profile, Access tokens, or remove `PENPAIR_PAT_TOKEN` to use the plugin route. A run that stopped here is `uncertain`: `--resume` it, never paste again. |
+| A `MCP error -32001: Request timed out` before the paste, right after the page was created | The editor is busy after creating the page. Reads before the paste now ask again for up to 80 s. | Nothing to do with this version; on older ones `--abandon` the run (no paste fence) and repeat. |
 | `export: http error` on a many-frame render, or a very slow verification | Penpot refuses answers of a few megabytes, and a heavy page renders about 5 s per frame. 0.10.1 renders and inspects concurrently, halves a group that is refused, and shows why a frame fell back with `PENPAIR_TRACE_EXPORT=1`. | Nothing to do; use the trace if a run is slower than about 30 s per 4 frames. |
 | `Copy run ... already covers this transfer or requires reconciliation` | An earlier journal for the same file did not verify, or the same request already completed. | A run that never pasted no longer blocks (0.10.1). Otherwise `--resume` it, or `--abandon RUN_ID --reason TEXT` if no paste was dispatched. Never move `.penpair/runs/*.json` by hand. |
 

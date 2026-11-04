@@ -9,7 +9,20 @@ export interface BackendComparison {
   nodeMap: Record<string, string>;
   nodes: number;
   problems: string[];
+  /** The attributes that differ, so a caller can tell a re-flowed layout from a changed design. */
+  differingAttributes: string[];
 }
+
+/** Attributes that move when Penpot recomputes an automatic layout: sizes and positions, nothing about the design itself. */
+export const layoutAttributes: ReadonlySet<string> = new Set([
+  "width",
+  "height",
+  "x",
+  "y",
+  "selrect",
+  "points",
+  "positionData",
+]);
 
 interface Offset {
   x: number;
@@ -158,13 +171,15 @@ function commandsOfPath(content: string): string {
 }
 
 interface Context {
+  differing: Set<string>;
   nodeMap: Record<string, string>;
   offset: Offset;
   problems: string[];
   path: string;
 }
 
-function report(context: Context, message: string): void {
+function report(context: Context, message: string, attribute = "structure"): void {
+  context.differing.add(attribute);
   if (context.problems.length < problemLimit) {
     context.problems.push(`${context.path}: ${message}`);
   }
@@ -259,7 +274,7 @@ function compareAttribute(
       typeof after !== "number" ||
       !near(after - before, shift, positionTolerance)
     ) {
-      report(context, `${key} is not the copy's shift of the original`);
+      report(context, `${key} is not the copy's shift of the original`, key);
     }
     return;
   }
@@ -267,24 +282,24 @@ function compareAttribute(
     if (
       !sameValue(before, after, context, key === "positionData" ? originShiftKeys : cornerShiftKeys)
     ) {
-      report(context, `${key} differs beyond the board's shift`);
+      report(context, `${key} differs beyond the board's shift`, key);
     }
     return;
   }
   if (key === "content" && typeof before === "string" && typeof after === "string") {
     if (!comparePath(before, after, context)) {
-      report(context, "path content differs beyond the board's shift");
+      report(context, "path content differs beyond the board's shift", "content");
     }
     return;
   }
   if (key === "pluginData") {
     if (!sameValue(withoutOwnBookkeeping(before), withoutOwnBookkeeping(after), context)) {
-      report(context, "plugin data differs");
+      report(context, "plugin data differs", "pluginData");
     }
     return;
   }
   if (!sameValue(before, after, context)) {
-    report(context, `${key} differs`);
+    report(context, `${key} differs`, key);
   }
 }
 
@@ -300,6 +315,7 @@ export function compareBackendSubtrees(
   targetRootId: string,
 ): BackendComparison {
   const problems: string[] = [];
+  const differing = new Set<string>();
   const nodeMap: Record<string, string> = {};
   const sourceIds = orderedIds(sourceObjects, originalRootId);
   const targetIds = orderedIds(targetObjects, targetRootId);
@@ -309,6 +325,9 @@ export function compareBackendSubtrees(
       nodes: sourceIds.length,
       problems: [
         `The copy has ${targetIds.length} shapes where the original has ${sourceIds.length}`,
+      ],
+      differingAttributes: [
+        "structure",
       ],
     };
   }
@@ -320,6 +339,7 @@ export function compareBackendSubtrees(
     const source = sourceObjects[sourceId]!;
     const target = targetObjects[nodeMap[sourceId]!]!;
     const context: Context = {
+      differing: new Set<string>(),
       nodeMap,
       offset,
       problems,
@@ -346,10 +366,23 @@ export function compareBackendSubtrees(
         compareAttribute(key, source, target, context);
       }
     }
+    // A path moves with its frame when a layout is recomputed; its drawing changing on its own is a design change.
+    if (
+      context.differing.has("content") &&
+      (context.differing.has("selrect") || context.differing.has("points"))
+    ) {
+      context.differing.delete("content");
+    }
+    for (const attribute of context.differing) {
+      differing.add(attribute);
+    }
   }
   return {
     nodeMap,
     nodes: sourceIds.length,
     problems,
+    differingAttributes: [
+      ...differing,
+    ],
   };
 }

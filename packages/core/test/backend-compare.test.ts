@@ -228,6 +228,45 @@ describe("comparing a copy with its original through backend data", () => {
     expect(pair(mutate).problems.length).toBeGreaterThan(0);
   });
 
+  it("tells a recomputed layout from a changed design", () => {
+    const relaid = pair((target) => {
+      byName(target, "rectangle").width = 80;
+    });
+    expect(relaid.differingAttributes).toEqual([
+      "width",
+    ]);
+    const changed = pair((target) => {
+      byName(target, "rectangle").width = 80;
+      (
+        byName(target, "rectangle").fills as {
+          fillColor: string;
+        }[]
+      )[0]!.fillColor = "#00ff00";
+    });
+    expect(changed.differingAttributes).toContain("fills");
+  });
+
+  it("counts a moved path as layout, but a redrawn path as a design change", () => {
+    const moved = pair((target) => {
+      const path = byName(target, "icon");
+      path.content = (path.content as string).replace("995", "996");
+      const sel = path as unknown as {
+        selrect: {
+          x: number;
+        };
+      };
+      sel.selrect = {
+        x: 1,
+      };
+    });
+    expect(moved.differingAttributes).not.toContain("content");
+    const redrawn = pair((target) => {
+      const path = byName(target, "icon");
+      path.content = (path.content as string).replace("995", "996");
+    });
+    expect(redrawn.differingAttributes).toContain("content");
+  });
+
   it("reports a copy with a different number of shapes", () => {
     const comparison = pair((target) => {
       const removed = byName(target, "icon");
