@@ -299,6 +299,15 @@ Say plainly which steps were skipped or not verified, if any.
 - Never run `penpair probe --deep --write` unless they call the file a scratch file.
 - If a command or menu here does not match what they see, trust what they see, check `npx penpair --help`, and tell them the guide is out of date at that point.
 
+## Optional: an access token for faster copy verification
+
+Copying boards between pages is much faster to verify when Penpair can read Penpot's stored data instead of the editor. That needs a Penpot personal access token. Offer it only to someone who copies boards between pages (release work); nobody else needs it.
+
+- The person creates it in Penpot: **profile image, Account, Access tokens**, a name and a short expiry (a week is enough to try). It is separate from the MCP key.
+- It goes into `.env.local` as `PENPAIR_PAT_TOKEN=…`, or into the shell environment. The person adds the line themselves; never ask for it in chat, never print it, and never put it in a file that is committed.
+- `penpair doctor` then shows `access token (optional)`. `ok` with "accepts the token" means it works; a refusal means it expired or was removed, and the remedy names the next step. Without a token everything still works through the plugin, only slower.
+- It gives the same account access as the person has, so treat a leaked one like a leaked password: delete it in Penpot at once.
+
 ## Private references and rotation
 
 A person can configure `PENPAIR_MCP_URL_FILE` or a `connection.credential` file/macOS Keychain reference. Resolve it only at connection time and keep returned values out of messages. Connect reuses the reference without copying its URL into `.env.local`. Rotate that value in private storage, reconnect the intended visible editor and confirm the same public file pin with doctor. The legacy hidden `connect --replace` flow handles pasted URLs. Treat permission/history warnings as owner review tasks; retain historical metadata without printing old keys or rewriting history automatically.

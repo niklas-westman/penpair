@@ -128,10 +128,13 @@ in a log line, never in an error message.
   adding a file pin, never overwriting an existing pin. The compose file, `.env`
   and `backups/` paths are computed here but written by the `LocalProfile`.
 - **Network**: `doctorExternal` fetches the configured origin to check
-  reachability; `doctorEditor` and `connectProject` drive caller-supplied
+  reachability and, when `PENPAIR_PAT_TOKEN` is set and the origin answers, sends
+  one `get-teams` request with it (the last row, `access token (optional)`, which
+  is `ok` when no token is set; the token is never shown); `doctorEditor` and `connectProject` drive caller-supplied
   `io.openFile` and MCP connect callbacks. No code here prints the transport URL.
 - **Environment**: reads `PENPAIR_MCP_URL`, `PENPAIR_MCP_URL_FILE` and
-  `PENPAIR_MCP_URL_COMMAND` (the last only to reject it).
+  `PENPAIR_MCP_URL_COMMAND` (the last only to reject it), and the optional
+  `PENPAIR_PAT_TOKEN`.
 - **Processes**: `nodeRunner` spawns without a shell; `keyFileCheck` spawns
   `git check-ignore` and `git log` against the project; `openInBrowser` spawns
   the platform opener.

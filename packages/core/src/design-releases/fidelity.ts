@@ -29,7 +29,19 @@ function object(value: unknown, message: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function nativeTree(inspection: InspectionCapture): NativeTree {
+/**
+ * Component instances can only be observed by identity (source, reference shape, head); which properties are overridden
+ * is not observable through the plugin. Release verification therefore blocks them, and only a native copy, which
+ * reports that limit with its result, may ask for them to be compared by identity.
+ */
+export interface NativeFidelityOptions {
+  componentIdentity?: boolean;
+}
+
+export function nativeTree(
+  inspection: InspectionCapture,
+  options: NativeFidelityOptions = {},
+): NativeTree {
   if (
     inspection.kind !== "shape-inspection" ||
     !inspection.complete ||
@@ -191,6 +203,11 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
       component.isComponentMainInstance === true ||
       component.isComponentRoot === true;
     if (isComponentNode) {
+      if (!options.componentIdentity) {
+        throw new Error(
+          "Component override fidelity is unobservable in this inspection; native release verification is blocked",
+        );
+      }
       // The semantic comparison below checks component identity (source, reference shape, head) node by node.
       // Only the "touched" bookkeeping of overrides is not observable, so identity must at least be present.
       const source = component.source as Record<string, unknown> | null | undefined;
@@ -342,8 +359,9 @@ function referenceValue(
 export function semanticInspection(
   inspection: InspectionCapture,
   remap: Record<string, string> = {},
+  options: NativeFidelityOptions = {},
 ): unknown {
-  const tree = nativeTree(inspection);
+  const tree = nativeTree(inspection, options);
   const rootGeometry = object(tree.root.geometry, "Root geometry is unavailable");
   const paths = new Map(
     [
@@ -397,16 +415,20 @@ export function semanticInspection(
   });
 }
 
-export function inspectionContentHash(inspection: InspectionCapture): string {
-  return observationHash(semanticInspection(inspection));
+export function inspectionContentHash(
+  inspection: InspectionCapture,
+  options: NativeFidelityOptions = {},
+): string {
+  return observationHash(semanticInspection(inspection, {}, options));
 }
 
 export function deriveNodeMap(
   source: InspectionCapture,
   target: InspectionCapture,
+  options: NativeFidelityOptions = {},
 ): Record<string, string> {
-  const before = nativeTree(source);
-  const after = nativeTree(target);
+  const before = nativeTree(source, options);
+  const after = nativeTree(target, options);
   if (before.ordered.length !== after.ordered.length) {
     throw new Error("Native copy changed hierarchy node count");
   }
@@ -431,26 +453,27 @@ export function compareNativeCopy(
   source: InspectionCapture,
   target: InspectionCapture,
   fullNodeMap: Record<string, string>,
+  options: NativeFidelityOptions = {},
 ): {
   sourceHash: string;
   targetHash: string;
 } {
-  deriveNodeMap(source, target);
+  deriveNodeMap(source, target, options);
   const inverse = Object.fromEntries(
     Object.entries(fullNodeMap).map(([from, to]) => [
       to,
       from,
     ]),
   );
-  const sourceHash = inspectionContentHash(source);
-  const targetHash = observationHash(semanticInspection(target, inverse));
+  const sourceHash = inspectionContentHash(source, options);
+  const targetHash = observationHash(semanticInspection(target, inverse, options));
   if (sourceHash !== targetHash) {
     throw new Error(
       "Native copy changed text, hierarchy, layout, geometry, tokens, images, components or interaction references",
     );
   }
-  const before = nativeTree(source);
-  const after = nativeTree(target);
+  const before = nativeTree(source, options);
+  const after = nativeTree(target, options);
   const beforeOrigin = object(before.root.geometry, "Root geometry is unavailable");
   const afterOrigin = object(after.root.geometry, "Root geometry is unavailable");
   before.ordered.forEach((entry, index) => {

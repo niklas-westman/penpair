@@ -83,7 +83,7 @@ starts with `penpair design-release copy --source-page PAGE --frame BOARD_ID
 --release 1.2.0`. Copying creates native boards and transfer evidence; it does not
 approve a full design release. Read the
 [native copy guide](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md)
-before applying it. `penpair wake` remains CLI-only.
+before applying it. An optional Penpot access token (`PENPAIR_PAT_TOKEN`) makes verification read Penpot's stored data and roughly three times faster; without it the copy works as before, only slower. `penpair wake` remains CLI-only.
 For Claude and other hosts, read the [CLI/MCP prerequisites and current qualification](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md#using-from-claude-or-other-hosts); the native-UI test driver is not shipped as a fallback.
 
 ## Add your companions

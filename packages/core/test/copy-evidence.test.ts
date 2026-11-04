@@ -533,6 +533,27 @@ describe("component instances with observable identity", () => {
     const result = compare("another-shape");
     expect(result.nativeVerified).toBe(false);
   });
+
+  it("is still blocked for release verification, which does not accept identity alone", () => {
+    const source = evidence("a");
+    const target = evidence("b", "Screen", 0, 1000);
+    source.inspection.nodes![1]!.component = instance("main-shape");
+    target.inspection.nodes![1]!.component = instance("main-shape");
+    const map = fidelity.deriveNodeMap(source.inspection, target.inspection, {
+      componentIdentity: true,
+    });
+    expect(() => fidelity.deriveNodeMap(source.inspection, target.inspection)).toThrow(
+      "native release verification is blocked",
+    );
+    expect(() => fidelity.compareNativeCopy(source.inspection, target.inspection, map)).toThrow(
+      "native release verification is blocked",
+    );
+    expect(() =>
+      fidelity.compareNativeCopy(source.inspection, target.inspection, map, {
+        componentIdentity: true,
+      }),
+    ).not.toThrow();
+  });
 });
 
 it("checks descendant names even when pixels and semantic observations match", () => {

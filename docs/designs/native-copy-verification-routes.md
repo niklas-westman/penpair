@@ -36,6 +36,8 @@ Renders are bound by Penpot (4 to 7 s per large frame even when run concurrently
 - Teams and access: 245 shapes had other sizes in the copy. The source holds stale automatic-layout sizes and Penpot recomputes them on paste; copying the copy is identical. Reported as `incomplete` with a `diagnosis`, not accepted silently.
 - One unfinished run (`incomplete`, paste done) blocks every later copy in the same file until it is resumed or abandoned, even for other frames. This is deliberate and strict; it is the next thing to revisit if it blocks real work.
 
+- Component instances: a copy may compare them by identity (and says so), because the plugin cannot see which properties are overridden. The rule lives in the shared fidelity code, so loosening it for the copy first loosened `design-release verify` and `check` too, unnoticed. It is now an explicit option that only the copy passes (`NativeFidelityOptions.componentIdentity`), with a test that release verification still blocks. Letting `verify` use the backend's stored data, which does include the overrides, is the sound way to allow instances there; it changes a release gate and needs the owner's decision.
+
 ## Measured result
 
 14 heavy frames: 339 s on the plugin route, 101 s on the backend route (preparation 5.6 s instead of about 140 s). Teams and access, the 19 frames of its copy copied again: 99 s.

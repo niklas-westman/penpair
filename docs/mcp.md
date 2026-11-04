@@ -43,6 +43,10 @@ or persisted by that transport. An uncertain paste is reconciled rather than
 automatically replayed.
 An incomplete native/pixel result is not a completed transfer or release
 approval. See [native copy, evidence and recovery](copy-between-pages.md).
+The tool runs the same command as the CLI, so an access token in the server's
+environment or the project's `.env.local` is used automatically (verification on
+Penpot's stored data, pixels for every pair). `--evidence`, `--verify-pixels`,
+`--diagnose` and `--abandon` are CLI-only for now; recover a stuck run with the CLI.
 
 This tool is absent from the default server. There is no MCP `wake` tool: explicit
 browser activation remains the CLI `penpair wake` command. Native browser/computer

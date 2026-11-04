@@ -11,6 +11,7 @@ import {
   deriveNodeMap,
   measurePixelDifference,
   type PixelDifference,
+  type NativeFidelityOptions,
 } from "./fidelity.js";
 import { readFile } from "node:fs/promises";
 import { artifactPath } from "./artifact-paths.js";
@@ -473,8 +474,9 @@ export function compareCopyEvidence(
   let pixelsMatch = true;
   for (const { source, target } of observations) {
     try {
-      deriveNodeMap(source.inspection, target.inspection);
-      compareNativeCopy(source.inspection, target.inspection, nodeMap);
+      // A native copy compares component instances by identity and says so in its result; release verification does not.
+      deriveNodeMap(source.inspection, target.inspection, copyFidelity);
+      compareNativeCopy(source.inspection, target.inspection, nodeMap, copyFidelity);
       const before = orderedNodes(source.inspection, source.frameId);
       const after = orderedNodes(target.inspection, target.frameId);
       if (before.some((entry, index) => entry.node.name !== after[index]!.node.name)) {
@@ -579,6 +581,10 @@ export function sourceEvidenceHash(evidence: CopyFrameEvidence[]): string {
  * Pasted vector shapes can differ from the original by a few anti-aliased pixels with no visible change.
  * A frame within these bounds counts as matching; the measured difference is always reported.
  */
+const copyFidelity: NativeFidelityOptions = {
+  componentIdentity: true,
+};
+
 export const pixelTolerance = {
   maxDifferingFraction: 0.0005,
   maxChannelDelta: 16,

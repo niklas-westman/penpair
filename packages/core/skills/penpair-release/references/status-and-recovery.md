@@ -21,6 +21,24 @@ than silently falling back to offline freshness.
 | Design is final but browser work is missing | Hand off implementation; do not reopen or rewrite the design to fit the app. |
 | Returned browser cases pass but some are pending | Report implementation comparison incomplete. |
 
+## Native copy results and runs
+
+Read `design-release copy --apply` results before moving on. Everything here is a
+fact the result or the journal states; none of it approves a release.
+
+| You see | Meaning and next step |
+| --- | --- |
+| `status: "copied"`, `evidence: "backend"` | Structure was compared on Penpot's stored data and pixels as `pixels.mode` says. `pixels.notCompared` is what was not rendered. |
+| `evidence: "plugin"` with `caveats` | No access token: structure was read through the editor and component overrides were not compared. Say so when reporting. |
+| `alreadyCopied: { runId }` | This exact transfer was verified earlier and is still in place; nothing was pasted. Report it as already done. |
+| `status: "incomplete"` with a `diagnosis` | Only sizes and positions differ: Penpot recomputed an automatic layout while pasting. Look at the source's render and ask the owner; copying the copy confirms stability. Never accept silently. |
+| `status: "incomplete"` with other `problems` | A real difference. Read the named shape and attribute; do not retry the paste. |
+| `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and did not verify. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. |
+| Anything stuck or unclear before a paste | `penpair design-release copy --diagnose --debug-port PORT` reads tab focus and clipboard state and changes nothing. |
+
+Never delete `.penpair/runs/*.json` by hand, and never paste again to "see if it works".
+The troubleshooting table in the native copy guide maps messages to causes.
+
 ## Interrupted native operations
 
 Keep the original run/journal identity. An early preparation run ID does not prove

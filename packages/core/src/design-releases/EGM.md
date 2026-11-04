@@ -188,6 +188,11 @@ while the editor is busy).
   screen list; a `finalized` pointer without `"final"` status or the reverse; a
   changed target owner key or name; duplicate screen, receipt or map ids; or
   pixel hashes that differ between the frozen render and the two exports.
+- **Release verification stays stricter than copying.** `verifyRelease` and
+  `checkRelease` block component instances (override state is not observable
+  through the plugin); only `copyReleaseBoards` may compare them by identity
+  (`NativeFidelityOptions.componentIdentity`) and must say so in `caveats`, or
+  compare the backend's stored data, which includes the overrides.
 - **Backend evidence is compared, never trusted blindly.** A copy is `"copied"`
   only when every attribute of every shape equals the original's (positions as
   one shift, ids through the node map, float noise tolerated), the originals'

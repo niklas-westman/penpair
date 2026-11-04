@@ -55,6 +55,7 @@ below plus the three model directories.
 | `approvals.ts` | `ApprovalRecord`, `ApprovalFile`, `approvalFingerprint`, `validateApprovals`, `recordApproval`. |
 | `probe.ts`, `plugin-health.ts`, `deep-check.ts`, `native-api.ts` | Read-only capability probing, tri-state plugin health, deep file checks, `validateFileIntegrity` and `createCheckpoint`. |
 | `credentials.ts` | `readCredential` — owner-private file or OS keychain. |
+| `penpot-access-token.ts`, `penpot-backend.ts` | The optional Penpot personal access token (`accessTokenVariableName`, `resolveAccessToken`, `redactAccessToken`) and a read-only backend client (`createPenpotBackendClient`, `getPage`, `isChallengePage`). Used by native copy verification and by `doctor`; nothing here writes. |
 | `file-guard.ts`, `file-archive.ts` | `guardFile` wraps a client with an inline file-id assertion; `exportFileArchive` pulls a binary archive. |
 | `native-editor-clipboard.ts`, `clipboard-payload.ts`, `browser-wake.ts` | The native clipboard path over the browser debug protocol, payload matching, and tab focusing. |
 | `atomic-output.ts`, `bounded-file.ts`, `project-input.ts` | `atomicWriteFile`, `readProjectBytes`, `resolveProjectInput`, `resolveProjectOutput`, `designDataBlock`. |
@@ -138,7 +139,9 @@ accepted route forms into a routing identity; strips all other parameters).
   delivered script, not a server-side compare-and-swap. `writeCoordinator`
   acquires both a local lock at `.penpair/locks/<sha256-of-fileId>.json`
   (`wx`, mode `0o600`) and a shared in-file marker, with a 15-minute expiry that
-  `WriteLease.check()` re-verifies mid-run. `withPageSession` serialises
+  `WriteLease.check()` re-verifies mid-run. A run that is resumed takes over a
+  marker carrying its own run id (the one a cut-off process left); the local
+  lock still refuses a process that is running. `withPageSession` serialises
   operations and `pinPageSnippet` aborts on external navigation.
 - **A journalled step persists before it writes, and resume never replays.**
   Each started phase is written out before its write; a resume verifies the
@@ -288,9 +291,14 @@ accepted route forms into a routing identity; strips all other parameters).
   dispatch copy and paste key events. `wake --reload` additionally sends
   `Page.reload` over a WebSocket (`browser-wake.ts`). Clipboard text never leaves
   the page.
+- **Penpot backend**: with an access token, `penpot-backend.ts` sends read-only
+  `get-page` requests, and `doctor` one `get-teams` request, to the pinned Penpot
+  origin only. The token travels in the `Authorization` header, is never printed,
+  persisted or put in an error message (`redactAccessToken`), and nothing is written
+  through the backend.
 - **Environment**: reads `PENPAIR_MCP_URL`, `PENPAIR_MCP_URL_FILE`,
-  `PENPAIR_MCP_URL_COMMAND` (only to reject it), the home directory and the
-  working directory.
+  `PENPAIR_MCP_URL_COMMAND` (only to reject it), `PENPAIR_PAT_TOKEN` (also from
+  `.env.local`), the home directory and the working directory.
 - **Processes and native code**: `nodeRunner` spawns without a shell;
   `encodeBaselineImage` dynamically imports `sharp` only for a WebP encode;
   `loadAdapters` and `loadProjectSnippets` use dynamic `import()` scoped to the
