@@ -20,6 +20,7 @@ Renders are bound by Penpot (4 to 7 s per large frame even when run concurrently
 
 - **Moving shapes between pages through the plugin.** `clone()` stays on its page and cross-page `appendChild` is a silent no-op (also written in [copy-between-pages](../copy-between-pages.md); re-tested on 2.19.0). The editor's own clipboard stays the transport.
 - **Loosening the pixel limits to get green runs.** The 16 per channel limit stayed. A second rule was added only after the cause was shown from data: all pixels with a large difference sat on zero-height stroked paths, while the stored data was identical.
+- **Rendering on Penpot's server with the access token** (the exporter, `POST /api/export`). Probed 2026-11-04 on design.penpot.app. The exporter authenticates only through the session cookie `auth-token` (its source: `exporter/src/app/auth.cljs`, `http.cljs`). With `Authorization: Token` it cannot read the file (400, the object list is empty). With the token as the `auth-token` cookie it reaches the renderer, but the headless page is not signed in, so the board never becomes visible and the render fails after 10 s, also for a small phone-sized board that renders in under a second. A personal access token does not stand in for a login session here. Not pursued further: it would need the account's own session.
 - **Reading the whole file from the backend.** `get-file` is 132 MB and 25 s. `get-page` is one page, about 1.5 s.
 
 ## Decided for
