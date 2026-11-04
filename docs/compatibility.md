@@ -14,10 +14,14 @@ What has been checked, where, and what differs. Update it whenever a Penpot is p
 | `doctor` (external profile) | ok | ok |
 | Shape-level `waitForLayoutUpdate` (`shapeApis.layoutWait`) | not run | not run |
 | Cross-page clone followed by `appendChild` / `insertChild` | refused with either page active; scratch cleanup verified ([details](copy-between-pages.md)) | not tried |
+| Native copy verification from the backend: `get-page` with a personal access token ([details](copy-between-pages.md#faster-verification-with-a-personal-access-token)) | works, 2.19.0: about 1.5 s for a page of 1000 shapes | not tried |
+| Rendering through Penpot's exporter with the access token | refused: the exporter reads only the session cookie ([why](designs/native-copy-verification-routes.md)) | not tried |
 | `init`, `up`, `doctor` for a Penpot penpair starts (a fresh instance on its own port, then the owner's account, key and plugin connection) | ok: 16 seconds to answer with the images cached; `doctor` all ok | not applicable |
 
 ## Differences found
 - **Cross-page reparenting is refused on local 2.18.3.** Clones stay on the source page. Use native editor copy/paste; see [copying between pages](copy-between-pages.md).
+- **The backend's internal API is not a stable contract.** `get-page` is read-only and used only with an access token; pin the Penpot version and expect to re-check it on a bump. `get-profile` is answered with an HTML challenge page by the hosted Penpot's edge; use `get-teams` to test a token.
+- **Pasting recomputes automatic layouts.** A source whose stored sizes no longer match its layout is copied with the recomputed sizes; the copy result lists the boards under `layoutRecomputed`.
 - **A new token set starts inactive, with no themes in the file.** Seen on both the hosted Penpot and a fresh local instance. (An earlier note that local sets start active was wrong or applied to a file with themes.)
 - **A token binding is recorded after the call, not during it.** On the hosted Penpot it appeared after about half a second to a few seconds; reading it straight away shows nothing. Code that checks a binding has to wait for it.
 - **Applying the same token again removes the binding** (seen on the hosted Penpot, as in the local notes).

@@ -29,7 +29,19 @@ function object(value: unknown, message: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function nativeTree(inspection: InspectionCapture): NativeTree {
+/**
+ * Component instances can only be observed by identity (source, reference shape, head); which properties are overridden
+ * is not observable through the plugin. Release verification therefore blocks them, and only a native copy, which
+ * reports that limit with its result, may ask for them to be compared by identity.
+ */
+export interface NativeFidelityOptions {
+  componentIdentity?: boolean;
+}
+
+export function nativeTree(
+  inspection: InspectionCapture,
+  options: NativeFidelityOptions = {},
+): NativeTree {
   if (
     inspection.kind !== "shape-inspection" ||
     !inspection.complete ||
@@ -41,6 +53,18 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
     throw new Error("Native fidelity requires a complete bounded shape inspection");
   }
   const nodes = new Map<string, Record<string, unknown>>();
+  const byId = new Map(
+    inspection.nodes.map((entry) => [
+      String(entry.id),
+      entry,
+    ]),
+  );
+  // Penpot keeps no constraints on a shape that a group or an auto layout positions; it reports null for them.
+  const parentPositionsChildren = (node: Record<string, unknown>): boolean => {
+    const parent = byId.get(String(node.parentId)) as Record<string, unknown> | undefined;
+    const parentLayout = parent?.layout as Record<string, unknown> | undefined;
+    return parent?.type === "group" || !!parentLayout?.flex || !!parentLayout?.grid;
+  };
   for (const node of inspection.nodes) {
     if (
       typeof node.id !== "string" ||
@@ -117,6 +141,7 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
             null,
             "auto",
             "fix",
+            "fill",
           ].includes(sizing[key] as null | string)
         ) {
           throw new Error("Native board sizing is unsupported or unobservable");
@@ -130,7 +155,7 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
       "right",
       "leftright",
       "scale",
-      ...(node.type === "board"
+      ...(node.type === "board" || parentPositionsChildren(node)
         ? [
             null,
           ]
@@ -142,7 +167,7 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
       "bottom",
       "scale",
       "topbottom",
-      ...(node.type === "board"
+      ...(node.type === "board" || parentPositionsChildren(node)
         ? [
             null,
           ]
@@ -172,15 +197,33 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
       }
     }
     const component = object(node.component, "Component observations are unavailable");
-    if (
+    const isComponentNode =
       component.isComponentInstance === true ||
       component.isComponentCopyInstance === true ||
       component.isComponentMainInstance === true ||
-      component.isComponentRoot === true
-    ) {
-      throw new Error(
-        "Component override fidelity is unobservable in this inspection; native release verification is blocked",
-      );
+      component.isComponentRoot === true;
+    if (isComponentNode) {
+      if (!options.componentIdentity) {
+        throw new Error(
+          "Component override fidelity is unobservable in this inspection; native release verification is blocked",
+        );
+      }
+      // The semantic comparison below checks component identity (source, reference shape, head) node by node.
+      // Only the "touched" bookkeeping of overrides is not observable, so identity must at least be present.
+      const source = component.source as Record<string, unknown> | null | undefined;
+      const identified =
+        !!source &&
+        typeof source === "object" &&
+        typeof source.id === "string" &&
+        typeof source.libraryId === "string" &&
+        // A nested copy can have no reference shape in its main (null); the key must still be observed.
+        (component.isComponentCopyInstance !== true ||
+          Object.hasOwn(component, "componentRefShape"));
+      if (!identified) {
+        throw new Error(
+          "Component override fidelity is unobservable in this inspection; native release verification is blocked",
+        );
+      }
     }
     if (node.type === "group" && !Object.hasOwn(node, "maskedGroup")) {
       throw new Error("Mask fidelity is unobservable for this group");
@@ -234,6 +277,62 @@ export function nativeTree(inspection: InspectionCapture): NativeTree {
   };
 }
 
+/**
+ * A path as drawn relative to its board: its command letters, and its coordinates relative to the board origin.
+ * A pasted board is moved, and Penpot stores moved coordinates with float32 noise (246 becomes 246.00009), so
+ * coordinates are compared within a small tolerance (see comparePathNumbers), never byte for byte.
+ */
+export function relativePathContent(
+  content: unknown,
+  originX: number,
+  originY: number,
+): {
+  commands: string;
+  numbers: number[];
+} {
+  if (typeof content !== "string" || !content) {
+    throw new Error("Native path content fidelity is unobservable in this inspection");
+  }
+  const tokens = content.match(/[A-Za-z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+  if (!tokens || tokens.join("").length < content.replace(/[\s,]/g, "").length) {
+    throw new Error("Native path content is not parseable");
+  }
+  const commands: string[] = [];
+  const numbers: number[] = [];
+  let command = "";
+  let index = 0;
+  for (const token of tokens) {
+    if (/^[A-Za-z]$/.test(token)) {
+      if (!"MLHVCSQTZ".includes(token)) {
+        throw new Error("Native path uses commands that cannot be compared");
+      }
+      command = token;
+      index = 0;
+      commands.push(token);
+      continue;
+    }
+    if (!command || command === "Z") {
+      throw new Error("Native path content is malformed");
+    }
+    const isX = command === "H" || (command !== "V" && index % 2 === 0);
+    numbers.push(Number(token) - (isX ? originX : originY));
+    index++;
+  }
+  return {
+    commands: `${commands.join("")}:${numbers.length}`,
+    numbers,
+  };
+}
+
+const pathTolerance = 0.02;
+
+function comparePathNumbers(before: number[], after: number[]): boolean {
+  return (
+    before.length === after.length &&
+    before.every((value, index) => Math.abs(value - after[index]!) <= pathTolerance)
+  );
+}
+
 function referenceValue(
   value: unknown,
   paths: Map<string, string>,
@@ -260,8 +359,9 @@ function referenceValue(
 export function semanticInspection(
   inspection: InspectionCapture,
   remap: Record<string, string> = {},
+  options: NativeFidelityOptions = {},
 ): unknown {
-  const tree = nativeTree(inspection);
+  const tree = nativeTree(inspection, options);
   const rootGeometry = object(tree.root.geometry, "Root geometry is unavailable");
   const paths = new Map(
     [
@@ -273,9 +373,13 @@ export function semanticInspection(
   );
   return tree.ordered.map(({ path, node }) => {
     const geometry = object(node.geometry, "Geometry is unavailable");
-    const relativeGeometry = {
-      ...geometry,
-    };
+    // Moving a board leaves binary noise (1193.9999999999995 for 1194); compare to a millionth.
+    const relativeGeometry = Object.fromEntries(
+      Object.entries(geometry).map(([key, value]) => [
+        key,
+        typeof value === "number" ? Math.round(value * 1e6) / 1e6 : value,
+      ]),
+    );
     for (const axis of [
       "x",
       "y",
@@ -300,23 +404,31 @@ export function semanticInspection(
       tokens: node.tokens,
       style: node.style,
       maskedGroup: node.maskedGroup ?? null,
-      pathContent: node.type === "path" ? node.content : null,
+      pathContent:
+        node.type === "path"
+          ? relativePathContent(node.content, rootGeometry.x as number, rootGeometry.y as number)
+              .commands
+          : null,
       component: referenceValue(node.component, paths, remap),
       interactions: referenceValue(metadata.interactions, paths, remap),
     };
   });
 }
 
-export function inspectionContentHash(inspection: InspectionCapture): string {
-  return observationHash(semanticInspection(inspection));
+export function inspectionContentHash(
+  inspection: InspectionCapture,
+  options: NativeFidelityOptions = {},
+): string {
+  return observationHash(semanticInspection(inspection, {}, options));
 }
 
 export function deriveNodeMap(
   source: InspectionCapture,
   target: InspectionCapture,
+  options: NativeFidelityOptions = {},
 ): Record<string, string> {
-  const before = nativeTree(source);
-  const after = nativeTree(target);
+  const before = nativeTree(source, options);
+  const after = nativeTree(target, options);
   if (before.ordered.length !== after.ordered.length) {
     throw new Error("Native copy changed hierarchy node count");
   }
@@ -341,24 +453,47 @@ export function compareNativeCopy(
   source: InspectionCapture,
   target: InspectionCapture,
   fullNodeMap: Record<string, string>,
+  options: NativeFidelityOptions = {},
 ): {
   sourceHash: string;
   targetHash: string;
 } {
-  deriveNodeMap(source, target);
+  deriveNodeMap(source, target, options);
   const inverse = Object.fromEntries(
     Object.entries(fullNodeMap).map(([from, to]) => [
       to,
       from,
     ]),
   );
-  const sourceHash = inspectionContentHash(source);
-  const targetHash = observationHash(semanticInspection(target, inverse));
+  const sourceHash = inspectionContentHash(source, options);
+  const targetHash = observationHash(semanticInspection(target, inverse, options));
   if (sourceHash !== targetHash) {
     throw new Error(
       "Native copy changed text, hierarchy, layout, geometry, tokens, images, components or interaction references",
     );
   }
+  const before = nativeTree(source, options);
+  const after = nativeTree(target, options);
+  const beforeOrigin = object(before.root.geometry, "Root geometry is unavailable");
+  const afterOrigin = object(after.root.geometry, "Root geometry is unavailable");
+  before.ordered.forEach((entry, index) => {
+    if (entry.node.type !== "path") {
+      return;
+    }
+    const original = relativePathContent(
+      entry.node.content,
+      beforeOrigin.x as number,
+      beforeOrigin.y as number,
+    );
+    const copied = relativePathContent(
+      after.ordered[index]!.node.content,
+      afterOrigin.x as number,
+      afterOrigin.y as number,
+    );
+    if (!comparePathNumbers(original.numbers, copied.numbers)) {
+      throw new Error("Native copy changed a vector path");
+    }
+  });
   return {
     sourceHash,
     targetHash,
@@ -396,5 +531,53 @@ export async function decodedPixels(png: Buffer): Promise<{
     hash: hashBytes(data),
     width: info.width,
     height: info.height,
+  };
+}
+
+export interface PixelDifference {
+  differingPixels: number;
+  totalPixels: number;
+  maxChannelDelta: number;
+}
+
+/** How far two same-sized renders are apart; exact hash equality stays the first test. */
+export async function measurePixelDifference(a: Buffer, b: Buffer): Promise<PixelDifference> {
+  const { default: sharp } = await import("sharp");
+  const decode = async (png: Buffer) =>
+    sharp(png, {
+      failOn: "error",
+      limitInputPixels: 64_000_000,
+    })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({
+        resolveWithObject: true,
+      });
+  const [first, second] = await Promise.all([
+    decode(a),
+    decode(b),
+  ]);
+  if (first.info.width !== second.info.width || first.info.height !== second.info.height) {
+    throw new Error("Renders have different dimensions");
+  }
+  let differingPixels = 0;
+  let maxChannelDelta = 0;
+  for (let offset = 0; offset < first.data.length; offset += 4) {
+    let pixelDelta = 0;
+    for (let channel = 0; channel < 4; channel++) {
+      pixelDelta = Math.max(
+        pixelDelta,
+        Math.abs(first.data[offset + channel]! - second.data[offset + channel]!),
+      );
+    }
+    if (pixelDelta > 0) {
+      differingPixels++;
+      maxChannelDelta = Math.max(maxChannelDelta, pixelDelta);
+    }
+  }
+  return {
+    differingPixels,
+    totalPixels: first.info.width * first.info.height,
+    maxChannelDelta,
   };
 }

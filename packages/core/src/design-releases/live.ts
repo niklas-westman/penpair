@@ -1,3 +1,5 @@
+import { PenpairError } from "../errors.js";
+import { commandSleep } from "../command-result.js";
 import type { PenpotToolClient } from "../client.js";
 import { captureInspection, inspectionFields, type InspectionCapture } from "../inspection.js";
 import { selectPage } from "../page-session.js";
@@ -55,7 +57,31 @@ export async function observeRelease(
   } as ReleaseObservation;
 }
 
+/** Penpot bumps the file revision when a page is first shown or created; a fresh capture then succeeds, so a stale one is retried. */
 export async function captureReleaseScreen(
+  client: PenpotToolClient,
+  fileId: string,
+  pageId: string,
+  frameId: string,
+): Promise<InspectionCapture> {
+  for (let fresh = 1; ; fresh++) {
+    try {
+      return await captureReleaseScreenOnce(client, fileId, pageId, frameId);
+    } catch (error) {
+      const stale = error instanceof PenpairError && error.code === "stale-inspection";
+      // The editor can be busy for a moment after a render or paste; a read is safe to ask again.
+      const busy = error instanceof Error && /timed out/i.test(error.message);
+      if (fresh >= 3 || !(stale || busy)) {
+        throw error;
+      }
+      if (busy) {
+        await commandSleep(1_000);
+      }
+    }
+  }
+}
+
+async function captureReleaseScreenOnce(
   client: PenpotToolClient,
   fileId: string,
   pageId: string,

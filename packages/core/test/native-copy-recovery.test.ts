@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
 import type { InspectionCapture } from "../src/inspection.js";
-import { copyReleaseBoards } from "../src/design-releases/copy.js";
+import { abandonCopyRun, copyReleaseBoards } from "../src/design-releases/copy.js";
 import { readJournal, listJournals, JournalRunError } from "../src/journal.js";
 import * as atomic from "../src/atomic-output.js";
 import * as evidence from "../src/design-releases/copy-evidence.js";
@@ -665,17 +665,220 @@ describe("native copy orchestration with real operation journals", () => {
     expect(trial.writes).not.toContain("arrange");
   });
 
-  it("requires the verified transfer's explicit resume instead of duplicating it in a fresh run", async () => {
+  it("answers a transfer that is already verified and in place with its receipt, and pastes nothing again", async () => {
+    const trial = await fixture(true);
+    const first = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    const again = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+      ...trial.options,
+      runId: "fresh-duplicate",
+    });
+    expect(again).toMatchObject({
+      status: "copied",
+      alreadyCopied: {
+        runId: first.runId,
+      },
+      pairs: first.pairs,
+    });
+    expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    expect(trial.clipboard.copy).toHaveBeenCalledOnce();
+    expect(await listJournals(trial.root)).toHaveLength(1);
+  });
+
+  it("still refuses a fresh run when the verified copies are no longer in place", async () => {
     const trial = await fixture(true);
     await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    trial.destination.root.children = trial.destination.root.children.filter(
+      (child) => child.id === "existing",
+    );
     await expect(
       copyReleaseBoards(trial.client, trial.root, trial.request, {
         ...trial.options,
         runId: "fresh-duplicate",
       }),
-    ).rejects.toThrow(/copy-run|resume|already/i);
+    ).rejects.toThrow(/copy-run|resume|already|abandon/i);
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
-    expect(trial.clipboard.copy).toHaveBeenCalledOnce();
+  });
+
+  describe("a run whose every step finished but whose final comparison failed", () => {
+    const failedComparison = {
+      nativeVerified: false,
+      pixelsMatch: true,
+      nodeMap: {},
+      problems: [
+        "native proof did not match",
+      ],
+    };
+    const passedComparison = {
+      nativeVerified: true,
+      pixelsMatch: true,
+      nodeMap: {},
+      problems: [],
+    };
+
+    it("does not block a different transfer in the same file", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      const first = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      expect(first.status).toBe("incomplete");
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(passedComparison);
+      const second = await copyReleaseBoards(
+        trial.client,
+        trial.root,
+        {
+          ...trial.request,
+          releaseVersion: "1.3.0",
+        },
+        {
+          ...trial.options,
+          runId: "other-transfer",
+        },
+      );
+      expect(second.status).toBe("copied");
+      expect(trial.clipboard.paste).toHaveBeenCalledTimes(2);
+    });
+
+    it("still blocks a repeat of its own transfer, which would paste into the same page again", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          runId: "repeat",
+        }),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("does not make an uncertain run harmless: it still blocks a different transfer", async () => {
+      const trial = await fixture();
+      trial.clipboard.paste.mockImplementation(async () => {
+        throw new Error("paste acknowledgment lost");
+      });
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, trial.options),
+      ).rejects.toThrow(/uncertain|paste/i);
+      await expect(
+        copyReleaseBoards(
+          trial.client,
+          trial.root,
+          {
+            ...trial.request,
+            releaseVersion: "1.3.0",
+          },
+          {
+            ...trial.options,
+            runId: "other-transfer",
+          },
+        ),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("needs the receipt: a failure after the steps without one still blocks", async () => {
+      const trial = await fixture();
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(failedComparison);
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      const { rm } = await import("node:fs/promises");
+      await rm(path.join(trial.root, ".penpair/native-copy/copy-run/receipt.json"));
+      vi.mocked(evidence.compareCopyEvidence).mockReturnValue(passedComparison);
+      await expect(
+        copyReleaseBoards(
+          trial.client,
+          trial.root,
+          {
+            ...trial.request,
+            releaseVersion: "1.3.0",
+          },
+          {
+            ...trial.options,
+            runId: "other-transfer",
+          },
+        ),
+      ).rejects.toThrow(/already covers|reconcil/i);
+    });
+  });
+
+  describe("abandoning a copy run", () => {
+    const lostPaste = async () => {
+      const trial = await fixture();
+      trial.clipboard.paste.mockImplementation(async () => {
+        throw new Error("paste acknowledgment lost");
+      });
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, trial.options),
+      ).rejects.toThrow(/uncertain|paste/i);
+      return trial;
+    };
+
+    it("refuses a run that already pasted unless the destination was inspected, and then pastes nothing", async () => {
+      const trial = await lostPaste();
+      await expect(abandonCopyRun(trial.root, "copy-run", "the tab lost focus")).rejects.toThrow(
+        /paste was dispatched/i,
+      );
+      expect((await readJournal(trial.root, "copy-run")).abandoned).toBeUndefined();
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          runId: "new-run",
+        }),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("closes a run that pasted once the destination was inspected, and then no longer blocks a new copy", async () => {
+      const trial = await lostPaste();
+      const closed = await abandonCopyRun(
+        trial.root,
+        "copy-run",
+        "inspected: the destination is empty",
+        {
+          destinationInspected: true,
+        },
+      );
+      expect(closed).toMatchObject({
+        runId: "copy-run",
+        reason: "inspected: the destination is empty",
+      });
+      expect((await readJournal(trial.root, "copy-run")).abandoned?.reason).toBe(
+        "inspected: the destination is empty",
+      );
+      trial.clipboard.paste.mockReset();
+      const next = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+        ...trial.options,
+        runId: "new-run",
+      });
+      expect(next.runId).toBe("new-run");
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("closes a run that stopped before any paste without the destination flag", async () => {
+      const trial = await fixture();
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          clipboard: async () => {
+            throw new Error("no clipboard access");
+          },
+        }),
+      ).rejects.toThrow();
+      const closed = await abandonCopyRun(trial.root, "copy-run", "no clipboard access");
+      expect(closed.runId).toBe("copy-run");
+      expect(trial.clipboard.paste).not.toHaveBeenCalled();
+    });
+
+    it("refuses a verified run, an unknown run and an id that is a path", async () => {
+      const trial = await fixture();
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      await expect(
+        abandonCopyRun(trial.root, "copy-run", "no longer needed", {
+          destinationInspected: true,
+        }),
+      ).rejects.toThrow();
+      expect((await readJournal(trial.root, "copy-run")).abandoned).toBeUndefined();
+      await expect(abandonCopyRun(trial.root, "no-such-run", "why")).rejects.toThrow();
+      await expect(abandonCopyRun(trial.root, "../runs/copy-run", "why")).rejects.toThrow();
+    });
   });
 
   it("does not paste twice when two processes pass preflight before either journal exists", async () => {

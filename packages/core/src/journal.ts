@@ -1,3 +1,4 @@
+import { withCleanupDeadline } from "./command-result.js";
 import { createHash, randomUUID } from "node:crypto";
 import { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -43,6 +44,8 @@ export interface JournalStep<T> {
   initial?: T;
   /** The `before` observation is taken right before this step runs instead of at planning (earlier steps change what it sees). */
   deferredBefore?: boolean;
+  /** Inspecting shows pages, which can bump the revision once; such a read is repeated (up to 3 times) instead of counting as a conflict. */
+  repeatInspectionOnRevisionChange?: boolean;
   inspect(): Promise<T>;
   apply(current: T, target: JournalTarget): Promise<unknown>;
   verify(current: T, before: T, result?: unknown): boolean;
@@ -85,6 +88,11 @@ export interface OperationJournal {
   trace?: JournalTraceEvent[];
   checkpoint?: unknown;
   error?: string;
+  /** Set by an explicit owner decision to stop recovering this run; the reason stays on record. */
+  abandoned?: {
+    reason: string;
+    at: string;
+  };
   steps: {
     key: string;
     label: string;
@@ -205,6 +213,35 @@ export async function readJournal(root: string, runId: string): Promise<Operatio
     throw new Error("Operation journal is invalid or uses an unsupported schema");
   }
   return record;
+}
+/** Records that a run is deliberately dropped; callers must first prove it never wrote to the design. */
+export async function markJournalAbandoned(
+  root: string,
+  runId: string,
+  reason: string,
+): Promise<OperationJournal> {
+  const record = await readJournal(root, runId);
+  if (record.state === "verified") {
+    throw new Error("A verified run is a finished transfer and cannot be abandoned");
+  }
+  const directory = await folder(root, false);
+  const updated: OperationJournal = {
+    ...record,
+    state: "failed",
+    error: `Abandoned: ${reason}`,
+    abandoned: {
+      reason,
+      at: new Date().toISOString(),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  const temporary = path.join(directory, `.${runId}-${randomUUID()}.tmp`);
+  await writeFile(temporary, `${JSON.stringify(updated, null, 2)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await rename(temporary, path.join(directory, `${runId}.json`));
+  return updated;
 }
 export async function listJournals(
   root: string,
@@ -457,15 +494,23 @@ export async function runJournaledSteps<T>(
       const saved = record.steps[index]!;
       await lease?.check();
       trace("lease-check", index);
-      const beforeInspection = await assertTarget();
-      trace("inspection-start", index, beforeInspection);
-      const current = await step.inspect();
-      trace("inspection-end", index);
-      const afterInspection = await assertTarget();
-      if (beforeInspection.revision !== afterInspection.revision) {
-        record.state = "conflict";
-        throw new Error("File revision changed during step inspection");
+      let current: T | undefined;
+      let settledTarget: JournalTarget | undefined;
+      for (let attempt = 1; current === undefined; attempt++) {
+        const beforeInspection = await assertTarget();
+        trace("inspection-start", index, beforeInspection);
+        const observed = await step.inspect();
+        trace("inspection-end", index);
+        const afterInspection = await assertTarget();
+        if (beforeInspection.revision === afterInspection.revision) {
+          current = observed;
+          settledTarget = afterInspection;
+        } else if (!step.repeatInspectionOnRevisionChange || attempt >= 3) {
+          record.state = "conflict";
+          throw new Error("File revision changed during step inspection");
+        }
       }
+      const afterInspection = settledTarget!;
       if (saved.state === "completed") {
         if (!step.verify(current, saved.before as T, saved.result)) {
           record.state = "conflict";
@@ -556,7 +601,8 @@ export async function runJournaledSteps<T>(
     if (lease) {
       trace("lease-release-start");
       try {
-        await lease.release();
+        // A cancelled or timed-out command must still free the shared writer marker, or the next run is locked out until it expires.
+        await withCleanupDeadline(() => lease!.release());
         trace("lease-released");
       } catch (error) {
         trace("lease-release-failed");

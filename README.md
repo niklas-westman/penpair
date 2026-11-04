@@ -76,14 +76,14 @@ not expose every CLI command or arbitrary browser control. See the
 [tool inventory and client configuration](https://github.com/niklas-westman/penpair/blob/main/docs/mcp.md).
 
 Explicit `--allow-writes` additionally exposes registered operations and the
-experimental `design_release_copy` tool. Both preview by default; applying a
+experimental `design_release_copy` tool and `design_release_copy_recover` (diagnose a stopped copy, or release a run that blocks later copies). Both preview by default; applying a
 native copy also requires a loopback browser debugging port and existing browser
 clipboard read/write capability. Penpair does not grant those permissions. The equivalent CLI
 starts with `penpair design-release copy --source-page PAGE --frame BOARD_ID
 --release 1.2.0`. Copying creates native boards and transfer evidence; it does not
 approve a full design release. Read the
 [native copy guide](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md)
-before applying it. `penpair wake` remains CLI-only.
+before applying it. An optional Penpot access token (`PENPAIR_PAT_TOKEN`) makes verification read Penpot's stored data and roughly three times faster; without it the copy works as before, only slower. `penpair wake` remains CLI-only.
 For Claude and other hosts, read the [CLI/MCP prerequisites and current qualification](https://github.com/niklas-westman/penpair/blob/main/docs/copy-between-pages.md#using-from-claude-or-other-hosts); the native-UI test driver is not shipped as a fallback.
 
 ## Add your companions

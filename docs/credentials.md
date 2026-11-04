@@ -22,6 +22,16 @@ Resolution happens at connection time, without a cache. Precedence: configured r
 
 Doctor checks `.env.local` storage permissions, Git exclusion and history metadata. It never reads historical key contents. A history warning calls for provider-side rotation and an owner decision about history remediation; it does not rewrite history or revoke credentials automatically.
 
+## Optional access token
+
+Copy verification can read Penpot's stored data instead of the editor when a Penpot personal access token is set (Profile, Access tokens; see [copying between pages](copy-between-pages.md#faster-verification-with-a-personal-access-token)). It is separate from the MCP key.
+
+- `PENPAIR_PAT_TOKEN`, from the environment first, then the git-ignored `.env.local` of the project. Configured credential references (file, Keychain) are not supported for it yet.
+- It is only read, only by commands that need it, and sent only to the pinned Penpot origin. It is redacted from every output, receipt and error message, and never written anywhere by Penpair.
+- A value with spaces or quotes, or longer than 512 characters, is refused as `access-token-invalid` without echoing it.
+- `doctor` checks it against the origin (`access token (optional)`). A refused token is `access-token-rejected`; an HTML challenge page from Penpot's edge is reported as such and is not a refused token.
+- It carries the account's own permissions. Choose a short expiry, and delete it in Penpot if it leaks.
+
 ## Rotation
 
 Use the provider's key-management UI, obtain the new URL privately and update the private file/Keychain entry, or run the legacy hidden `connect --replace` flow. Reconnect the intended visible editor, confirm the same public file ID with doctor and verify a read. Decide separately whether the old key must be revoked and whether Git-history remediation is necessary. Keep both old and new values out of chat, logs and reports.

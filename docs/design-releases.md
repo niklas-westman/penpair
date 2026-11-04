@@ -153,7 +153,10 @@ copying; read the findings and inspect the exports. The transfer receipt is not
 a release manifest, the `verify --receipts` input schema or owner approval.
 Copy-created page ownership does not by itself establish compatibility with the
 full assembly flow below. See [native copy and recovery](copy-between-pages.md)
-for prerequisites, clipboard effects, explicit resume and current proof limits.
+for prerequisites, clipboard effects, explicit resume and current proof limits. With a
+Penpot access token the copy is verified on Penpot's stored data (`--evidence`,
+`--verify-pixels`; see the guide). That is evidence for a release, not a replacement
+for `design-release verify`, which still blocks component instances.
 
 ## Local commands
 

@@ -76,7 +76,12 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
 
 - `copyReleaseBoards(client, root, request, options)` (`copy.ts`) — a three-step
   journalled pipeline (create destination page, clipboard copy and paste,
-  arrange) returning `"preview"`, `"copied"` or `"incomplete"`.
+  arrange) returning `"preview"`, `"copied"` or `"incomplete"`. With
+  `options.backend` (a read-only `PenpotBackendClient`) the structure of the
+  originals and the copies is read from the Penpot backend's stored data and
+  compared there, and pixels are compared for every pair unless `options.verifyPixels` narrows it;
+  without it the editor plugin is read instead. The result says which
+  (`evidence`), and may list `layoutRecomputed` boards.
 - `verifyRelease(client, root, release, inputs, options)` (`verify.ts`) — live
   native-structure and pixel-exact comparison of every screen against its copy;
   writes inspection and render evidence; moves the status to `"verified"`.
@@ -137,7 +142,12 @@ the entry says so. `index.ts` also exports `hashDesignRelease` under the alias
 Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
 `context.ts` (internal helpers), `contract-graph.ts`, `copy-evidence.ts`,
 `copy-plan.ts`, `copy-snippets.ts`, `fidelity.ts`, `implementation-status.ts`,
-`live.ts`, `member-evidence.ts`, `overview-links.ts`, `snippets.ts`.
+`live.ts`, `member-evidence.ts`, `overview-links.ts`, `snippets.ts`, and the
+backend route of native copy: `backend-evidence.ts` (record, wait for, match and
+verify boards on backend data), `backend-compare.ts` (attribute-by-attribute
+comparison of a board with its copy), `pixel-sample.ts` (which pairs are
+rendered, and how a differing pair is settled) and `editor-busy.ts` (asking again
+while the editor is busy).
 
 ## Invariants
 
@@ -178,8 +188,32 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
   screen list; a `finalized` pointer without `"final"` status or the reverse; a
   changed target owner key or name; duplicate screen, receipt or map ids; or
   pixel hashes that differ between the frozen render and the two exports.
-- **Every export demands a stable frame.** All export calls pass
-  `stable: true`; a first export after a write or a page switch can be stale.
+- **An unfinished copy blocks later copies, with one exception.** A journal of
+  `design-release-copy` that dispatched a paste and is not verified blocks every
+  later copy in the file, so an uncertain paste is never answered by another. The
+  exception is a run whose steps all completed and whose receipt says
+  `"incomplete"`: what it wrote is known, so it blocks only a repeat of its own
+  transfer (same request hash), which would paste into the same page again.
+- **Release verification stays stricter than copying.** `verifyRelease` and
+  `checkRelease` block component instances (override state is not observable
+  through the plugin); only `copyReleaseBoards` may compare them by identity
+  (`NativeFidelityOptions.componentIdentity`) and must say so in `caveats`, or
+  compare the backend's stored data, which includes the overrides.
+- **Backend evidence is compared, never trusted blindly.** A copy is `"copied"`
+  only when every attribute of every shape equals the original's (positions as
+  one shift, ids through the node map, float noise tolerated), the originals'
+  stored subtrees are unchanged, and the backend was seen to hold the pasted and
+  arranged boards before it was read. The one exception is explained, not
+  assumed: a size or position of a shape that sits under an auto-layout board (or of
+  self-sizing text) is Penpot recomputing the layout while pasting, is listed under
+  `layoutRecomputed`, and leaves that board out of the pixel comparison. The same
+  attribute anywhere else, or any other attribute, is a problem.
+- **Release exports demand a stable frame; native copy settles on demand.**
+  The release commands pass `stable: true`; a first export after a write or a
+  page switch can be stale. `design-release copy` renders each frame once per
+  side and compares them; only a pair that differs beyond the pixel tolerance is
+  re-rendered with the stable double render on both sides, and the result's
+  `render` field says which pairs took which route.
 - **Membership lineage is cryptographically bound.** A v2 release with a `base`
   pointer must name the exact finalized bundle (`membership.ts`); the resolved
   member list must match the hash of the inherited membership after applying
@@ -216,6 +250,9 @@ Supporting modules (internal): `artifact-paths.ts`, `child-journals.ts`,
   overview.
 - **Clipboard** only through the explicitly injected transport, and never unless
   applying.
+- **Penpot backend**, only for native copy with an access token: read-only
+  `get-page` requests (`penpot-backend.ts`). The token is never printed, persisted
+  or sent anywhere else; nothing is written through the backend.
 - **Progress** through the optional `onStep(message)` callback. `CopyOptions`
   also extends `ProgressOptions`, so copy additionally reports structured
   `onProgress` events. No other stdout contract.

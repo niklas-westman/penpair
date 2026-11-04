@@ -141,6 +141,24 @@ export const copyOptions = {
   resume: {
     type: "string",
   },
+  abandon: {
+    type: "string",
+  },
+  reason: {
+    type: "string",
+  },
+  "destination-inspected": {
+    type: "boolean",
+  },
+  diagnose: {
+    type: "boolean",
+  },
+  "verify-pixels": {
+    type: "string",
+  },
+  evidence: {
+    type: "string",
+  },
   json: {
     type: "boolean",
   },

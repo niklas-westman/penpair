@@ -1,12 +1,13 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runCli, runCommand } from "../src/cli-main.js";
 import {
   collectCommand,
   withCleanupDeadline,
   commandOutput,
+  commandProgress,
   commandSignal,
   CommandInterruptedError,
 } from "../src/command-result.js";
@@ -374,5 +375,46 @@ it("gives a skipped write its own outcome without failing the command", async ()
     completeness: {
       complete: true,
     },
+  });
+});
+
+describe("progress sink", () => {
+  it("receives each progress line already redacted, in addition to stderr", async () => {
+    const stderr = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const lines: string[] = [];
+    await collectCommand(
+      "probe",
+      async () => {
+        commandProgress("opening https://host.example/mcp?userToken=abc123");
+        return 0;
+      },
+      {
+        onProgress: (line) => lines.push(line),
+      },
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain("abc123");
+    expect(String(stderr.mock.calls[0]?.[0])).not.toContain("abc123");
+    stderr.mockRestore();
+  });
+
+  it("never lets a failing sink change the outcome", async () => {
+    const stderr = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await collectCommand(
+      "probe",
+      async () => {
+        commandProgress("one");
+        commandProgress("two");
+        return 0;
+      },
+      {
+        onProgress: () => {
+          throw new Error("the transport is gone");
+        },
+      },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.outcome).toBe("success");
+    stderr.mockRestore();
   });
 });

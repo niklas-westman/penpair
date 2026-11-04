@@ -2,12 +2,17 @@ import { copyOptions } from "./options.js";
 import { CommandArgumentError, parseCommandArgs } from "../cli-arguments.js";
 import { commandSignal } from "../command-result.js";
 import { progressReporter } from "../capture-progress.js";
-import { copyReleaseBoards } from "../design-releases/copy.js";
+import { abandonCopyRun, copyReleaseBoards } from "../design-releases/copy.js";
 import { connectNativeClipboard } from "../native-editor-clipboard.js";
+import { redactAccessToken, resolveAccessToken } from "../penpot-access-token.js";
+import { PenpairError } from "../errors.js";
+import { createPenpotBackendClient } from "../penpot-backend.js";
 import type { DesignCommandContext } from "./context.js";
 
 const copyUsage =
-  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply] [--resume RUN_ID] [--progress human|json|off]";
+  "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--resume RUN_ID] [--progress human|json|off]\n" +
+  "design-release copy --diagnose --debug-port PORT\n" +
+  "design-release copy --abandon RUN_ID --reason TEXT [--destination-inspected]";
 
 function boundedText(value: string | undefined): value is string {
   return (
@@ -31,6 +36,70 @@ export async function runDesignReleaseCopyCommand(
   if (values.help) {
     context.output.log(copyUsage);
     return 0;
+  }
+
+  if (values.abandon !== undefined) {
+    if (
+      !/^[a-zA-Z0-9-]{1,100}$/.test(values.abandon) ||
+      !boundedText(values.reason) ||
+      values.apply ||
+      values.resume
+    ) {
+      throw new CommandArgumentError(
+        "Abandoning a copy run requires --abandon RUN_ID and --reason TEXT, without --apply or --resume",
+      );
+    }
+    const abandoned = await abandonCopyRun(
+      context.root,
+      values.abandon,
+      context.redact(values.reason),
+      {
+        destinationInspected: values["destination-inspected"] === true,
+      },
+    );
+    context.output.result(abandoned);
+    context.output.log(JSON.stringify(abandoned, null, 2));
+    return 0;
+  }
+  const debugPort = Number(values["debug-port"]);
+  if (values.diagnose && !values.apply) {
+    if (
+      !values["debug-port"] ||
+      !Number.isInteger(debugPort) ||
+      debugPort < 1 ||
+      debugPort > 65535
+    ) {
+      throw new CommandArgumentError(
+        "--diagnose requires --debug-port with an integer from 1 to 65535",
+      );
+    }
+    if (!context.copyTarget?.fileId) {
+      throw new CommandArgumentError("Native copy requires the project's owner-confirmed file pin");
+    }
+    const diagnosisTarget = context.copyTarget;
+    const stages: string[] = [];
+    const session = await connectNativeClipboard({
+      origin: diagnosisTarget.origin,
+      fileId: diagnosisTarget.fileId,
+      allowLoopbackAlias: diagnosisTarget.allowLoopbackAlias,
+      port: debugPort,
+      timeoutMs: 30000,
+      signal: commandSignal(),
+      trace: (event) => stages.push(`${event.elapsedMs} ms ${event.stage}`),
+    });
+    try {
+      const report = {
+        schemaVersion: 1,
+        kind: "native-copy-diagnosis",
+        ...(await session.diagnose?.()),
+        stages,
+      };
+      context.output.result(report);
+      context.output.log(JSON.stringify(report, null, 2));
+      return 0;
+    } finally {
+      await session.close();
+    }
   }
 
   const frameIds = values.frame ?? [];
@@ -67,9 +136,42 @@ export async function runDesignReleaseCopyCommand(
     throw new CommandArgumentError("Native copy requires the project's owner-confirmed file pin");
   }
 
-  const progress = progressReporter(values.progress, "design-release copy", (text) =>
-    context.redact(text),
-  );
+  const evidenceMode = values.evidence ?? "auto";
+  const pixelMode = values["verify-pixels"];
+  if (
+    ![
+      "auto",
+      "backend",
+      "plugin",
+    ].includes(evidenceMode) ||
+    (pixelMode !== undefined &&
+      ![
+        "none",
+        "sample",
+        "all",
+      ].includes(pixelMode))
+  ) {
+    throw new CommandArgumentError(
+      "--evidence takes auto, backend or plugin; --verify-pixels takes none, sample or all",
+    );
+  }
+  const token = evidenceMode === "plugin" || !values.apply ? undefined : await resolveAccessToken();
+  if (evidenceMode === "backend" && values.apply && !token) {
+    throw new PenpairError(
+      "access-token-invalid",
+      "--evidence backend needs PENPAIR_PAT_TOKEN, which is not set",
+    );
+  }
+  const redact = (text: string): string =>
+    token ? redactAccessToken(context.redact(text), token) : context.redact(text);
+  const backend =
+    token && values.apply
+      ? createPenpotBackendClient({
+          origin: target.origin,
+          token,
+        })
+      : undefined;
+  const progress = progressReporter(values.progress, "design-release copy", redact);
   const started = Date.now();
   const result = await context.withPenpot((client) =>
     copyReleaseBoards(
@@ -85,7 +187,17 @@ export async function runDesignReleaseCopyCommand(
         apply: values.apply === true,
         resume: !!values.resume,
         runId: values.resume,
-        redact: (text) => context.redact(text),
+        redact,
+        ...(backend
+          ? {
+              backend,
+            }
+          : {}),
+        ...(pixelMode
+          ? {
+              verifyPixels: pixelMode as "none" | "sample" | "all",
+            }
+          : {}),
         signal: commandSignal(),
         onProgress: progress,
         onStep: (message) =>
@@ -107,6 +219,10 @@ export async function runDesignReleaseCopyCommand(
                   allowLoopbackAlias: target.allowLoopbackAlias,
                   port: Number(values["debug-port"]),
                   timeoutMs: 30000,
+                  trace:
+                    values.diagnose || process.env.PENPAIR_CLIPBOARD_TRACE
+                      ? (event) => console.error(`clipboard-trace ${JSON.stringify(event)}`)
+                      : undefined,
                   signal: commandSignal(),
                 }),
             }

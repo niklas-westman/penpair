@@ -21,6 +21,30 @@ than silently falling back to offline freshness.
 | Design is final but browser work is missing | Hand off implementation; do not reopen or rewrite the design to fit the app. |
 | Returned browser cases pass but some are pending | Report implementation comparison incomplete. |
 
+## Native copy results and runs
+
+Read `design-release copy --apply` results before moving on. Everything here is a
+fact the result or the journal states; none of it approves a release.
+
+| You see | Meaning and next step |
+| --- | --- |
+| `status: "copied"`, `evidence: "backend"` | Structure was compared on Penpot's stored data and pixels as `pixels.mode` says. `pixels.notCompared` is what was not rendered. |
+| `evidence: "plugin"` with `caveats` | No access token: structure was read through the editor and component overrides were not compared. Say so when reporting. |
+| `alreadyCopied: { runId }` | This exact transfer was verified earlier and is still in place; nothing was pasted. Report it as already done. |
+| `status: "copied"` with `layoutRecomputed` | Every difference was a size or position under an auto-layout board, which Penpot recomputed while pasting; the source holds stale sizes. Report the boards listed, and that their pixels were not compared with the source. Suggest refreshing the source's layout; do not treat it as a failure. |
+| `status: "incomplete"` with `problems` such as `width differs` | A real difference, including a size or position that no auto-layout board explains. Read the named shape and attribute; do not retry the paste. |
+| `Copy run ... already covers this transfer or requires reconciliation` | An earlier run pasted and was not left in a known state, or it is a repeat of a transfer whose run ended `incomplete`. `--resume RUN_ID --apply` with the same inputs, or after inspecting its destination page `--abandon RUN_ID --reason TEXT --destination-inspected`. A run whose every step finished and only the final comparison failed does not block a different transfer. |
+| Anything stuck or unclear before a paste | `penpair design-release copy --diagnose --debug-port PORT` reads tab focus and clipboard state and changes nothing. |
+
+Hosts without a terminal use the MCP tools: `design_release_copy` for the copy and
+for `resume` (it may run for minutes), and `design_release_copy_recover` with
+`action: "diagnose"` or `action: "abandon"`. `abandon` of a run that already pasted
+needs `destinationInspected: true`, which is a statement that someone looked at the
+destination page; never set it to get past the refusal.
+
+Never delete `.penpair/runs/*.json` by hand, and never paste again to "see if it works".
+The troubleshooting table in the native copy guide maps messages to causes.
+
 ## Interrupted native operations
 
 Keep the original run/journal identity. An early preparation run ID does not prove

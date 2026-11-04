@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InspectionCapture } from "../src/inspection.js";
 import type { PenpotToolClient } from "../src/client.js";
 import * as live from "../src/design-releases/live.js";
@@ -11,7 +11,9 @@ import {
   captureCopyEvidence,
   compareCopyEvidence,
   matchCopiedFrames,
+  pixelMismatchedPairs,
   sourceEvidenceHash,
+  withSettledPixels,
   type CopyFrameEvidence,
 } from "../src/design-releases/copy-evidence.js";
 
@@ -101,6 +103,95 @@ it("streams frame preparation while source capture is pending, then names the co
     elapsedMs: 5000,
   });
   expect(vi.getTimerCount()).toBe(0);
+});
+
+describe("single-render pixel verification", () => {
+  const pairs = [
+    {
+      sourceFrameId: "a",
+      targetFrameId: "copied-a",
+    },
+    {
+      sourceFrameId: "b",
+      targetFrameId: "copied-b",
+    },
+  ];
+  const withPixels = (frame: CopyFrameEvidence, hash: string): CopyFrameEvidence => ({
+    ...frame,
+    pixels: {
+      ...frame.pixels,
+      hash,
+    },
+  });
+
+  it("sends only a pair with a deliberate pixel difference to the settled render", () => {
+    const sources = [
+      withPixels(evidence("a"), "same"),
+      withPixels(evidence("b"), "before"),
+    ];
+    const targets = [
+      withPixels(evidence("copied-a"), "same"),
+      withPixels(evidence("copied-b"), "after"),
+    ];
+    expect(pixelMismatchedPairs(sources, targets, pairs, [])).toEqual([
+      pairs[1],
+    ]);
+  });
+
+  it("does not re-render a pair whose difference was measured within tolerance", () => {
+    const sources = [
+      withPixels(evidence("a"), "before"),
+    ];
+    const targets = [
+      withPixels(evidence("copied-a"), "after"),
+    ];
+    const difference = {
+      sourceFrameId: "a",
+      targetFrameId: "copied-a",
+      differingPixels: 3,
+      totalPixels: 1000000,
+      maxChannelDelta: 4,
+      withinTolerance: true,
+    };
+    expect(
+      pixelMismatchedPairs(
+        sources,
+        targets,
+        [
+          pairs[0]!,
+        ],
+        [
+          difference,
+        ],
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes the settled render of a frame only when its structure is unchanged", () => {
+    const original = evidence("a");
+    const settled = withPixels(evidence("a"), "settled");
+    expect(
+      withSettledPixels(
+        [
+          original,
+        ],
+        [
+          settled,
+        ],
+      )[0]!.pixels.hash,
+    ).toBe("settled");
+    const moved = withPixels(evidence("a", "Screen", 5, 5), "settled");
+    expect(() =>
+      withSettledPixels(
+        [
+          original,
+        ],
+        [
+          moved,
+        ],
+      ),
+    ).toThrow("changed while its render was being settled");
+  });
 });
 
 function evidence(id: string, name = "Screen", x = 0, y = 0): CopyFrameEvidence {
@@ -397,6 +488,72 @@ it("retains pixel evidence but never claims unobservable component override fide
     },
   });
   expect(result.problems.join(" ")).toContain("override fidelity");
+});
+
+describe("component instances with observable identity", () => {
+  const instance = (refShape: string) => ({
+    isComponentInstance: true,
+    isComponentCopyInstance: true,
+    isComponentMainInstance: false,
+    isComponentRoot: false,
+    source: {
+      id: "component-1",
+      libraryId: "library-1",
+    },
+    componentRefShape: refShape,
+  });
+  const compare = (targetRef: string) => {
+    const source = evidence("a");
+    const target = evidence("b", "Screen", 0, 1000);
+    source.inspection.nodes![1]!.component = instance("main-shape");
+    target.inspection.nodes![1]!.component = instance(targetRef);
+    return compareCopyEvidence(
+      [
+        source,
+      ],
+      [
+        target,
+      ],
+      matchCopiedFrames(
+        [
+          source,
+        ],
+        [
+          target,
+        ],
+      ),
+    );
+  };
+
+  it("verifies a copy that keeps the same component identity", () => {
+    expect(compare("main-shape").nativeVerified).toBe(true);
+  });
+
+  it("rejects a copy whose instance points at a different main shape", () => {
+    const result = compare("another-shape");
+    expect(result.nativeVerified).toBe(false);
+  });
+
+  it("is still blocked for release verification, which does not accept identity alone", () => {
+    const source = evidence("a");
+    const target = evidence("b", "Screen", 0, 1000);
+    source.inspection.nodes![1]!.component = instance("main-shape");
+    target.inspection.nodes![1]!.component = instance("main-shape");
+    const map = fidelity.deriveNodeMap(source.inspection, target.inspection, {
+      componentIdentity: true,
+    });
+    expect(() => fidelity.deriveNodeMap(source.inspection, target.inspection)).toThrow(
+      "native release verification is blocked",
+    );
+    expect(() => fidelity.compareNativeCopy(source.inspection, target.inspection, map)).toThrow(
+      "native release verification is blocked",
+    );
+    expect(() =>
+      fidelity.compareNativeCopy(source.inspection, target.inspection, map, {
+        componentIdentity: true,
+      }),
+    ).not.toThrow();
+  });
 });
 
 it("checks descendant names even when pixels and semantic observations match", () => {

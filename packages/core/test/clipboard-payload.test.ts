@@ -46,6 +46,32 @@ const validate = (raw: unknown) =>
   ]);
 
 describe("browser-local copied-shape identity validation", () => {
+  it("accepts shapes wrapped in Penpot 2.18's Transit shape tag", () => {
+    const wrap = (id: string) => ({
+      "~#shape": {
+        "~:id": `~u${id}`,
+        "~:type": "~:frame",
+      },
+    });
+    const wrapped = {
+      ...encoded,
+      "~:objects": {
+        [`~u${first}`]: wrap(first),
+        [`~u${second}`]: wrap(second),
+      },
+    };
+    expect(validate(wrapped)).toBe(true);
+    expect(
+      validate({
+        ...wrapped,
+        "~:objects": {
+          ...wrapped["~:objects"],
+          [`~u${second}`]: wrap(other),
+        },
+      }),
+    ).toBe(false);
+  });
+
   it("accepts plain identity fixtures and known Penpot JSON-verbose Transit", () => {
     expect(validate(plain)).toBe(true);
     expect(validate(encoded)).toBe(true);

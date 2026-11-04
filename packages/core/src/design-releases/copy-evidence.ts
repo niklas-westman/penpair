@@ -1,15 +1,31 @@
 import type { PenpotToolClient } from "../client.js";
 import type { InspectionCapture } from "../inspection.js";
-import { exportShapePng, type ExportResult } from "../export.js";
+import { exportShapePng, exportShapesPngStable, type ExportResult } from "../export.js";
+import { selectPage, withPageSession } from "../page-session.js";
 import { observationHash } from "../journal.js";
 import { saveArtifact } from "./artifact-paths.js";
 import { captureReleaseScreen } from "./live.js";
-import { compareNativeCopy, decodedPixels, deriveNodeMap } from "./fidelity.js";
+import {
+  compareNativeCopy,
+  decodedPixels,
+  deriveNodeMap,
+  measurePixelDifference,
+  type PixelDifference,
+  type NativeFidelityOptions,
+} from "./fidelity.js";
+import { readFile } from "node:fs/promises";
+import { artifactPath } from "./artifact-paths.js";
 import type { ReleaseArtifactRef } from "./types.js";
 import { capturePhase, type ProgressOptions } from "../capture-progress.js";
 
 interface CopyEvidenceProgressOptions extends ProgressOptions {
   phase?: "prepare" | "verify";
+  /**
+   * stable: two identical renders (the settled reference, default).
+   * single: one render; the caller compares both sides and re-renders only the pairs that differ.
+   * none: structure only, for proving an original did not change.
+   */
+  render?: "stable" | "single" | "none";
 }
 
 export interface CopyFrameEvidence {
@@ -37,6 +53,12 @@ export interface CopyEvidenceComparison {
   problems: string[];
 }
 
+const structureOnlyPixels = {
+  hash: "",
+  width: 0,
+  height: 0,
+};
+
 interface OrderedNode {
   path: string;
   node: Record<string, unknown>;
@@ -61,6 +83,22 @@ export async function captureCopyEvidence(
   ) {
     throw new Error("Copy evidence needs one to 100 distinct frame IDs");
   }
+
+  // Concurrent renders are about three times faster; any frame that does not settle falls back to the one-by-one export below.
+  const batchRendered =
+    (options.render ?? "stable") !== "none" && frameIds.length > 1
+      ? await capturePhase(options, "design-release copy", options.phase ?? "prepare", async () => {
+          await selectPage(client, {
+            id: pageId,
+          });
+          return exportShapesPngStable(client, frameIds, {
+            singleRound: options.render === "single",
+          });
+        })
+      : new Map<string, ExportResult>();
+
+  // Plugin calls run concurrently, so shapes are read four at a time instead of one by one.
+  const inspectedAhead = await inspectConcurrently(client, fileId, pageId, frameIds);
 
   const evidence: CopyFrameEvidence[] = [];
   for (const [index, frameId] of frameIds.entries()) {
@@ -93,12 +131,15 @@ export async function captureCopyEvidence(
           pageId,
           frameId,
           progress,
+          options.render ?? "stable",
+          batchRendered.get(frameId),
+          inspectedAhead.get(frameId),
         );
         const first = orderedNodes(inspection, frameId)[0]!.node;
         if (typeof first.name !== "string") {
           throw new Error("Copy frame name was not observed");
         }
-        const pixels = await decodedPixels(image.png);
+        const pixels = image ? await decodedPixels(image.png) : structureOnlyPixels;
         const stem = `${prefix}/frame-${index}`;
         const inspectionRef = await saveArtifact(
           root,
@@ -106,7 +147,9 @@ export async function captureCopyEvidence(
           JSON.stringify(inspection),
           redact,
         );
-        const render = await saveArtifact(root, `${stem}.png`, image.png, redact);
+        const render = image
+          ? await saveArtifact(root, `${stem}.png`, image.png, redact)
+          : inspectionRef;
         frameName = first.name;
         return {
           frameId,
@@ -131,18 +174,56 @@ async function captureFramePair(
   pageId: string,
   frameId: string,
   options: ProgressOptions,
+  render: "stable" | "single" | "none",
+  prerendered?: ExportResult,
+  inspectedAhead?: InspectionCapture,
 ): Promise<{
   inspection: InspectionCapture;
-  image: ExportResult;
+  image?: ExportResult;
 }> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const inspection = await capturePhase(
-      options,
-      "design-release copy",
-      "selection",
-      () => captureReleaseScreen(client, fileId, pageId, frameId),
-      frameId,
-    );
+    const inspection =
+      attempt === 0 && inspectedAhead
+        ? inspectedAhead
+        : await capturePhase(
+            options,
+            "design-release copy",
+            "selection",
+            () => captureReleaseScreen(client, fileId, pageId, frameId),
+            frameId,
+          );
+    if (render === "none") {
+      return {
+        inspection,
+      };
+    }
+    if (
+      prerendered &&
+      prerendered.capture.fileId === fileId &&
+      prerendered.capture.pageId === pageId &&
+      prerendered.capture.frameId === frameId
+    ) {
+      if (prerendered.capture.revision === inspection.revision) {
+        return {
+          inspection,
+          image: prerendered,
+        };
+      }
+      // Penpot saves in the background and moves the revision without changing content; unchanged structure keeps the render valid.
+      const again = await captureReleaseScreen(client, fileId, pageId, frameId);
+      if (observationHash(again.nodes) === observationHash(inspection.nodes)) {
+        return {
+          inspection,
+          image: prerendered,
+        };
+      }
+      if (process.env.PENPAIR_TRACE_EXPORT) {
+        console.error(`export-trace ${frameId} structure changed after the batch render`);
+      }
+    }
+    if (process.env.PENPAIR_TRACE_EXPORT && !prerendered) {
+      console.error(`export-trace ${frameId} no batch render; exporting one by one`);
+    }
     const frameName = orderedNodes(inspection, frameId)[0]?.node.name;
     const image = await exportShapePng(client, frameId, {
       stable: true,
@@ -393,8 +474,9 @@ export function compareCopyEvidence(
   let pixelsMatch = true;
   for (const { source, target } of observations) {
     try {
-      deriveNodeMap(source.inspection, target.inspection);
-      compareNativeCopy(source.inspection, target.inspection, nodeMap);
+      // A native copy compares component instances by identity and says so in its result; release verification does not.
+      deriveNodeMap(source.inspection, target.inspection, copyFidelity);
+      compareNativeCopy(source.inspection, target.inspection, nodeMap, copyFidelity);
       const before = orderedNodes(source.inspection, source.frameId);
       const after = orderedNodes(target.inspection, target.frameId);
       if (before.some((entry, index) => entry.node.name !== after[index]!.node.name)) {
@@ -423,6 +505,64 @@ export function compareCopyEvidence(
   };
 }
 
+/** Pairs whose renders differ beyond the tolerance; only these pay for a settled, double render. */
+export function pixelMismatchedPairs(
+  sources: CopyFrameEvidence[],
+  targets: CopyFrameEvidence[],
+  pairs: CopiedFramePair[],
+  differences: FramePixelDifference[],
+): CopiedFramePair[] {
+  const tolerated = new Set(
+    differences.filter((entry) => entry.withinTolerance).map((entry) => entry.sourceFrameId),
+  );
+  return pairs.filter((pair) => {
+    const source = sources.find((item) => item.frameId === pair.sourceFrameId);
+    const target = targets.find((item) => item.frameId === pair.targetFrameId);
+    if (!source || !target) {
+      return false;
+    }
+    const identical =
+      source.pixels.hash === target.pixels.hash &&
+      source.pixels.width === target.pixels.width &&
+      source.pixels.height === target.pixels.height;
+    return !identical && !tolerated.has(pair.sourceFrameId);
+  });
+}
+
+/** Swap in the settled render of a frame, provided the structure observed with it is the structure already on record. */
+export function withSettledPixels(
+  evidence: CopyFrameEvidence[],
+  settled: CopyFrameEvidence[],
+): CopyFrameEvidence[] {
+  return evidence.map((frame) => {
+    const replacement = settled.find((item) => item.frameId === frame.frameId);
+    if (!replacement) {
+      return frame;
+    }
+    if (observationHash(replacement.inspection.nodes) !== observationHash(frame.inspection.nodes)) {
+      throw new Error(`Frame ${frame.frameId} changed while its render was being settled`);
+    }
+    return {
+      ...frame,
+      render: replacement.render,
+      pixels: replacement.pixels,
+    };
+  });
+}
+
+/** Structure-only proof that an original is unchanged; used when its pixels were not re-rendered. */
+export function sourceStructureHash(evidence: CopyFrameEvidence[]): string {
+  return observationHash(
+    evidence.map((frame) => ({
+      frameId: frame.frameId,
+      name: frame.name,
+      fileId: frame.inspection.fileId,
+      pageId: frame.inspection.pageId,
+      nodes: frame.inspection.nodes,
+    })),
+  );
+}
+
 /** A source preservation hash excludes capture revisions, timestamps and transport metrics. */
 export function sourceEvidenceHash(evidence: CopyFrameEvidence[]): string {
   return observationHash(
@@ -435,4 +575,112 @@ export function sourceEvidenceHash(evidence: CopyFrameEvidence[]): string {
       pixels: frame.pixels,
     })),
   );
+}
+
+/**
+ * Pasted vector shapes can differ from the original by a few anti-aliased pixels with no visible change.
+ * A frame within these bounds counts as matching; the measured difference is always reported.
+ */
+const copyFidelity: NativeFidelityOptions = {
+  componentIdentity: true,
+};
+
+export const pixelTolerance = {
+  maxDifferingFraction: 0.0005,
+  maxChannelDelta: 16,
+} as const;
+
+export interface FramePixelDifference extends PixelDifference {
+  sourceFrameId: string;
+  targetFrameId: string;
+  withinTolerance: boolean;
+}
+
+/** Measures every pair whose pixel hashes differ; identical frames need no measurement. */
+export async function measureFramePixelDifferences(
+  root: string,
+  sources: CopyFrameEvidence[],
+  targets: CopyFrameEvidence[],
+  pairs: CopiedFramePair[],
+): Promise<FramePixelDifference[]> {
+  const measured: FramePixelDifference[] = [];
+  for (const pair of pairs) {
+    const source = sources.find((item) => item.frameId === pair.sourceFrameId);
+    const target = targets.find((item) => item.frameId === pair.targetFrameId);
+    if (!source || !target || source.pixels.hash === target.pixels.hash) {
+      continue;
+    }
+    if (
+      source.pixels.width !== target.pixels.width ||
+      source.pixels.height !== target.pixels.height
+    ) {
+      continue;
+    }
+    const [first, second] = await Promise.all([
+      readFile(await artifactPath(root, source.render.path)),
+      readFile(await artifactPath(root, target.render.path)),
+    ]);
+    const difference = await measurePixelDifference(first, second);
+    measured.push({
+      sourceFrameId: pair.sourceFrameId,
+      targetFrameId: pair.targetFrameId,
+      ...difference,
+      withinTolerance:
+        difference.differingPixels / difference.totalPixels <=
+          pixelTolerance.maxDifferingFraction &&
+        difference.maxChannelDelta <= pixelTolerance.maxChannelDelta,
+    });
+  }
+  return measured;
+}
+
+/** Component instances are verified by identity and observed values; override bookkeeping stays unobservable, and the result says so. */
+export function componentInstanceCount(evidence: CopyFrameEvidence[]): number {
+  let count = 0;
+  for (const frame of evidence) {
+    for (const node of frame.inspection.nodes as unknown as Record<string, unknown>[]) {
+      const component = node.component as Record<string, unknown> | undefined;
+      if (component?.isComponentInstance === true) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+const inspectionConcurrency = 4;
+
+/** A frame whose concurrent read failed is simply read again by the sequential path, so errors are not lost. */
+export async function inspectConcurrently(
+  client: PenpotToolClient,
+  fileId: string,
+  pageId: string,
+  frameIds: string[],
+): Promise<Map<string, InspectionCapture>> {
+  const inspected = new Map<string, InspectionCapture>();
+  if (frameIds.length < 2) {
+    return inspected;
+  }
+  await withPageSession(client, async () => {
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      while (next < frameIds.length) {
+        const frameId = frameIds[next++]!;
+        try {
+          inspected.set(frameId, await captureReleaseScreen(client, fileId, pageId, frameId));
+        } catch {
+          /* The sequential pass reads this frame again and reports any real failure. */
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        {
+          length: inspectionConcurrency,
+        },
+        worker,
+      ),
+    );
+  });
+  return inspected;
 }

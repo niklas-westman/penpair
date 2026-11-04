@@ -70,13 +70,20 @@ come later.
 
 ## Current supported verification limits
 
-Native copy/paste is not complete native fidelity support. Verification currently
-blocks all component instances, copies, main instances and component roots
-because complete override state is unobservable. It also blocks groups lacking
-an explicit `maskedGroup` observation, unknown mixed-range text/style state and
-any other unknown or missing required field. Paths/vector shapes also block when
-their actual native path content was not observed. Equal images and retained links do
-not waive those limits. Keep selected screens blocked with the actionable reason;
+Native copy/paste is not complete native fidelity support. `design-release verify`
+and `check` still block all component instances, copies, main instances and
+component roots, because which properties are overridden is unobservable through
+the plugin. They also block groups lacking an explicit `maskedGroup` observation,
+unknown mixed-range text/style state and any other unknown or missing required
+field. Paths/vector shapes also block when their actual native path content was
+not observed. Equal images and retained links do not waive those limits.
+
+`design-release copy` is looser on one point only, and says so. It compares a
+component instance by identity (source component, library, reference shape) and
+lists the limit under `caveats`. With a Penpot access token (`PENPAIR_PAT_TOKEN`,
+`evidence: "backend"`) it compares the stored data of every shape, including
+references and overrides, and no caveat remains. A copy result is evidence for a
+release, never a replacement for `verify`; do not use it to waive the limits above. Keep selected screens blocked with the actionable reason;
 never detach, flatten, strip styles or rasterize to obtain a pass. Extend and
 validate the missing inspection support or obtain complete evidence first.
 

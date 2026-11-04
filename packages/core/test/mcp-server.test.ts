@@ -127,13 +127,17 @@ describe("project-pinned typed MCP server", () => {
               ? [
                   "run_registered",
                   "design_release_copy",
+                  "design_release_copy_recover",
                 ]
               : []),
           ].sort(),
         );
         for (const tool of tools) {
           const destructive = tool.name === "export" || tool.name === "run_registered";
-          const changesEnvironment = destructive || tool.name === "design_release_copy";
+          const changesEnvironment =
+            destructive ||
+            tool.name === "design_release_copy" ||
+            tool.name === "design_release_copy_recover";
           const offline = tool.name === "run_status" || tool.name === "baselines_status";
           expect(tool.annotations, tool.name).toEqual({
             readOnlyHint: !changesEnvironment,

@@ -142,12 +142,14 @@ describe("native editor clipboard transport", () => {
     await session.paste("source");
     expect(setup.socket.commands.map((command) => command.method)).toEqual([
       "Page.bringToFront",
+      "Emulation.setFocusEmulationEnabled",
       "Runtime.evaluate",
       "Runtime.evaluate",
       "Input.dispatchKeyEvent",
       "Input.dispatchKeyEvent",
       "Runtime.evaluate",
       "Page.bringToFront",
+      "Emulation.setFocusEmulationEnabled",
       "Runtime.evaluate",
       "Runtime.evaluate",
       "Input.dispatchKeyEvent",

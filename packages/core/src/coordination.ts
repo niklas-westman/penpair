@@ -277,7 +277,8 @@ export function writeCoordinator(
           targetGuard +
             readMarker +
             `
-if (marker && marker.token !== CFG.marker.token && (!Number.isFinite(marker.expiresAt) || marker.expiresAt > Date.now()) && !CFG.force)
+// A marker written by the same run is its own, left by a process that did not clean up; the local lock already refuses a process that is still running.
+if (marker && marker.token !== CFG.marker.token && marker.runId !== CFG.marker.runId && (!Number.isFinite(marker.expiresAt) || marker.expiresAt > Date.now()) && !CFG.force)
   return { ok:false, message:"Another writer is running " + String(marker.operation) + " (run " + String(marker.runId) + ", owner " + String(marker.owner) + ", since " + (Number.isFinite(marker.createdAt) ? new Date(marker.createdAt).toISOString() : "an unknown time") + "). Coordinate before --force-lock." };
 f.setSharedPluginData("penpair", "writer", JSON.stringify(CFG.marker));
 return { ok:true, supported:true };`,

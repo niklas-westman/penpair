@@ -44,7 +44,15 @@ interface Definition {
   command: (a: Record<string, unknown>) => string[];
   write?: boolean;
   localWrite?: boolean;
+  /** A tool whose work is known to outlast the server's default deadline; aborting it midway would leave an uncertain run. */
+  deadlineMs?: number;
+  /** Forward the command's progress lines as MCP progress notifications when the client asks for them. */
+  progress?: boolean;
 }
+/** The CLI's own ceiling for one command; copying 14 heavy frames takes about 3 minutes, a large page more. */
+const copyDeadlineMs = 1_800_000;
+/** At most one progress notification this often; the copy already reports every 5 seconds. */
+const progressIntervalMs = 2_000;
 const definitions: Definition[] = [
   {
     name: "pages",
@@ -318,6 +326,20 @@ const definitions: Definition[] = [
         description:
           "Original run ID for explicit reconciliation with apply=true and the same inputs; never blindly repeats a paste.",
       },
+      evidence: {
+        ...string,
+        maxLength: 10,
+        pattern: "^(auto|backend|plugin)$",
+        description:
+          "Apply only. auto (default) verifies structure on Penpot's stored data when a personal access token is configured for the project, otherwise through the editor; backend requires the token; plugin never uses it.",
+      },
+      verifyPixels: {
+        ...string,
+        maxLength: 10,
+        pattern: "^(all|sample|none)$",
+        description:
+          "Apply only. all (default) compares rendered pixels for every pair; sample for the first, last and largest; none skips rendering and leaves pixelsMatch out.",
+      },
     },
     required: [
       "sourcePage",
@@ -325,6 +347,8 @@ const definitions: Definition[] = [
       "releaseVersion",
     ],
     write: true,
+    deadlineMs: copyDeadlineMs,
+    progress: true,
     command: (a) => [
       "design-release",
       "copy",
@@ -353,7 +377,84 @@ const definitions: Definition[] = [
             String(a.resume),
           ]
         : []),
+      ...(a.evidence !== undefined
+        ? [
+            "--evidence",
+            String(a.evidence),
+          ]
+        : []),
+      ...(a.verifyPixels !== undefined
+        ? [
+            "--verify-pixels",
+            String(a.verifyPixels),
+          ]
+        : []),
     ],
+  },
+  {
+    name: "design_release_copy_recover",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    description:
+      "Find out why a native board copy stopped, or release a copy run that blocks later copies. Advertised only with --allow-writes. action=diagnose reads tab focus, clipboard permission and readability on a loopback browser debugging port and changes nothing. action=abandon closes the journal of a run so it no longer blocks other copies; it never pastes, never edits Penpot and never deletes boards. A run that already pasted is refused unless destinationInspected is true, which asserts that you have looked at its destination page (release/<version>) and know what it holds; do not set it without looking. To finish a run that pasted, resume it with design_release_copy instead.",
+    properties: {
+      action: {
+        ...string,
+        maxLength: 10,
+        pattern: "^(diagnose|abandon)$",
+        description: "diagnose (read-only) or abandon (closes one run's journal).",
+      },
+      debugPort: {
+        ...integer(65535, 1),
+        description: "diagnose only: the existing loopback CDP port.",
+      },
+      runId: {
+        ...string,
+        maxLength: 100,
+        pattern: "^[a-zA-Z0-9-]{1,100}$",
+        description: "abandon only: the run ID to close, as reported by the stopped copy.",
+      },
+      reason: {
+        ...string,
+        description: "abandon only: why, in plain words; kept on the journal record.",
+      },
+      destinationInspected: {
+        type: "boolean",
+        default: false,
+        description:
+          "abandon only: true asserts that the destination page was inspected. Required when the run had already pasted.",
+      },
+    },
+    required: [
+      "action",
+    ],
+    write: true,
+    command: (a) =>
+      a.action === "diagnose"
+        ? [
+            "design-release",
+            "copy",
+            "--diagnose",
+            "--debug-port",
+            String(a.debugPort),
+          ]
+        : [
+            "design-release",
+            "copy",
+            "--abandon",
+            String(a.runId),
+            "--reason",
+            String(a.reason),
+            ...(a.destinationInspected === true
+              ? [
+                  "--destination-inspected",
+                ]
+              : []),
+          ],
   },
   {
     name: "run_registered",
@@ -507,6 +608,27 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
   if (def.name === "design_release_copy" && a.apply && a.debugPort === undefined) {
     throw new Error("Native copy apply requires debugPort");
   }
+  if (
+    def.name === "design_release_copy" &&
+    (a.evidence !== undefined || a.verifyPixels !== undefined) &&
+    !a.apply
+  ) {
+    throw new Error("evidence and verifyPixels apply only to a copy that is applied");
+  }
+  if (def.name === "design_release_copy_recover") {
+    if (a.action === "diagnose") {
+      if (
+        a.debugPort === undefined ||
+        a.runId !== undefined ||
+        a.reason !== undefined ||
+        a.destinationInspected !== undefined
+      ) {
+        throw new Error("diagnose takes debugPort and nothing else");
+      }
+    } else if (a.runId === undefined || a.reason === undefined || a.debugPort !== undefined) {
+      throw new Error("abandon takes runId and reason, and optionally destinationInspected");
+    }
+  }
   return a;
 }
 /** Long-lived server with an immutable explicit root and no process.chdir or raw-code tool. */
@@ -571,6 +693,7 @@ export async function createMcpServer(options: McpOptions): Promise<Server> {
     if (extra.signal.aborted) {
       abort();
     }
+    const def = available.find((d) => d.name === request.params.name);
     const timer = setTimeout(
       () =>
         controller.abort(
@@ -578,11 +701,36 @@ export async function createMcpServer(options: McpOptions): Promise<Server> {
             code: "deadline",
           }),
         ),
-      timeout,
+      def?.deadlineMs ?? timeout,
     );
+    // Forwarding is best effort: only when the client asked for progress, never after the call finished, never failing it.
+    const progressToken = request.params._meta?.progressToken;
+    let finished = false;
+    let notifications = 0;
+    let lastNotification = 0;
+    const forwardProgress =
+      def?.progress && progressToken !== undefined
+        ? (message: string): void => {
+            const now = Date.now();
+            if (finished || (notifications > 0 && now - lastNotification < progressIntervalMs)) {
+              return;
+            }
+            lastNotification = now;
+            notifications += 1;
+            void extra
+              .sendNotification({
+                method: "notifications/progress",
+                params: {
+                  progressToken,
+                  progress: notifications,
+                  message: message.slice(0, 500),
+                },
+              })
+              .catch(() => undefined);
+          }
+        : undefined;
     let result: CommandResult;
     try {
-      const def = available.find((d) => d.name === request.params.name);
       if (!def) {
         throw new Error("Unknown or disabled tool");
       }
@@ -607,12 +755,18 @@ export async function createMcpServer(options: McpOptions): Promise<Server> {
         pinnedConfig: config,
         strictFileGuard: true,
         signal: controller.signal,
+        ...(forwardProgress
+          ? {
+              onProgress: forwardProgress,
+            }
+          : {}),
       });
     } catch (error) {
       result = await collectCommand(request.params.name, async () => {
         throw error;
       });
     } finally {
+      finished = true;
       clearTimeout(timer);
       extra.signal.removeEventListener("abort", abort);
     }

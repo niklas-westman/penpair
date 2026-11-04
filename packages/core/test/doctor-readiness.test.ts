@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { doctorExternal } from "../src/instance/connection.js";
 import { runCommand } from "../src/cli-main.js";
 import * as connectionModule from "../src/instance/connection.js";
@@ -27,6 +27,7 @@ it("separates transport, fresh challenge, page identity and file pin observation
   const challenges: string[] = [];
   for (let i = 0; i < 2; i++) {
     const result = await doctorExternal(config, {
+      accessToken: null,
       fetch: answering,
       mcp: {
         origin: config.profile.origin,
@@ -43,10 +44,12 @@ it("separates transport, fresh challenge, page identity and file pin observation
       },
     });
     expect(
-      result.map((row) => [
-        row.layer,
-        row.ok,
-      ]),
+      result
+        .filter((row) => row.layer)
+        .map((row) => [
+          row.layer,
+          row.ok,
+        ]),
     ).toEqual([
       [
         "origin",
@@ -303,3 +306,81 @@ it.each([
     });
   },
 );
+
+describe("the optional access token row", () => {
+  const askedFor = (status: number) => {
+    const urls: string[] = [];
+    const fetchImplementation = (async (url: URL | string) => {
+      urls.push(String(url));
+      return {
+        status: String(url).includes("get-teams") ? status : 200,
+        ok: String(url).includes("get-teams") ? status < 400 : true,
+        text: async () => "unauthorized",
+      };
+    }) as unknown as typeof fetch;
+    return {
+      urls,
+      fetchImplementation,
+    };
+  };
+  const tokenRow = async (accessToken: string | null, status = 200) => {
+    const { urls, fetchImplementation } = askedFor(status);
+    const result = await doctorExternal(config, {
+      accessToken,
+      fetch: fetchImplementation,
+    });
+    return {
+      row: result.find((entry) => entry.check === "access token (optional)")!,
+      urls,
+      result,
+    };
+  };
+
+  it("is fine without a token, and says what a token would give", async () => {
+    const { row, urls } = await tokenRow(null);
+    expect(row.ok).toBe(true);
+    expect(row.detail).toContain("plugin");
+    expect(urls.some((url) => url.includes("get-teams"))).toBe(false);
+  });
+
+  it("is fine when the origin accepts the token, and never shows it", async () => {
+    const { row } = await tokenRow("secret-token-value");
+    expect(row.ok).toBe(true);
+    expect(JSON.stringify(row)).not.toContain("secret-token-value");
+  });
+
+  it("fails with what to do when the token is refused", async () => {
+    const { row } = await tokenRow("secret-token-value", 401);
+    expect(row.ok).toBe(false);
+    expect(row.remedy).toContain("Access tokens");
+  });
+
+  it("does not call a challenge page a refused token", async () => {
+    const result = await doctorExternal(config, {
+      accessToken: "secret-token-value",
+      fetch: (async (url: URL | string) =>
+        String(url).includes("get-teams")
+          ? new Response("<!DOCTYPE html><title>Just a moment...</title>", {
+              status: 403,
+            })
+          : new Response("ok", {
+              status: 200,
+            })) as unknown as typeof fetch,
+    });
+    const row = result.find((entry) => entry.check === "access token (optional)")!;
+    expect(row.ok).toBe(false);
+    expect(row.detail).toContain("challenge");
+  });
+
+  it("is not asked for when the origin does not answer", async () => {
+    const result = await doctorExternal(config, {
+      accessToken: "secret-token-value",
+      fetch: (async () => {
+        throw new Error("offline");
+      }) as unknown as typeof fetch,
+    });
+    expect(result.map((row) => row.check)).toEqual([
+      "penpot",
+    ]);
+  });
+});
