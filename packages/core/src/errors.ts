@@ -10,7 +10,10 @@ export type PenpairErrorCode =
   | "plugin-disconnected"
   | "plugin-suspended"
   | "tool-failed"
-  | "snippet-too-large";
+  | "snippet-too-large"
+  | "access-token-invalid"
+  | "access-token-rejected"
+  | "backend-unavailable";
 
 // Every failure tells the person running the command what to do next. Remedies never contain credentials.
 export const errorRemedies: Readonly<Record<PenpairErrorCode, string>> = Object.freeze({
@@ -34,6 +37,12 @@ export const errorRemedies: Readonly<Record<PenpairErrorCode, string>> = Object.
   "plugin-suspended":
     "The browser put the Penpot tab to sleep. Bring it to the foreground, or use penpair wake --debug-port PORT with a dedicated debugging browser, then run penpair doctor. Waking is temporary recovery. A suspended-tab error does not mean nothing was written: read the page and reconcile the run before explicitly replaying a write.",
   "tool-failed": "Penpot's tool reported a failure; the message above says what.",
+  "access-token-invalid":
+    "PENPAIR_PAT_TOKEN must be a Penpot personal access token (Profile, Access tokens) on one line, without spaces. Remove the variable to use the plugin route instead.",
+  "access-token-rejected":
+    "Penpot rejected the personal access token: it may have expired or been deleted. Create a new one under Profile, Access tokens and update PENPAIR_PAT_TOKEN, or remove the variable to use the plugin route.",
+  "backend-unavailable":
+    "The Penpot backend did not answer. Check the network and the Penpot origin; the plugin route works without the backend if you remove PENPAIR_PAT_TOKEN.",
   "snippet-too-large":
     "Split the snippet. Penpot's proxy refuses request bodies of about 110 KB, so snippets stay under 90 KB.",
 });
