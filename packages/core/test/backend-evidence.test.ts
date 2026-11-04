@@ -11,6 +11,7 @@ import {
   verifyBackendPairs,
 } from "../src/design-releases/backend-evidence.js";
 import type { BackendObjects } from "../src/design-releases/backend-compare.js";
+import { PenpairError } from "../src/errors.js";
 import type { BackendPage, PenpotBackendClient } from "../src/penpot-backend.js";
 
 const pageRoot = "00000000-0000-0000-0000-000000000000";
@@ -137,6 +138,60 @@ describe("waiting for the backend to show a change", () => {
     );
     expect(read.polls).toBe(3);
     expect(rootBoardIds(read.objects)).toHaveLength(2);
+  });
+
+  it("keeps waiting through an answer the backend is still assembling, but not through a refused token", async () => {
+    const settled = page([
+      {
+        key: "a",
+        name: "A",
+        x: 0,
+        y: 0,
+      },
+    ]);
+    let calls = 0;
+    const flaky: PenpotBackendClient = {
+      async getPage(_fileId, pageId) {
+        if (calls++ < 2) {
+          throw new PenpairError("backend-unavailable", "unexpected shape: shape x has no type");
+        }
+        return {
+          id: pageId,
+          name: "page",
+          objects: settled,
+        };
+      },
+    };
+    const read = await readBackendPageWhen(flaky, "file", "page", () => true, {
+      sleep: async () => undefined,
+    });
+    expect(read.polls).toBe(3);
+    const refused: PenpotBackendClient = {
+      async getPage() {
+        throw new PenpairError("access-token-rejected", "401");
+      },
+    };
+    await expect(
+      readBackendPageWhen(refused, "file", "page", () => true, {
+        sleep: async () => undefined,
+      }),
+    ).rejects.toMatchObject({
+      code: "access-token-rejected",
+    });
+  });
+
+  it("names the last answer when the backend never catches up through errors", async () => {
+    const broken: PenpotBackendClient = {
+      async getPage() {
+        throw new PenpairError("backend-unavailable", "unexpected shape: shape x has no type");
+      },
+    };
+    await expect(
+      readBackendPageWhen(broken, "file", "page", () => true, {
+        timeoutMs: 0,
+        sleep: async () => undefined,
+      }),
+    ).rejects.toThrow("last answer: unexpected shape");
   });
 
   it("says what happened when the backend never catches up", async () => {

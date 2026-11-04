@@ -46,21 +46,35 @@ function isShape(value: unknown): value is BackendShape {
   );
 }
 
+/** Why a page body is not usable, in words that name the field and never quote design content. */
+function pageProblem(page: Partial<BackendPage> | null, pageId: string): string | undefined {
+  if (!page || typeof page !== "object") {
+    return "the body is not an object";
+  }
+  if (page.id !== pageId) {
+    return "the page id differs from the one asked for";
+  }
+  if (typeof page.name !== "string") {
+    return "the page has no name";
+  }
+  if (!page.objects || typeof page.objects !== "object") {
+    return "the page has no objects";
+  }
+  const unusable = Object.entries(page.objects).find(([, value]) => !isShape(value));
+  return unusable
+    ? `shape ${unusable[0]} has no id or type (fields: ${Object.keys((unusable[1] as object) ?? {})
+        .slice(0, 8)
+        .join(", ")})`
+    : undefined;
+}
+
 function parsePage(text: string, pageId: string): BackendPage {
-  const raw: unknown = JSON.parse(text);
-  const page = raw as Partial<BackendPage>;
-  if (
-    !page ||
-    typeof page !== "object" ||
-    page.id !== pageId ||
-    typeof page.name !== "string" ||
-    !page.objects ||
-    typeof page.objects !== "object" ||
-    !Object.values(page.objects).every(isShape)
-  ) {
+  const page = JSON.parse(text) as Partial<BackendPage> | null;
+  const problem = pageProblem(page, pageId);
+  if (problem) {
     throw new PenpairError(
       "backend-unavailable",
-      "The Penpot backend returned a page in an unexpected shape",
+      `The Penpot backend returned a page in an unexpected shape: ${problem}`,
     );
   }
   return page as BackendPage;

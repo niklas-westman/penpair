@@ -283,7 +283,7 @@ export async function copyReleaseBoards(
             copyRequestHash(payload.request) === copyRequestHash(request))
         ) {
           throw new Error(
-            `Copy run ${previous.runId} already covers this transfer or requires reconciliation; use its explicit --resume before another paste`,
+            `Copy run ${previous.runId} already covers this transfer or requires reconciliation. Resume it with --resume ${previous.runId} --apply, or, once you have looked at its destination page, drop it with --abandon ${previous.runId} --reason TEXT --destination-inspected`,
           );
         }
       }

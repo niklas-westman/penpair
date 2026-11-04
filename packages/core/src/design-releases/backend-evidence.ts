@@ -1,4 +1,5 @@
 import { setTimeout as sleepFor } from "node:timers/promises";
+import { PenpairError } from "../errors.js";
 import { observationHash } from "../journal.js";
 import type { PenpotBackendClient } from "../penpot-backend.js";
 import { saveArtifact } from "./artifact-paths.js";
@@ -77,18 +78,28 @@ export async function readBackendPageWhen(
       sleepFor(milliseconds, undefined, {
         signal: options.signal,
       }));
+  let lastProblem: string | undefined;
   for (let polls = 1; ; polls++) {
-    const page = await backend.getPage(fileId, pageId, options.signal);
-    if (ready(page.objects)) {
-      return {
-        objects: page.objects,
-        polls,
-        waitedMs: Date.now() - started,
-      };
+    try {
+      const page = await backend.getPage(fileId, pageId, options.signal);
+      if (ready(page.objects)) {
+        return {
+          objects: page.objects,
+          polls,
+          waitedMs: Date.now() - started,
+        };
+      }
+      lastProblem = undefined;
+    } catch (error) {
+      // Right after a write the backend can answer with a page it is still assembling; a refused token is never transient.
+      if (!(error instanceof PenpairError) || error.code !== "backend-unavailable") {
+        throw error;
+      }
+      lastProblem = error.message.split("\n")[0];
     }
     if (Date.now() - started >= timeoutMs) {
       throw new Error(
-        `The Penpot backend did not show the expected shapes within ${Math.round(timeoutMs / 1000)} s; the editor change may not have been saved yet. Reconcile the run before resuming.`,
+        `The Penpot backend did not show the expected shapes within ${Math.round(timeoutMs / 1000)} s${lastProblem ? ` (last answer: ${lastProblem})` : ""}; the editor change may not have been saved yet. Reconcile the run before resuming.`,
       );
     }
     await sleep(options.intervalMs ?? defaultPollIntervalMs);
