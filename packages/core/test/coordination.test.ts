@@ -112,6 +112,22 @@ describe("write coordination", () => {
     expect(JSON.parse(e.marker()).runId).toBe("run-b");
     await second.release();
   });
+  it("lets a run take over the marker it left behind when it was cut off", async () => {
+    const e = editor();
+    e.setMarker(
+      JSON.stringify({
+        runId: "run-a",
+        token: "token-of-the-cut-off-process",
+        expiresAt: Date.now() + 10 * 60_000,
+      }),
+    );
+    const lease = await writeCoordinator(e.client, {
+      root: await folder(),
+      operation: "test",
+    })("run-a", target);
+    expect(JSON.parse(e.marker()).token).not.toBe("token-of-the-cut-off-process");
+    await lease.release();
+  });
   it("replaces an expired remote marker and detects lease expiry before further steps", async () => {
     const e = editor();
     e.setMarker(

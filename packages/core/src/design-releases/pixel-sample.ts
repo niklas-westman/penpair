@@ -1,7 +1,9 @@
 import type { PenpotToolClient } from "../client.js";
 import { exportShapePng, exportShapesPngStable } from "../export.js";
 import { selectPage } from "../page-session.js";
+import { setTimeout as sleepFor } from "node:timers/promises";
 import { saveArtifact } from "./artifact-paths.js";
+import { whileEditorBusy } from "./editor-busy.js";
 import type { BackendFrameEvidence } from "./backend-evidence.js";
 import type { CopiedFramePair, FramePixelDifference } from "./copy-evidence.js";
 import { pixelTolerance } from "./copy-evidence.js";
@@ -164,6 +166,7 @@ export async function comparePairPixels(
   prefix: string,
   nativeVerified: boolean,
   redact?: (text: string) => string,
+  pause: (milliseconds: number) => Promise<void> = (milliseconds) => sleepFor(milliseconds),
 ): Promise<PixelSampleResult> {
   const result: PixelSampleResult = {
     compared: pairs.map((pair) => pair.sourceFrameId),
@@ -178,23 +181,32 @@ export async function comparePairPixels(
     subset.map(select);
   const compare = async (subset: CopiedFramePair[], settled: boolean): Promise<PixelFinding[]> => {
     const label = settled ? "settled" : "single";
-    const sources = await renderBoards(
-      client,
-      root,
-      pages.source,
-      ids((pair) => pair.sourceFrameId, subset),
-      `${prefix}/source-${label}`,
-      settled,
-      redact,
+    // Renders are reads; a busy editor (a large paste just finished) answers them late, so ask again.
+    const sources = await whileEditorBusy(
+      () =>
+        renderBoards(
+          client,
+          root,
+          pages.source,
+          ids((pair) => pair.sourceFrameId, subset),
+          `${prefix}/source-${label}`,
+          settled,
+          redact,
+        ),
+      pause,
     );
-    const targets = await renderBoards(
-      client,
-      root,
-      pages.target,
-      ids((pair) => pair.targetFrameId, subset),
-      `${prefix}/target-${label}`,
-      settled,
-      redact,
+    const targets = await whileEditorBusy(
+      () =>
+        renderBoards(
+          client,
+          root,
+          pages.target,
+          ids((pair) => pair.targetFrameId, subset),
+          `${prefix}/target-${label}`,
+          settled,
+          redact,
+        ),
+      pause,
     );
     const findings: PixelFinding[] = [];
     for (const pair of subset) {

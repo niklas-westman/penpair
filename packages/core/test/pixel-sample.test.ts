@@ -127,6 +127,8 @@ describe("comparing sampled pairs", () => {
       pairs.slice(0, 2),
       ".penpair/native-copy/run/pixels",
       nativeVerified,
+      undefined,
+      async () => undefined,
     );
   }
 
@@ -163,6 +165,21 @@ describe("comparing sampled pairs", () => {
     expect(verified.findings[0]!.acceptedAs).toBe("localized-with-identical-data");
     const unverified = await run(differing, false);
     expect(unverified.problems).toHaveLength(2);
+  });
+
+  it("asks again when the editor is busy while rendering", async () => {
+    let calls = 0;
+    const result = await run(async () => {
+      if (calls++ < 3) {
+        throw new Error("MCP error -32001: Request timed out");
+      }
+      return png(40, 40);
+    }, true);
+    expect(result.problems).toEqual([]);
+    expect(result.findings.map((finding) => finding.acceptedAs)).toEqual([
+      "identical",
+      "identical",
+    ]);
   });
 
   it("settles a pair whose first render was stale", async () => {
