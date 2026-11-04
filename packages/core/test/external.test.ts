@@ -172,6 +172,7 @@ describe("an external Penpot as a project", () => {
       status: 200,
     })) as unknown as typeof fetch;
     const up = await doctorExternal(config, {
+      accessToken: null,
       fetch: answering,
       mcp: {
         origin: "https://design.penpot.app",
@@ -208,8 +209,13 @@ describe("an external Penpot as a project", () => {
         "file identity",
         true,
       ],
+      [
+        "access token (optional)",
+        true,
+      ],
     ]);
     const wrongKey = await doctorExternal(config, {
+      accessToken: null,
       fetch: answering,
       mcp: {
         origin: "http://localhost:9001",
@@ -218,11 +224,13 @@ describe("an external Penpot as a project", () => {
         }),
       },
     });
-    expect(wrongKey.at(-1)).toMatchObject({
+    const mismatch = wrongKey.find((row) => row.check === "editor and plugin")!;
+    expect(mismatch).toMatchObject({
       ok: false,
     });
-    expect(wrongKey.at(-1)!.detail).toMatch(/not https:\/\/design\.penpot\.app/);
+    expect(mismatch.detail).toMatch(/not https:\/\/design\.penpot\.app/);
     const down = await doctorExternal(config, {
+      accessToken: null,
       fetch: (async () => {
         throw new Error("offline");
       }) as unknown as typeof fetch,

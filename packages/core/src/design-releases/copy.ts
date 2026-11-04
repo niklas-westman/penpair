@@ -111,6 +111,10 @@ export interface CopyResult {
   caveats?: string[];
   /** Where the structural evidence came from: the Penpot backend's stored data, or reads through the editor plugin. */
   evidence?: "backend" | "plugin";
+  /** Present when this exact transfer had already been copied and verified; nothing was pasted this time. */
+  alreadyCopied?: {
+    runId: string;
+  };
   /** Said when the copy cannot be accepted as it is and the cause is understood, with what to do next. */
   diagnosis?: string;
   /** Backend route only: how long the backend trailed the editor before it showed the pasted and the arranged boards. */
@@ -301,6 +305,70 @@ export async function copyReleaseBoards(
         }
       }
     };
+    // The same transfer, already verified and still in place, is answered with its receipt: nothing is pasted a second time.
+    const completedEarlier = async (): Promise<CopyResult | undefined> => {
+      for (const previous of await listJournals(root)) {
+        if (
+          previous.operation !== operation ||
+          previous.target.fileId !== request.fileId ||
+          previous.state !== "verified"
+        ) {
+          continue;
+        }
+        const record = await readJournal(root, previous.runId);
+        const planned = record.payload as CopyPayload | undefined;
+        if (
+          record.abandoned ||
+          planned?.kind !== "native-release-copy-plan" ||
+          copyRequestHash(planned.request) !== copyRequestHash(request)
+        ) {
+          continue;
+        }
+        let receipt: Record<string, unknown>;
+        try {
+          receipt = JSON.parse(
+            (
+              await readProjectBytes(
+                root,
+                `.penpair/native-copy/${previous.runId}/receipt.json`,
+                16 * 1024 * 1024,
+              )
+            ).toString("utf8"),
+          );
+        } catch {
+          continue;
+        }
+        const earlierPairs = receipt.pairs as CopiedFramePair[] | undefined;
+        if (
+          receipt.status !== "copied" ||
+          !Array.isArray(earlierPairs) ||
+          !earlierPairs.every((pair) => current.destinationRootIds.includes(pair.targetFrameId))
+        ) {
+          continue;
+        }
+        const {
+          nodeMap: _nodeMap,
+          sourceEvidence: _sourceEvidence,
+          targetEvidence: _targetEvidence,
+          nodes: _nodes,
+          ...result
+        } = receipt;
+        return {
+          ...(result as unknown as CopyResult),
+          preview: current,
+          alreadyCopied: {
+            runId: previous.runId,
+          },
+        };
+      }
+      return undefined;
+    };
+    if (!options.resume) {
+      const earlier = await completedEarlier();
+      if (earlier) {
+        return earlier;
+      }
+    }
     await assertNoConflictingRuns();
     await ensureGitignoreEntry(root, ".penpair", {
       directory: true,

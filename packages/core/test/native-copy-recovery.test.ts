@@ -665,17 +665,38 @@ describe("native copy orchestration with real operation journals", () => {
     expect(trial.writes).not.toContain("arrange");
   });
 
-  it("requires the verified transfer's explicit resume instead of duplicating it in a fresh run", async () => {
+  it("answers a transfer that is already verified and in place with its receipt, and pastes nothing again", async () => {
+    const trial = await fixture(true);
+    const first = await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    const again = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+      ...trial.options,
+      runId: "fresh-duplicate",
+    });
+    expect(again).toMatchObject({
+      status: "copied",
+      alreadyCopied: {
+        runId: first.runId,
+      },
+      pairs: first.pairs,
+    });
+    expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    expect(trial.clipboard.copy).toHaveBeenCalledOnce();
+    expect(await listJournals(trial.root)).toHaveLength(1);
+  });
+
+  it("still refuses a fresh run when the verified copies are no longer in place", async () => {
     const trial = await fixture(true);
     await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+    trial.destination.root.children = trial.destination.root.children.filter(
+      (child) => child.id === "existing",
+    );
     await expect(
       copyReleaseBoards(trial.client, trial.root, trial.request, {
         ...trial.options,
         runId: "fresh-duplicate",
       }),
-    ).rejects.toThrow(/copy-run|resume|already/i);
+    ).rejects.toThrow(/copy-run|resume|already|abandon/i);
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
-    expect(trial.clipboard.copy).toHaveBeenCalledOnce();
   });
 
   it("does not paste twice when two processes pass preflight before either journal exists", async () => {

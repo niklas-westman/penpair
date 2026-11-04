@@ -36,6 +36,11 @@ const defaultTimeoutMs = 60_000;
 const defaultAttempts = 3;
 const retryPauseMs = 1_000;
 
+/** An HTML body where JSON was expected: a bot-protection challenge, not an answer from Penpot's API. */
+export function isChallengePage(body: string): boolean {
+  return /^\s*<(!doctype|html)/i.test(body);
+}
+
 function isShape(value: unknown): value is BackendShape {
   const shape = value as BackendShape;
   return (
@@ -116,13 +121,20 @@ export function createPenpotBackendClient(options: PenpotBackendOptions): Penpot
                 : []),
             ]),
           });
+          const text = await response.text();
           if (response.status === 401 || response.status === 403) {
+            // Penpot's edge answers a blocked request with an HTML challenge page; that says nothing about the token.
+            if (isChallengePage(text)) {
+              throw new PenpairError(
+                "backend-unavailable",
+                `Penpot's edge blocked the request with a challenge page (status ${response.status})`,
+              );
+            }
             throw new PenpairError(
               "access-token-rejected",
               `Penpot answered ${response.status} to the access token`,
             );
           }
-          const text = await response.text();
           if (response.ok) {
             return parsePage(text, pageId);
           }

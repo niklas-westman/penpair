@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { commandSignal, withCommandSignal } from "../command-result.js";
 import { redactEndpoint } from "../endpoint.js";
+import { errorRemedies } from "../errors.js";
+import { redactAccessToken, resolveAccessToken } from "../penpot-access-token.js";
+import { isChallengePage } from "../penpot-backend.js";
 import {
   pluginHealthFromError,
   responsivePluginHealth,
@@ -132,6 +135,8 @@ export interface DoctorProbeRequest {
 }
 export interface DoctorOptions {
   timeoutMs?: number;
+  /** The optional Penpot access token; `null` means none, leaving it out reads the environment and `.env.local`. */
+  accessToken?: string | null;
   mcp?: {
     origin: string;
     /** Where the address came from, so a mismatch can say which config to fix. */
@@ -330,11 +335,116 @@ export function endpointIsInstance(origin: string, config: InstanceConfig): bool
 }
 
 /** The checks that make sense for a Penpot someone else runs: it answers, the key is for it, the editor and plugin are connected. */
+/** The access token is optional: absent is fine, present must be accepted, because a refused token stops a copy that asks for it. */
+async function doctorAccessToken(
+  origin: string,
+  options: DoctorOptions & {
+    fetch?: typeof fetch;
+  },
+  timeoutMs: number,
+): Promise<DoctorCheck> {
+  const check = "access token (optional)";
+  let token: string | undefined;
+  try {
+    token =
+      options.accessToken === null
+        ? undefined
+        : (options.accessToken ?? (await resolveAccessToken()));
+  } catch (error) {
+    return {
+      check,
+      ok: false,
+      detail: error instanceof Error ? error.message.split("\n")[0]! : "the token cannot be read",
+      remedy: errorRemedies["access-token-invalid"],
+    };
+  }
+  if (!token) {
+    return {
+      check,
+      ok: true,
+      detail:
+        "PENPAIR_PAT_TOKEN is not set: copy verification reads through the plugin (slower). Set it to verify on Penpot's stored data.",
+    };
+  }
+  try {
+    const response = await doctorDeadline(timeoutMs, (signal) =>
+      (options.fetch ?? fetch)(new URL("/api/rpc/command/get-teams", origin), {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          authorization: `Token ${token}`,
+        },
+        body: "{}",
+        signal,
+      }),
+    );
+    if (response.status === 401 || response.status === 403) {
+      const body = typeof response.text === "function" ? await response.text() : "";
+      return isChallengePage(body)
+        ? {
+            check,
+            ok: false,
+            detail: `${origin} blocked the token check with a challenge page`,
+            remedy: errorRemedies["backend-unavailable"],
+          }
+        : {
+            check,
+            ok: false,
+            detail: `${origin} refused the token`,
+            remedy: errorRemedies["access-token-rejected"],
+          };
+    }
+    return response.ok
+      ? {
+          check,
+          ok: true,
+          detail: `${origin} accepts the token: copy verification reads Penpot's stored data`,
+        }
+      : {
+          check,
+          ok: false,
+          detail: `${origin} answered ${response.status} to the token check`,
+          remedy: errorRemedies["backend-unavailable"],
+        };
+  } catch (error) {
+    return {
+      check,
+      ok: false,
+      detail: redactAccessToken(
+        error instanceof Error ? error.message : "the token check failed",
+        token,
+      ),
+      remedy: errorRemedies["backend-unavailable"],
+    };
+  }
+}
+
 export async function doctorExternal(
   config: ExternalConfig,
   options: DoctorOptions & {
     fetch?: typeof fetch;
   } = {},
+): Promise<DoctorCheck[]> {
+  const checks = await doctorExternalChecks(config, options);
+  // Last, so nothing that reads the rows by layer or position moves; only worth asking when the origin answers.
+  if (checks[0]?.ok) {
+    checks.push(
+      await doctorAccessToken(
+        config.profile.origin,
+        options,
+        Math.min(options.timeoutMs ?? 5000, 5000),
+      ),
+    );
+  }
+  return checks;
+}
+
+async function doctorExternalChecks(
+  config: ExternalConfig,
+  options: DoctorOptions & {
+    fetch?: typeof fetch;
+  },
 ): Promise<DoctorCheck[]> {
   const out: DoctorCheck[] = [];
   const add = (check: string, ok: boolean, detail: string, remedy?: string): void =>

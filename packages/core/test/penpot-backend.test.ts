@@ -73,6 +73,17 @@ describe("reading a page from the backend", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("does not call a bot-protection challenge page a refused token", async () => {
+    const { fetchImplementation } = answering(
+      new Response("<!DOCTYPE html><html><title>Just a moment...</title>", {
+        status: 403,
+      }),
+    );
+    await expect(client(fetchImplementation, 1).getPage("file", "page")).rejects.toMatchObject({
+      code: "backend-unavailable",
+    });
+  });
+
   it("retries a server error and then succeeds", async () => {
     const { calls, fetchImplementation } = answering(
       new Response("busy", {
