@@ -42,6 +42,13 @@ const focusExpression = `(() => {
  return {href:location.href,platform:navigator.platform,focused:document.hasFocus(),canvas:!!canvas,safe:!blocked && workspaceFocus};
 })()`;
 
+const canvasCenterExpression = `(() => {
+ const canvas = document.querySelector("svg.viewport-controls, #render, canvas[data-testid='workspace-canvas']");
+ if (!canvas) return null;
+ const box = canvas.getBoundingClientRect();
+ return {x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height / 2)};
+})()`;
+
 async function interrupted<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
   signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
@@ -502,6 +509,29 @@ export async function connectNativeClipboard(
           }
         }
         if (kind === "paste") {
+          // Penpot pastes into the board under the last mouse position it saw, so a cursor left over a board puts the copy inside
+          // it. Point the cursor at the middle of the canvas, which the caller has already moved onto empty canvas.
+          const anchor = await evaluate(canvasCenterExpression);
+          if (!Number.isFinite(anchor?.x) || !Number.isFinite(anchor?.y)) {
+            throw new Error(
+              "The editor canvas has no measurable area to place the pointer on; no paste was dispatched",
+            );
+          }
+          for (const offset of [
+            1,
+            0,
+          ]) {
+            await send("Input.dispatchMouseEvent", {
+              type: "mouseMoved",
+              x: Number(anchor!.x) + offset,
+              y: Number(anchor!.y) + offset,
+              pointerType: "mouse",
+            });
+          }
+          trace("pointer-moved", {
+            x: anchor!.x,
+            y: anchor!.y,
+          });
           pasteAttempted = true;
         }
         let dispatched = false;

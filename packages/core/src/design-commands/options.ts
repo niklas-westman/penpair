@@ -144,6 +144,9 @@ export const copyOptions = {
   abandon: {
     type: "string",
   },
+  "find-pasted": {
+    type: "string",
+  },
   reason: {
     type: "string",
   },

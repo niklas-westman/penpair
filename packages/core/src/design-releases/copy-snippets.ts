@@ -271,21 +271,109 @@ return { ok: true, fileId: CFG.fileId, pageId: CFG.pageId, selectionIds: penpot.
   );
 }
 
+/**
+ * Penpot pastes into the board under the last pointer position it saw, and the clipboard transport puts the pointer at the middle
+ * of the canvas just before it pastes. This moves the viewport so that the middle of the canvas is empty: no board covers it.
+ * Clearing the selection alone does not stop a paste from landing inside a board.
+ */
+export function nativeCopyEmptyCanvas(fileId: string, pageId: string): Snippet {
+  validateIdentity(fileId);
+  return snippet(
+    "native-copy-empty-canvas",
+    `${helpers}
+assertPage();
+const viewport = penpot.viewport;
+if (!viewport || !viewport.center || typeof viewport.center.x !== "number") {
+  return { ok: true, fileId: CFG.fileId, pageId: CFG.pageId, moved: false, reason: "viewport-unavailable" };
+}
+scan(penpot.currentPage);
+const boards = penpot.currentPage.root.children.map(geometry);
+const right = boards.reduce((max, board) => Math.max(max, board.x + board.width), 0);
+const top = boards.reduce((min, board) => Math.min(min, board.y), 0);
+// Far enough to the right of every board that no frame, whatever its size, lies under the centre.
+viewport.center = { x: right + 4000, y: top };
+const center = viewport.center;
+const covering = penpot.currentPage.root.children.filter(shape => shape.type === "board" && center.x >= shape.x && center.x <= shape.x + shape.width && center.y >= shape.y && center.y <= shape.y + shape.height).map(shape => shape.id);
+return { ok: true, fileId: CFG.fileId, pageId: CFG.pageId, moved: true, center: { x: center.x, y: center.y }, covering };
+`,
+    {
+      fileId,
+      pageId,
+    },
+    "write",
+  );
+}
+
+export interface PastedBoardMatcher {
+  name: string;
+  width: number;
+  height: number;
+  nodeCount: number;
+}
+
+/** Every board of the page at any depth that has a source board's name, size and node count, with where it sits. */
+export function nativeCopyFindBoards(
+  fileId: string,
+  pageId: string,
+  matchers: PastedBoardMatcher[],
+): Snippet {
+  validateIdentity(fileId);
+  if (!matchers.length || matchers.length > 100) {
+    throw new Error("Finding pasted boards requires 1–100 source descriptions");
+  }
+  return snippet(
+    "native-copy-find-boards",
+    `${helpers}
+assertPage();
+const tree = scan(penpot.currentPage);
+const found = [];
+for (const [id, shape] of tree.found) {
+  if (shape.type !== "board") continue;
+  const matching = CFG.matchers.map((matcher, index) => ({ matcher, index })).filter(({ matcher }) =>
+    matcher.name === shape.name && Math.abs(matcher.width - shape.width) < 0.01 && Math.abs(matcher.height - shape.height) < 0.01);
+  if (!matching.length) continue;
+  const nodes = count(shape);
+  const hit = matching.find(({ matcher }) => matcher.nodeCount === nodes);
+  if (!hit) continue;
+  const parentId = tree.parents.get(id);
+  const parent = parentId ? tree.found.get(parentId) : null;
+  found.push({ id, name: shape.name, sourceIndex: hit.index, x: shape.x, y: shape.y, width: shape.width, height: shape.height, nodeCount: nodes,
+    parentId: parentId === undefined || parentId === null ? null : parentId, parentName: parent ? String(parent.name) : null });
+  if (found.length > 500) throw new Error("Too many boards match the pasted sources");
+}
+return { ok: true, fileId: CFG.fileId, pageId: CFG.pageId, pageRootId: penpot.currentPage.root.id, found };
+`,
+    {
+      fileId,
+      pageId,
+      matchers,
+    },
+    "read",
+  );
+}
+
 export function nativeCopyObserve(fileId: string, pageId: string): Snippet {
   validateIdentity(fileId);
   return snippet(
     "native-copy-observe",
     `${helpers}
 assertPage();
-scan(penpot.currentPage);
+const tree = scan(penpot.currentPage);
 const rootFrames = penpot.currentPage.root.children.map(shape => {
   const marker = metadata(shape, "native-copy");
   if (marker && (typeof marker.runId !== "string" || !marker.runId)) throw new Error("Malformed copied-board marker");
   return { ...geometry(shape), type: shape.type, copyRunId: marker ? marker.runId : null };
 });
 if (!Array.isArray(penpot.selection) || penpot.selection.length > 100) throw new Error("Copy selection observation is unavailable");
+// A selected shape whose parent is not the page root was pasted inside another board.
+const selection = penpot.selection.map(shape => {
+  const known = tree.found.has(shape.id);
+  const parentId = known ? tree.parents.get(shape.id) : undefined;
+  const parent = parentId ? tree.found.get(parentId) : null;
+  return { id: shape.id, name: String(shape.name), parentId: known ? (parentId === undefined ? null : parentId) : "unknown", parentName: parent ? String(parent.name) : null };
+});
 return { ok: true, fileId: CFG.fileId, pageId: CFG.pageId, revision: penpot.currentFile.revn,
-  rootIds: rootFrames.map(shape => shape.id), selectionIds: penpot.selection.map(shape => shape.id), rootFrames };
+  rootIds: rootFrames.map(shape => shape.id), selectionIds: penpot.selection.map(shape => shape.id), selection, rootFrames };
 `,
     {
       fileId,

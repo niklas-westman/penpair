@@ -1,6 +1,7 @@
 import { setTimeout as sleepFor } from "node:timers/promises";
 import { PenpairError } from "../errors.js";
 import { observationHash } from "../journal.js";
+import { CopyStageTimeoutError, type CopySeen, type CopyStage } from "./copy-stages.js";
 import type { PenpotBackendClient } from "../penpot-backend.js";
 import { saveArtifact } from "./artifact-paths.js";
 import {
@@ -38,6 +39,12 @@ export interface BackendWaitOptions {
   timeoutMs?: number;
   intervalMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  /** Names the stage in the timeout error; the same stage that the caller reports progress for. */
+  stage?: CopyStage;
+  /** What the editor showed, for the timeout error. */
+  seen?: () => CopySeen | undefined;
+  /** Called after every unsuccessful read, so a long wait can report itself. */
+  onWait?: (state: { polls: number; waitedMs: number; lastProblem?: string }) => void;
 }
 
 /** The shapes of one board and everything below it. */
@@ -97,9 +104,17 @@ export async function readBackendPageWhen(
       }
       lastProblem = error.message.split("\n")[0];
     }
+    options.onWait?.({
+      polls,
+      waitedMs: Date.now() - started,
+      lastProblem,
+    });
     if (Date.now() - started >= timeoutMs) {
-      throw new Error(
-        `The Penpot backend did not show the expected shapes within ${Math.round(timeoutMs / 1000)} s${lastProblem ? ` (last answer: ${lastProblem})` : ""}; the editor change may not have been saved yet. Reconcile the run before resuming.`,
+      throw new CopyStageTimeoutError(
+        options.stage ?? "backend-wait-paste",
+        timeoutMs,
+        options.seen?.(),
+        `the Penpot backend did not show the expected shapes${lastProblem ? ` (last answer: ${lastProblem})` : ""}; the editor change may not have been saved yet. Reconcile the run before resuming`,
       );
     }
     await sleep(options.intervalMs ?? defaultPollIntervalMs);

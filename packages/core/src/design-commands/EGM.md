@@ -29,7 +29,7 @@ are internal: `runMapCommand` comes from `map-command.ts`, and
 | `DesignCommandContext` | The context every command receives (defined in `context.ts`). |
 | `runMapCommand(kind, args, context)` | Handles the `journey-map` and `integration-map` families. |
 | `runDesignReleaseCommand(args, context)` | Handles the `design-release` family. |
-| `runDesignReleaseCopyCommand(args, context)` | Handles `design-release copy`: preview, `--apply` through the native clipboard, `--diagnose`, `--abandon`, `--evidence auto\|backend\|plugin` and `--verify-pixels all\|sample\|none`. With an access token (`PENPAIR_PAT_TOKEN`) it passes a read-only backend client to the copy; the token is redacted from every output. |
+| `runDesignReleaseCopyCommand(args, context)` | Handles `design-release copy`: preview, `--apply` through the native clipboard, `--diagnose`, `--find-pasted RUN_ID` (read-only; exits 3 when a pasted board sits inside another board), `--abandon`, `--evidence auto\|backend\|plugin` and `--verify-pixels all\|sample\|none`. With an access token (`PENPAIR_PAT_TOKEN`) it passes a read-only backend client to the copy; the token is redacted from every output. |
 
 `DesignCommandContext` carries the project root on disk, a `CommandOutput` sink
 for logs and structured results, a `redact(value)` credential scrubber, an

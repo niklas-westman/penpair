@@ -282,7 +282,68 @@ describe("design_release_copy_recover", () => {
     }
   });
 
+  it("maps find-pasted to the read-only CLI flag and nothing else", async () => {
+    const dispatch = vi
+      .spyOn(cli, "runCommand")
+      .mockResolvedValue(await collectCommand("design-release", async () => 0));
+    const s = await session(await project());
+    try {
+      await s.client.callTool({
+        name: "design_release_copy_recover",
+        arguments: {
+          action: "find-pasted",
+          runId: "416015e8-aa14-48c6-b061-08a760cdfc36",
+        },
+      });
+      expect(dispatch.mock.calls.at(-1)![0]).toEqual([
+        "design-release",
+        "copy",
+        "--find-pasted",
+        "416015e8-aa14-48c6-b061-08a760cdfc36",
+      ]);
+    } finally {
+      await s.close();
+    }
+  });
+
   it.each([
+    [
+      "find-pasted without a run id",
+      {
+        action: "find-pasted",
+      },
+    ],
+    [
+      "find-pasted with a port",
+      {
+        action: "find-pasted",
+        runId: "run-1",
+        debugPort: 9222,
+      },
+    ],
+    [
+      "find-pasted with a reason",
+      {
+        action: "find-pasted",
+        runId: "run-1",
+        reason: "why",
+      },
+    ],
+    [
+      "find-pasted with destinationInspected",
+      {
+        action: "find-pasted",
+        runId: "run-1",
+        destinationInspected: true,
+      },
+    ],
+    [
+      "find-pasted with a run id that is a flag",
+      {
+        action: "find-pasted",
+        runId: "--apply",
+      },
+    ],
     [
       "no action",
       {},

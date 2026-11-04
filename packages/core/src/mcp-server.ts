@@ -400,13 +400,14 @@ const definitions: Definition[] = [
       openWorldHint: true,
     },
     description:
-      "Find out why a native board copy stopped, or release a copy run that blocks later copies. Advertised only with --allow-writes. action=diagnose reads tab focus, clipboard permission and readability on a loopback browser debugging port and changes nothing. action=abandon closes the journal of a run so it no longer blocks other copies; it never pastes, never edits Penpot and never deletes boards. A run that already pasted is refused unless destinationInspected is true, which asserts that you have looked at its destination page (release/<version>) and know what it holds; do not set it without looking. To finish a run that pasted, resume it with design_release_copy instead.",
+      "Find out why a native board copy stopped, or release a copy run that blocks later copies. Advertised only with --allow-writes. action=diagnose reads tab focus, clipboard permission and readability on a loopback browser debugging port and changes nothing. action=find-pasted reads the whole destination page of a run and lists the boards it pasted at any depth, with the board each sits inside; use it before abandon, because a listing of the page roots can look unchanged when Penpot pasted inside a board. action=abandon closes the journal of a run so it no longer blocks other copies; it never pastes, never edits Penpot and never deletes boards. A run that already pasted is refused unless destinationInspected is true, which asserts that you have looked at its destination page (release/<version>) and know what it holds; do not set it without looking. To finish a run that pasted, resume it with design_release_copy instead.",
     properties: {
       action: {
         ...string,
-        maxLength: 10,
-        pattern: "^(diagnose|abandon)$",
-        description: "diagnose (read-only) or abandon (closes one run's journal).",
+        maxLength: 12,
+        pattern: "^(diagnose|find-pasted|abandon)$",
+        description:
+          "diagnose (read-only), find-pasted (read-only: where a run's boards are, at any depth) or abandon (closes one run's journal).",
       },
       debugPort: {
         ...integer(65535, 1),
@@ -416,7 +417,7 @@ const definitions: Definition[] = [
         ...string,
         maxLength: 100,
         pattern: "^[a-zA-Z0-9-]{1,100}$",
-        description: "abandon only: the run ID to close, as reported by the stopped copy.",
+        description: "abandon and find-pasted: the run ID, as reported by the stopped copy.",
       },
       reason: {
         ...string,
@@ -442,19 +443,26 @@ const definitions: Definition[] = [
             "--debug-port",
             String(a.debugPort),
           ]
-        : [
-            "design-release",
-            "copy",
-            "--abandon",
-            String(a.runId),
-            "--reason",
-            String(a.reason),
-            ...(a.destinationInspected === true
-              ? [
-                  "--destination-inspected",
-                ]
-              : []),
-          ],
+        : a.action === "find-pasted"
+          ? [
+              "design-release",
+              "copy",
+              "--find-pasted",
+              String(a.runId),
+            ]
+          : [
+              "design-release",
+              "copy",
+              "--abandon",
+              String(a.runId),
+              "--reason",
+              String(a.reason),
+              ...(a.destinationInspected === true
+                ? [
+                    "--destination-inspected",
+                  ]
+                : []),
+            ],
   },
   {
     name: "run_registered",
@@ -624,6 +632,15 @@ function validate(def: Definition, raw: unknown): Record<string, unknown> {
         a.destinationInspected !== undefined
       ) {
         throw new Error("diagnose takes debugPort and nothing else");
+      }
+    } else if (a.action === "find-pasted") {
+      if (
+        a.runId === undefined ||
+        a.reason !== undefined ||
+        a.debugPort !== undefined ||
+        a.destinationInspected !== undefined
+      ) {
+        throw new Error("find-pasted takes runId and nothing else");
       }
     } else if (a.runId === undefined || a.reason === undefined || a.debugPort !== undefined) {
       throw new Error("abandon takes runId and reason, and optionally destinationInspected");
