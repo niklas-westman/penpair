@@ -269,3 +269,95 @@ it("requires the explicit project file pin before connecting", async () => {
   await expect(runDesignReleaseCommand(args, context)).rejects.toThrow(/file pin/);
   expect(context.withPenpot).not.toHaveBeenCalled();
 });
+
+const applied = [
+  ...args,
+  "--apply",
+  "--debug-port",
+  "9222",
+];
+const token = "pat-secret-token-value";
+
+it("hands the backend to the copy and keeps the token out of everything it prints", async () => {
+  vi.stubEnv("PENPAIR_PAT_TOKEN", token);
+  vi.mocked(copyReleaseBoards).mockResolvedValue(result("copied"));
+  expect(await runDesignReleaseCommand(applied, context)).toBe(0);
+  const options = vi.mocked(copyReleaseBoards).mock.calls[0]![3]!;
+  expect(options.backend).toBeDefined();
+  expect(options.redact!(`failed with Token ${token} in the header`)).not.toContain(token);
+  expect(options).not.toHaveProperty("verifyPixels");
+  vi.unstubAllEnvs();
+});
+
+it("passes the chosen pixel mode on, and ignores the token when the plugin route is asked for", async () => {
+  vi.stubEnv("PENPAIR_PAT_TOKEN", token);
+  vi.mocked(copyReleaseBoards).mockResolvedValue(result("copied"));
+  await runDesignReleaseCommand(
+    [
+      ...applied,
+      "--verify-pixels",
+      "sample",
+    ],
+    context,
+  );
+  expect(vi.mocked(copyReleaseBoards).mock.calls[0]![3]).toMatchObject({
+    verifyPixels: "sample",
+  });
+  await runDesignReleaseCommand(
+    [
+      ...applied,
+      "--evidence",
+      "plugin",
+    ],
+    context,
+  );
+  expect(vi.mocked(copyReleaseBoards).mock.calls[1]![3]).not.toHaveProperty("backend");
+  vi.unstubAllEnvs();
+});
+
+it("does not read the token for a preview, and works without one", async () => {
+  vi.stubEnv("PENPAIR_PAT_TOKEN", token);
+  await runDesignReleaseCommand(args, context);
+  expect(vi.mocked(copyReleaseBoards).mock.calls[0]![3]).not.toHaveProperty("backend");
+  vi.stubEnv("PENPAIR_PAT_TOKEN", "");
+  vi.mocked(copyReleaseBoards).mockResolvedValue(result("copied"));
+  await runDesignReleaseCommand(applied, context);
+  expect(vi.mocked(copyReleaseBoards).mock.calls[1]![3]).not.toHaveProperty("backend");
+  vi.unstubAllEnvs();
+});
+
+it("refuses --evidence backend without a token, and values it does not know", async () => {
+  vi.stubEnv("PENPAIR_PAT_TOKEN", "");
+  await expect(
+    runDesignReleaseCommand(
+      [
+        ...applied,
+        "--evidence",
+        "backend",
+      ],
+      context,
+    ),
+  ).rejects.toThrow(/PENPAIR_PAT_TOKEN/);
+  await expect(
+    runDesignReleaseCommand(
+      [
+        ...applied,
+        "--evidence",
+        "nope",
+      ],
+      context,
+    ),
+  ).rejects.toThrow(/--evidence takes/);
+  await expect(
+    runDesignReleaseCommand(
+      [
+        ...applied,
+        "--verify-pixels",
+        "nope",
+      ],
+      context,
+    ),
+  ).rejects.toThrow(/--verify-pixels takes/);
+  expect(copyReleaseBoards).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});

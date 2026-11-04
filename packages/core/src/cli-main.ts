@@ -2682,6 +2682,8 @@ export async function runCommand(
   argv: string[],
   options: CliOptions & {
     signal?: AbortSignal;
+    /** Receives each redacted progress line; a tool surface can forward it. Never affects the result. */
+    onProgress?: (message: string) => void;
   } = {},
 ): Promise<CommandResult> {
   const args = [
@@ -2714,6 +2716,7 @@ export async function runCommand(
     },
     {
       signal: options.signal,
+      onProgress: options.onProgress,
     },
   );
 }

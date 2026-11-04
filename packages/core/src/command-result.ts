@@ -55,6 +55,8 @@ interface Capture {
   errors: CommandFailure[];
   redactors: ((value: string) => string)[];
   signal?: AbortSignal;
+  /** Receives each redacted progress line as well as stderr, so a tool surface can forward it. */
+  onProgress?: (message: string) => void;
 }
 const scope = new AsyncLocalStorage<Capture>();
 const line = (values: unknown[]) =>
@@ -103,7 +105,13 @@ export function commandRedactor(redact: (value: string) => string): void {
 /** Streaming diagnostics do not become warnings or messages in the final result. */
 export function commandProgress(message: string): void {
   const redactors = scope.getStore()?.redactors ?? signals.getStore()?.redactors ?? [];
-  console.error(redactors.reduce((text, redact) => redact(text), redactEndpoint(message)));
+  const clean = redactors.reduce((text, redact) => redact(text), redactEndpoint(message));
+  console.error(clean);
+  try {
+    scope.getStore()?.onProgress?.(clean);
+  } catch {
+    // Reporting progress must never change the outcome of the command it reports on.
+  }
 }
 export function commandFailure(error: unknown): void {
   const current = scope.getStore();
@@ -243,6 +251,7 @@ export async function collectCommand(
   work: () => Promise<number>,
   options: {
     signal?: AbortSignal;
+    onProgress?: (message: string) => void;
   } = {},
 ): Promise<CommandResult> {
   const started = Date.now();
@@ -253,6 +262,7 @@ export async function collectCommand(
     errors: [],
     redactors: [],
     signal: options.signal,
+    onProgress: options.onProgress,
   };
   let exitCode: number;
   try {

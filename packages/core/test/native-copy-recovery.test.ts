@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PenpotToolClient } from "../src/client.js";
 import type { InspectionCapture } from "../src/inspection.js";
-import { copyReleaseBoards } from "../src/design-releases/copy.js";
+import { abandonCopyRun, copyReleaseBoards } from "../src/design-releases/copy.js";
 import { readJournal, listJournals, JournalRunError } from "../src/journal.js";
 import * as atomic from "../src/atomic-output.js";
 import * as evidence from "../src/design-releases/copy-evidence.js";
@@ -697,6 +697,88 @@ describe("native copy orchestration with real operation journals", () => {
       }),
     ).rejects.toThrow(/copy-run|resume|already|abandon/i);
     expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+  });
+
+  describe("abandoning a copy run", () => {
+    const lostPaste = async () => {
+      const trial = await fixture();
+      trial.clipboard.paste.mockImplementation(async () => {
+        throw new Error("paste acknowledgment lost");
+      });
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, trial.options),
+      ).rejects.toThrow(/uncertain|paste/i);
+      return trial;
+    };
+
+    it("refuses a run that already pasted unless the destination was inspected, and then pastes nothing", async () => {
+      const trial = await lostPaste();
+      await expect(abandonCopyRun(trial.root, "copy-run", "the tab lost focus")).rejects.toThrow(
+        /paste was dispatched/i,
+      );
+      expect((await readJournal(trial.root, "copy-run")).abandoned).toBeUndefined();
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          runId: "new-run",
+        }),
+      ).rejects.toThrow(/already covers|reconcil/i);
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("closes a run that pasted once the destination was inspected, and then no longer blocks a new copy", async () => {
+      const trial = await lostPaste();
+      const closed = await abandonCopyRun(
+        trial.root,
+        "copy-run",
+        "inspected: the destination is empty",
+        {
+          destinationInspected: true,
+        },
+      );
+      expect(closed).toMatchObject({
+        runId: "copy-run",
+        reason: "inspected: the destination is empty",
+      });
+      expect((await readJournal(trial.root, "copy-run")).abandoned?.reason).toBe(
+        "inspected: the destination is empty",
+      );
+      trial.clipboard.paste.mockReset();
+      const next = await copyReleaseBoards(trial.client, trial.root, trial.request, {
+        ...trial.options,
+        runId: "new-run",
+      });
+      expect(next.runId).toBe("new-run");
+      expect(trial.clipboard.paste).toHaveBeenCalledOnce();
+    });
+
+    it("closes a run that stopped before any paste without the destination flag", async () => {
+      const trial = await fixture();
+      await expect(
+        copyReleaseBoards(trial.client, trial.root, trial.request, {
+          ...trial.options,
+          clipboard: async () => {
+            throw new Error("no clipboard access");
+          },
+        }),
+      ).rejects.toThrow();
+      const closed = await abandonCopyRun(trial.root, "copy-run", "no clipboard access");
+      expect(closed.runId).toBe("copy-run");
+      expect(trial.clipboard.paste).not.toHaveBeenCalled();
+    });
+
+    it("refuses a verified run, an unknown run and an id that is a path", async () => {
+      const trial = await fixture();
+      await copyReleaseBoards(trial.client, trial.root, trial.request, trial.options);
+      await expect(
+        abandonCopyRun(trial.root, "copy-run", "no longer needed", {
+          destinationInspected: true,
+        }),
+      ).rejects.toThrow();
+      expect((await readJournal(trial.root, "copy-run")).abandoned).toBeUndefined();
+      await expect(abandonCopyRun(trial.root, "no-such-run", "why")).rejects.toThrow();
+      await expect(abandonCopyRun(trial.root, "../runs/copy-run", "why")).rejects.toThrow();
+    });
   });
 
   it("does not paste twice when two processes pass preflight before either journal exists", async () => {
