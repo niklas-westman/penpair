@@ -1,13 +1,13 @@
 ---
 name: penpair-release
-description: Plan, resume, verify and finalize a native Penpot product design release. Use for release pages, inherited frames, release readiness, adoption and approval blockers; publishing Penpair packages follows the repository release guide instead.
+description: Copy, attest, plan, resume, verify and finalize a native Penpot product design release. Use for release pages, attesting a release page against its sources, inherited frames, release readiness, adoption and approval blockers; publishing Penpair packages follows the repository release guide instead.
 ---
 
 # Design release
 
 ## What this owns
 
-Planning, assembling, verifying and finalizing a Penpot product design release.
+Copying, attesting, planning, assembling, verifying and finalizing a Penpot product design release.
 
 Not here: Publishing Penpair's own npm packages — the repository's package release guide, which this skill does not authorize.
 
@@ -16,7 +16,16 @@ Use the pinned project's installed CLI. Start with `penpair --help` and
 unfamiliar action. Check capabilities rather than assuming this skill and CLI
 have matching versions. Do not fetch a global replacement or invent flags.
 
-## Locate the current step
+## Choose the route first
+
+Two routes exist; ask which the person wants before any command, and say which one you are on in every checkpoint. Penpot is the place of truth in both: a release is a `release/VERSION` page.
+
+- **Light route (recommended).** Copy the boards, then `penpair design-release attest --release VERSION`. It compares every release board with its source on Penpot's stored data, renders nothing and takes seconds. The owner's words are saved with `--write --by --note` in `design/releases/VERSION.attestation.json`. Read [Light release](references/light-release.md). Use it unless the person needs pixel-exact frozen evidence.
+- **Strict route.** `plan`, `adopt`, `assemble`, `verify`, `finalize` with pinned renders and per-frame image approvals; everything below "Locate the current step" is this route.
+
+`attest` is read-only without `--write`. With `--write` it saves a project file, so it needs the owner's actual words for this exact release; you never write them, never reuse earlier words and never run `--write` or `--replace` on your own. An attestation proves stored-data equality, not how the boards look; say so, and show a preview or ask the owner to look.
+
+## Locate the current step (strict route)
 
 1. Identify the requested product version and canonical release file. Inspect
    existing project records before creating a new draft. If multiple releases
@@ -44,6 +53,7 @@ have matching versions. Do not fetch a global replacement or invent flags.
 
    | Current work | Read |
    | --- | --- |
+   | Attesting a release page (light route) | [Light release](references/light-release.md) |
    | Adoption or inherited membership | [Historical adoption](references/adoption.md) |
    | Assembly, retained frames, verification or review | [Native release workflow](references/workflow.md) |
    | Interrupted operation, stale evidence or unclear phase | [Status and recovery](references/status-and-recovery.md) |

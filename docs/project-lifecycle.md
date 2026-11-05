@@ -40,7 +40,7 @@ This is a common path, not a rule. If your project is further along, the assista
 
 The assistant proposes a release when every site page has an approved Desktop, Tablet and Mobile frame and the journey and integration maps are reviewed. It suggests a version (1.0.0 for the first) and waits. You decide; nothing is released automatically, and a release is finished only when you say so about the exact release.
 
-A release is a Penpot page named `release/VERSION`. It holds the frames that are new or changed in this version, an overview that links every frame in the release (frames that did not change stay on their earlier page), the journey and integration maps, and a cover. You can copy the relevant boards onto the release page yourself in Penpot, or ask the assistant to preview a copy with `penpair design-release copy`, which is experimental and previews before it writes. The [design release guide](design-releases.md) has the details and the commands.
+A release is a Penpot page named `release/VERSION`. It holds the frames that are new or changed in this version, an overview that links every frame in the release (frames that did not change stay on their earlier page), the journey and integration maps, and a cover. You can copy the relevant boards onto the release page yourself in Penpot, or ask the assistant to preview a copy with `penpair design-release copy`, which is experimental and previews before it writes. Once the page is there, `penpair design-release attest` checks it against its sources in seconds and records your approval in one small file you commit; the strict route with pinned renders is still there when you need it. The [design release guide](design-releases.md#two-ways-to-release) explains both.
 
 ## Where the details are
 

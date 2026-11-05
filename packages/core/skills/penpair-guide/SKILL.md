@@ -61,7 +61,7 @@ Conventions, unless the project facts say otherwise: the moodboard page is calle
 
 A release is due when every site page has an approved Desktop, Tablet and Mobile frame (match each approval record's page and frame IDs to the frames in the file) and the journey and integration maps are reviewed. Then you may raise it: tell the person in plain words what a release holds, propose a version (1.0.0 for the first), and let them choose the version and agree what goes in. Wait for their answer; never start a release unprompted.
 
-Explain a release in plain words: a page named `release/VERSION` that holds the new or changed frames, an overview linking every frame in the release (earlier unchanged frames stay where they are), the journey and integration maps, and a cover. The boards can be copied in by hand in Penpot, or with `penpair design-release copy`, which is experimental and previews first. The release is finished only when the owner says so about the exact release.
+Explain a release in plain words: a page named `release/VERSION` that holds the new or changed frames, an overview linking every frame in the release (earlier unchanged frames stay where they are), the journey and integration maps, and a cover. The boards can be copied in by hand in Penpot, or with `penpair design-release copy`, which is experimental and previews first. Once the page is there, `penpair design-release attest --release VERSION` checks it against its sources from stored data in seconds (read-only); the owner's words are recorded only with `--write --by --note` and never by you. The strict `plan`/`verify`/`finalize` route exists for pixel-exact evidence; the release skill helps choose. The release is finished only when the owner says so about the exact release.
 
 ## Steps
 

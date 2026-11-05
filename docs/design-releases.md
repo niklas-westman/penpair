@@ -7,10 +7,36 @@ design cases and immutable evidence so a later implementation agent can identify
 what was reviewed. This is a design release, separate from publishing Penpair's
 npm packages or accepting a frontend implementation.
 
+## Two ways to release
+
+A release is always a Penpot page named `release/VERSION`. Penpot stays the place of truth. What differs is how the page is proven and how approval is recorded.
+
+| | Light route (recommended) | Strict route |
+| --- | --- | --- |
+| Steps | Copy the boards onto `release/VERSION` (by hand or `design-release copy`), then `design-release attest` | `plan`, `adopt`, `assemble`, `verify`, `finalize` |
+| What proves the page | Penpot's stored data: every release board compared attribute by attribute with its one source board. No rendering | Pinned renders, decoded-pixel hashes, per-frame image approvals and maps |
+| Approval | Your words, passed with `--write --by --note`, saved in `design/releases/VERSION.attestation.json` | Per-frame image approvals and exact release-candidate words |
+| Time | About 9 seconds for 95 frames | Minutes; every frame is rendered |
+| Commit to git | The one attestation file | The release record and its evidence folder |
+| Choose it when | You want the release page checked and approved quickly. Component instances are fine | You need pixel-exact frozen evidence or retained-frame continuity across many releases |
+
+**Light route in four lines**
+
+```sh
+penpair design-release copy --source-page PAGE --frame ID --release 1.0.2 --debug-port 9222 --apply   # or copy by hand
+penpair design-release attest --release 1.0.2                       # read-only check
+penpair design-release attest --release 1.0.2 --write --by OWNER --note "OWNER WORDS"   # after the owner has looked
+git add design/releases/1.0.2.attestation.json                      # review and merge as usual
+```
+
+What an attestation proves: at the time you ran it, every board on `release/VERSION` has exactly one source board with the same name and structure, and no attribute differs except sizes and positions that Penpot recomputed from an auto layout. What it does not prove: how the boards look. It renders nothing, so fonts, images and effects are not checked; look at the page in Penpot, or run `export --renderer editor` for a quick preview. Run `attest` again whenever you like: `already-attested` means nothing changed, `changed-since-attestation` names the boards that did, and recording the new state needs `--replace` and new words.
+
+The assistant never records an attestation on its own. The owner's words are theirs, and a skill grants no approval. See [Attesting a release without rendering](copy-between-pages.md#attesting-a-release-without-rendering) for flags and recovery.
+
 ## Find the current step
 
 Use the project-installed `penpair-release` skill for product design
-releases. Its entry point checks installed CLI capabilities, reads the canonical
+releases (it asks which route you want first). Its entry point checks installed CLI capabilities, reads the canonical
 release status and reports the current step, verified prerequisites, blockers and
 next valid action. It is distinct from publishing Penpair npm packages.
 
