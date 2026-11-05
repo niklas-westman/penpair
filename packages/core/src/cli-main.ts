@@ -15,7 +15,6 @@ import {
   renderStructuralDiff,
 } from "./structure-snapshot.js";
 import { recordApproval, approvalFingerprint, artifactSha } from "./approvals.js";
-import { approveFrames, parseApproveFrames } from "./approve-batch.js";
 import { resolveApprovalTarget } from "./approve-target.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
@@ -2068,45 +2067,6 @@ async function main(argv: string[], cli: CliOptions): Promise<number> {
       }
       return 0;
     } else if (command === "approve") {
-      if (values.frames !== undefined) {
-        if (
-          rest.length ||
-          !values.page ||
-          values.frame ||
-          values.case ||
-          (values.write && (!values.note?.trim() || !values.by?.trim())) ||
-          (!values.write && (values.note || values.by))
-        ) {
-          throw new CommandArgumentError(
-            "approve --page PAGE --frames FILE previews evidence for every frame in the JSON file; --write requires --note exact-owner-words and --by identity, which cover the whole list. --frame and --case belong to a single approval",
-          );
-        }
-        const report = await approveFrames(
-          client,
-          root,
-          projectConfig,
-          {
-            ...options,
-            ...capturePolicyOption(values["capture-policy"]),
-            concurrency: values.concurrency ? Number(values.concurrency) : undefined,
-          },
-          {
-            page: values.page,
-            entries: parseApproveFrames(await readDesignJson(root, values.frames, 1024 * 1024)),
-            format: values.format,
-            write: values.write
-              ? {
-                  note: values.note!,
-                  by: values.by!,
-                }
-              : undefined,
-            redact: endpointRedactor(endpoint),
-          },
-        );
-        output.result(report);
-        output.log(JSON.stringify(report, null, 2));
-        return report.complete ? 0 : 3;
-      }
       if (
         rest.length ||
         !values.page ||

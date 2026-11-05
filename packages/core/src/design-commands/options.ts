@@ -159,9 +159,6 @@ export const copyOptions = {
   "verify-pixels": {
     type: "string",
   },
-  "pixel-renderer": {
-    type: "string",
-  },
   evidence: {
     type: "string",
   },

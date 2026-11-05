@@ -7,7 +7,7 @@ export const flagGuidance: Record<string, string> = {
   json: "Print one final CommandResult schemaVersion 1 on stdout. Check exitCode, outcome and completeness.",
   page: "Exact page name; confirm the pinned file and observed page identity before writes.",
   frames:
-    "export: 1–200 unique ID[=filename-stem] entries separated by commas; the batch continues after a failed frame. approve: path of a JSON file with an array of frame ids or { frame, case } objects; nothing is written unless every frame rendered, stabilised and matched its case, and one --note and --by cover the whole list.",
+    "1–200 unique ID[=filename-stem] entries separated by commas. Batch export continues after a failed frame.",
   name: "Exact shape name; duplicates are rejected. Prefer an observed shape ID when ambiguous.",
   cache:
     "Opt-in ad-hoc fingerprint reuse. A cache hit is reported as cached, never fresh pixel proof.",

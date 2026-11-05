@@ -88,8 +88,7 @@ schema-3 multi-page page-inventory validation), `audit-rules.ts`
 rounds for many frames, a per-frame deadline, and a stall stops further renders because a timed-out call still holds the page session),
 `editor-render.ts` (`renderFramesInEditor`: captures the open editor over the browser debugging protocol; its images are labelled
 `editor-screenshot`, are never offered to approvals or baselines, and the viewport and window size it changes are restored in `finally`),
-`approve-target.ts` (`resolveApprovalTarget`: a frame against its configured case) and `approve-batch.ts` (`approveFrames`: all-or-nothing
-records for a list of frames), `shots.ts` (`captureShots`,
+`approve-target.ts` (`resolveApprovalTarget`: a frame against its configured case), `shots.ts` (`captureShots`,
 `findShapesByName`, `exportShapeByName`), `image-evidence.ts`,
 `image-codec.ts`, `png.ts`, `formats.ts` (`artifactSchemas`,
 `migrateProjectConfig`), `layout.ts`, `layout-policy.ts`,

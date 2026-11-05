@@ -307,8 +307,6 @@ export function allowedCommandFlags(command: string, rest: string[] = []): strin
     approve: [
       "page",
       "frame",
-      "frames",
-      "concurrency",
       "note",
       "by",
       "case",

@@ -29,7 +29,7 @@ Fidelity on the 1440×800 frame, screenshot scaled to 1× against the exporter's
 
 ## Built, and what the 95-frame run showed
 
-`export --frames … --renderer editor --debug-port PORT` and `design-release copy --pixel-renderer editor` use it. Approvals and baselines never do. On the 95 frames of a real release page: exporter at concurrency 4 took 8 min 34 s, at 8 took 15 min 31 s (the exporter handles about four at a time; its source says headless renders share one worker), the editor took 1 min 50 s. An unchanged rerun with `--cache` took 7 s once fingerprints were read in batches of 25 instead of one call per frame.
+`export --frames … --renderer editor --debug-port PORT` uses it. Approvals and baselines never do. On the 95 frames of a real release page: exporter at concurrency 4 took 8 min 34 s, at 8 took 15 min 31 s (the exporter handles about four at a time; its source says headless renders share one worker), the editor took 1 min 50 s. An unchanged rerun with `--cache` took 7 s once fingerprints were read in batches of 25 instead of one call per frame.
 
 Image quality against the exporter's, same 95 frames: every size matched after rounding fractional sizes to the nearest pixel; median 1.3 % of pixels differing by more than a small threshold, worst 5.3 %, text edges almost entirely. Two things the first version got wrong and the tests now hold: the editor's floating toolbar and rulers covered a frame that sat flush against the canvas edge (fixed by keeping 120 px of free canvas around it), and a whole-pixel offset (fixed by nudging the view). Two of 95 frames never settled in one run and were reported as failed rather than returned.
 

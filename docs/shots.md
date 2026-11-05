@@ -62,11 +62,3 @@ An editor image is a different pipeline from the exporter's. Measured on the sam
 - Use it for review, for noticing that a frame changed, and for comparing two frames rendered the same way. Do not use it for baselines or approvals; `approve` and `baselines` always use the exporter.
 - A frame larger than 8000 px on a side is refused with a pointer to the exporter. There is no silent fallback between the two renderers, because that would mix their images in one set.
 
-## Approving many frames
-
-```sh
-penpair approve --page PAGE --frames frames.json
-penpair approve --page PAGE --frames frames.json --write --note "OWNER WORDS" --by OWNER
-```
-
-`frames.json` is an array of frame IDs, or of `{ "frame": ID, "case": CASE_ID }` for frames with a configured approval case. Every frame is checked against its case exactly as a single approval is, rendered together with the same stable double render, and previewed. With `--write`, one `--note` and `--by` (the owner's exact words, which then cover the whole list) record every frame. Nothing is written unless every frame rendered, stabilised and matched its case, so a batch never half-approves; the report lists what failed. The frames must be on one page. Approvals never reuse an earlier image and never use editor screenshots.

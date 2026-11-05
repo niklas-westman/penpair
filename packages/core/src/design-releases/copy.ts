@@ -53,7 +53,6 @@ import {
 import type { BackendObjects } from "./backend-compare.js";
 import {
   comparePairPixels,
-  type PixelRenderer,
   sampledPairs,
   type PixelFinding,
   type PixelVerification,
@@ -101,8 +100,6 @@ export interface CopyOptions extends ProgressOptions {
   backend?: PenpotBackendClient;
   /** Backend route only: which boards are also compared by rendered pixels. Defaults to all of them. */
   verifyPixels?: PixelVerification;
-  /** Render both sides of the pixel check from the open editor (fast, labelled) instead of the exporter. */
-  pixelRenderer?: PixelRenderer;
   /** Hard deadline per stage after the paste, in milliseconds; the defaults are in `copy-stages.ts`. */
   stageDeadlinesMs?: CopyStageDeadlines;
   sleep?: (milliseconds: number) => Promise<void>;
@@ -165,8 +162,6 @@ export interface CopyResult {
   /** Backend route only: what was compared by pixels, and what was not. */
   pixels?: {
     mode: PixelVerification;
-    /** Both sides of every comparison come from this pipeline. */
-    renderer: "exporter" | "editor-screenshot";
     compared: string[];
     settled: string[];
     notCompared: number;
@@ -1199,7 +1194,6 @@ export async function copyReleaseBoards(
                         options.redact,
                         pause,
                         (message) => announce("pixel check", message, true),
-                        options.pixelRenderer,
                       ),
                     ),
                   () => lastSeen,
@@ -1244,8 +1238,6 @@ export async function copyReleaseBoards(
                 },
                 pixels: {
                   mode: pixelMode,
-                  renderer:
-                    options.pixelRenderer?.renderer === "editor" ? "editor-screenshot" : "exporter",
                   compared: pixelResult.compared,
                   settled: pixelResult.settled,
                   notCompared: pairs.length - pixelResult.compared.length,
