@@ -21,3 +21,5 @@ export { evaluateReleaseStatus, releaseCaseIds } from "./status-evaluation.js";
 export type * from "./status-types.js";
 
 export { loadReleaseComparison } from "./comparison-proof.js";
+export { attestRelease, attestationPath } from "./attest.js";
+export type * from "./attest.js";

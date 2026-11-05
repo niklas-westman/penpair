@@ -2421,7 +2421,7 @@ async function runCliInternal(argv: string[], options: CliOptions = {}): Promise
     ) {
       const { runDesignCommand } = await import("./design-commands/index.js");
       const copyConfig =
-        argv[0] === "design-release" && argv[1] === "copy"
+        argv[0] === "design-release" && (argv[1] === "copy" || argv[1] === "attest")
           ? await loadCommandConfig(root)
           : undefined;
       let designRedactor = (text: string) => redactEndpoint(text);
