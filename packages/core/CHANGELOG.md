@@ -1,5 +1,20 @@
 # @penpair/core
 
+## 0.13.0
+
+### Minor Changes
+
+- 80857c6: `design-release attest --release VERSION` proves that `release/VERSION` equals its sources from Penpot's stored data, with no rendering: 95 frames in about 9 seconds. With `--write --by --note` it records the owner's words and a hash per board in `design/releases/VERSION.attestation.json`; running it again says `already-attested` or names the boards that changed. Needs the personal access token.
+- 80857c6: Faster renders.
+  
+  - `export --frames … --renderer editor --debug-port PORT` captures each frame from the open Penpot tab instead of asking the exporter: 95 frames took 1 min 50 s instead of 8 min 34 s. The image is byte-checked by two matching captures, labelled `renderer: editor-screenshot`, cached apart from exporter images, and never used by approvals or baselines. The editor's viewport and window size are restored afterwards.
+  - The copy pixel check and copy evidence now render through the shared render service (concurrent rounds, a deadline, and a stalled render ends with the unfinished frames named).
+  - `--cache` reads its fingerprints in a few calls of up to 25 frames instead of one call per frame: an unchanged rerun of 95 frames takes 7 s.
+- 80857c6: `export` now reports where its time went. Each single-frame export records layout, stability wait, hashing and, per render, the whole round trip against the time Penpot's own export call took. The figures are printed as one progress line and returned as `timing` in the `export` result.
+- 80857c6: `export --frames` renders its frames together, four at a time, instead of one after another, through a new shared render service (`renderFrames`). A frame that cannot be rendered is reported and the rest are kept. A render that never answers ends the run with the unfinished frames named, since a timed-out call still holds the editor; run again and `--cache` keeps what was rendered.
+  
+  `--concurrency 1-8` sets how many frames are rendered at once (default 4). Each Penpot render has a fixed cost of 5–10 s whatever the frame size, but the exporter handles about four at a time: 95 frames took 8.5 minutes at 4 and 15.5 at 8. Keep the default, and use 2 after an "http error" or a stalled run.
+
 ## 0.12.0
 
 ### Minor Changes

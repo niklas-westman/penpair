@@ -1,5 +1,11 @@
 # penpair
 
+## 0.13.0
+
+### Patch Changes
+
+- @penpair/web@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes
