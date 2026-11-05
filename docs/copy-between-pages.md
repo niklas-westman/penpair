@@ -248,6 +248,21 @@ mapping and exact owner reviews remain separate requirements. Compatibility
 between copy-created page ownership and the full assembly workflow must be
 validated before treating a copied page as an assembled release.
 
+## Attesting a release without rendering
+
+After the copy, `design-release attest` proves the release page equals its sources from Penpot's stored data and records the owner's approval. It renders nothing: 95 frames took about 9 seconds, most of it reading the pages.
+
+```sh
+penpair design-release attest --release 1.0.2
+penpair design-release attest --release 1.0.2 --write --by OWNER --note "OWNER WORDS"
+```
+
+- Needs `PENPAIR_PAT_TOKEN`; there is no plugin route, because the point is to render nothing.
+- Each board on `release/VERSION` is paired with the one source board that has its name and structure, then compared attribute by attribute (the comparer used by `copy`, which accepts layout-recomputed sizes as layout-driven). A board with no source or with several is named; `--source-page PAGE` (repeatable) narrows where sources are looked for.
+- Without `--write` nothing is written. With it, `design/releases/VERSION.attestation.json` records, per frame, the release and source ids, a hash of each stored subtree and the node count, plus your words and the time. Commit it.
+- Run it again any time: unchanged gives `already-attested`; a changed board gives `changed-since-attestation` with the board names (exit 3). Recording the new state needs `--write --replace` with new words.
+- This is separate from `design-release verify` and `finalize`, which stay the strict route with pinned renders. The attestation is a proof about stored data, not about pixels; look at the editor or an `export --renderer editor` preview for that.
+
 ## MCP discovery
 
 The typed `design_release_copy` tool appears only when the project's Penpair

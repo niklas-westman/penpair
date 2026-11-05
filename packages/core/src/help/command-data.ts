@@ -22,6 +22,7 @@ export const commandData = [
     usages: [
       "penpair design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE",
       "penpair design-release copy --source-page PAGE --frame ID --release VERSION [--debug-port PORT --apply] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all]",
+      "penpair design-release attest --release VERSION [--source-page PAGE] [--write --by OWNER --note OWNER_WORDS [--replace]]",
       "penpair design-release copy --diagnose --debug-port PORT",
       "penpair design-release copy --find-pasted RUN_ID",
       "penpair design-release copy --abandon RUN_ID --reason TEXT",
@@ -251,11 +252,12 @@ export const commandData = [
   {
     command: "export",
     group: "Capture / approve",
-    summary: "several frames, one failure does not stop the rest; --cache skips unchanged ones",
+    summary:
+      "several frames rendered together, one failure does not stop the rest; --cache skips unchanged ones; --concurrency 1-8 (default 4)",
     usages: [
       "penpair export ID out.png [--page PAGE] [--scale 1]",
       "penpair export --name EXACT_NAME --page PAGE out.png",
-      "penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache]",
+      "penpair export --frames ID[=NAME],... --page PAGE [--out design/exports] [--cache] [--concurrency 1-8]",
     ],
   },
   {

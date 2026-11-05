@@ -152,7 +152,7 @@ backend route of native copy: `backend-evidence.ts` (record, wait for, match and
 verify boards on backend data), `backend-compare.ts` (attribute-by-attribute
 comparison of a board with its copy), `pixel-sample.ts` (which pairs are
 rendered, and how a differing pair is settled) and `editor-busy.ts` (asking again
-while the editor is busy). `copy-stages.ts` holds the stage deadlines, the stage
+while the editor is busy). `attest.ts` (`attestRelease`, `attestationPath`: proves `release/VERSION` equals its sources on backend data, no rendering, and records the owner's words in `design/releases/VERSION.attestation.json`; it never writes to Penpot and never overwrites a record without `replace`). `copy-stages.ts` holds the stage deadlines, the stage
 timeout and misplaced-paste errors and the progress announcer; `copy-find.ts` exports
 `findPastedBoards(client, root, runId)`, a read-only search of a run's destination page
 at any depth (candidates by name, size and node count, never moved or deleted).

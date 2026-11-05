@@ -24,12 +24,14 @@ import {
 import type { DesignCommandContext } from "./context.js";
 import { releaseStatus } from "../design-releases/status.js";
 import { runDesignReleaseCopyCommand } from "./copy-command.js";
+import { runDesignReleaseAttestCommand } from "./attest-command.js";
 
 const releaseUsage =
   "design-release plan|adopt|assemble|verify|finalize|check|status|context --from FILE [--out FILE]\n" +
   "design-release copy --source-page PAGE --frame ID [--frame ID ...] --release VERSION [--debug-port PORT --apply [--diagnose]] [--evidence auto|backend|plugin] [--verify-pixels none|sample|all] [--resume RUN_ID]\n" +
   "design-release copy --diagnose --debug-port PORT\n" +
-  "design-release copy --abandon RUN_ID --reason TEXT";
+  "design-release copy --abandon RUN_ID --reason TEXT\n" +
+  "design-release attest --release VERSION [--source-page PAGE ...] [--write --by OWNER --note OWNER_WORDS [--replace]]";
 
 async function readReleaseJson(context: DesignCommandContext, file: string): Promise<unknown> {
   return JSON.parse(
@@ -96,6 +98,9 @@ export async function runDesignReleaseCommand(
 ): Promise<number> {
   if (args[0] === "copy") {
     return runDesignReleaseCopyCommand(args.slice(1), context);
+  }
+  if (args[0] === "attest") {
+    return runDesignReleaseAttestCommand(args.slice(1), context);
   }
   const parsed = parseCommandArgs({
     args,

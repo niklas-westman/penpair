@@ -40,7 +40,33 @@ export interface CaptureIdentity {
   /** Present only for an opt-in profile; it becomes part of the approval fingerprint. */
   capturePolicy?: CapturePolicyName;
 }
+/** One render request: the whole round trip, and how much of it the render itself took inside the editor. */
+export interface RenderTiming {
+  callMs: number;
+  /** Time spent in Penpot's own export call; null when the plugin did not report it. */
+  renderMs: number | null;
+  /** Everything else in the round trip: queueing, page switch, encoding and transfer. */
+  overheadMs: number | null;
+}
+
+/** Where the time of one export went, so a slow capture can be blamed on a step and not guessed at. */
+export interface ExportTiming {
+  totalMs: number;
+  layoutMs: number;
+  /** Time spent sleeping between renders to prove the render is stable. */
+  stabilityWaitMs: number;
+  hashMs: number;
+  renders: RenderTiming[];
+}
+
+/** Which pipeline drew the image. Images from different renderers are never byte-identical and must not be mixed in one comparison. */
+export type RendererName = "exporter" | "editor-screenshot";
+
 export interface ExportResult {
+  /** Absent means the exporter. */
+  renderer?: RendererName;
+  /** Absent for results that did not come from a timed single-shape export. */
+  timing?: ExportTiming;
   layout?: LayoutResult;
   capture: CaptureIdentity;
   png: Buffer;
@@ -61,12 +87,14 @@ const capture = {designSize:{width:s.width,height:s.height},activeThemeIds:activ
   renderEnvironment:typeof navigator !== "undefined" ? navigator.userAgent : null,
   activeThemes:(penpot.library?.local?.tokens?.themes || []).filter(t=>t.active).map(t=>t.group+"/"+t.name).sort()};
 const geometry = JSON.stringify([s.x,s.y,s.width,s.height]);
+const renderStarted = Date.now();
 const bytes = await s.export({ type: "png", scale: CFG.scale });
+const renderMs = Date.now() - renderStarted;
 const afterShape = penpot.currentPage.getShapeById(CFG.id);
 if (penpot.currentFile.id !== capture.fileId || penpot.currentPage.id !== capture.pageId || penpot.currentFile.revn !== capture.revision || !afterShape || afterShape.id !== capture.frameId || JSON.stringify([afterShape.x,afterShape.y,afterShape.width,afterShape.height]) !== geometry)
  return {ok:false, message:"Export source changed during capture"};
 let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-return { ok: true, base64: btoa(bin), length: bytes.length, capture };`,
+return { ok: true, base64: btoa(bin), length: bytes.length, capture, renderMs };`,
     {
       id: shapeId,
       scale,
@@ -83,6 +111,7 @@ function parseExportRecord(
 ): {
   png: Buffer;
   capture: CaptureIdentity;
+  renderMs: number | null;
 } {
   const capture = record.capture as CaptureIdentity | undefined;
   if (
@@ -129,7 +158,21 @@ function parseExportRecord(
   return {
     png,
     capture: applyCapturePolicy(capture, capturePolicy),
+    renderMs:
+      typeof record.renderMs === "number" && Number.isFinite(record.renderMs)
+        ? record.renderMs
+        : null,
   };
+}
+
+function describeTiming(timing: ExportTiming): string {
+  const renders = timing.renders
+    .map(
+      (render) =>
+        `${(render.callMs / 1000).toFixed(1)}s call (${render.renderMs === null ? "render ?" : `${(render.renderMs / 1000).toFixed(1)}s render`})`,
+    )
+    .join(", ");
+  return `total ${(timing.totalMs / 1000).toFixed(1)}s: layout ${(timing.layoutMs / 1000).toFixed(1)}s, stability wait ${(timing.stabilityWaitMs / 1000).toFixed(1)}s, ${timing.renders.length} render${timing.renders.length === 1 ? "" : "s"} [${renders}], hash ${timing.hashMs} ms`;
 }
 
 const defaultSleep = commandSleep;
@@ -148,12 +191,14 @@ const one = async (id) => {
     renderEnvironment:typeof navigator !== "undefined" ? navigator.userAgent : null,
     activeThemes:(penpot.library?.local?.tokens?.themes || []).filter(t=>t.active).map(t=>t.group+"/"+t.name).sort()};
   const geometry = JSON.stringify([s.x,s.y,s.width,s.height]);
+  const renderStarted = Date.now();
   const bytes = await s.export({ type: "png", scale: CFG.scale });
+  const renderMs = Date.now() - renderStarted;
   const afterShape = penpot.currentPage.getShapeById(id);
   if (penpot.currentFile.id !== capture.fileId || penpot.currentPage.id !== capture.pageId || !afterShape || JSON.stringify([afterShape.x,afterShape.y,afterShape.width,afterShape.height]) !== geometry)
     return { id, ok: false, message: "Export source changed during capture" };
   let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-  return { id, ok: true, base64: btoa(bin), length: bytes.length, capture };
+  return { id, ok: true, base64: btoa(bin), length: bytes.length, capture, renderMs };
 };
 return { ok: true, items: await Promise.all(CFG.ids.map(one)) };`,
     {
@@ -337,6 +382,38 @@ async function exportInSession(
   shapeId: string,
   options: ExportOptions,
 ): Promise<ExportResult> {
+  const started = Date.now();
+  const timing: ExportTiming = {
+    totalMs: 0,
+    layoutMs: 0,
+    stabilityWaitMs: 0,
+    hashMs: 0,
+    renders: [],
+  };
+  const result = await exportTimed(client, shapeId, options, timing);
+  timing.totalMs = Date.now() - started;
+  options.onProgress?.({
+    schemaVersion: 1,
+    kind: "progress",
+    command: "export",
+    phase: "render",
+    status: "info",
+    elapsedMs: timing.totalMs,
+    frame: shapeId,
+    message: describeTiming(timing),
+  });
+  return {
+    ...result,
+    timing,
+  };
+}
+
+async function exportTimed(
+  client: PenpotToolClient,
+  shapeId: string,
+  options: ExportOptions,
+  timing: ExportTiming,
+): Promise<ExportResult> {
   const {
     page,
     scale = 1,
@@ -361,9 +438,11 @@ async function exportInSession(
   const once = async (): Promise<{
     png: Buffer;
     capture: CaptureIdentity;
+    renderMs: number | null;
   }> => {
     for (let attempt = 1; ; attempt++) {
       try {
+        const callStarted = Date.now();
         const record = await capturePhase(
           options,
           "export",
@@ -371,7 +450,14 @@ async function exportInSession(
           () => runOnPage(client, exportSnippet(shapeId, scale, page), page, options),
           shapeId,
         );
-        return parseExportRecord(record, shapeId, scale, options.capturePolicy);
+        const rendered = parseExportRecord(record, shapeId, scale, options.capturePolicy);
+        const callMs = Date.now() - callStarted;
+        timing.renders.push({
+          callMs,
+          renderMs: rendered.renderMs,
+          overheadMs: rendered.renderMs === null ? null : Math.max(0, callMs - rendered.renderMs),
+        });
+        return rendered;
       } catch (error) {
         if (attempt >= attempts) {
           throw error;
@@ -383,6 +469,7 @@ async function exportInSession(
   let previous = await once();
   let layout: LayoutResult | undefined;
   if (options.layout !== false) {
+    const layoutStarted = Date.now();
     layout = await capturePhase(
       options,
       "export",
@@ -395,6 +482,7 @@ async function exportInSession(
         }),
       shapeId,
     );
+    timing.layoutMs = Date.now() - layoutStarted;
     if (!layout.stable) {
       throw new PenpairError(
         "incomplete-output",
@@ -412,17 +500,21 @@ async function exportInSession(
   }
   const hash = (buffer: Buffer): string => createHash("sha256").update(buffer).digest("hex");
   for (let count = 2; count <= maxExports; count++) {
+    const waitStarted = Date.now();
     await capturePhase(options, "export", "stability", () => sleep(2_000), shapeId);
+    timing.stabilityWaitMs += Date.now() - waitStarted;
     const next = await once();
     const identity = ({ designSize: _size, ...value }: CaptureIdentity) => value;
     if (JSON.stringify(identity(next.capture)) !== JSON.stringify(identity(previous.capture))) {
       throw new Error("Export identity, revision or render environment changed between captures");
     }
-    if (
+    const hashStarted = Date.now();
+    const identical =
       JSON.stringify(next.capture.designSize ?? null) ===
         JSON.stringify(previous.capture.designSize ?? null) &&
-      hash(next.png) === hash(previous.png)
-    ) {
+      hash(next.png) === hash(previous.png);
+    timing.hashMs += Date.now() - hashStarted;
+    if (identical) {
       return {
         layout,
         ...next,

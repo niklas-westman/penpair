@@ -88,6 +88,33 @@ export const releaseOptions = {
     type: "boolean",
   },
 } as const satisfies NonNullable<ParseArgsConfig["options"]>;
+export const attestOptions = {
+  release: {
+    type: "string",
+  },
+  "source-page": {
+    type: "string",
+    multiple: true,
+  },
+  write: {
+    type: "boolean",
+  },
+  by: {
+    type: "string",
+  },
+  note: {
+    type: "string",
+  },
+  replace: {
+    type: "boolean",
+  },
+  json: {
+    type: "boolean",
+  },
+  help: {
+    type: "boolean",
+  },
+} as const satisfies NonNullable<ParseArgsConfig["options"]>;
 export const releaseActions: Record<string, string[]> = {
   plan: [],
   adopt: [],

@@ -11,6 +11,10 @@ export const flagGuidance: Record<string, string> = {
   name: "Exact shape name; duplicates are rejected. Prefer an observed shape ID when ambiguous.",
   cache:
     "Opt-in ad-hoc fingerprint reuse. A cache hit is reported as cached, never fresh pixel proof.",
+  renderer:
+    "Batch export only: exporter (default) renders through Penpot's exporter, about 5–10 s per frame; editor captures the open editor tab, about a second per frame, and needs --debug-port. Editor images come from a different pipeline, are labelled renderer editor-screenshot and never equal the exporter's bytes. Use them for fast review and change detection, not for baselines or approvals.",
+  concurrency:
+    "Batch export and batch approve: frames rendered at once through the exporter, 1–8; default 4. Each Penpot render has a fixed cost of 5–10 s and the exporter runs about four at a time: 95 frames took 8.5 min at 4 and 15.5 min at 8. Keep 4; use 2 after 'http error' or a stalled run. Raise it only after measuring your Penpot.",
   scale: "PNG render scale, greater than 0 and at most 8; default 1.",
   format:
     "Baseline png|webp; new references default to lossless WebP, existing formats stay until explicit migration.",

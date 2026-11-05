@@ -29,6 +29,12 @@ export const commandOptions = {
   cache: {
     type: "boolean",
   },
+  concurrency: {
+    type: "string",
+  },
+  renderer: {
+    type: "string",
+  },
   note: {
     type: "string",
   },
@@ -362,6 +368,9 @@ export function allowedCommandFlags(command: string, rest: string[] = []): strin
       "frames",
       "out",
       "cache",
+      "concurrency",
+      "renderer",
+      "debug-port",
       ...layoutFlags,
     ],
     shots: [
