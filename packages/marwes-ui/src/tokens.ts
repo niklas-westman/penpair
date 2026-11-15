@@ -356,7 +356,13 @@ export function buildSnapshot(input: SnapshotInput): TokenSnapshot {
   if (input.project?.light) {
     const tokens = tokensAbove(
       lightBase,
-      tokensFromVars(mode("light", input.project.light), overlay("light")),
+      tokensFromVars(
+        mode("light", {
+          ...input.project.light,
+          mode: "light",
+        }),
+        overlay("light"),
+      ),
     );
     if (tokens.length > 0) {
       sets.push({
@@ -369,7 +375,13 @@ export function buildSnapshot(input: SnapshotInput): TokenSnapshot {
   if (input.project?.dark) {
     const tokens = tokensAbove(
       darkBase,
-      tokensFromVars(mode("dark", input.project.dark), overlay("dark")),
+      tokensFromVars(
+        mode("dark", {
+          ...input.project.dark,
+          mode: "dark",
+        }),
+        overlay("dark"),
+      ),
     );
     if (tokens.length > 0) {
       sets.push({
