@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolveProjectInput } from "@penpair/core";
 import { createJiti } from "jiti";
+import { isUnknownExtensionError, registerStyleStub } from "./marwes.js";
 
 export interface ThemeReference {
   /** The file, relative to the project, that exports the theme (TypeScript is fine). */
@@ -31,11 +32,22 @@ export async function loadThemeInput(
     }
     throw error;
   }
-  const jiti = createJiti(file, {
-    interopDefault: true,
-    moduleCache: false,
-  });
-  const loaded = (await jiti.import(file)) as Record<string, unknown>;
+  const load = (): Promise<unknown> =>
+    createJiti(file, {
+      interopDefault: true,
+      moduleCache: false,
+    }).import(file);
+  let loaded: Record<string, unknown>;
+  try {
+    loaded = (await load()) as Record<string, unknown>;
+  } catch (error) {
+    // A theme file imports Marwes, which may reach a stylesheet that plain Node cannot load.
+    if (!isUnknownExtensionError(error)) {
+      throw error;
+    }
+    registerStyleStub();
+    loaded = (await load()) as Record<string, unknown>;
+  }
   const input = loaded[reference.export];
   if (typeof input !== "object" || input === null) {
     throw new Error(`${reference.module} has no object export named ${reference.export}.`);

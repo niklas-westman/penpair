@@ -77,3 +77,38 @@ describe("instance config", () => {
     expect(() => validateConfig(value)).toThrow(message);
   });
 });
+
+describe("validateConfig reports every missing required field at once", () => {
+  it("names all problems and a minimal file in one message", () => {
+    let message = "";
+    try {
+      validateConfig({});
+    } catch (error) {
+      message = (error as ConfigError).message;
+    }
+    for (const part of [
+      "instance must",
+      "penpotVersion must",
+      "ports.frontend must",
+      "ports.mail must",
+      "directory must",
+      "A minimal file",
+    ]) {
+      expect(message).toContain(part);
+    }
+  });
+
+  it("keeps the single-problem message unchanged", () => {
+    expect(() =>
+      validateConfig({
+        instance: "demo",
+        penpotVersion: "2.18.3",
+        ports: {
+          frontend: 9001,
+          mail: 9001,
+        },
+        directory: "penpot",
+      }),
+    ).toThrow(/ports.frontend and ports.mail must differ/);
+  });
+});

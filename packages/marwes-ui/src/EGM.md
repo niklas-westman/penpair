@@ -306,6 +306,10 @@ lint suppressions. Config paths must be relative and free of `..`, and
 
 ## Side Effects
 
+- **A Node loader hook, only on demand**: when loading Marwes core or a project theme file fails with
+  `ERR_UNKNOWN_FILE_EXTENSION` (a `.css` import in the Marwes module graph), `registerStyleStub` in
+  `marwes.ts` registers a hook that answers every `.css` with an empty module for the rest of the
+  process, and the load runs once more. Any other failure is rethrown unchanged.
 - **Network: only through `PenpotToolClient`** (`context.withPenpot`) — `runSnippet`,
   `exportShapePng`, `createCheckpoint` and `readJournalTarget` against the Penpot
   MCP proxy. There is no `fetch` and no HTTP client in this directory.
