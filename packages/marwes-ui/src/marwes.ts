@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { createRequire, register } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MarwesCore } from "./tokens.js";
@@ -92,7 +92,7 @@ export async function loadInstalledMarwes(projectDirectory: string): Promise<Ins
       // not installed, which is normal for the frameworks the app does not use
     }
   }
-  const namespace = (await import(pathToFileURL(coreEntry).href)) as MarwesCore & {
+  const namespace = (await importWithStyleStub(pathToFileURL(coreEntry).href)) as MarwesCore & {
     default?: MarwesCore;
   };
   const core: MarwesCore =
@@ -119,6 +119,45 @@ export async function loadInstalledMarwes(projectDirectory: string): Promise<Ins
     version: versions.core,
     versions,
   };
+}
+
+/**
+ * Some Marwes releases pull a `.css` file into their module graph, which plain Node refuses to load
+ * (ERR_UNKNOWN_FILE_EXTENSION). Tokens never need the stylesheet, so on that one error a loader hook
+ * answers every `.css` with an empty module and the import runs again. Any other failure is untouched.
+ */
+const STYLE_STUB_LOADER = `export async function load(url, context, nextLoad) {
+  if (url.endsWith(".css")) {
+    return { format: "module", source: "export default {};", shortCircuit: true };
+  }
+  return nextLoad(url, context);
+}`;
+
+let styleStubRegistered = false;
+
+/** Makes plain Node load a `.css` import as an empty module; safe to call more than once. */
+export function registerStyleStub(): void {
+  if (!styleStubRegistered) {
+    register(`data:text/javascript,${encodeURIComponent(STYLE_STUB_LOADER)}`);
+    styleStubRegistered = true;
+  }
+}
+
+export function isUnknownExtensionError(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException)?.code === "ERR_UNKNOWN_FILE_EXTENSION";
+}
+
+async function importWithStyleStub(href: string): Promise<unknown> {
+  try {
+    return await import(href);
+  } catch (error) {
+    if (!isUnknownExtensionError(error)) {
+      throw error;
+    }
+    registerStyleStub();
+    // A cache-busting query makes Node load the graph again with the hook in place.
+    return import(`${href}${href.includes("?") ? "&" : "?"}style-stub=1`);
+  }
 }
 
 /** Marwes releases core, presets and the framework packages together; a mix means a half-finished upgrade. */

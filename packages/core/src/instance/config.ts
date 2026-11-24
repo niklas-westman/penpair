@@ -128,13 +128,16 @@ export function validateConfig(value: unknown): InstanceConfig {
       throw new ConfigError(String((error as Error).message));
     }
   }
+  // Every required field is checked before anything is thrown: a project that lacks several used to
+  // learn them one run at a time.
+  const problems: string[] = [];
   if (typeof v.instance !== "string" || !/^[a-z][a-z0-9-]{0,30}$/.test(v.instance)) {
-    fail(
+    problems.push(
       "instance must be lowercase letters, digits and hyphens, starting with a letter (at most 31 characters)",
     );
   }
   if (typeof v.penpotVersion !== "string" || !/^\d+\.\d+(\.\d+)?$/.test(v.penpotVersion)) {
-    fail("penpotVersion must look like 2.18.3");
+    problems.push("penpotVersion must look like 2.18.3");
   }
   const ports = v.ports as Record<string, unknown> | undefined;
   for (const key of [
@@ -143,14 +146,21 @@ export function validateConfig(value: unknown): InstanceConfig {
   ] as const) {
     const port = ports?.[key];
     if (typeof port !== "number" || !Number.isInteger(port) || port < 1024 || port > 65535) {
-      fail(`ports.${key} must be a port number from 1024 to 65535`);
+      problems.push(`ports.${key} must be a port number from 1024 to 65535`);
     }
   }
-  if (ports!.frontend === ports!.mail) {
-    fail("ports.frontend and ports.mail must differ");
+  if (ports?.frontend !== undefined && ports.frontend === ports.mail) {
+    problems.push("ports.frontend and ports.mail must differ");
   }
   if (typeof v.directory !== "string" || v.directory.length === 0 || path.isAbsolute(v.directory)) {
-    fail("directory must be a relative path");
+    problems.push("directory must be a relative path");
+  }
+  if (problems.length > 0) {
+    fail(
+      problems.length === 1
+        ? problems[0]!
+        : `${problems.length} problems: ${problems.join("; ")}. A minimal file: {"instance":"my-project","penpotVersion":"2.18.3","ports":{"frontend":9001,"mail":1080},"directory":"penpot"}`,
+    );
   }
   if (
     v.composeProject !== undefined &&

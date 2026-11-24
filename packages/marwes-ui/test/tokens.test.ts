@@ -194,6 +194,27 @@ describe("the expected Penpot tokens", () => {
   });
 });
 
+describe("a project theme that names no mode", () => {
+  it("is resolved in the mode of its own set, so a Dark overlay carries no Light values", async () => {
+    const { snapshot } = await snapshotFor("1.11.0", {
+      light: {
+        color: {
+          primary: "#006633",
+        },
+      },
+      dark: {
+        color: {
+          primary: "#66CC99",
+        },
+      },
+    });
+    const dark = snapshot.sets.find((set) => set.name === "Acme · Dark");
+    expect(dark?.tokens.map((token) => token.name)).toEqual([
+      "mw-color-primary-base",
+    ]);
+  });
+});
+
 describe("values", () => {
   it("convert Marwes colours to Penpot hex, and refuse what they cannot", () => {
     expect(toHexColor("rgba(0, 0, 0, 0.5)")).toBe("#00000080");

@@ -42,9 +42,11 @@ question — several record work that was deliberately stopped. Review reports s
 in `.working-docs/`.
 
 The workflow that produces both is the third-party Elephant-Goldfish Model plugin
-(Apache-2.0). It is installed per user, not vendored here: `claude plugin
+(Apache-2.0). It is installed per user, not vendored here. The tracked
+`.claude/settings.json` registers its marketplace and enables it, so Claude Code
+offers to install it when you trust this project; by hand it is `claude plugin
 marketplace add google/elephant-goldfish-model`, then `claude plugin install
-egm@egm`. It gives `/egm:egm-brainstorm`, `/egm:egm-draft`, `/egm:egm-review` and
+egm@egm`. An installed plugin does nothing until it is enabled. It gives `/egm:egm-brainstorm`, `/egm:egm-draft`, `/egm:egm-review` and
 `/egm:egm-drift-report`. Run `/egm:egm-drift-report` over the contracts before a
 release, and after a refactor that moves exported symbols. Nothing in the build or
 the tests needs it; the structural contract check runs without it. Review lenses
